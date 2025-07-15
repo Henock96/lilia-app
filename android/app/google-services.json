@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "79838517894",
+    "project_id": "lilia-app-d8f6f",
+    "storage_bucket": "lilia-app-d8f6f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:79838517894:android:635d1cc397fe3d61c08f07",
+        "android_client_info": {
+          "package_name": "com.dreesis.lilia.lilia_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVTMt0Gv2t0D6kUycVVhB4tgWn-IMQa2Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
