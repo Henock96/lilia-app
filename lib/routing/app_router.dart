@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lilia_app/features/auth/controller/auth_controller.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_app/features/cart/presentation/cart_screen.dart';
 import 'package:lilia_app/features/commandes/presentation/checkout_page.dart';

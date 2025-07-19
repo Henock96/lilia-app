@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:iconsax/iconsax.dart';
 
 
 class BottomNavigationPage extends ConsumerStatefulWidget {
@@ -30,14 +31,14 @@ class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
     return Scaffold(
       body: widget.navigationShell,
       bottomNavigationBar: NavigationBar(
-        height: 80,
+        height: 65,
         elevation: 0,
         selectedIndex: widget.navigationShell.currentIndex,
         destinations: const [
-          NavigationDestination(label: 'Accueil', icon: Icon(Icons.home)),
-          NavigationDestination(label: 'Mes Commandes', icon: Icon(Icons.newspaper_outlined)),
-          NavigationDestination(label: 'Favoris', icon: Icon(Icons.favorite_border)),
-          NavigationDestination(label: 'Paramètres', icon: Icon(Icons.person)),
+          NavigationDestination(label: 'Accueil', icon: Icon(Iconsax.home)),
+          NavigationDestination(label: 'Commandes', icon: Icon(Iconsax.shop)),
+          NavigationDestination(label: 'Favoris', icon: Icon(Iconsax.heart)),
+          NavigationDestination(label: 'Paramètres', icon: Icon(Iconsax.user)),
         ],
         onDestinationSelected: _goBranch,
       ),

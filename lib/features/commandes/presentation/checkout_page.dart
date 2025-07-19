@@ -2,10 +2,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lilia_app/common_widgets/build_error_state.dart';
+import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/commandes/data/checkout_controller.dart';
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
+import 'package:lilia_app/features/user/data/adresse_repository.dart';
 import 'package:lilia_app/models/adresse.dart';
 
 import '../../../routing/app_route_enum.dart';
@@ -51,7 +54,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   Widget build(BuildContext context) {
     // Watch les fournisseurs de données
     final cartAsync = ref.watch(cartControllerProvider);
-    final addressesAsync = ref.watch(userAdressesProvider);
+    final addressesAsync = ref.watch(adresseControllerProvider);
     final userProfileAsync = ref.watch(userProfileProvider);
     final checkoutState = ref.watch(checkoutControllerProvider);
 
@@ -86,14 +89,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             final double total = subTotal + _deliveryFee;
 
             return SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(12.0),
               child: Form( // Enveloppe le contenu dans un Form pour la validation
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Section Adresse de Livraison
-                    _buildSectionTitle('Adresse :'),
+                    _buildSectionTitle('Adresse de livraison:'),
                     addressesAsync.when(
                       data: (addresses) {
                         // Initialise _selectedAddress si c'est la première fois et qu'il y a des adresses
@@ -129,7 +132,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                                   ),
                                   contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                 ),
-                                hint: const Text('Select an existing address'),
+                                hint: const Text('Selectionnez une adresse existante'),
                                 items: addresses.map((adresse) {
                                   return DropdownMenuItem(
                                     value: adresse,
@@ -144,7 +147,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                                 },
                                 validator: (value) {
                                   if (value == null && !_useNewAddress) {
-                                    return 'Please select an address';
+                                    return 'Veillez choisir une adresse svp!';
                                   }
                                   return null;
                                 },
@@ -186,11 +189,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                                 controller: _newAddressCountryController,
                                 decoration: _inputDecoration('Pays'),
                                 validator: (value) => value!.isEmpty ? 'Required' : null,
-                              ),
-                              const SizedBox(height: 10),
-                              TextFormField(
-                                controller: _newAddressComplementController,
-                                decoration: _inputDecoration('Complement (Optional)'),
                               ),
                               const SizedBox(height: 10),
                             ],
@@ -252,8 +250,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
-
+                    const SizedBox(height: 40),
                     // Section Résumé de la Commande
                     _buildSectionTitle('Sommaire de la commande'),
                     Column(
@@ -271,7 +268,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                                 ),
                               ),
                               Text(
-                                '${(item.quantite * item.variant.prix).toStringAsFixed(2)} FCFA',
+                                '${(item.quantite * item.variant.prix).toStringAsFixed(0)} FCFA',
                                 style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                               ),
                             ],
@@ -279,95 +276,82 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         );
                       }).toList(),
                     ),
-                    const Divider(height: 30),
+                    const Divider(height: 20),
                     _buildSummaryRow('Sous-total', subTotal),
                     _buildSummaryRow('Prix de livraison', _deliveryFee),
                     _buildSummaryRow('Total', total, isTotal: true),
                     const SizedBox(height: 20),
+                    //const Spacer(),
                   ],
                 ),
               ),
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => Center(child: Text('Error: ${err.toString()}')),
+          loading: () => const BuildLoadingState(),
+          error: (err, stack) => BuildErrorState(err),
         ),
       ),
-      // Bouton "Place Order" en bas de l'écran
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16.0),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.2),
-              spreadRadius: 2,
-              blurRadius: 5,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(8.0),
         child: ElevatedButton(
           onPressed: checkoutState.isLoading ? null : () async {
-            if (_formKey.currentState!.validate()) { // Valide le formulaire
+            if (_formKey.currentState!.validate()) {
               String? finalAddressId;
-              String? finalNewAddressRue;
-              String? finalNewAddressVille;
-              String? finalNewAddressCountry;
-              String? finalNewAddressComplement;
-              String? finalPhoneNumber;
 
+              // Si l'utilisateur veut créer une nouvelle adresse
               if (_useNewAddress) {
-                finalNewAddressRue = _newAddressRueController.text;
-                finalNewAddressVille = _newAddressVilleController.text;
-                finalNewAddressCountry = _newAddressCountryController.text;
-                finalNewAddressComplement = _newAddressComplementController.text.isEmpty ? null : _newAddressComplementController.text;
+                try {
+                  // Étape 1: Créer la nouvelle adresse
+                  final newAddress = await ref.read(adresseControllerProvider.notifier).createAdresse(
+                    rue: _newAddressRueController.text,
+                    ville: _newAddressVilleController.text,
+                    pays: _newAddressCountryController.text,
+                    details: _newAddressComplementController.text,
+                  );
 
-                // IMPORTANT: Votre backend createOrderFromCart ne gère pas la création d'adresse à la volée.
-                // Vous devez soit:
-                // 1. Créer l'adresse via un autre endpoint API (par exemple, /addresses) AVANT d'appeler placeOrder,
-                //    puis utiliser l'ID de l'adresse nouvellement créée.
-                // 2. Modifier votre fonction createOrderFromCart côté backend pour qu'elle accepte
-                //    les détails d'une nouvelle adresse et la crée elle-même.
-                // Pour l'instant, je vais afficher un message d'erreur et empêcher la commande.
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Creating new addresses is not yet supported via this flow. Please select an existing address or implement address creation first.')),
-                );
-                return; // Empêche la commande si nouvelle adresse n'est pas gérée
+                  if (newAddress == null) {
+                    throw Exception("L'adresse retournée est nulle après création.");
+                  }
+
+                  finalAddressId = newAddress.id; // Utilise l'ID de la nouvelle adresse
+
+                  // Optionnel: Rafraîchir la liste des adresses pour la prochaine fois
+                  ref.invalidate(adresseControllerProvider);
+
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Erreur lors de la création de l’adresse: ${e.toString()}')),
+                  );
+                  return; // Arrête le processus si la création d'adresse échoue
+                }
               } else if (_selectedAddress != null) {
+                // Utilise une adresse existante
                 finalAddressId = _selectedAddress!.id;
               } else {
-                // Ce cas devrait être géré par le validator du DropdownButtonFormField,
-                // mais une vérification supplémentaire est toujours bonne.
+                // Si aucune adresse n'est sélectionnée ou créée
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please select or add a delivery address.')),
+                  const SnackBar(content: Text('Veuillez sélectionner ou ajouter une adresse de livraison.')),
                 );
                 return;
               }
 
-              /*finalPhoneNumber = _newPhoneNumberController.text.isEmpty ? null : _newPhoneNumberController.text;
-              if (finalPhoneNumber == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter your phone number.')),
-                );
-                return;
-              }*/
-
+              // Si nous arrivons ici, nous avons un finalAddressId valide
               try {
+                // Étape 2: Passer la commande avec l'ID de l'adresse
                 await ref.read(checkoutControllerProvider.notifier).placeOrder(
-                  adresseId: finalAddressId, // Doit être non-null ici grâce aux vérifications
+                  adresseId: finalAddressId,
                   paymentMethod: _selectedPaymentMethod,
-                  newPhoneNumber: finalPhoneNumber,
-                  // Les détails de la nouvelle adresse ne sont pas passés ici car non gérés par votre backend createOrderFromCart
+                  newPhoneNumber: null, // La gestion du téléphone est à part
                 );
-                // Succès: naviguer vers une page de confirmation ou l'historique des commandes
+
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Order placed successfully!')),
+                  const SnackBar(content: Text('Commande passée avec succès!')),
                 );
-                context.goNamed(AppRoutes.orderSuccess.routeName); // Naviguer vers la page de succès
+                context.goNamed(AppRoutes.orderSuccess.routeName);
+
               } catch (e) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to place order: ${e.toString()}')),
+                  SnackBar(content: Text('Échec de la commande: ${e.toString()}')),
                 );
               }
             }
@@ -383,7 +367,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           child: checkoutState.isLoading
               ? const CircularProgressIndicator(color: Colors.white)
               : Text(
-            'Place Order - ',
+            'Passez votre commande',
             style: const TextStyle(color: Colors.white, fontSize: 18),
           ),
         ),
@@ -394,10 +378,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   // Helper pour les titres de section
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10.0),
+      padding: const EdgeInsets.only(bottom: 8.0),
       child: Text(
         title,
-        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -432,7 +416,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             ),
           ),
           Text(
-            '${value.toStringAsFixed(2)} FCFA',
+            '${value.toStringAsFixed(0)} FCFA',
             style: TextStyle(
               fontSize: 16,
               fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,

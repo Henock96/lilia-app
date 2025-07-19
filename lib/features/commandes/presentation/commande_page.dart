@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lilia_app/common_widgets/build_error_state.dart';
+import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/models/order.dart';
 import 'package:intl/intl.dart';
+import 'package:lilia_app/routing/app_route_enum.dart';
 
 
 // La page est maintenant un ConsumerStatefulWidget pour gérer le TabController
@@ -53,15 +57,15 @@ class _CommandePageState extends ConsumerState<CommandePage>
             // Logique de filtrage des commandes basée sur leur statut
             final onGoingOrders = orders
                 .where((o) =>
-                    o.status == OrderStatus.EN_ATTENTE ||
-                    o.status == OrderStatus.EN_PREPARATION ||
-                    o.status == OrderStatus.PRET)
+                    o.status == OrderStatus.enAttente ||
+                    o.status == OrderStatus.enPreparation ||
+                    o.status == OrderStatus.pret)
                 .toList();
             final completedOrders = orders
-                .where((o) => o.status == OrderStatus.LIVRER)
+                .where((o) => o.status == OrderStatus.livrer)
                 .toList();
             final cancelledOrders = orders
-                .where((o) => o.status == OrderStatus.ANNULER)
+                .where((o) => o.status == OrderStatus.annuler)
                 .toList();
 
             return TabBarView(
@@ -82,16 +86,8 @@ class _CommandePageState extends ConsumerState<CommandePage>
               ],
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => Center(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Text(
-                'Erreur: ${err.toString()}',
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
+          loading: () => const BuildLoadingState(),
+          error: (err, stack) => BuildErrorState(err),
         ),
       ),
     );
@@ -117,7 +113,11 @@ class _OrderListView extends StatelessWidget {
     return ListView.builder(
       itemCount: orders.length,
       itemBuilder: (context, index) {
-        return _OrderCard(order: orders[index]);
+        return GestureDetector(
+            onTap: (){
+              context.goNamed(AppRoutes.orderDetail.routeName, pathParameters: {'orderId': orders[index].id});
+            },
+            child: _OrderCard(order: orders[index]));
       },
     );
   }
@@ -166,7 +166,7 @@ class _OrderCard extends ConsumerWidget {
             Text('Total: ${order.total.toStringAsFixed(2)} FCFA'),
             const SizedBox(height: 16),
             // Affiche le bouton "Annuler" seulement si la commande est en attente
-            if (order.status == OrderStatus.EN_ATTENTE)
+            if (order.status == OrderStatus.enAttente)
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
@@ -229,15 +229,15 @@ class _OrderCard extends ConsumerWidget {
   // Formate le statut pour un affichage plus convivial
   String _formatStatus(OrderStatus status) {
     switch (status) {
-      case OrderStatus.EN_ATTENTE:
+      case OrderStatus.enAttente:
         return 'En attente';
-      case OrderStatus.EN_PREPARATION:
+      case OrderStatus.enPreparation:
         return 'En préparation';
-      case OrderStatus.PRET:
+      case OrderStatus.pret:
         return 'Prête';
-      case OrderStatus.LIVRER:
+      case OrderStatus.livrer:
         return 'Livrée';
-      case OrderStatus.ANNULER:
+      case OrderStatus.annuler:
         return 'Annulée';
       default:
         return 'Inconnu';

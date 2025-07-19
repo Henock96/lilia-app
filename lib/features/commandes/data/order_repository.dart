@@ -15,7 +15,7 @@ class OrderRepository extends _$OrderRepository {
     return;
   }
 
-  final String _baseUrl = 'http://10.0.2.2:3000';
+  final String _baseUrl = 'https://lilia-app.fly.dev';
 
   Future<List<Order>> getMyOrders() async {
     // Récupérer le jeton ID Firebase

@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/features/cart/data/cart_repository.dart';
-import 'package:lilia_app/features/auth/controller/auth_controller.dart';
 
 part 'cart_controller.g.dart';
 
@@ -18,20 +16,14 @@ CartRepository cartRepository(CartRepositoryRef ref) {
 class CartController extends _$CartController {
   @override
   Stream<Cart?> build() {
-    final authState = ref.watch(authRepositoryProvider);
+    //final authState = ref.watch(authRepositoryProvider);
     final cartRepository = ref.watch(cartRepositoryProvider);
 
     // La logiqué est maintenant déclarative et réagit à l'état d'authentification
-    if (authState.currentUser!.uid != null && authState.authStateChanges() != null) {
-      // Utilisateur connecté
-      cartRepository.getCart(); // Déclenche la récupération initiale
-      return cartRepository.watchCart(); // Et écoute les changements
-    } else {
-      // Utilisateur non connecté ou état d'auth en erreur/chargement
-      cartRepository.clearCart(); // S'assure que le panier est vide
-      return Stream.value(null); // Retourne un flux avec un panier vide
+    // Utilisateur connecté
+    cartRepository.getCart(); // Déclenche la récupération initiale
+    return cartRepository.watchCart(); // Et écoute les changements
     }
-  }
 
   Future<void> addItem({required String variantId, int quantity = 1}) async {
     final cartRepo = ref.read(cartRepositoryProvider);

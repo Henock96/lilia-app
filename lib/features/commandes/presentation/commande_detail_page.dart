@@ -127,7 +127,7 @@ class OrderDetailPage extends ConsumerWidget {
                 const SizedBox(height: 10),
                 Text(
                   'Méthode de Paiement: ${_getDisplayStatusPaiement(order.paymentMethod)}',
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                  style: const TextStyle(fontSize: 14, color: Colors.teal),
                 ),
                 const Divider(height: 30),
 
@@ -157,7 +157,7 @@ class OrderDetailPage extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    child: const Text("Besoin d'aide ?", style: TextStyle(color: Colors.grey, fontSize: 16)),
+                    child: const Text("Besoin d'aide ?", style: TextStyle(color: Colors.black, fontSize: 16)),
                   ),
                 ),
               ],
@@ -185,7 +185,7 @@ class OrderDetailPage extends ConsumerWidget {
             ),
           ),
           Text(
-            '${value.toStringAsFixed(2)} FCFA',
+            '${value.toStringAsFixed(1)} FCFA',
             style: TextStyle(
               fontSize: 16,
               fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
@@ -199,11 +199,11 @@ class OrderDetailPage extends ConsumerWidget {
 
   String _getDisplayStatus(String status) {
     switch (status) {
-      case 'EN_ATTENTE':
+      case 'OrderStatus.enAttente':
         return 'En Attente';
-      case 'LIVRE':
+      case 'OrderStatus.livre':
         return 'Livré';
-      case 'ANNULE':
+      case 'OrderStatus.annuler':
         return 'Annulé';
       default:
         return 'Inconnu';
@@ -220,11 +220,11 @@ class OrderDetailPage extends ConsumerWidget {
 
   IconData _getStatusIcon(String status) {
     switch (status) {
-      case 'EN_ATTENTE':
+      case 'OrderStatus.enAttente':
         return Icons.hourglass_empty;
-      case 'LIVRE':
+      case 'OrderStatus.livrer':
         return Icons.check_circle;
-      case 'ANNULE':
+      case 'OrderStatus.annuler':
         return Icons.cancel;
       default:
         return Icons.info_outline;
@@ -233,11 +233,11 @@ class OrderDetailPage extends ConsumerWidget {
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'EN_ATTENTE':
+      case 'OrderStatus.enAttente':
         return Colors.teal;
-      case 'LIVRE':
+      case 'OrderStatus.livrer':
         return Colors.green;
-      case 'ANNULE':
+      case 'OrderStatus.annuler':
         return Colors.red;
       default:
         return Colors.grey;
@@ -288,7 +288,7 @@ class OrderDetailItemCard extends StatelessWidget {
             ),
           ),
           Text(
-            '${(item.prix * item.quantite).toStringAsFixed(2)} FCFA',
+            '${(item.prix * item.quantite).toStringAsFixed(1)} FCFA',
             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
         ],

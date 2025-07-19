@@ -21,7 +21,7 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
         try {
           // --- C'EST ICI QUE VOUS APPELEZ VOTRE BACKEND NEST.JS ---
           final response = await http.get(
-            Uri.parse('http://10.0.2.2:3000/auth/profile'), // ADAPTEZ L'URL DE VOTRE ENDPOINT
+            Uri.parse('https://lilia-app.fly.dev/auth/profile'), // ADAPTEZ L'URL DE VOTRE ENDPOINT
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $newToken', // ENVOYEZ LE JETON ID ICI !

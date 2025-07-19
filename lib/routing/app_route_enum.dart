@@ -30,7 +30,7 @@ extension AppRoutesExtension on AppRoutes {
       case AppRoutes.productDetail:
         return '/product-details';
       case AppRoutes.orderDetail:
-        return '/order-Id';
+        return '/:orderId';
       case AppRoutes.cart:
         return '/cart';
       case AppRoutes.checkout:
@@ -57,7 +57,7 @@ extension AppRoutesExtension on AppRoutes {
       case AppRoutes.productDetail:
         return 'Product-Details';
       case AppRoutes.orderDetail:
-        return 'Order-Id';
+        return 'OrderId';
       case AppRoutes.cart:
         return 'Cart';
       case AppRoutes.checkout:

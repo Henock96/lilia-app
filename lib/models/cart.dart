@@ -1,5 +1,3 @@
-import 'package:lilia_app/models/produit.dart';
-
 class Cart {
   final String id;
   final String userId;

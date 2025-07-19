@@ -140,14 +140,13 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                             fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(width: 16),
-                      const Icon(Icons.star, color: Colors.amber, size: 20),
-                      const Text('4.8', style: TextStyle(fontSize: 16)),
+
                     ],
                   ),
                   const SizedBox(height: 16),
                   Text(
                     widget.product.description,
-                    style: const TextStyle(fontSize: 16, color: Colors.grey),
+                    style: const TextStyle(fontSize: 16, color: Colors.black54),
                   ),
                   const SizedBox(height: 24),
                   if (widget.product.variants.isNotEmpty) ...[
@@ -164,22 +163,22 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                         final isSelected = _selectedVariant?.id == variant.id;
                         return ChoiceChip(
                           label: Text(
-                            '${variant.label} (${variant.prix.toStringAsFixed(2)} FCFA)',
+                            '${variant.label} (${variant.prix.toStringAsFixed(1)} FCFA)',
                             style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.black,
+                              color: isSelected ? Colors.white : Colors.teal,
                               fontWeight: isSelected
                                   ? FontWeight.bold
                                   : FontWeight.normal,
                             ),
                           ),
                           selected: isSelected,
-                          selectedColor: Colors.redAccent,
+                          selectedColor: Colors.teal,
                           backgroundColor: Colors.grey[200],
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                             side: BorderSide(
                               color: isSelected
-                                  ? Colors.redAccent
+                                  ? Colors.teal
                                   : Colors.transparent,
                             ),
                           ),
@@ -229,11 +228,12 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     SnackBar(
                       content: Text('${widget.product.name} a été ajouté au panier.'),
                       duration: const Duration(seconds: 2),
+                      backgroundColor: Colors.teal,
                     ),
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.black,
+                  backgroundColor: Colors.teal,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),

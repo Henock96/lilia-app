@@ -29,6 +29,6 @@ class Adresse {
   // Pour l'affichage
   @override
   String toString() {
-    return '$rue, $ville';
+    return '$rue';
   }
 }

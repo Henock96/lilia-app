@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:iconsax/iconsax.dart';
 import 'package:lilia_app/features/auth/controller/auth_controller.dart';
 import 'package:lilia_app/features/user/edit_profile_page.dart'; // Importer la nouvelle page
 
@@ -12,15 +13,9 @@ class UserPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mon Profil'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await ref.read(authControllerProvider.notifier).signOut();
-            },
-          ),
-        ],
+        title: const Text('Mon Profil',style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),),
+        centerTitle: true,
+        elevation: 0,
       ),
       body: authState.when(
         data: (user) {
@@ -38,11 +33,11 @@ class UserPage extends ConsumerWidget {
               children: [
                 const CircleAvatar(
                   radius: 50,
-                  child: Icon(Icons.person, size: 50),
+                  child: Icon(Iconsax.user, size: 50),
                 ),
                 const SizedBox(height: 20),
                 Text(
-                  user.nom ?? 'Nom non défini',
+                  user.nom ?? 'Nom',
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 8),
@@ -53,16 +48,11 @@ class UserPage extends ConsumerWidget {
                       ),
                 ),
                 const SizedBox(height: 32),
-                ListTile(
-                  leading: const Icon(Icons.phone),
-                  title: const Text('Téléphone'),
-                  subtitle: Text(user.phone ?? 'Non défini'),
-                ),
-                const Divider(),
+
                 ListTile(
                   leading: const Icon(Icons.location_on_outlined),
-                  title: const Text('Adresse'),
-                  //subtitle: Text(user.adresse ?? 'Non définie'),
+                  title: const Text('Modifier votre adresse'),
+                  //subtitle: Text(user.adresse!.rue ?? 'Non définie'),
                 ),
                 const Spacer(),
                 SizedBox(

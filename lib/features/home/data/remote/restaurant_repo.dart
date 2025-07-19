@@ -1,14 +1,13 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-
 import '../../../../models/restaurant.dart';
 
 
 part 'restaurant_repo.g.dart';
 
 class RestaurantRepository {
-  final String _baseUrl = 'http://10.0.2.2:3000'; // Assurez-vous que votre backend est en cours d'exécution sur ce port
+  final String _baseUrl = 'https://lilia-app.fly.dev'; // Assurez-vous que votre backend est en cours d'exécution sur ce port
 
   Future<Restaurant> getRestaurant(String id) async {
     try {

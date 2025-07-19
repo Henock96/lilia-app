@@ -18,7 +18,7 @@ class CartScreen extends ConsumerWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
-            context.goNamed(AppRoutes.home.routeName);
+            context.pop();
           },
         ),
       ),
@@ -50,15 +50,16 @@ class CartScreen extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Total: ${cartState.value!.totalPrice.toStringAsFixed(2)} FCFA',
+                      'Total: ${cartState.value!.totalPrice.toStringAsFixed(0)} FCFA',
                       style: const TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.bold),
+                          fontSize: 14, fontWeight: FontWeight.w400),
                     ),
                     ElevatedButton(
                       onPressed: () {
                         context.goNamed(AppRoutes.checkout.routeName);
                       },
-                      child: const Text('Passer la commande'),
+                      child: const Text('Passer la commande',style: const TextStyle(
+                          fontSize: 13, fontWeight: FontWeight.w400),),
                     )
                   ],
                 ),
@@ -88,7 +89,7 @@ class CartItemCard extends ConsumerWidget {
               height: 60,
               fit: BoxFit.cover,
             ),
-            const SizedBox(width: 16),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -96,12 +97,12 @@ class CartItemCard extends ConsumerWidget {
                   Text(
                     item.product.nom,
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 16),
+                        fontWeight: FontWeight.bold, fontSize: 15),
                   ),
                   Text(item.variant.label,
-                      style: const TextStyle(color: Colors.grey)),
+                      style: const TextStyle(color: Colors.grey, fontSize: 14)),
                   Text(
-                    '${item.variant.prix.toStringAsFixed(2)} FCFA',
+                    '${item.variant.prix.toStringAsFixed(0)} FCFA',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ],

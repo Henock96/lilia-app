@@ -140,7 +140,7 @@ class _SignInPageState extends ConsumerState<SignInPage> {
                 ),
                 TextButton(
                   onPressed: () {
-                    context.goNamed(AppRoutes.signUp.name);
+                    context.goNamed(AppRoutes.signUp.routeName);
                   },
                   child: const Text("S'inscrire"),
                 ),

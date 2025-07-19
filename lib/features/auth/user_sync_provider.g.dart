@@ -7,7 +7,7 @@ part of 'user_sync_provider.dart';
 // **************************************************************************
 
 String _$userDataSynchronizerHash() =>
-    r'a942d48ff40c927ea464331b7280e671e5434973';
+    r'73b56b2a52728177d4de2357ec439b46c180b3d0';
 
 /// See also [UserDataSynchronizer].
 @ProviderFor(UserDataSynchronizer)

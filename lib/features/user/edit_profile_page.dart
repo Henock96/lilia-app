@@ -23,7 +23,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     final user = ref.read(authControllerProvider).value;
     if (user != null) {
       _nameController.text = user.nom ?? '';
-      //_addressController.text = user.id ?? '';
+      //_addressController.text = user.adresse!.rue ?? '';
       _phoneController.text = user.phone ?? '';
     }
   }
@@ -31,7 +31,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   @override
   void dispose() {
     _nameController.dispose();
-    _addressController.dispose();
+    //_addressController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
@@ -40,15 +40,29 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     if (_formKey.currentState!.validate()) {
       final success = await ref.read(profileControllerProvider.notifier).updateUser({
         'nom': _nameController.text,
-        'adresse': _addressController.text,
+        //'adresses': _addressController.text,
         'phone': _phoneController.text,
       });
 
-      if (success && mounted) {
+      if (!mounted) return; // Vérifie si le widget est toujours monté
+
+      if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profil mis à jour avec succès!')),
+          const SnackBar(
+            content: Text('Profil mis à jour avec succès!'),
+            backgroundColor: Colors.green,
+          ),
         );
         Navigator.of(context).pop(); // Retourne à la page précédente
+      } else {
+        // En cas d'erreur, affiche le message d'erreur du provider
+        final error = ref.read(profileControllerProvider).error;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur lors de la mise à jour: ${error ?? "Une erreur inconnue est survenue."}'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
       }
     }
   }
@@ -84,15 +98,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                         }
                         return null;
                       },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _addressController,
-                      decoration: const InputDecoration(
-                        labelText: 'Adresse de livraison',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.location_on_outlined),
-                      ),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(

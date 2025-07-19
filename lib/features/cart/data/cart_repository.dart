@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:lilia_app/models/cart.dart';
 
 class CartRepository {
-  final String _baseUrl = 'http://10.0.2.2:3000';
+  final String _baseUrl = 'https://lilia-app.fly.dev';
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final _cartStreamController = StreamController<Cart?>.broadcast();
 

@@ -1,5 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 
+import '../../models/adresse.dart';
+
 class AppUser {
   const AppUser({
     required this.uid, // Firebase UID
@@ -9,6 +11,7 @@ class AppUser {
     this.displayName,
     this.nom,
     this.phone,
+    this.adresse,
   });
 
   // Firebase data
@@ -21,6 +24,7 @@ class AppUser {
   final String? id;
   final String? nom;
   final String? phone;
+  final Adresse? adresse;
 
   // Mapper un User Firebase vers AppUser
   static AppUser? fromFirebaseUser(User? user) {
@@ -56,6 +60,7 @@ class AppUser {
     String? displayName,
     String? nom,
     String? phone,
+    Adresse? adresse,
   }) {
     return AppUser(
       id: id ?? this.id,
@@ -65,6 +70,7 @@ class AppUser {
       displayName: displayName ?? this.displayName,
       nom: nom ?? this.nom,
       phone: phone ?? this.phone,
+      adresse: adresse ?? this.adresse,
     );
   }
 }

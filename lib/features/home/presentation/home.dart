@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lilia_app/common_widgets/build_error_state.dart';
+import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
-import 'package:lilia_app/models/cart.dart';
 
 import '../../../models/produit.dart';
 import '../../../routing/app_route_enum.dart';
@@ -14,7 +15,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // ID du restaurant à récupérer
-    const String restaurantId = 'cmcxwv8yv0000de9szsdvtdkg';
+    const String restaurantId = 'cmd9iay8y0000o4hjhi3w46z8';
 
     final restaurantAsyncValue =
         ref.watch(restaurantControllerProvider(restaurantId));
@@ -41,7 +42,7 @@ class HomeScreen extends ConsumerWidget {
           }
           return FloatingActionButton(
             onPressed: () {
-              context.goNamed(AppRoutes.cart.routeName);
+              context.push(AppRoutes.cart.routeName);
             },
             child: Badge(
               label: Text(cart.totalItems.toString()),
@@ -52,166 +53,155 @@ class HomeScreen extends ConsumerWidget {
         loading: () => const SizedBox.shrink(),
         error: (_, __) => const SizedBox.shrink(),
       ),
-      body: restaurantAsyncValue.when(
-        data: (restaurant) {
-          // Filtrer et grouper les produits par catégorie
-          Map<String, List<Product>> productsByCategory = {};
-          for (var product in restaurant.products) {
-            if (product.category != null) {
-              final categoryName = product.category!.name;
-              if (!productsByCategory.containsKey(categoryName)) {
-                productsByCategory[categoryName] = [];
+      body: RefreshIndicator(
+        onRefresh: ()=> ref.refresh(cartControllerProvider.future),
+        child: restaurantAsyncValue.when(
+          data: (restaurant) {
+            // Filtrer et grouper les produits par catégorie
+            Map<String, List<Product>> productsByCategory = {};
+            for (var product in restaurant.products) {
+              if (product.category != null) {
+                final categoryName = product.category!.name;
+                if (!productsByCategory.containsKey(categoryName)) {
+                  productsByCategory[categoryName] = [];
+                }
+                productsByCategory[categoryName]!.add(product);
               }
-              productsByCategory[categoryName]!.add(product);
             }
-          }
 
-          return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.location_on,
-                          color: Colors.redAccent, size: 20),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Adresse: ${restaurant.address}',
-                        // Utilisez 'address'
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                      const Icon(Icons.arrow_drop_down, color: Colors.black),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Container(
-                    height: 150,
-                    decoration: BoxDecoration(
-                      color: Colors.orangeAccent,
-                      borderRadius: BorderRadius.circular(10),
-                      /*image: const DecorationImage(
-                          image: AssetImage(
-                              'assets/images/promo_banner.png'),
-                          // Assurez-vous d'avoir cette image
-                          fit: BoxFit.cover,
-                        ),*/
-                    ),
-                    child: Stack(
+            return SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Row(
                       children: [
-                        Positioned(
-                          top: 20,
-                          left: 20,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Commandez maintenant',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold),
-                              ),
-                              const Text(
-                                'Et obtenez une livraison gratuite',
-                                style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 10),
-                              ElevatedButton(
-                                onPressed: () {
-                                  // Action pour commander maintenant
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Passez la commande',
-                                  style: TextStyle(color: Colors.black),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Nos Catégories',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          // Action pour "view all"
-                        },
-                        child: const Text(
-                          'Tout voir',
-                          style: TextStyle(color: Colors.redAccent),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Affichage des produits par catégorie en colonne
-                ...productsByCategory.entries.map((entry) {
-                  final categoryName = entry.key;
-                  final productsInCategory = entry.value;
-
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16.0, vertical: 8.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
+                        const Icon(Icons.location_on,
+                            color: Colors.redAccent, size: 20),
+                        const SizedBox(width: 8),
                         Text(
-                          categoryName,
+                          'Adresse: ${restaurant.address}',
+                          // Utilisez 'address'
                           style: const TextStyle(
                               fontSize: 16, fontWeight: FontWeight.bold),
                         ),
-                        const SizedBox(height: 8),
-                        Column(
-                          children: productsInCategory.map((product) {
-                            return GestureDetector(
-                                onTap: () {
-                                  // NAVIGUER AVEC GOROUTER
-                                  context.goNamed(
-                                    AppRoutes.productDetail.routeName,
-                                    extra:
-                                        product, // Passez l'objet Product entier ici
-                                  );
-                                },
-                                child: ProductCard(product: product));
-                          }).toList(),
-                        ),
+                        const Icon(Icons.arrow_drop_down, color: Colors.black),
                       ],
                     ),
-                  );
-                }).toList(),
-                const SizedBox(height: 20),
-              ],
-            ),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
+                  ),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Container(
+                      height: 150,
+                      decoration: BoxDecoration(
+                        color: Colors.orangeAccent,
+                        borderRadius: BorderRadius.circular(10),
+                        /*image: const DecorationImage(
+                            image: AssetImage(
+                                'assets/images/promo_banner.png'),
+                            // Assurez-vous d'avoir cette image
+                            fit: BoxFit.cover,
+                          ),*/
+                      ),
+                      child: Stack(
+                        children: [
+                          Positioned(
+                            top: 20,
+                            left: 20,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Commandez maintenant',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                const Text(
+                                  'Et obtenez une livraison gratuite',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 10),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    // Action pour commander maintenant
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Passez la commande',
+                                    style: TextStyle(color: Colors.black),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: const Text(
+                      'Nos Catégories',
+                      style: TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  // Affichage des produits par catégorie en colonne
+                  ...productsByCategory.entries.map((entry) {
+                    final categoryName = entry.key;
+                    final productsInCategory = entry.value;
+
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16.0, vertical: 8.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            categoryName,
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 8),
+                          Column(
+                            children: productsInCategory.map((product) {
+                              return GestureDetector(
+                                  onTap: () {
+                                    // NAVIGUER AVEC GOROUTER
+                                    context.goNamed(
+                                      AppRoutes.productDetail.routeName,
+                                      extra:
+                                          product, // Passez l'objet Product entier ici
+                                    );
+                                  },
+                                  child: ProductCard(product: product));
+                            }).toList(),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 20),
+                ],
+              ),
+            );
+          },
+          loading: () => const BuildLoadingState(),
+          error: (err, stack) => BuildErrorState(err),
+        ),
       ),
     );
   }
@@ -259,18 +249,20 @@ class ProductCard extends ConsumerWidget {
                 children: [
                   Text(
                     product.name,
+
                     style: const TextStyle(
                         fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     product.description,
+                    maxLines: 3,
                     style: const TextStyle(fontSize: 13),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     // Afficher le prix en tenant compte des variants
-                    '${getDisplayPrice().toStringAsFixed(2)} FCFA',
+                    '${getDisplayPrice().toStringAsFixed(1)} FCFA',
                     style: const TextStyle(
                         color: Colors.black,
                         fontWeight: FontWeight.bold,
@@ -280,7 +272,7 @@ class ProductCard extends ConsumerWidget {
               ),
             ),
             IconButton(
-              icon: const Icon(Icons.add_circle, color: Colors.redAccent),
+              icon: const Icon(Icons.add_circle, color: Colors.teal, size: 30,),
               onPressed: () {
                 if (product.variants.isNotEmpty) {
                   final variantId = product.variants.first.id;

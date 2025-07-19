@@ -1,32 +1,30 @@
-import 'dart:convert';
-
 import 'package:lilia_app/models/order_item.dart';
 
 // Enum pour les statuts de commande, doit correspondre au backend
 enum OrderStatus {
-  EN_ATTENTE,
-  EN_PREPARATION,
-  PRET,
-  LIVRER,
-  ANNULER,
-  UNKNOWN, // Pour les cas inattendus
+  enAttente,
+  enPreparation,
+  pret,
+  livrer,
+  annuler,
+  unknow, // Pour les cas inattendus
 }
 
 // Fonction helper pour convertir String en OrderStatus
 OrderStatus _parseStatus(String status) {
   switch (status) {
     case 'EN_ATTENTE':
-      return OrderStatus.EN_ATTENTE;
+      return OrderStatus.enAttente;
     case 'EN_PREPARATION':
-      return OrderStatus.EN_PREPARATION;
+      return OrderStatus.enPreparation;
     case 'PRET':
-      return OrderStatus.PRET;
+      return OrderStatus.pret;
     case 'LIVRER':
-      return OrderStatus.LIVRER;
+      return OrderStatus.livrer;
     case 'ANNULER':
-      return OrderStatus.ANNULER;
+      return OrderStatus.annuler;
     default:
-      return OrderStatus.UNKNOWN;
+      return OrderStatus.unknow;
   }
 }
 

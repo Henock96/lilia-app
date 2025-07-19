@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
 
 class UserRepository {
-  final String _baseUrl = 'http://10.0.2.2:3000'; // Mettez votre URL de base ici
+  final String _baseUrl = 'https://lilia-app.fly.dev'; // Mettez votre URL de base ici
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
   Future<String?> _getIdToken() async {
