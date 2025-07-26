@@ -6,7 +6,7 @@ part of 'adresse_repository.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$adresseRepositoryHash() => r'7380a7508c241df534894de4439517a6ebecf140';
+String _$adresseRepositoryHash() => r'd746c11fb1aa728ff64e89e8f066deac7de7357e';
 
 /// See also [AdresseRepository].
 @ProviderFor(AdresseRepository)

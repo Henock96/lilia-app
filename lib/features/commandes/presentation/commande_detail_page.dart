@@ -201,7 +201,11 @@ class OrderDetailPage extends ConsumerWidget {
     switch (status) {
       case 'OrderStatus.enAttente':
         return 'En Attente';
-      case 'OrderStatus.livre':
+      case 'OrderStatus.enPreparation':
+        return 'En Préparation';
+      case 'OrderStatus.pret':
+        return 'Prête';
+      case 'OrderStatus.livrer':
         return 'Livré';
       case 'OrderStatus.annuler':
         return 'Annulé';
@@ -222,6 +226,10 @@ class OrderDetailPage extends ConsumerWidget {
     switch (status) {
       case 'OrderStatus.enAttente':
         return Icons.hourglass_empty;
+      case 'OrderStatus.enPreparation':
+        return Icons.cookie;
+      case 'OrderStatus.pret':
+        return Icons.verified_rounded;
       case 'OrderStatus.livrer':
         return Icons.check_circle;
       case 'OrderStatus.annuler':
@@ -234,7 +242,11 @@ class OrderDetailPage extends ConsumerWidget {
   Color _getStatusColor(String status) {
     switch (status) {
       case 'OrderStatus.enAttente':
-        return Colors.teal;
+        return Colors.orange;
+      case 'OrderStatus.enPreparation':
+        return Colors.orangeAccent;
+      case 'OrderStatus.pret':
+        return Colors.green;
       case 'OrderStatus.livrer':
         return Colors.green;
       case 'OrderStatus.annuler':

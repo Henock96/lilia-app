@@ -22,50 +22,56 @@ class CartScreen extends ConsumerWidget {
           },
         ),
       ),
-      body: cartState.when(
-        data: (cart) {
-          if (cart == null || cart.items.isEmpty) {
-            return const Center(
-              child: Text('Votre panier est vide.'),
-            );
-          }
-          return ListView.builder(
-            itemCount: cart.items.length,
-            itemBuilder: (context, index) {
-              final item = cart.items[index];
-              return CartItemCard(item: item);
+      body: Column(
+        children: [
+          cartState.when(
+            data: (cart) {
+              if (cart == null || cart.items.isEmpty) {
+                return const Center(
+                  child: Text('Votre panier est vide.'),
+                );
+              }
+              return ListView.builder(
+                shrinkWrap: true,
+                itemCount: cart.items.length,
+                itemBuilder: (context, index) {
+                  final item = cart.items[index];
+                  return CartItemCard(item: item);
+                },
+              );
             },
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Erreur: $err')),
-      ),
-      bottomNavigationBar: cartState.valueOrNull != null &&
-              cartState.value!.items.isNotEmpty
-          ? BottomAppBar(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Total: ${cartState.value!.totalPrice.toStringAsFixed(0)} FCFA',
-                      style: const TextStyle(
-                          fontSize: 14, fontWeight: FontWeight.w400),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        context.goNamed(AppRoutes.checkout.routeName);
-                      },
-                      child: const Text('Passer la commande',style: const TextStyle(
-                          fontSize: 13, fontWeight: FontWeight.w400),),
-                    )
-                  ],
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, stack) => Center(child: Text('Erreur: $err')),
+          ),
+          Spacer(),
+          cartState.valueOrNull != null &&
+              cartState.value!.items.isNotEmpty ?
+            Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Total: ${cartState.value!.totalPrice.toStringAsFixed(0)} FCFA',
+                  style: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w400),
                 ),
-              ),
-            )
-          : null,
+                ElevatedButton(
+                  onPressed: () {
+                    context.push(AppRoutes.checkout.path);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(2.0),
+                    child: const Text('Passer la commande',style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.w400),),
+                  ),
+                )
+              ],
+            ),
+          ) : Container(),
+        ],
+      ),
+  
     );
   }
 }

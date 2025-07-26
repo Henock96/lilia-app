@@ -50,25 +50,25 @@ class _CommandePageState extends ConsumerState<CommandePage>
           ],
         ),
       ),
-      body: RefreshIndicator(
-        onRefresh: () => ref.refresh(userOrdersProvider.future),
-        child: ordersAsyncValue.when(
-          data: (orders) {
-            // Logique de filtrage des commandes basée sur leur statut
-            final onGoingOrders = orders
-                .where((o) =>
-                    o.status == OrderStatus.enAttente ||
-                    o.status == OrderStatus.enPreparation ||
-                    o.status == OrderStatus.pret)
-                .toList();
-            final completedOrders = orders
-                .where((o) => o.status == OrderStatus.livrer)
-                .toList();
-            final cancelledOrders = orders
-                .where((o) => o.status == OrderStatus.annuler)
-                .toList();
+      body: ordersAsyncValue.when(
+        data: (orders) {
+          // Logique de filtrage des commandes basée sur leur statut
+          final onGoingOrders = orders
+              .where((o) =>
+                  o.status == OrderStatus.enAttente ||
+                  o.status == OrderStatus.enPreparation ||
+                  o.status == OrderStatus.pret)
+              .toList();
+          final completedOrders = orders
+              .where((o) => o.status == OrderStatus.livrer)
+              .toList();
+          final cancelledOrders = orders
+              .where((o) => o.status == OrderStatus.annuler)
+              .toList();
 
-            return TabBarView(
+          return RefreshIndicator(
+            onRefresh: () => ref.refresh(userOrdersProvider.future),
+            child: TabBarView(
               controller: _tabController,
               children: [
                 _OrderListView(
@@ -84,11 +84,11 @@ class _CommandePageState extends ConsumerState<CommandePage>
                   key: const PageStorageKey('cancelledOrders'),
                 ),
               ],
-            );
-          },
-          loading: () => const BuildLoadingState(),
-          error: (err, stack) => BuildErrorState(err),
-        ),
+            ),
+          );
+        },
+        loading: () => const BuildLoadingState(),
+        error: (err, stack) => BuildErrorState(err),
       ),
     );
   }

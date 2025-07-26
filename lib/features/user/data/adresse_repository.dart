@@ -14,7 +14,7 @@ class AdresseRepository extends _$AdresseRepository {
     return;
   }
 
-  final String _baseUrl = 'https://lilia-app.fly.dev';
+  final String _baseUrl = 'https://lilia-backend.onrender.com';
 
   Future<List<Adresse>> getUserAdresses() async {
     final token = await ref.read(firebaseIdTokenProvider.future);

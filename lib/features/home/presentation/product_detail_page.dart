@@ -135,7 +135,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   Row(
                     children: [
                       Text(
-                        '${_currentPrice.toStringAsFixed(2)} FCFA',
+                        '${_currentPrice.toStringAsFixed(1)} FCFA',
                         style: const TextStyle(
                             fontSize: 20, fontWeight: FontWeight.bold),
                       ),
@@ -165,20 +165,20 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                           label: Text(
                             '${variant.label} (${variant.prix.toStringAsFixed(1)} FCFA)',
                             style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.teal,
+                              color: isSelected ? Colors.white : Colors.black87,
                               fontWeight: isSelected
                                   ? FontWeight.bold
                                   : FontWeight.normal,
                             ),
                           ),
                           selected: isSelected,
-                          selectedColor: Colors.teal,
+                          selectedColor: Theme.of(context).primaryColor,
                           backgroundColor: Colors.grey[200],
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                             side: BorderSide(
                               color: isSelected
-                                  ? Colors.teal
+                                  ? Theme.of(context).primaryColor
                                   : Colors.transparent,
                             ),
                           ),
@@ -202,7 +202,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             padding: const EdgeInsets.all(16.0),
             child: SizedBox(
               width: double.infinity,
-              height: 50,
+              height: 60,
               child: ElevatedButton(
                 onPressed: () {
                   if (_selectedVariant == null &&
@@ -228,19 +228,18 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                     SnackBar(
                       content: Text('${widget.product.name} a été ajouté au panier.'),
                       duration: const Duration(seconds: 2),
-                      backgroundColor: Colors.teal,
                     ),
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal,
+                  backgroundColor: Theme.of(context).primaryColor,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
                 child: const Text(
                   'Ajouter au panier',
-                  style: TextStyle(color: Colors.white, fontSize: 18),
+                  style: TextStyle(color: Colors.white, fontSize: 19),
                 ),
               ),
             ),

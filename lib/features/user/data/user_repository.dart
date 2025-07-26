@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
 
 class UserRepository {
-  final String _baseUrl = 'https://lilia-app.fly.dev'; // Mettez votre URL de base ici
+  final String _baseUrl = 'https://lilia-backend.onrender.com'; // Mettez votre URL de base ici
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
   Future<String?> _getIdToken() async {
@@ -29,7 +29,7 @@ class UserRepository {
 
     if (response.statusCode == 200) {
       final responseData = jsonDecode(response.body);
-      return AppUser.fromJson(responseData['user']);
+      return AppUser.fromJson(responseData['localDbInfo']);
     } else {
       throw Exception('Échec de la mise à jour du profil: ${response.body}');
     }
@@ -51,7 +51,7 @@ class UserRepository {
 
     if (response.statusCode == 200) {
       final responseData = jsonDecode(response.body);
-      return AppUser.fromJson(responseData);
+      return AppUser.fromJson(responseData["localDbInfo"]);
     } else {
       throw Exception('Échec de la mise à jour du profil: ${response.body}');
     }

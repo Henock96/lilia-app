@@ -1,51 +1,44 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lilia_app/features/auth/controller/auth_controller.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:http/http.dart' as http; // Exemple, utilisez votre client HTTP préféré
+import 'package:http/http.dart' as http;
 
 part 'user_sync_provider.g.dart';
 
-// Un provider pour gérer la synchronisation des données utilisateur avec le backend
-@Riverpod(keepAlive: true) // Gardez ce synchronisateur actif
+@riverpod
 class UserDataSynchronizer extends _$UserDataSynchronizer {
   @override
   Future<void> build() async {
-    // Écoutez les changements du jeton ID
-    ref.listen(firebaseIdTokenProvider, (previousToken, newTokenAsyncValue) async {
-      final newToken = newTokenAsyncValue.value; // Accédez à la valeur du jeton
+    ref.listen(firebaseIdTokenProvider, (previous, next) async {
+      final token = next.value;
 
-      if (newToken != null) {
-        // L'utilisateur est connecté et nous avons un jeton valide
-        print('Jeton ID obtenu (pour envoi au backend) : $newToken');
-
+      if (token != null) {
+        // Un token est disponible, l'utilisateur est probablement connecté.
+        // On lance la synchronisation.
+        print('Jeton détecté. Synchronisation du profil utilisateur...');
         try {
-          // --- C'EST ICI QUE VOUS APPELEZ VOTRE BACKEND NEST.JS ---
           final response = await http.get(
-            Uri.parse('https://lilia-app.fly.dev/auth/profile'), // ADAPTEZ L'URL DE VOTRE ENDPOINT
+            Uri.parse('https://lilia-backend.onrender.com/auth/profile'),
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': 'Bearer $newToken', // ENVOYEZ LE JETON ID ICI !
+              'Authorization': 'Bearer $token',
             },
           );
 
           if (response.statusCode == 200) {
-            print('Synchronisation backend réussie pour l\'utilisateur.');
-            // Si votre backend retourne des informations utilisateur mises à jour,
-            // vous pouvez les gérer ici ou les stocker dans un autre provider.
+            print('Synchronisation du backend réussie. $token');
           } else {
-            print('Erreur de synchronisation backend : ${response.statusCode} - ${response.body}');
+            print('Erreur lors de lappel de synchronisation du backend ${response.statusCode} - ${response.body}');
           }
         } catch (e) {
-          print('Erreur lors de l\'appel backend de synchronisation : $e');
+          print('Error during backend synchronization call: $e');
         }
       } else {
-        // L'utilisateur est déconnecté ou le jeton n'est plus valide
-        print('Jeton ID non disponible (utilisateur déconnecté ou jeton invalide).');
-        // Optionnel : Nettoyez les données utilisateur locales si l'utilisateur se déconnecte
+        // Pas de token, l'utilisateur est déconnecté.
+        print("L'utilisateur est déconnecté, aucun jeton disponible.");
       }
     });
-
-    // Pas d'état interne à maintenir pour ce Notifier, il s'agit principalement d'effets secondaires
-    return;
   }
 }
+

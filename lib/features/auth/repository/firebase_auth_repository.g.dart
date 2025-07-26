@@ -6,7 +6,24 @@ part of 'firebase_auth_repository.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$authRepositoryHash() => r'463009a95d2d294e423349aca58d846e4c9c8d9b';
+String _$httpClientHash() => r'e3f3e796ea46a17320ed4152466f2e23c3638fe5';
+
+/// See also [httpClient].
+@ProviderFor(httpClient)
+final httpClientProvider = Provider<http.Client>.internal(
+  httpClient,
+  name: r'httpClientProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$httpClientHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef HttpClientRef = ProviderRef<http.Client>;
+String _$authRepositoryHash() => r'40fb13f3d0ae30ab5ceeefd1c8e306e2330f8958';
 
 /// See also [authRepository].
 @ProviderFor(authRepository)
@@ -41,6 +58,23 @@ final firebaseAuthProvider = Provider<FirebaseAuth>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef FirebaseAuthRef = ProviderRef<FirebaseAuth>;
+String _$googleSignInHash() => r'33e2d830c18590dbfdef7f4796eb1120b7e87104';
+
+/// See also [googleSignIn].
+@ProviderFor(googleSignIn)
+final googleSignInProvider = Provider<GoogleSignIn>.internal(
+  googleSignIn,
+  name: r'googleSignInProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$googleSignInHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef GoogleSignInRef = ProviderRef<GoogleSignIn>;
 String _$authStateChangeHash() => r'f7c1451f0aab7c8bac41bcff2c4e22aeb936cb24';
 
 /// See also [authStateChange].

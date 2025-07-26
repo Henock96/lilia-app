@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/routing/app_router.dart';
+import 'package:lilia_app/theme/app_theme.dart';
 
 import 'features/auth/user_sync_provider.dart';
 import 'firebase_options.dart';
@@ -23,15 +24,13 @@ class MyApp extends ConsumerWidget {
     // cela garantit que son `build` (et donc son `ref.listen`) est exécuté.
     // L'AsyncValue de type <void> n'est pas utilisé directement ici.
     final GoRouter router = ref.watch(routerProvider);
+    final appTheme = AppTheme.theme;
     ref.watch(userDataSynchronizerProvider);
     return MaterialApp.router(
       routerConfig: router,
       debugShowCheckedModeBanner: false,
       title: 'Lilia App',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
-        fontFamily: 'Lora'
-      ),
+      theme: appTheme,
     );
   }
 }

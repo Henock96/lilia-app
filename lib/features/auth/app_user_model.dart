@@ -11,19 +11,21 @@ class AppUser {
     this.displayName,
     this.nom,
     this.phone,
-    this.adresse,
+    this.adresse, this.imageUrl,
   });
 
   // Firebase data
   final String uid;
   final String? email;
-  final bool emailVerified;
+  final bool
+  emailVerified;
   final String? displayName;
 
   // Local database data
   final String? id;
   final String? nom;
   final String? phone;
+  final String? imageUrl;
   final Adresse? adresse;
 
   // Mapper un User Firebase vers AppUser
@@ -47,7 +49,7 @@ class AppUser {
       email: json['email'],
       nom: json['nom'],
       phone: json['phone'],
-      displayName: json['nom'], // On peut utiliser le nom de la bdd comme displayName
+      imageUrl: json['imageUrl'], // On peut utiliser le nom de la bdd comme displayName
     );
   }
 
@@ -59,6 +61,7 @@ class AppUser {
     bool? emailVerified,
     String? displayName,
     String? nom,
+    String? imageUrl,
     String? phone,
     Adresse? adresse,
   }) {
@@ -71,6 +74,7 @@ class AppUser {
       nom: nom ?? this.nom,
       phone: phone ?? this.phone,
       adresse: adresse ?? this.adresse,
+      imageUrl: imageUrl ?? this.imageUrl
     );
   }
 }

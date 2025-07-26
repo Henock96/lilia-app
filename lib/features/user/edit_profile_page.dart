@@ -20,7 +20,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   void initState() {
     super.initState();
     // Pré-remplir les champs avec les données de l'utilisateur actuel
-    final user = ref.read(authControllerProvider).value;
+    final user = ref.read(userProfileProvider).value;
     if (user != null) {
       _nameController.text = user.nom ?? '';
       //_addressController.text = user.adresse!.rue ?? '';

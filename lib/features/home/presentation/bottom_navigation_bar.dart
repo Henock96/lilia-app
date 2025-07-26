@@ -38,7 +38,7 @@ class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
           NavigationDestination(label: 'Accueil', icon: Icon(Iconsax.home)),
           NavigationDestination(label: 'Commandes', icon: Icon(Iconsax.shop)),
           NavigationDestination(label: 'Favoris', icon: Icon(Iconsax.heart)),
-          NavigationDestination(label: 'Paramètres', icon: Icon(Iconsax.user)),
+          NavigationDestination(label: 'Profil', icon: Icon(Iconsax.user)),
         ],
         onDestinationSelected: _goBranch,
       ),

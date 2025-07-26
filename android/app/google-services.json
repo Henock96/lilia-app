@@ -12,7 +12,20 @@
           "package_name": "com.dreesis.lilia.lilia_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "79838517894-1s0str3cead49hulu7msrr2jdfsed18m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.dreesis.lilia.lilia_app",
+            "certificate_hash": "d3e1b38c93cccddfebe929171d0dcc9f3851afbc"
+          }
+        },
+        {
+          "client_id": "79838517894-m230oii5h7jh47da9st180kgmt63dh6g.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBVTMt0Gv2t0D6kUycVVhB4tgWn-IMQa2Y"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "79838517894-m230oii5h7jh47da9st180kgmt63dh6g.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "79838517894-f7i2ke4ge16lhq6peh2t8nrdr2j4j35e.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.dreesis.lilia.liliaApp"
+              }
+            }
+          ]
         }
       }
     }
