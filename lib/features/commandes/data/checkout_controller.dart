@@ -2,6 +2,8 @@
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/commandes/data/order_repository.dart';
+import 'package:lilia_app/models/checkout.dart';
+import 'package:lilia_app/models/order.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 // Pour invalider le panier après commande
 
@@ -14,26 +16,19 @@ class CheckoutController extends _$CheckoutController {
     // État initial, rien à faire ici pour un Notifier qui gère des actions
   }
 
-  Future<void> placeOrder({
+  Future<Checkout> placeOrder({
     required String adresseId,
     required String paymentMethod,
     String? newAddressRue,
-    String? newAddressVille,
-    String? newAddressCountry,
-    String? newAddressComplement,
-    String? newPhoneNumber,
+    $,
   }) async {
     state = const AsyncLoading(); // Indique un état de chargement
 
     try {
       final orderRepository = ref.read(orderRepositoryProvider.notifier);
-      await orderRepository.createOrders(
+      final order = await orderRepository.createOrders(
         adresseId: adresseId,
         paymentMethod: paymentMethod,
-        newAddressRue: newAddressRue,
-        newAddressVille: newAddressVille,
-        newAddressCountry: newAddressCountry,
-        newAddressComplement: newAddressComplement,
         //newPhoneNumber: newPhoneNumber,
       );
 
@@ -42,7 +37,8 @@ class CheckoutController extends _$CheckoutController {
       // Invalider les commandes pour que la nouvelle commande apparaisse
       ref.invalidate(userOrdersProvider);
 
-      state = const AsyncData(null); // Succès
+      state = const AsyncData(null);
+      return order; // Succès
     } catch (e, st) {
       state = AsyncError(e, st); // Erreur
       rethrow; // Propage l'erreur pour l'affichage dans l'UI

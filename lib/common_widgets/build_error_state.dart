@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class BuildErrorState extends ConsumerWidget {
-  const BuildErrorState(this.error, {super.key, });
+class BuildErrorState extends ConsumerStatefulWidget {
+  const BuildErrorState(this.error, {super.key});
   final Object error;
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState createState() => _BuildErrorStateState();
+}
+
+class _BuildErrorStateState extends ConsumerState<BuildErrorState> {
+  @override
+  Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Center(
       child: Column(
@@ -23,17 +28,15 @@ class BuildErrorState extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () {
-              /*ref.refresh(newsArticlesProvider(
-                NewsQueryParams(
-                  country: country,
-                  categories: preferredCategories,
-                ),
-              ));*/
+              setState(() {
+
+              });
             },
             child: const Text('Réessayer'),
           ),
         ],
       ),
     );
+
   }
 }

@@ -7,13 +7,16 @@ import 'package:lilia_app/features/commandes/presentation/checkout_page.dart';
 import 'package:lilia_app/features/commandes/presentation/commande_page.dart';
 import 'package:lilia_app/features/commandes/presentation/order_success_page.dart';
 import 'package:lilia_app/features/favoris/presentation/favoris_page.dart';
+import 'package:lilia_app/features/favoris/presentation/favoris_detail_page.dart';
 import 'package:lilia_app/features/home/presentation/bottom_navigation_bar.dart';
 import 'package:lilia_app/features/home/presentation/home.dart';
 import 'package:lilia_app/features/user/user_page.dart';
 import 'package:lilia_app/routing/go_router_refresh_stream.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../features/auth/presentation/signin_page.dart';
+import 'package:lilia_app/features/address/presentation/pages/address_page.dart';
+import 'package:lilia_app/features/user/presentation/pages/change_password_page.dart';
+import 'package:lilia_app/features/auth/presentation/signin_page.dart';
 import '../features/auth/presentation/signup_page.dart';
 import '../features/commandes/presentation/commande_detail_page.dart';
 import '../features/home/presentation/not_found_page.dart';
@@ -35,16 +38,22 @@ GoRouter router(Ref ref) {
     navigatorKey: _key,
     initialLocation: AppRoutes.home.path,
     // Le refreshListenable doit écouter le même flux pour déclencher la redirection.
-    refreshListenable: GoRouterRefreshStream(ref.watch(authRepositoryProvider).authStateChanges()),
+    refreshListenable: GoRouterRefreshStream(
+      ref.watch(authRepositoryProvider).authStateChanges(),
+    ),
     redirect: (context, state) {
       // Gère les différents états de l'AsyncValue
       final bool isLoggedIn = authState.when(
-        data: (user) => user != null, // L'utilisateur est connecté s'il y a des données
-        loading: () => false, // Pendant le chargement, on considère l'utilisateur comme non connecté
-        error: (_, __) => false, // En cas d'erreur, on considère l'utilisateur comme non connecté
+        data: (user) =>
+            user != null, // L'utilisateur est connecté s'il y a des données
+        loading: () =>
+            false, // Pendant le chargement, on considère l'utilisateur comme non connecté
+        error: (_, __) =>
+            false, // En cas d'erreur, on considère l'utilisateur comme non connecté
       );
 
-      final bool isLoggingIn = state.matchedLocation == AppRoutes.signIn.path ||
+      final bool isLoggingIn =
+          state.matchedLocation == AppRoutes.signIn.path ||
           state.matchedLocation == AppRoutes.signUp.path;
 
       // Redirige vers la page de connexion si l'utilisateur n'est pas connecté
@@ -66,31 +75,20 @@ GoRouter router(Ref ref) {
       GoRoute(
         path: AppRoutes.signIn.path,
         name: AppRoutes.signIn.routeName,
-        pageBuilder: (context, state) => const MaterialPage(
-          child: SignInPage(),
-        ),
+        pageBuilder: (context, state) =>
+            const MaterialPage(child: SignInPage()),
       ),
       GoRoute(
         path: AppRoutes.signUp.path,
         name: AppRoutes.signUp.routeName,
-        pageBuilder: (context, state) => const MaterialPage(
-          child: SignUpPage(),
-        ),
-      ),
-
-      GoRoute(
-        path: AppRoutes.checkout.path,
-        name: AppRoutes.checkout.routeName,
-        pageBuilder: (context, state) => const MaterialPage(
-          child: CheckoutPage(),
-        ),
+        pageBuilder: (context, state) =>
+            const MaterialPage(child: SignUpPage()),
       ),
       GoRoute(
         path: AppRoutes.orderSuccess.path,
         name: AppRoutes.orderSuccess.routeName,
-        pageBuilder: (context, state) => const MaterialPage(
-          child: OrderSuccessPage(),
-        ),
+        pageBuilder: (context, state) =>
+            const MaterialPage(child: OrderSuccessPage()),
       ),
       // * your other routes *
       // Route principale avec la barre de navigation
@@ -104,21 +102,14 @@ GoRouter router(Ref ref) {
               GoRoute(
                 path: AppRoutes.home.path,
                 name: AppRoutes.home.routeName,
-                pageBuilder: (context, state) => const MaterialPage(
-                  child: HomeScreen(),
-                ),
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: HomeScreen()),
                 routes: [
-                  GoRoute(
-                    path: AppRoutes.cart.path,
-                    name: AppRoutes.cart.routeName,
-                    pageBuilder: (context, state) => const MaterialPage(
-                      child: CartScreen(),
-                    ),
-                  ),
                   GoRoute(
                     path:
                         'product-detail', // Ou 'detail/:productId' si vous voulez passer l'ID dans l'URL
-                    name: AppRoutes.productDetail
+                    name: AppRoutes
+                        .productDetail
                         .routeName, // Ajoutez un nom de route dans votre enum
                     pageBuilder: (context, state) {
                       // Récupérer l'objet Product passé via 'extra'
@@ -126,8 +117,8 @@ GoRouter router(Ref ref) {
                       if (product == null) {
                         // Gérer le cas où le produit n'est pas passé (erreur, navigation directe sans extra)
                         return const MaterialPage(
-                            child:
-                                NotFoundScreen()); // Ou une page d'erreur spécifique
+                          child: NotFoundScreen(),
+                        ); // Ou une page d'erreur spécifique
                       }
                       return MaterialPage(
                         child: ProductDetailPage(product: product),
@@ -138,51 +129,82 @@ GoRouter router(Ref ref) {
               ),
             ],
           ),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.commandes.path,
-              name: AppRoutes.commandes.routeName,
-              pageBuilder: (context, state) => const MaterialPage(
-                child: CommandePage(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.commandes.path,
+                name: AppRoutes.commandes.routeName,
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: CommandePage()),
+                routes: [
+                  GoRoute(
+                    path:
+                        ':orderId', // Paramètre de chemin pour l'ID de la commande
+                    name:
+                        AppRoutes.orderDetail.routeName, // Nouveau nom de route
+                    pageBuilder: (context, state) {
+                      final orderId = state.pathParameters['orderId']!;
+                      return MaterialPage(
+                        child: OrderDetailPage(orderId: orderId),
+                      );
+                    },
+                  ),
+                ],
               ),
-              routes: [
-                GoRoute(
-                  path:
-                      ':orderId', // Paramètre de chemin pour l'ID de la commande
-                  name: AppRoutes.orderDetail.routeName, // Nouveau nom de route
-                  pageBuilder: (context, state) {
-                    final orderId = state.pathParameters['orderId']!;
-                    return MaterialPage(
-                      child: OrderDetailPage(orderId: orderId),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.favoris.path,
-              name: AppRoutes.favoris.routeName,
-              pageBuilder: (context, state) => const MaterialPage(
-                child: FavorisPage(),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.cart.path,
+                name: AppRoutes.cart.routeName,
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: CartScreen()),
+                routes: [
+                  GoRoute(
+                    path: AppRoutes.checkout.path,
+                    name: AppRoutes.checkout.routeName,
+                    pageBuilder: (context, state) {
+                      return MaterialPage(child: CheckoutPage());
+                    },
+                  ),
+                ],
               ),
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: AppRoutes.profile.path,
-              name: AppRoutes.profile.routeName,
-              pageBuilder: (context, state) => const MaterialPage(
-                child: UserPage(),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoutes.profile.path,
+                name: AppRoutes.profile.routeName,
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: UserPage()),
+                routes: [
+                  GoRoute(
+                    path: AppRoutes.favoris.path,
+                    name: AppRoutes.favoris.routeName,
+                    pageBuilder: (context, state) =>
+                        const MaterialPage(child: FavorisPage()),
+                  ),
+                  GoRoute(
+                    path: AppRoutes.address.path,
+                    name: AppRoutes.address.routeName,
+                    pageBuilder: (context, state) =>
+                        const MaterialPage(child: AddressPage()),
+                  ),
+                  GoRoute(
+                    path: AppRoutes.changePassword.path,
+                    name: AppRoutes.changePassword.routeName,
+                    pageBuilder: (context, state) =>
+                        const MaterialPage(child: ChangePasswordPage()),
+                  ),
+                ],
               ),
-            ),
-          ])
+            ],
+          ),
         ],
       ),
     ],
-    errorBuilder: (context, state) => NotFoundScreen(
-          key: state.pageKey,
-        ),
+    errorBuilder: (context, state) => NotFoundScreen(key: state.pageKey),
   );
 }

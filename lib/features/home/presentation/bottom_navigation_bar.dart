@@ -3,15 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 
-
 class BottomNavigationPage extends ConsumerStatefulWidget {
   const BottomNavigationPage({super.key, required this.navigationShell});
   final StatefulNavigationShell navigationShell;
 
-
-
   @override
-  ConsumerState<BottomNavigationPage> createState() => _BottomNavigationPageState();
+  ConsumerState<BottomNavigationPage> createState() =>
+      _BottomNavigationPageState();
 }
 
 class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
@@ -37,7 +35,10 @@ class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
         destinations: const [
           NavigationDestination(label: 'Accueil', icon: Icon(Iconsax.home)),
           NavigationDestination(label: 'Commandes', icon: Icon(Iconsax.shop)),
-          NavigationDestination(label: 'Favoris', icon: Icon(Iconsax.heart)),
+          NavigationDestination(
+            label: 'Panier',
+            icon: Icon(Iconsax.shopping_bag),
+          ),
           NavigationDestination(label: 'Profil', icon: Icon(Iconsax.user)),
         ],
         onDestinationSelected: _goBranch,

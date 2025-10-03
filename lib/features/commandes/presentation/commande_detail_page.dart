@@ -21,7 +21,6 @@ class OrderDetailPage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -44,11 +43,13 @@ class OrderDetailPage extends ConsumerWidget {
       body: orderAsyncValue.when(
         data: (orders) {
           final order = orders.firstWhere(
-                (o) => o.id == orderId,
+            (o) => o.id == orderId,
             orElse: () => throw Exception('Commande non trouvé !'),
           );
 
-          final formattedDate = DateFormat('dd MMM yyyy, HH:mm').format(order.createdAt);
+          final formattedDate = DateFormat(
+            'dd MMM yyyy, HH:mm',
+          ).format(order.createdAt);
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -57,7 +58,10 @@ class OrderDetailPage extends ConsumerWidget {
               children: [
                 Text(
                   'Commande Id #${order.id.substring(0, 8)}',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -87,19 +91,25 @@ class OrderDetailPage extends ConsumerWidget {
 
                 Text(
                   'Restaurant',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 ListTile(
                   leading: CircleAvatar(
-                    backgroundImage: NetworkImage(order.restaurant.imageUrl ?? 'https://via.placeholder.com/100'),
+                    backgroundImage: NetworkImage(
+                      order.restaurant.imageUrl ??
+                          'https://via.placeholder.com/100',
+                    ),
                   ),
                   title: Text(
                     order.restaurant.nom,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
-                    order.deliveryAddress,
+                    order.restaurant.adresse ?? 'Adresse non disponible',
                     style: const TextStyle(color: Colors.grey),
                   ),
                   onTap: () {
@@ -110,15 +120,21 @@ class OrderDetailPage extends ConsumerWidget {
 
                 Text(
                   'Article(s)',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 10),
-                ...order.items.map((item) => OrderDetailItemCard(item: item)).toList(),
+                ...order.items.map((item) => OrderDetailItemCard(item: item)),
                 const Divider(height: 30),
 
                 Text(
                   'Sommaire ',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 _buildSummaryRow('Sous-total', order.subTotal),
@@ -127,11 +143,14 @@ class OrderDetailPage extends ConsumerWidget {
                 const SizedBox(height: 10),
                 Text(
                   'Méthode de Paiement: ${_getDisplayStatusPaiement(order.paymentMethod)}',
-                  style: const TextStyle(fontSize: 14, color: Colors.teal),
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Theme.of(context).primaryColor.withOpacity(0.8),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-                const Divider(height: 30),
 
-                SizedBox(
+                /*SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
                     onPressed: () {
@@ -159,7 +178,7 @@ class OrderDetailPage extends ConsumerWidget {
                     ),
                     child: const Text("Besoin d'aide ?", style: TextStyle(color: Colors.black, fontSize: 16)),
                   ),
-                ),
+                ),*/
               ],
             ),
           );
@@ -213,6 +232,7 @@ class OrderDetailPage extends ConsumerWidget {
         return 'Inconnu';
     }
   }
+
   String _getDisplayStatusPaiement(String status) {
     switch (status) {
       case 'CASH_ON_DELIVERY':
@@ -265,7 +285,9 @@ class OrderDetailItemCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // --- LOGIQUE POUR L'IMAGE DE L'ITEM ---
-    final String itemImageUrl = item.product.imageUrl ?? 'https://via.placeholder.com/60'; // Utilise l'URL du produit ou une image par défaut
+    final String itemImageUrl =
+        item.product.imageUrl ??
+        'https://via.placeholder.com/60'; // Utilise l'URL du produit ou une image par défaut
     // --- FIN LOGIQUE IMAGE DE L'ITEM ---
 
     return Padding(
@@ -290,7 +312,10 @@ class OrderDetailItemCard extends StatelessWidget {
               children: [
                 Text(
                   item.product.nom,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
                 Text(
                   '${item.quantite} x ${item.variant} ',

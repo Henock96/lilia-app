@@ -29,7 +29,7 @@ class UserRepository {
 
     if (response.statusCode == 200) {
       final responseData = jsonDecode(response.body);
-      return AppUser.fromJson(responseData['localDbInfo']);
+      return AppUser.fromJson(responseData['user']);
     } else {
       throw Exception('Échec de la mise à jour du profil: ${response.body}');
     }

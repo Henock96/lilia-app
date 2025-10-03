@@ -37,7 +37,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isFavorite = ref.watch(favoritesProvider).maybeWhen(
+    final isFavorite = ref
+        .watch(favoritesProvider)
+        .maybeWhen(
           data: (favorites) => favorites.any((p) => p.id == widget.product.id),
           orElse: () => false,
         );
@@ -96,14 +98,18 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                         child: Text(
                           widget.product.name,
                           style: const TextStyle(
-                              fontSize: 24, fontWeight: FontWeight.bold),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       Row(
                         children: [
                           IconButton(
-                            icon: const Icon(Icons.remove_circle_outline,
-                                color: Colors.grey),
+                            icon: const Icon(
+                              Icons.remove_circle_outline,
+                              color: Colors.grey,
+                            ),
                             onPressed: () {
                               setState(() {
                                 if (_quantity > 1) _quantity--;
@@ -113,11 +119,15 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                           Text(
                             '$_quantity',
                             style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold),
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.add_circle_outline,
-                                color: Colors.green),
+                            icon: const Icon(
+                              Icons.add_circle_outline,
+                              color: Colors.green,
+                            ),
                             onPressed: () {
                               setState(() {
                                 _quantity++;
@@ -125,8 +135,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                             },
                           ),
                           const SizedBox(width: 10),
-                          const Icon(Icons.delete_outline,
-                              color: Colors.red),
+                          const Icon(Icons.delete_outline, color: Colors.red),
                         ],
                       ),
                     ],
@@ -137,23 +146,26 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                       Text(
                         '${_currentPrice.toStringAsFixed(1)} FCFA',
                         style: const TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.bold),
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(width: 16),
-
                     ],
                   ),
                   const SizedBox(height: 16),
                   Text(
                     widget.product.description,
-                    style: const TextStyle(fontSize: 16, color: Colors.black54),
+                    style: TextStyle(fontSize: 16, color: Colors.black),
                   ),
                   const SizedBox(height: 24),
                   if (widget.product.variants.isNotEmpty) ...[
                     const Text(
-                      'Selectionnez une variante de ce produit',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      'Selectionnez une variante de ce produit :',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Wrap(
@@ -163,7 +175,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                         final isSelected = _selectedVariant?.id == variant.id;
                         return ChoiceChip(
                           label: Text(
-                            '${variant.label} (${variant.prix.toStringAsFixed(1)} FCFA)',
+                            '${variant.label} ${variant.prix.toStringAsFixed(1)} FCFA',
                             style: TextStyle(
                               color: isSelected ? Colors.white : Colors.black87,
                               fontWeight: isSelected
@@ -199,22 +211,23 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(12.0),
             child: SizedBox(
               width: double.infinity,
-              height: 60,
               child: ElevatedButton(
                 onPressed: () {
                   if (_selectedVariant == null &&
                       widget.product.variants.isNotEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                          content: Text('Please select a variant!')),
+                        content: Text('Veuillez sélectionner une variante !'),
+                      ),
                     );
                     return;
                   }
-                  print(
-                      'Adding ${widget.product.name} (Variant: ${_selectedVariant?.label ?? "N/A"}, Qty: $_quantity) to cart.');
+                  debugPrint(
+                    'Adding ${widget.product.name} (Variant: ${_selectedVariant?.label ?? "N/A"}, Qty: $_quantity) to cart.',
+                  );
                   /*ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                         content: Text(
@@ -226,7 +239,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                       .addItem(variantId: variantId, quantity: _quantity);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('${widget.product.name} a été ajouté au panier.'),
+                      content: Text(
+                        '${widget.product.name} a été ajouté au panier.',
+                      ),
                       duration: const Duration(seconds: 2),
                     ),
                   );
@@ -234,7 +249,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).primaryColor,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(20),
                   ),
                 ),
                 child: const Text(

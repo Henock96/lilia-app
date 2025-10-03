@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const Color primaryColor = Color(0xFFFF4C4C);
+  static const Color primaryColor = Color.fromARGB(255, 243, 95, 95);
   static const Color secondaryColor = Color(0xFFFFA726);
   static const Color accentColor = Color(0xFF59061F);
-  static const Color backgroundColor = Color(0xFFFFF8F6);
+  static const Color backgroundColor = Color(0xFFFBFAFA);
   static const Color textColor = Color(0xFF2E2E2E);
 
   static ThemeData get theme {
@@ -100,13 +100,10 @@ class AppTheme {
           ),
         ),
       ),
-      snackBarTheme: SnackBarThemeData(
-        backgroundColor: Colors.black87
-      ),
+      snackBarTheme: SnackBarThemeData(backgroundColor: Colors.black87),
       navigationBarTheme: NavigationBarThemeData(
         indicatorColor: Color(0xFFF6BBB5),
       ),
     );
   }
 }
-

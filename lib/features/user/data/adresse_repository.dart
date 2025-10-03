@@ -44,7 +44,7 @@ class AdresseRepository extends _$AdresseRepository {
     }
   }
 
-  Future<Adresse> createAdresse({required String rue, required String ville, required String pays, required String details}) async {
+  Future<Adresse> createAdresse({required String rue, required String ville, required String pays}) async {
     Map<String, dynamic> data = {
       "rue": rue,
       "ville": ville,
@@ -78,4 +78,28 @@ class AdresseRepository extends _$AdresseRepository {
     }
   }
 
+  Future<void> deleteAdresse(String adresseId) async {
+    final token = await ref.read(firebaseIdTokenProvider.future);
+    if (token == null) {
+      throw Exception('User not authenticated. No Firebase ID token available.');
+    }
+
+    final headers = {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    try {
+      final response = await http.delete(
+        Uri.parse('$_baseUrl/adresses/$adresseId'),
+        headers: headers,
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception('Failed to delete address: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      throw Exception('Failed to connect to the server or delete address: $e');
+    }
+  }
 }

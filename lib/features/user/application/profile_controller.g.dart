@@ -40,7 +40,7 @@ final userProfileProvider = AutoDisposeFutureProvider<AppUser>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef UserProfileRef = AutoDisposeFutureProviderRef<AppUser>;
-String _$profileControllerHash() => r'15ba72d19a04da0da01e64b384d81258963093a0';
+String _$profileControllerHash() => r'47d672bfa5330cd3514c2cbb187f518e6e492ab9';
 
 /// See also [ProfileController].
 @ProviderFor(ProfileController)

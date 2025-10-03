@@ -6,12 +6,12 @@ part of 'order_controller.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$userOrdersHash() => r'dcf2a5e17a94b388eea7ba700c8f9c780c85ef07';
+String _$userOrdersHash() => r'ddd9a0da444a5daea02a919cbe5974ed2acde17b';
 
 /// See also [UserOrders].
 @ProviderFor(UserOrders)
 final userOrdersProvider =
-    AsyncNotifierProvider<UserOrders, List<Order>>.internal(
+    AutoDisposeAsyncNotifierProvider<UserOrders, List<Order>>.internal(
       UserOrders.new,
       name: r'userOrdersProvider',
       debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
@@ -21,6 +21,6 @@ final userOrdersProvider =
       allTransitiveDependencies: null,
     );
 
-typedef _$UserOrders = AsyncNotifier<List<Order>>;
+typedef _$UserOrders = AutoDisposeAsyncNotifier<List<Order>>;
 // ignore_for_file: type=lint
 // ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/features/cart/data/cart_repository.dart';
@@ -23,26 +24,30 @@ class CartController extends _$CartController {
     // Utilisateur connecté
     cartRepository.getCart(); // Déclenche la récupération initiale
     return cartRepository.watchCart(); // Et écoute les changements
-    }
+  }
 
   Future<void> addItem({required String variantId, int quantity = 1}) async {
     final cartRepo = ref.read(cartRepositoryProvider);
     try {
       await cartRepo.addToCart(variantId: variantId, quantity: quantity);
     } catch (e) {
-      print('Erreur lors de l\'ajout au panier: $e');
+      debugPrint('Erreur lors de l\'ajout au panier: $e');
       rethrow;
     }
   }
 
-  Future<void> updateItemQuantity(
-      {required String cartItemId, required int quantity}) async {
+  Future<void> updateItemQuantity({
+    required String cartItemId,
+    required int quantity,
+  }) async {
     final cartRepo = ref.read(cartRepositoryProvider);
     try {
       await cartRepo.updateItemQuantity(
-          cartItemId: cartItemId, quantity: quantity);
+        cartItemId: cartItemId,
+        quantity: quantity,
+      );
     } catch (e) {
-      print('Erreur lors de la mise à jour de la quantité: $e');
+      debugPrint('Erreur lors de la mise à jour de la quantité: $e');
       rethrow;
     }
   }
@@ -52,7 +57,17 @@ class CartController extends _$CartController {
     try {
       await cartRepo.removeItem(cartItemId: cartItemId);
     } catch (e) {
-      print('Erreur lors de la suppression de l\'article: $e');
+      debugPrint('Erreur lors de la suppression de l\'article: $e');
+      rethrow;
+    }
+  }
+
+  clearCart() async {
+    final cartRepo = ref.read(cartRepositoryProvider);
+    try {
+      cartRepo.clearCart();
+    } catch (e) {
+      debugPrint('Erreur lors du vidage du panier: $e');
       rethrow;
     }
   }

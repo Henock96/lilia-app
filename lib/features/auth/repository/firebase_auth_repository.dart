@@ -10,15 +10,20 @@ part 'firebase_auth_repository.g.dart';
 
 class FirebaseAuthenticationRepository {
   final FirebaseAuth _firebaseAuth;
-  final GoogleSignIn _googleSignIn;
+  //final GoogleSignIn _googleSignIn;
   final http.Client _client;
 
-  FirebaseAuthenticationRepository(this._firebaseAuth, this._googleSignIn, this._client);
+  FirebaseAuthenticationRepository(
+    this._firebaseAuth,
+    //this._googleSignIn,
+    this._client,
+  );
 
   AppUser? get currentUser => _convertUser(_firebaseAuth.currentUser);
 
   // convertit le FirebaseUser nullable en notre AppUser
-  AppUser? _convertUser(User? user) => user == null ? null : AppUser.fromFirebaseUser(user);
+  AppUser? _convertUser(User? user) =>
+      user == null ? null : AppUser.fromFirebaseUser(user);
 
   Stream<AppUser?> authStateChanges() {
     return _firebaseAuth.authStateChanges().map(_convertUser);
@@ -58,7 +63,7 @@ class FirebaseAuthenticationRepository {
     // Étape 3: Sauvegarder les informations dans notre backend
     final idToken = await user.getIdToken();
     final url = Uri.parse('https://lilia-backend.onrender.com/auth/register');
-    
+
     final response = await _client.post(
       url,
       headers: {
@@ -77,29 +82,102 @@ class FirebaseAuthenticationRepository {
       // Si le backend échoue, nous devrions peut-être supprimer l'utilisateur de Firebase
       // pour éviter un état incohérent. Pour l'instant, nous lançons une exception.
       await user.delete();
-      throw Exception('Échec de la sauvegarde des informations utilisateur sur le backend: ${response.body}');
+      throw Exception(
+        'Échec de la sauvegarde des informations utilisateur sur le backend: ${response.body}',
+      );
     }
   }
 
-  Future<void> signInWithGoogle() async {
+  /*Future<void> signInWithGoogle() async {
     final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
     if (googleUser != null) {
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final GoogleSignInAuthentication googleAuth =
+          await googleUser.authentication;
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
-      await _firebaseAuth.signInWithCredential(credential);
+      final userCredential = await _firebaseAuth.signInWithCredential(
+        credential,
+      );
+      final user = userCredential.user;
+
+      if (user == null) {
+        throw Exception("La connexion avec Google a échoué.");
+      }
+
+      // Après la connexion, synchroniser avec le backend
+      final idToken = await user.getIdToken();
+      final url = Uri.parse('https://lilia-backend.onrender.com/auth/register');
+
+      final response = await _client.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $idToken',
+        },
+        body: jsonEncode({
+          'firebaseUid': user.uid,
+          'email': user.email,
+          'nom': user.displayName ?? '',
+          'telephone': user.phoneNumber ?? '',
+        }),
+      );
+
+      if (response.statusCode != 201 && response.statusCode != 200) {
+        // 201 pour créé, 200 si l'utilisateur existe déjà
+        await user.delete(); // Supprimer l'utilisateur Firebase en cas d'échec
+        throw Exception(
+          'Échec de la synchronisation avec le backend: ${response.body}',
+        );
+      }
+    }
+  }
+*/
+  Future<bool> signOut() async {
+    try {
+      await //_googleSignIn.signOut();
+      _firebaseAuth.signOut();
+      return true;
+    } on Exception {
+      return false;
     }
   }
 
-  Future<bool> signOut() async {
-    try{
-      await _googleSignIn.signOut();
-      _firebaseAuth.signOut();
-      return true;
-    }on Exception catch(e){
-      return false;
+  Future<void> updatePassword(String newPassword) async {
+    try {
+      await _firebaseAuth.currentUser?.updatePassword(newPassword);
+    } on FirebaseAuthException catch (e) {
+      // Gérer les erreurs, par exemple si l'utilisateur doit se reconnecter
+      if (e.code == 'requires-recent-login') {
+        throw Exception(
+          'Cette opération est sensible et nécessite une authentification récente. Veuillez vous déconnecter et vous reconnecter avant de réessayer.',
+        );
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> sendPasswordResetEmailWithEmail(String email) async {
+    try {
+      await _firebaseAuth.sendPasswordResetEmail(email: email);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> sendPasswordResetEmail() async {
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user != null && user.email != null) {
+        await _firebaseAuth.sendPasswordResetEmail(email: user.email!);
+      } else {
+        throw Exception(
+          "Aucun utilisateur connecté ou l'email n'est pas disponible.",
+        );
+      }
+    } catch (e) {
+      rethrow;
     }
   }
 }
@@ -112,9 +190,9 @@ http.Client httpClient(HttpClientRef ref) {
 @Riverpod(keepAlive: true)
 FirebaseAuthenticationRepository authRepository(AuthRepositoryRef ref) {
   final auth = ref.watch(firebaseAuthProvider);
-  final googleSignIn = ref.watch(googleSignInProvider);
+  //final googleSignIn = ref.watch(googleSignInProvider);
   final client = ref.watch(httpClientProvider);
-  return FirebaseAuthenticationRepository(auth, googleSignIn, client);
+  return FirebaseAuthenticationRepository(auth, client);
 }
 
 @Riverpod(keepAlive: true)
@@ -122,10 +200,10 @@ FirebaseAuth firebaseAuth(FirebaseAuthRef ref) {
   return FirebaseAuth.instance;
 }
 
-@Riverpod(keepAlive: true)
+/*@Riverpod(keepAlive: true)
 GoogleSignIn googleSignIn(GoogleSignInRef ref) {
-  return GoogleSignIn();
-}
+  return GoogleSignIn(scopes: ['email']);
+}*/
 
 @Riverpod(keepAlive: true)
 Stream<AppUser?> authStateChange(AuthStateChangeRef ref) {

@@ -55,11 +55,7 @@ class _Header extends StatelessWidget {
     return Column(
       children: [
         gapH64,
-        Icon(
-          Icons.fastfood,
-          size: 80,
-          color: theme.colorScheme.primary,
-        ),
+        Icon(Icons.fastfood, size: 80, color: theme.colorScheme.primary),
         gapH16,
         Text(
           'Bienvenue sur Lilia Food',
@@ -99,7 +95,9 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
 
   Future<void> _signIn() async {
     if (_formKey.currentState!.validate()) {
-      await ref.read(authControllerProvider.notifier).sigInInUserWithEmailAndPassword(
+      await ref
+          .read(authControllerProvider.notifier)
+          .sigInInUserWithEmailAndPassword(
             _emailController.text.trim(),
             _passwordController.text.trim(),
           );
@@ -112,6 +110,53 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
     });
   }
 
+  Future<void> _sendResetEmail() async {
+    final emailController = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Réinitialiser le mot de passe'),
+        content: TextField(
+          controller: emailController,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Entrez votre email'),
+          keyboardType: TextInputType.emailAddress,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (emailController.text.isNotEmpty) {
+                Navigator.of(context).pop(emailController.text);
+              }
+            },
+            child: const Text('Envoyer'),
+          ),
+        ],
+      ),
+    );
+
+    if (result != null && result.isNotEmpty) {
+      try {
+        await ref
+            .read(authControllerProvider.notifier)
+            .sendPasswordResetEmailWithEmail(result);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Un e-mail de réinitialisation a été envoyé.'),
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur: ${e.toString()}')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(authControllerProvider);
@@ -122,16 +167,19 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           TextFormField(
-
             controller: _emailController,
             decoration: InputDecoration(
-              errorStyle: TextStyle(color: Theme.of(context).textTheme.titleLarge!.color),
+              errorStyle: TextStyle(
+                color: Theme.of(context).textTheme.titleLarge!.color,
+              ),
               labelText: 'Email',
               prefixIcon: Icon(Icons.email_outlined),
             ),
             validator: (value) {
-              if (value == null || value.isEmpty) return 'Veuillez entrer votre email';
-              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) return 'Veuillez entrer un email valide';
+              if (value == null || value.isEmpty)
+                return 'Veuillez entrer votre email';
+              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value))
+                return 'Veuillez entrer un email valide';
               return null;
             },
           ),
@@ -143,16 +191,28 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
               labelText: 'Mot de Passe',
               prefixIcon: const Icon(Icons.lock_outline),
               suffixIcon: IconButton(
-                icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                ),
                 onPressed: _togglePasswordVisibility,
               ),
             ),
             validator: (value) {
-              if (value == null || value.isEmpty) return 'Veuillez entrer votre mot de passe';
+              if (value == null || value.isEmpty)
+                return 'Veuillez entrer votre mot de passe';
               return null;
             },
           ),
-          gapH32,
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: _sendResetEmail,
+              child: const Text('Mot de passe oublié ?'),
+            ),
+          ),
+          gapH16,
           ElevatedButton(
             onPressed: state.isLoading ? null : _signIn,
             child: state.isLoading
@@ -200,8 +260,14 @@ class _SocialLogins extends ConsumerWidget {
       onPressed: () async {
         await ref.read(authControllerProvider.notifier).signInWithGoogle();
       },
-      icon: Image.asset('assets/images/google_logo.png', height: 24.0), // Assurez-vous d'avoir ce logo
-      label: const Text('Se connecter avec Google', style: TextStyle(color: Colors.black87),),
+      icon: Image.asset(
+        'assets/images/google_logo.png',
+        height: 24.0,
+      ), // Assurez-vous d'avoir ce logo
+      label: const Text(
+        'Se connecter avec Google',
+        style: TextStyle(color: Colors.black87),
+      ),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 12.0),
         side: BorderSide(color: Colors.grey.shade300),
@@ -219,13 +285,13 @@ class _SignUpNavigation extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          "Vous n'avez pas de compte ?",
-          style: theme.textTheme.bodyLarge,
-        ),
+        Text("Vous n'avez pas de compte ?", style: theme.textTheme.bodyLarge),
         TextButton(
           onPressed: () => context.goNamed(AppRoutes.signUp.routeName),
-          child: const Text("S'inscrire",style: TextStyle(color: Colors.black87, fontSize: 15),),
+          child: const Text(
+            "S'inscrire",
+            style: TextStyle(color: Colors.black87, fontSize: 15),
+          ),
         ),
       ],
     );

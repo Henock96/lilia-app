@@ -1,3 +1,4 @@
+import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,33 +12,76 @@ import '../../../models/produit.dart';
 import '../../../routing/app_route_enum.dart';
 import '../data/remote/restaurant_controller.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  @override
+  Widget build(BuildContext context) {
     // ID du restaurant à récupérer
     const String restaurantId = 'cmd9iay8y0000o4hjhi3w46z8';
 
-    final restaurantAsyncValue =
-        ref.watch(restaurantControllerProvider(restaurantId));
+    final restaurantAsyncValue = ref.watch(
+      restaurantControllerProvider(restaurantId),
+    );
     final cartAsyncValue = ref.watch(cartControllerProvider);
     final notificationHistory = ref.watch(notificationHistoryProvider);
-
-    // Écouteur pour les effets de bord (side effects) comme les SnackBars.
-    // Ne provoque pas de reconstruction du widget.
-    ref.listen(notificationStreamProvider, (previous, next) {
-      if (next.hasValue && next.value != null) {
-        final notification = next.value!;
-        ref.read(notificationHistoryProvider.notifier).addNotification(notification);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Nouvelle notification: ${notification.body}'),
-            duration: const Duration(seconds: 3),
+    final List<String> imgList = [
+      'assets/images/banner.png',
+      'assets/images/banner.png',
+      'assets/images/banner.png',
+      'assets/images/banner.png',
+    ];
+    final List<Widget> imageSliders = imgList
+        .map(
+          (item) => Container(
+            margin: EdgeInsets.all(5.0),
+            child: ClipRRect(
+              borderRadius: BorderRadius.all(Radius.circular(5.0)),
+              child: Stack(
+                children: [
+                  Image.asset(item, fit: BoxFit.contain, width: 1000.0),
+                  Positioned(
+                    bottom: 0.0,
+                    left: 0.0,
+                    right: 0.0,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Color.fromARGB(200, 0, 0, 0),
+                            Color.fromARGB(0, 0, 0, 0),
+                          ],
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                        ),
+                      ),
+                      padding: EdgeInsets.symmetric(
+                        vertical: 10.0,
+                        horizontal: 20.0,
+                      ),
+                      child: Text(
+                        'No. ${imgList.indexOf(item)}',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20.0,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        );
-      }
-    });
+        )
+        .toList();
+    int current = 0;
+    final CarouselSliderController controller = CarouselSliderController();
 
     return Scaffold(
       appBar: AppBar(
@@ -71,7 +115,7 @@ class HomeScreen extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: cartAsyncValue.when(
+      /*floatingActionButton: cartAsyncValue.when(
         data: (cart) {
           if (cart == null || cart.items.isEmpty) {
             return const SizedBox.shrink();
@@ -86,16 +130,14 @@ class HomeScreen extends ConsumerWidget {
         },
         loading: () => const SizedBox.shrink(),
         error: (_, __) => const SizedBox.shrink(),
-      ),
+      ),*/
       body: RefreshIndicator(
-        onRefresh: () => ref.refresh(cartControllerProvider.future),
+        onRefresh: () async {
+          ref.invalidate(restaurantControllerProvider);
+        },
         child: restaurantAsyncValue.when(
           data: (restaurant) {
             // --- Logique de groupement sécurisée ---
-            if (restaurant == null || restaurant.products == null) {
-              return const Center(child: Text("Ce restaurant n'a pas de produits."));
-            }
-
             Map<String, List<Product>> productsByCategory = {};
             List<Product> uncategorizedProducts = [];
 
@@ -113,17 +155,18 @@ class HomeScreen extends ConsumerWidget {
 
             List<Widget> categoryWidgets = [];
             productsByCategory.forEach((categoryName, products) {
-              categoryWidgets.add(CategorySection(
-                categoryName: categoryName,
-                products: products,
-              ));
+              categoryWidgets.add(
+                CategorySection(categoryName: categoryName, products: products),
+              );
             });
 
             if (uncategorizedProducts.isNotEmpty) {
-              categoryWidgets.add(CategorySection(
-                categoryName: 'Autres',
-                products: uncategorizedProducts,
-              ));
+              categoryWidgets.add(
+                CategorySection(
+                  categoryName: 'Autres',
+                  products: uncategorizedProducts,
+                ),
+              );
             }
             // --- Fin de la logique de groupement ---
 
@@ -135,63 +178,73 @@ class HomeScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Row(
                       children: [
-                        const Icon(Icons.location_on, color: Colors.redAccent, size: 20),
+                        const Icon(
+                          Icons.location_on,
+                          color: Colors.redAccent,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'Adresse: ${restaurant.address}',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const Icon(Icons.arrow_drop_down, color: Colors.black),
                       ],
                     ),
                   ),
                   const SizedBox(height: 16),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Container(
-                      height: 150,
-                      decoration: BoxDecoration(
-                        color: Colors.orangeAccent,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Stack(
-                        children: [
-                          Positioned(
-                            top: 20,
-                            left: 20,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Commandez maintenant',
-                                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                                ),
-                                const Text(
-                                  'Et obtenez une livraison gratuite',
-                                  style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(height: 10),
-                                ElevatedButton(
-                                  onPressed: () {},
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                  ),
-                                  child: const Text('Passez la commande', style: TextStyle(color: Colors.black)),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                  CarouselSlider(
+                    items: imageSliders,
+                    carouselController: controller,
+                    options: CarouselOptions(
+                      autoPlay: true,
+                      enlargeCenterPage: true,
+                      aspectRatio: 2.0,
+                      onPageChanged: (index, reason) {
+                        setState(() {
+                          current = index;
+                        });
+                      },
                     ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: imgList.asMap().entries.map((entry) {
+                      return GestureDetector(
+                        onTap: () => controller.animateToPage(entry.key),
+                        child: Container(
+                          width: 12.0,
+                          height: 12.0,
+                          margin: EdgeInsets.symmetric(
+                            vertical: 8.0,
+                            horizontal: 4.0,
+                          ),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color:
+                                (Theme.of(context).brightness == Brightness.dark
+                                        ? Colors.white
+                                        : Colors.black)
+                                    .withOpacity(
+                                      current == entry.key ? 0.9 : 0.4,
+                                    ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
                   const SizedBox(height: 24),
                   const Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16.0),
                     child: Text(
                       'Nos Catégories',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   ...categoryWidgets,
@@ -241,7 +294,7 @@ class CategorySection extends StatelessWidget {
               },
               child: ProductCard(product: product),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -288,7 +341,10 @@ class ProductCard extends ConsumerWidget {
                 children: [
                   Text(
                     product.name,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -299,17 +355,27 @@ class ProductCard extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Text(
                     '${getDisplayPrice().toStringAsFixed(1)} FCFA',
-                    style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 14),
+                    style: const TextStyle(
+                      color: Colors.black,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
                   ),
                 ],
               ),
             ),
             IconButton(
-              icon: Icon(Icons.add_circle, color: Theme.of(context).primaryColor, size: 30),
+              icon: Icon(
+                Icons.add_circle,
+                color: Theme.of(context).primaryColor,
+                size: 30,
+              ),
               onPressed: () {
                 if (product.variants.isNotEmpty) {
                   final variantId = product.variants.first.id;
-                  ref.read(cartControllerProvider.notifier).addItem(variantId: variantId);
+                  ref
+                      .read(cartControllerProvider.notifier)
+                      .addItem(variantId: variantId);
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('${product.name} a été ajouté au panier.'),
@@ -319,8 +385,10 @@ class ProductCard extends ConsumerWidget {
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Ce produit n\'a pas de variante sélectionnable.'),
-                      duration: const Duration(seconds: 2),
+                      content: Text(
+                        'Ce produit n\'a pas de variante sélectionnable.',
+                      ),
+                      duration: Duration(seconds: 2),
                     ),
                   );
                 }

@@ -4,7 +4,10 @@ enum AppRoutes {
   signUp,
   commandes,
   favoris,
+  favoriteDetail,
   profile,
+  address,
+  changePassword,
   productDetail,
   orderDetail,
   cart,
@@ -25,8 +28,14 @@ extension AppRoutesExtension on AppRoutes {
         return '/commandes';
       case AppRoutes.favoris:
         return '/favoris';
+      case AppRoutes.favoriteDetail:
+        return 'details';
       case AppRoutes.profile:
         return '/profile';
+      case AppRoutes.address:
+        return 'address';
+      case AppRoutes.changePassword:
+        return 'change-password';
       case AppRoutes.productDetail:
         return '/product-details';
       case AppRoutes.orderDetail:
@@ -52,8 +61,14 @@ extension AppRoutesExtension on AppRoutes {
         return 'Commandes';
       case AppRoutes.favoris:
         return 'Favoris';
+      case AppRoutes.favoriteDetail:
+        return 'FavoriteDetail';
       case AppRoutes.profile:
         return 'Profile';
+      case AppRoutes.address:
+        return 'Address';
+      case AppRoutes.changePassword:
+        return 'ChangePassword';
       case AppRoutes.productDetail:
         return 'Product-Details';
       case AppRoutes.orderDetail:

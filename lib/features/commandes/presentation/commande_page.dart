@@ -1,15 +1,19 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_client_sse/flutter_client_sse.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
+import 'package:lilia_app/features/commandes/data/order_repository.dart';
+import 'package:lilia_app/features/notifications/application/notification_providers.dart';
 import 'package:lilia_app/models/order.dart';
 import 'package:intl/intl.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 
-
-// La page est maintenant un ConsumerStatefulWidget pour gérer le TabController
 class CommandePage extends ConsumerStatefulWidget {
   const CommandePage({super.key});
 
@@ -37,6 +41,21 @@ class _CommandePageState extends ConsumerState<CommandePage>
   Widget build(BuildContext context) {
     final ordersAsyncValue = ref.watch(userOrdersProvider);
 
+    ref.listen<String?>(latestUpdatedOrderIdProvider, (previous, next) {
+      if (next != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'La commande #${next.substring(0, 8)} a été mise à jour.',
+            ),
+            backgroundColor: Colors.blue,
+          ),
+        );
+        // Réinitialiser le provider pour ne pas afficher le snackbar à nouveau
+        ref.read(latestUpdatedOrderIdProvider.notifier).state = null;
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mes Commandes'),
@@ -52,12 +71,13 @@ class _CommandePageState extends ConsumerState<CommandePage>
       ),
       body: ordersAsyncValue.when(
         data: (orders) {
-          // Logique de filtrage des commandes basée sur leur statut
           final onGoingOrders = orders
-              .where((o) =>
-                  o.status == OrderStatus.enAttente ||
-                  o.status == OrderStatus.enPreparation ||
-                  o.status == OrderStatus.pret)
+              .where(
+                (o) =>
+                    o.status == OrderStatus.enAttente ||
+                    o.status == OrderStatus.enPreparation ||
+                    o.status == OrderStatus.pret,
+              )
               .toList();
           final completedOrders = orders
               .where((o) => o.status == OrderStatus.livrer)
@@ -66,25 +86,22 @@ class _CommandePageState extends ConsumerState<CommandePage>
               .where((o) => o.status == OrderStatus.annuler)
               .toList();
 
-          return RefreshIndicator(
-            onRefresh: () => ref.refresh(userOrdersProvider.future),
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _OrderListView(
-                  orders: onGoingOrders,
-                  key: const PageStorageKey('onGoingOrders'),
-                ),
-                _OrderListView(
-                  orders: completedOrders,
-                  key: const PageStorageKey('completedOrders'),
-                ),
-                _OrderListView(
-                  orders: cancelledOrders,
-                  key: const PageStorageKey('cancelledOrders'),
-                ),
-              ],
-            ),
+          return TabBarView(
+            controller: _tabController,
+            children: [
+              _OrderListView(
+                orders: onGoingOrders,
+                key: const PageStorageKey('onGoingOrders'),
+              ),
+              _OrderListView(
+                orders: completedOrders,
+                key: const PageStorageKey('completedOrders'),
+              ),
+              _OrderListView(
+                orders: cancelledOrders,
+                key: const PageStorageKey('cancelledOrders'),
+              ),
+            ],
           );
         },
         loading: () => const BuildLoadingState(),
@@ -94,14 +111,14 @@ class _CommandePageState extends ConsumerState<CommandePage>
   }
 }
 
-// Widget pour afficher une liste de commandes
-class _OrderListView extends StatelessWidget {
+// ... le reste du fichier (_OrderListView, _OrderCard) reste inchangé ...
+class _OrderListView extends ConsumerWidget {
   final List<Order> orders;
 
   const _OrderListView({required this.orders, super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (orders.isEmpty) {
       return const Center(
         child: Text(
@@ -110,20 +127,26 @@ class _OrderListView extends StatelessWidget {
         ),
       );
     }
-    return ListView.builder(
-      itemCount: orders.length,
-      itemBuilder: (context, index) {
-        return GestureDetector(
-            onTap: (){
-              context.goNamed(AppRoutes.orderDetail.routeName, pathParameters: {'orderId': orders[index].id});
+    return RefreshIndicator(
+      onRefresh: () async => ref.refresh(userOrdersProvider.future),
+      child: ListView.builder(
+        itemCount: orders.length,
+        itemBuilder: (context, index) {
+          return GestureDetector(
+            onTap: () {
+              context.goNamed(
+                AppRoutes.orderDetail.routeName,
+                pathParameters: {'orderId': orders[index].id},
+              );
             },
-            child: _OrderCard(order: orders[index]));
-      },
+            child: _OrderCard(order: orders[index]),
+          );
+        },
+      ),
     );
   }
 }
 
-// Widget pour afficher les détails d'une seule commande
 class _OrderCard extends ConsumerWidget {
   final Order order;
 
@@ -165,12 +188,12 @@ class _OrderCard extends ConsumerWidget {
             Text('Statut: ${_formatStatus(order.status)}'),
             Text('Total: ${order.total.toStringAsFixed(2)} FCFA'),
             const SizedBox(height: 16),
-            // Affiche le bouton "Annuler" seulement si la commande est en attente
             if (order.status == OrderStatus.enAttente)
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
-                  onPressed: () => _showCancelConfirmationDialog(context, ref, order.id),
+                  onPressed: () =>
+                      _showCancelConfirmationDialog(context, ref, order.id),
                   child: const Text(
                     'Annuler la commande',
                     style: TextStyle(color: Colors.red),
@@ -183,14 +206,19 @@ class _OrderCard extends ConsumerWidget {
     );
   }
 
-  // Affiche une boîte de dialogue de confirmation avant d'annuler
-  void _showCancelConfirmationDialog(BuildContext context, WidgetRef ref, String orderId) {
+  void _showCancelConfirmationDialog(
+    BuildContext context,
+    WidgetRef ref,
+    String orderId,
+  ) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Confirmer l\'annulation'),
-          content: const Text('Êtes-vous sûr de vouloir annuler cette commande ?'),
+          content: const Text(
+            'Êtes-vous sûr de vouloir annuler cette commande ?',
+          ),
           actions: <Widget>[
             TextButton(
               child: const Text('Non'),
@@ -201,9 +229,11 @@ class _OrderCard extends ConsumerWidget {
             TextButton(
               child: const Text('Oui, annuler'),
               onPressed: () async {
-                Navigator.of(context).pop(); // Ferme la dialogue
+                Navigator.of(context).pop();
                 try {
-                  await ref.read(userOrdersProvider.notifier).cancelOrder(orderId);
+                  await ref
+                      .read(userOrdersProvider.notifier)
+                      .cancelOrder(orderId);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Commande annulée avec succès.'),
@@ -226,7 +256,6 @@ class _OrderCard extends ConsumerWidget {
     );
   }
 
-  // Formate le statut pour un affichage plus convivial
   String _formatStatus(OrderStatus status) {
     switch (status) {
       case OrderStatus.enAttente:

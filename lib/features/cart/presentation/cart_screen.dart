@@ -13,23 +13,13 @@ class CartScreen extends ConsumerWidget {
     final cartState = ref.watch(cartControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Mon Panier'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            context.pop();
-          },
-        ),
-      ),
+      appBar: AppBar(centerTitle: true, title: const Text('Mon Panier')),
       body: Column(
         children: [
           cartState.when(
             data: (cart) {
               if (cart == null || cart.items.isEmpty) {
-                return const Center(
-                  child: Text('Votre panier est vide.'),
-                );
+                return const Center(child: Text('Votre panier est vide.'));
               }
               return ListView.builder(
                 shrinkWrap: true,
@@ -44,34 +34,43 @@ class CartScreen extends ConsumerWidget {
             error: (err, stack) => Center(child: Text('Erreur: $err')),
           ),
           Spacer(),
-          cartState.valueOrNull != null &&
-              cartState.value!.items.isNotEmpty ?
-            Padding(
-            padding: const EdgeInsets.all(10),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Total: ${cartState.value!.totalPrice.toStringAsFixed(0)} FCFA',
-                  style: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w400),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    context.push(AppRoutes.checkout.path);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.all(2.0),
-                    child: const Text('Passer la commande',style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w400),),
+          cartState.valueOrNull != null && cartState.value!.items.isNotEmpty
+              ? Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Total: ${cartState.value!.totalPrice.toStringAsFixed(1)} FCFA',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          context.goNamed(AppRoutes.checkout.routeName);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                            left: 10.0,
+                            right: 10.0,
+                          ),
+                          child: const Text(
+                            'Passer la commande',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 )
-              ],
-            ),
-          ) : Container(),
+              : Container(),
         ],
       ),
-  
     );
   }
 }
@@ -95,7 +94,7 @@ class CartItemCard extends ConsumerWidget {
               height: 60,
               fit: BoxFit.cover,
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 5),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,12 +102,18 @@ class CartItemCard extends ConsumerWidget {
                   Text(
                     item.product.nom,
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 15),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
                   ),
-                  Text(item.variant.label,
-                      style: const TextStyle(color: Colors.grey, fontSize: 14)),
+                  const SizedBox(height: 4),
                   Text(
-                    '${item.variant.prix.toStringAsFixed(0)} FCFA',
+                    item.variant.label,
+                    style: const TextStyle(color: Colors.black, fontSize: 12),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${item.variant.prix.toStringAsFixed(1)} FCFA',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ],
@@ -119,18 +124,24 @@ class CartItemCard extends ConsumerWidget {
                 IconButton(
                   icon: const Icon(Icons.remove_circle_outline),
                   onPressed: () {
-                    ref.read(cartControllerProvider.notifier).updateItemQuantity(
+                    ref
+                        .read(cartControllerProvider.notifier)
+                        .updateItemQuantity(
                           cartItemId: item.id,
                           quantity: item.quantite - 1,
                         );
                   },
                 ),
-                Text(item.quantite.toString(),
-                    style: const TextStyle(fontSize: 16)),
+                Text(
+                  item.quantite.toString(),
+                  style: const TextStyle(fontSize: 18),
+                ),
                 IconButton(
                   icon: const Icon(Icons.add_circle_outline),
                   onPressed: () {
-                    ref.read(cartControllerProvider.notifier).updateItemQuantity(
+                    ref
+                        .read(cartControllerProvider.notifier)
+                        .updateItemQuantity(
                           cartItemId: item.id,
                           quantity: item.quantite + 1,
                         );
@@ -139,7 +150,9 @@ class CartItemCard extends ConsumerWidget {
                 IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
                   onPressed: () {
-                    ref.read(cartControllerProvider.notifier).removeItem(cartItemId: item.id);
+                    ref
+                        .read(cartControllerProvider.notifier)
+                        .removeItem(cartItemId: item.id);
                   },
                 ),
               ],

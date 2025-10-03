@@ -15,27 +15,21 @@ class OrderSuccessPage extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Icon(
+              Icon(
                 Icons.check_circle_outline,
-                color: Colors.green,
+                color: Theme.of(context).primaryColor,
                 size: 100,
               ),
               const SizedBox(height: 24),
               const Text(
                 'Commande passée avec succès !',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 16),
               const Text(
                 'Merci pour votre confiance. Vous pouvez suivre l\'état de votre commande dans la section "Mes Commandes".',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.black54,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.black54),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 48),
@@ -44,8 +38,11 @@ class OrderSuccessPage extends StatelessWidget {
                   context.goNamed(AppRoutes.commandes.routeName);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.teal,
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                  backgroundColor: Theme.of(context).primaryColor,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 16,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
@@ -60,9 +57,12 @@ class OrderSuccessPage extends StatelessWidget {
                 onPressed: () {
                   context.goNamed(AppRoutes.home.routeName);
                 },
-                child: const Text(
-                  'Retour à l\'accueil',
-                  style: TextStyle(color: Colors.teal, fontSize: 16),
+                child: Text(
+                  'Retour à l\'Accueil',
+                  style: TextStyle(
+                    color: Theme.of(context).primaryColor,
+                    fontSize: 16,
+                  ),
                 ),
               ),
             ],

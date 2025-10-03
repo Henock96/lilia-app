@@ -1,4 +1,5 @@
 import 'package:cloudinary_public/cloudinary_public.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
 class CloudinaryService {
@@ -10,12 +11,14 @@ class CloudinaryService {
   Future<String?> uploadImage(XFile image) async {
     try {
       final response = await _cloudinary.uploadFile(
-        CloudinaryFile.fromFile(image.path, resourceType: CloudinaryResourceType.Image),
+        CloudinaryFile.fromFile(
+          image.path,
+          resourceType: CloudinaryResourceType.Image,
+        ),
       );
       return response.secureUrl;
     } on CloudinaryException catch (e) {
-      print(e.message);
-      print(e.request);
+      debugPrint(e.message);
       return null;
     }
   }

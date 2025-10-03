@@ -61,8 +61,9 @@ class Order {
 
   factory Order.fromJson(Map<String, dynamic> json) {
     var itemsList = json['items'] as List;
-    List<OrderItem> items =
-        itemsList.map((i) => OrderItem.fromJson(i)).toList();
+    List<OrderItem> items = itemsList
+        .map((i) => OrderItem.fromJson(i))
+        .toList();
 
     return Order(
       id: json['id'],
@@ -84,16 +85,15 @@ class Order {
 
 class OrderRestaurant {
   final String nom;
+  final String? adresse;
   final String? imageUrl;
 
-  OrderRestaurant({
-    required this.nom,
-    this.imageUrl,
-  });
+  OrderRestaurant({required this.nom, this.adresse, this.imageUrl});
 
   factory OrderRestaurant.fromJson(Map<String, dynamic> json) {
     return OrderRestaurant(
       nom: json['nom'],
+      adresse: json['adresse'],
       imageUrl: json['imageUrl'],
     );
   }

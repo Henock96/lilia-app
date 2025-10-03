@@ -1,23 +1,16 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_app/features/notifications/data/notification_model.dart';
 import 'package:lilia_app/features/notifications/data/notification_repository.dart';
-import 'package:lilia_app/features/notifications/data/notification_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 part 'notification_providers.g.dart';
 
-@riverpod
-NotificationService notificationService(NotificationServiceRef ref) {
-  return NotificationService();
-}
+/// Provider to hold the ID of the most recently updated order.
+final latestUpdatedOrderIdProvider = StateProvider<String?>((ref) => null);
 
 @riverpod
 NotificationRepository notificationRepository(NotificationRepositoryRef ref) {
   return NotificationRepository();
-}
-
-@riverpod
-Stream<AppNotification> notificationStream(NotificationStreamRef ref) {
-  return ref.watch(notificationServiceProvider).connect();
 }
 
 @riverpod
@@ -30,7 +23,8 @@ class NotificationHistory extends _$NotificationHistory {
 
   Future<void> addNotification(AppNotification notification) async {
     // Mettre à jour l'état avec la nouvelle notification
-    state = AsyncData([...await future, notification]);
+    final currentState = await future;
+    state = AsyncData([notification, ...currentState]); // Ajoute au début
     // Sauvegarder la liste mise à jour
     await ref.read(notificationRepositoryProvider).saveNotifications(state.value!);
   }
