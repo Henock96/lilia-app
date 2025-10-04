@@ -3,7 +3,6 @@ import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/commandes/data/order_repository.dart';
 import 'package:lilia_app/models/checkout.dart';
-import 'package:lilia_app/models/order.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 // Pour invalider le panier après commande
 

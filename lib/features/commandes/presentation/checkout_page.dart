@@ -8,8 +8,6 @@ import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/commandes/data/checkout_controller.dart';
 import 'package:lilia_app/features/payments/presentation/payment_page.dart';
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
-import 'package:lilia_app/features/user/application/profile_controller.dart';
-import 'package:lilia_app/features/user/data/adresse_repository.dart';
 import 'package:lilia_app/models/adresse.dart';
 
 import '../../../routing/app_route_enum.dart';
@@ -55,7 +53,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     // Watch les fournisseurs de données
     final cartAsync = ref.watch(cartControllerProvider);
     final addressesAsync = ref.watch(adresseControllerProvider);
-    final userProfileAsync = ref.watch(userProfileProvider);
     final checkoutState = ref.watch(checkoutControllerProvider);
 
     return Scaffold(
@@ -75,10 +72,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       ),
       body: RefreshIndicator(
         // Permet de rafraîchir les données en tirant vers le bas
-        onRefresh: () async {
-          ref.invalidate(cartControllerProvider);
-          ref.invalidate(userProfileProvider);
-        },
+        onRefresh: () async {},
         child: cartAsync.when(
           data: (cart) {
             // Calcul du sous-total côté client pour l'affichage
@@ -314,7 +308,24 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       child: Column(
         children: [
           // Option 1: Cash à la livraison
-          RadioListTile<String>(
+          RadioGroup(
+            groupValue: _selectedPaymentMethod,
+            onChanged: (String? value) {
+              setState(() => _selectedPaymentMethod = value!);
+            },
+            child: Row(
+              children: [
+                Icon(Icons.money, color: Colors.green.shade700),
+                const SizedBox(width: 8),
+                const Text(
+                  'Payer en Cash à la livraison',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
+
+          /*RadioListTile<String>(
             title: Row(
               children: [
                 Icon(Icons.money, color: Colors.green.shade700),
@@ -333,13 +344,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             },
             dense: true,
             contentPadding: EdgeInsets.zero,
-          ),
-
+          ),*/
           const Divider(),
-
-          // Option 2: MTN Mobile Money
-          RadioListTile<String>(
-            title: Row(
+          RadioGroup(
+            groupValue: _selectedPaymentMethod,
+            onChanged: (String? value) {
+              setState(() => _selectedPaymentMethod = value!);
+            },
+            child: Row(
               children: [
                 Icon(Icons.phone_android, color: Colors.orange.shade700),
                 const SizedBox(width: 8),
@@ -349,16 +361,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 ),
               ],
             ),
-            subtitle: const Text('Paiement sécurisé via MTN MoMo'),
-            value: 'MTN_MOMO',
-            groupValue: _selectedPaymentMethod,
-            onChanged: (String? value) {
-              setState(() => _selectedPaymentMethod = value!);
-            },
-            dense: true,
-            contentPadding: EdgeInsets.zero,
           ),
-
+          // Option 2: MTN Mobile Money
           // Badge "Mode Test" si applicable
           if (_selectedPaymentMethod == 'MTN_MOMO')
             Container(
@@ -406,9 +410,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     // Étape 2: Vérifier la méthode de paiement
     if (_selectedPaymentMethod == 'MTN_MOMO') {
       // Pour MTN MoMo: Créer la commande d'abord, puis aller vers le paiement
+      if (!context.mounted) return;
       await _handleMtnMomoPayment(context, finalAddressId, total);
     } else {
       // Pour Cash: Créer la commande directement
+      if (!context.mounted) return;
       await _handleCashOnDelivery(context, finalAddressId);
     }
   }
@@ -425,6 +431,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         finalAddressId = newAddress.id;
         ref.invalidate(adresseControllerProvider);
       } catch (e) {
+        if (!context.mounted) return null;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -479,6 +486,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       // Étape 3: Gérer le résultat du paiement
       if (paymentResult == true) {
         // Paiement réussi
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Commande et paiement réussis!'),
@@ -493,6 +501,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         context.goNamed(AppRoutes.orderSuccess.routeName);
       } else {
         // Paiement échoué ou annulé
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text(
@@ -534,8 +543,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Commande passée avec succès!')),
       );
-
-      ref.read(cartControllerProvider.notifier).clearCart();
       context.goNamed(AppRoutes.orderSuccess.routeName);
     } catch (e) {
       if (!context.mounted) return;

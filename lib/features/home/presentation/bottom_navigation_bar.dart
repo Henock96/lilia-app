@@ -34,11 +34,11 @@ class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
         selectedIndex: widget.navigationShell.currentIndex,
         destinations: const [
           NavigationDestination(label: 'Accueil', icon: Icon(Iconsax.home)),
-          NavigationDestination(label: 'Commandes', icon: Icon(Iconsax.shop)),
           NavigationDestination(
             label: 'Panier',
             icon: Icon(Iconsax.shopping_bag),
           ),
+          NavigationDestination(label: 'Commandes', icon: Icon(Iconsax.shop)),
           NavigationDestination(label: 'Profil', icon: Icon(Iconsax.user)),
         ],
         onDestinationSelected: _goBranch,

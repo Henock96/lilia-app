@@ -13,7 +13,7 @@ class EditProfilePage extends ConsumerStatefulWidget {
 class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _addressController = TextEditingController();
+  //final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
 
   @override
@@ -38,11 +38,13 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
   Future<void> _saveProfile() async {
     if (_formKey.currentState!.validate()) {
-      final success = await ref.read(profileControllerProvider.notifier).updateUser({
-        'nom': _nameController.text,
-        //'adresses': _addressController.text,
-        'phone': _phoneController.text,
-      });
+      final success = await ref
+          .read(profileControllerProvider.notifier)
+          .updateUser({
+            'nom': _nameController.text,
+            //'adresses': _addressController.text,
+            'phone': _phoneController.text,
+          });
 
       if (!mounted) return; // Vérifie si le widget est toujours monté
 
@@ -59,7 +61,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         final error = ref.read(profileControllerProvider).error;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erreur lors de la mise à jour: ${error ?? "Une erreur inconnue est survenue."}'),
+            content: Text(
+              'Erreur lors de la mise à jour: ${error ?? "Une erreur inconnue est survenue."}',
+            ),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -73,9 +77,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     final user = ref.watch(authControllerProvider).value;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Modifier le Profil'),
-      ),
+      appBar: AppBar(title: const Text('Modifier le Profil')),
       body: user == null
           ? const Center(child: Text("Utilisateur non trouvé."))
           : SingleChildScrollView(
@@ -118,16 +120,20 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
                         child: profileState.isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
                             : const Text('Enregistrer les modifications'),
                       ),
                     ),
-                     if (profileState.hasError)
+                    if (profileState.hasError)
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0),
                         child: Text(
                           'Erreur: ${profileState.error}',
-                          style: TextStyle(color: Theme.of(context).colorScheme.error),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                          ),
                         ),
                       ),
                   ],

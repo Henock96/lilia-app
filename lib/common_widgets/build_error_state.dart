@@ -19,24 +19,18 @@ class _BuildErrorStateState extends ConsumerState<BuildErrorState> {
           Icon(
             Icons.error_outline,
             size: 32,
-            color: theme.colorScheme.error.withOpacity(0.5),
+            color: theme.colorScheme.error.withValues(alpha: 0.5),
           ),
           const SizedBox(height: 8),
-          Text(
-            'Erreur de chargement',
-            style: theme.textTheme.bodyMedium,
-          ),
+          Text('Erreur de chargement', style: theme.textTheme.bodyMedium),
           TextButton(
             onPressed: () {
-              setState(() {
-
-              });
+              setState(() {});
             },
             child: const Text('Réessayer'),
           ),
         ],
       ),
     );
-
   }
 }

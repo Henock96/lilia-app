@@ -14,7 +14,7 @@ class SignUpPage extends ConsumerStatefulWidget {
 }
 
 class _SignUpPageState extends ConsumerState<SignUpPage> {
-  final _formKey = GlobalKey<FormState>();
+  //final _formKey = GlobalKey<FormState>();
   BuildContext? _progressIndicatorContext;
 
   @override
@@ -27,11 +27,8 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
     super.dispose();
   }
 
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     ref.listen(authControllerProvider, (prev, state) async {
       if (state.isLoading) {
         await showDialog(
@@ -75,7 +72,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
               gapH12,
               _SocialLogins(),
               gapH12,
-              _SignInNavigation()
+              _SignInNavigation(),
             ],
           ),
         ),
@@ -83,6 +80,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
     );
   }
 }
+
 class _Header extends StatelessWidget {
   const _Header();
 
@@ -92,11 +90,7 @@ class _Header extends StatelessWidget {
     return Column(
       children: [
         gapH64,
-        Icon(
-          Icons.fastfood,
-          size: 80,
-          color: theme.colorScheme.primary,
-        ),
+        Icon(Icons.fastfood, size: 80, color: theme.colorScheme.primary),
         gapH16,
         Text(
           'Rejoignez Lilia',
@@ -128,7 +122,7 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
-  TextEditingController();
+      TextEditingController();
   bool _obscurePassword = true;
 
   @override
@@ -143,12 +137,14 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
 
   Future<void> _signUp() async {
     if (_formKey.currentState!.validate()) {
-      await ref.read(authControllerProvider.notifier).createUserWithEmailAndPassword(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-        _nameController.text.trim(),
-        _phoneController.text.trim(),
-      );
+      await ref
+          .read(authControllerProvider.notifier)
+          .createUserWithEmailAndPassword(
+            _emailController.text.trim(),
+            _passwordController.text.trim(),
+            _nameController.text.trim(),
+            _phoneController.text.trim(),
+          );
     }
   }
 
@@ -174,7 +170,9 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
               prefixIcon: Icon(Icons.person_outline),
             ),
             validator: (value) {
-              if (value == null || value.isEmpty) return 'Veuillez entrer votre nom';
+              if (value == null || value.isEmpty) {
+                return 'Veuillez entrer votre nom';
+              }
               return null;
             },
           ),
@@ -187,7 +185,9 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
             ),
             keyboardType: TextInputType.phone,
             validator: (value) {
-              if (value == null || value.isEmpty) return 'Veuillez entrer votre numéro';
+              if (value == null || value.isEmpty) {
+                return 'Veuillez entrer votre numéro';
+              }
               return null;
             },
           ),
@@ -199,8 +199,12 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
               prefixIcon: Icon(Icons.email_outlined),
             ),
             validator: (value) {
-              if (value == null || value.isEmpty) return 'Veuillez entrer votre email';
-              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) return 'Veuillez entrer un email valide';
+              if (value == null || value.isEmpty) {
+                return 'Veuillez entrer votre email';
+              }
+              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                return 'Veuillez entrer un email valide';
+              }
               return null;
             },
           ),
@@ -253,10 +257,10 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
             onPressed: state.isLoading ? null : _signUp,
             child: state.isLoading
                 ? const SizedBox(
-              height: 24,
-              width: 24,
-              child: CircularProgressIndicator(color: Colors.white),
-            )
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(color: Colors.white),
+                  )
                 : const Text("S'inscrire"),
           ),
         ],
@@ -296,8 +300,14 @@ class _SocialLogins extends ConsumerWidget {
       onPressed: () async {
         await ref.read(authControllerProvider.notifier).signInWithGoogle();
       },
-      icon: Image.asset('assets/images/google_logo.png', height: 24.0), // Assurez-vous d'avoir ce logo
-      label: const Text("S'inscrire avec Google", style: TextStyle(color: Colors.black87),),
+      icon: Image.asset(
+        'assets/images/google_logo.png',
+        height: 24.0,
+      ), // Assurez-vous d'avoir ce logo
+      label: const Text(
+        "S'inscrire avec Google",
+        style: TextStyle(color: Colors.black87),
+      ),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 12.0),
         side: BorderSide(color: Colors.grey.shade300),
@@ -315,13 +325,13 @@ class _SignInNavigation extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          'Vous avez déjà un compte ?',
-          style: theme.textTheme.bodyMedium,
-        ),
+        Text('Vous avez déjà un compte ?', style: theme.textTheme.bodyMedium),
         TextButton(
           onPressed: () => context.goNamed(AppRoutes.signIn.routeName),
-          child: const Text("Se connecter", style: TextStyle(color: Colors.black87),),
+          child: const Text(
+            "Se connecter",
+            style: TextStyle(color: Colors.black87),
+          ),
         ),
       ],
     );

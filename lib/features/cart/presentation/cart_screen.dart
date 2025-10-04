@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:iconsax/iconsax.dart';
+import 'package:lilia_app/common_widgets/build_error_state.dart';
+import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
@@ -19,7 +22,44 @@ class CartScreen extends ConsumerWidget {
           cartState.when(
             data: (cart) {
               if (cart == null || cart.items.isEmpty) {
-                return const Center(child: Text('Votre panier est vide.'));
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 200),
+                      Icon(
+                        Iconsax.shopping_bag,
+                        size: 100,
+                        color: Colors.black,
+                      ),
+                      Text(
+                        'Votre Panier est vide !',
+                        style: TextStyle(fontSize: 18, color: Colors.black87),
+                      ),
+                      const SizedBox(height: 20),
+                      TextButton(
+                        style: ButtonStyle(
+                          backgroundColor: WidgetStateProperty.all(
+                            Theme.of(context).primaryColor,
+                          ),
+                          padding: WidgetStateProperty.all(
+                            const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 20,
+                            ),
+                          ),
+                        ),
+                        onPressed: () {
+                          context.goNamed(AppRoutes.home.routeName);
+                        },
+                        child: Text(
+                          'Commencer vos achats',
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
               }
               return ListView.builder(
                 shrinkWrap: true,
@@ -30,8 +70,8 @@ class CartScreen extends ConsumerWidget {
                 },
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (err, stack) => Center(child: Text('Erreur: $err')),
+            loading: () => const BuildLoadingState(),
+            error: (err, stack) => BuildErrorState(err),
           ),
           Spacer(),
           cartState.valueOrNull != null && cartState.value!.items.isNotEmpty

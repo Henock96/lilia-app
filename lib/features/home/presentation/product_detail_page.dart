@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../../models/produit.dart';
 import '../../cart/application/cart_controller.dart';
@@ -35,6 +36,27 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     return widget.product.prixOriginal * _quantity;
   }
 
+  void _shareProduct(BuildContext context) {
+    // Construire le message à partager
+    final String message =
+        '''
+    Découvrez ${widget.product.name} sur Lilia !
+
+    ${widget.product.description}
+
+    Prix: ${widget.product.prixOriginal} FCFA
+
+    Commander maintenant sur l'app Lilia
+    ''';
+    // Partager le texte
+    SharePlus.instance.share(
+      ShareParams(
+        text: message,
+        title: 'Découvrez ${widget.product.name} sur Lilia Food',
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isFavorite = ref
@@ -65,9 +87,8 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           ),
           IconButton(
             icon: const Icon(Icons.share, color: Colors.black),
-            onPressed: () {
-              // Action de recherche
-            },
+            onPressed: () => _shareProduct(context),
+            tooltip: 'Partager le produit',
           ),
         ],
       ),
@@ -84,9 +105,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                       tag: widget.product.id,
                       child: Image.network(
                         widget.product.imageUrl,
-                        height: 250,
+                        height: 300,
                         width: double.infinity,
-                        fit: BoxFit.contain,
+                        fit: BoxFit.cover,
                       ),
                     ),
                   ),

@@ -1,14 +1,9 @@
-import 'dart:async';
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_client_sse/flutter_client_sse.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
-import 'package:lilia_app/features/commandes/data/order_repository.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
 import 'package:lilia_app/models/order.dart';
 import 'package:intl/intl.dart';
@@ -230,10 +225,14 @@ class _OrderCard extends ConsumerWidget {
               child: const Text('Oui, annuler'),
               onPressed: () async {
                 Navigator.of(context).pop();
+                // Vérifier à nouveau avant d'afficher le SnackBar
+                if (!context.mounted) return;
                 try {
                   await ref
                       .read(userOrdersProvider.notifier)
                       .cancelOrder(orderId);
+                  // Vérifier à nouveau avant d'afficher le SnackBar
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Commande annulée avec succès.'),
@@ -241,6 +240,8 @@ class _OrderCard extends ConsumerWidget {
                     ),
                   );
                 } catch (e) {
+                  // Vérifier avant d'afficher l'erreur
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Erreur: ${e.toString()}'),

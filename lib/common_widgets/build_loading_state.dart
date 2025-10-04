@@ -28,7 +28,7 @@ class BuildLoadingState extends StatelessWidget {
                     width: 110,
                     height: 110,
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primary.withOpacity(0.1),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.1),
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(12),
                         bottomLeft: Radius.circular(12),
@@ -45,7 +45,9 @@ class BuildLoadingState extends StatelessWidget {
                             width: double.infinity,
                             height: 16,
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withOpacity(0.1),
+                              color: theme.colorScheme.primary.withValues(
+                                alpha: 0.1,
+                              ),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -54,7 +56,9 @@ class BuildLoadingState extends StatelessWidget {
                             width: 120,
                             height: 16,
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withOpacity(0.1),
+                              color: theme.colorScheme.primary.withValues(
+                                alpha: 0.1,
+                              ),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),
@@ -63,7 +67,9 @@ class BuildLoadingState extends StatelessWidget {
                             width: 80,
                             height: 12,
                             decoration: BoxDecoration(
-                              color: theme.colorScheme.primary.withOpacity(0.1),
+                              color: theme.colorScheme.primary.withValues(
+                                alpha: 0.5,
+                              ),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:iconsax/iconsax.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
@@ -27,7 +26,7 @@ class FavorisPage extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Iconsax.heart, size: 80, color: Colors.grey[400]),
+                  Image.asset("assets/images/fav.jpg", width: 150, height: 150),
                   const SizedBox(height: 20),
                   Padding(
                     padding: const EdgeInsets.only(

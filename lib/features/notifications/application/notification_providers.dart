@@ -9,7 +9,7 @@ part 'notification_providers.g.dart';
 final latestUpdatedOrderIdProvider = StateProvider<String?>((ref) => null);
 
 @riverpod
-NotificationRepository notificationRepository(NotificationRepositoryRef ref) {
+NotificationRepository notificationRepository(Ref ref) {
   return NotificationRepository();
 }
 
@@ -26,7 +26,9 @@ class NotificationHistory extends _$NotificationHistory {
     final currentState = await future;
     state = AsyncData([notification, ...currentState]); // Ajoute au début
     // Sauvegarder la liste mise à jour
-    await ref.read(notificationRepositoryProvider).saveNotifications(state.value!);
+    await ref
+        .read(notificationRepositoryProvider)
+        .saveNotifications(state.value!);
   }
 
   Future<void> clearHistory() async {

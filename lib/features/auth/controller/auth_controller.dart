@@ -6,6 +6,7 @@ import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/commandes/data/order_repository.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
+import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/services/notification_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
@@ -99,7 +100,16 @@ class AuthController extends _$AuthController {
   Future<void> signInWithGoogle() async {
     state = const AsyncValue.loading();
     try {
-      await null;
+      final googleUser = await ref
+          .read(authRepositoryProvider)
+          .signInWithGoogle();
+      if (googleUser == null) {
+        // L'utilisateur a annulé la connexion Google
+        state = const AsyncValue.data(null);
+      } else {
+        // Connexion réussie
+        state = AsyncValue.data(googleUser);
+      }
       // L'état sera mis à jour par le stream authStateChanges, qui déclenchera _setupNotifications
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -116,6 +126,7 @@ class AuthController extends _$AuthController {
       ref.invalidate(notificationHistoryProvider);
       ref.invalidate(orderRepositoryProvider);
       ref.invalidate(favoritesProvider);
+      ref.invalidate(userProfileProvider);
 
       return true;
     } on Exception {

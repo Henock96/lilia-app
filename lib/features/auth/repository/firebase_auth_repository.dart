@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -10,12 +11,12 @@ part 'firebase_auth_repository.g.dart';
 
 class FirebaseAuthenticationRepository {
   final FirebaseAuth _firebaseAuth;
-  //final GoogleSignIn _googleSignIn;
+  final GoogleSignIn _googleSignIn;
   final http.Client _client;
 
   FirebaseAuthenticationRepository(
     this._firebaseAuth,
-    //this._googleSignIn,
+    this._googleSignIn,
     this._client,
   );
 
@@ -88,52 +89,48 @@ class FirebaseAuthenticationRepository {
     }
   }
 
-  /*Future<void> signInWithGoogle() async {
-    final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-    if (googleUser != null) {
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-      final AuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-      final userCredential = await _firebaseAuth.signInWithCredential(
-        credential,
-      );
-      final user = userCredential.user;
+  Future<AppUser?> signInWithGoogle() async {
+    //final googleUser = await _googleSignIn.authenticate();
 
-      if (user == null) {
-        throw Exception("La connexion avec Google a échoué.");
-      }
-
-      // Après la connexion, synchroniser avec le backend
-      final idToken = await user.getIdToken();
-      final url = Uri.parse('https://lilia-backend.onrender.com/auth/register');
-
-      final response = await _client.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $idToken',
-        },
-        body: jsonEncode({
-          'firebaseUid': user.uid,
-          'email': user.email,
-          'nom': user.displayName ?? '',
-          'telephone': user.phoneNumber ?? '',
-        }),
-      );
-
-      if (response.statusCode != 201 && response.statusCode != 200) {
-        // 201 pour créé, 200 si l'utilisateur existe déjà
-        await user.delete(); // Supprimer l'utilisateur Firebase en cas d'échec
-        throw Exception(
-          'Échec de la synchronisation avec le backend: ${response.body}',
-        );
-      }
+    final authClient = _googleSignIn.authorizationClient;
+    final auth = await authClient.authorizationForScopes([
+      'email',
+      'profile',
+      'openid',
+    ]);
+    final credential = GoogleAuthProvider.credential(
+      accessToken: auth?.accessToken,
+    );
+    final userCred = await _firebaseAuth.signInWithCredential(credential);
+    final user = userCred.user;
+    if (user == null) {
+      throw Exception("La connexion Google a échoué.");
     }
+    // Après une connexion réussie, vous pouvez envoyer les informations à votre backend si nécessaire.
+    final idToken = await user.getIdToken();
+    final url = Uri.parse('https://lilia-backend.onrender.com/auth/register');
+    final response = await _client.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $idToken',
+      },
+      body: jsonEncode({
+        'firebaseUid': user.uid,
+        'email': user.email,
+        'nom': user.displayName,
+        'telephone': user.phoneNumber,
+      }),
+    );
+    if (response.statusCode != 201 && response.statusCode != 200) {
+      await user.delete();
+      throw Exception(
+        'Échec de la sauvegarde des informations utilisateur sur le backend: ${response.body}',
+      );
+    }
+    return AppUser.fromFirebaseUser(user);
   }
-*/
+
   Future<bool> signOut() async {
     try {
       await //_googleSignIn.signOut();
@@ -182,37 +179,39 @@ class FirebaseAuthenticationRepository {
   }
 }
 
-@Riverpod(keepAlive: true)
-http.Client httpClient(HttpClientRef ref) {
+@riverpod
+http.Client httpClient(Ref ref) {
   return http.Client();
 }
 
 @Riverpod(keepAlive: true)
-FirebaseAuthenticationRepository authRepository(AuthRepositoryRef ref) {
+FirebaseAuthenticationRepository authRepository(Ref ref) {
   final auth = ref.watch(firebaseAuthProvider);
-  //final googleSignIn = ref.watch(googleSignInProvider);
+  final google = ref.watch(googleSignInProvider).requireValue;
   final client = ref.watch(httpClientProvider);
-  return FirebaseAuthenticationRepository(auth, client);
+  return FirebaseAuthenticationRepository(auth, google, client);
 }
 
 @Riverpod(keepAlive: true)
-FirebaseAuth firebaseAuth(FirebaseAuthRef ref) {
+FirebaseAuth firebaseAuth(Ref ref) {
   return FirebaseAuth.instance;
 }
 
-/*@Riverpod(keepAlive: true)
-GoogleSignIn googleSignIn(GoogleSignInRef ref) {
-  return GoogleSignIn(scopes: ['email']);
-}*/
+@Riverpod(keepAlive: true)
+Future<GoogleSignIn> googleSignIn(Ref ref) async {
+  final instance = GoogleSignIn.instance;
+  await instance.initialize();
+  return instance;
+}
 
 @Riverpod(keepAlive: true)
-Stream<AppUser?> authStateChange(AuthStateChangeRef ref) {
+Stream<AppUser?> authStateChange(Ref ref) {
   final auth = ref.watch(authRepositoryProvider);
   return auth.authStateChanges();
 }
 
 @Riverpod(keepAlive: true)
-Stream<String?> firebaseIdToken(FirebaseIdTokenRef ref) {
+Stream<String?> firebaseIdToken(Ref ref) {
   final auth = ref.watch(firebaseAuthProvider);
   return auth.idTokenChanges().asyncMap((user) async {
     // Si l'utilisateur est null, le jeton est null

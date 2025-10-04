@@ -1,9 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 
-class OrderSuccessPage extends StatelessWidget {
+class OrderSuccessPage extends ConsumerStatefulWidget {
   const OrderSuccessPage({super.key});
+
+  @override
+  ConsumerState<OrderSuccessPage> createState() => _OrderSuccessPageState();
+}
+
+class _OrderSuccessPageState extends ConsumerState<OrderSuccessPage> {
+  @override
+  void initState() {
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) {
+        ref.read(cartControllerProvider.notifier).clearCart();
+      }
+    });
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {

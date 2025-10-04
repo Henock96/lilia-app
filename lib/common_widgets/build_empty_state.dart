@@ -9,13 +9,10 @@ Widget buildEmptyState(BuildContext context) {
         Icon(
           Icons.article_outlined,
           size: 32,
-          color: theme.colorScheme.primary.withOpacity(0.5),
+          color: theme.colorScheme.primary.withValues(alpha: 0.5),
         ),
         const SizedBox(height: 8),
-        Text(
-          'Aucune commande trouvée',
-          style: theme.textTheme.bodyMedium,
-        ),
+        Text('Aucune commande trouvée', style: theme.textTheme.bodyMedium),
       ],
     ),
   );

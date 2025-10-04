@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
 import 'package:lilia_app/features/user/data/cloudinary_service.dart';
@@ -9,12 +10,12 @@ import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart
 part 'profile_controller.g.dart';
 
 @riverpod
-UserRepository userRepository(UserRepositoryRef ref) {
+UserRepository userRepository(Ref ref) {
   return UserRepository();
 }
 
 @riverpod
-Future<AppUser> userProfile(UserProfileRef ref) async {
+Future<AppUser> userProfile(Ref ref) async {
   final authState = ref.watch(authStateChangeProvider);
 
   if (authState.asData?.value == null) {
@@ -53,7 +54,10 @@ class ProfileController extends _$ProfileController {
 
     // 1. Sélectionner l'image
     debugPrint("1. Ouverture de la galerie...");
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
     if (image == null) {
       debugPrint("Sélection d'image annulée.");
       return;
@@ -76,7 +80,6 @@ class ProfileController extends _$ProfileController {
       debugPrint("5. Mise à jour du profil utilisateur via le backend...");
       await updateUser({'imageUrl': imageUrl});
       debugPrint("6. Processus de mise à jour du profil terminé.");
-      
     } catch (e, st) {
       debugPrint("ERREUR lors de la mise à jour de la photo de profil: $e");
       debugPrint(st.toString());

@@ -6,11 +6,11 @@ part of 'firebase_auth_repository.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$httpClientHash() => r'e3f3e796ea46a17320ed4152466f2e23c3638fe5';
+String _$httpClientHash() => r'8c21f22632338286954dc297d3cf423520492f98';
 
 /// See also [httpClient].
 @ProviderFor(httpClient)
-final httpClientProvider = Provider<http.Client>.internal(
+final httpClientProvider = AutoDisposeProvider<http.Client>.internal(
   httpClient,
   name: r'httpClientProvider',
   debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
@@ -22,13 +22,13 @@ final httpClientProvider = Provider<http.Client>.internal(
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-typedef HttpClientRef = ProviderRef<http.Client>;
-String _$authRepositoryHash() => r'f940e16ce87ab13b5f9e4cf7b1e7e532338177dc';
+typedef HttpClientRef = AutoDisposeProviderRef<http.Client>;
+String _$authRepositoryHash() => r'e7753e2345ff8c1eddc08f06cef532fbec3c0388';
 
 /// See also [authRepository].
 @ProviderFor(authRepository)
 final authRepositoryProvider =
-    Provider<FirebaseAuthenticationRepository>.internal(
+    AutoDisposeProvider<FirebaseAuthenticationRepository>.internal(
       authRepository,
       name: r'authRepositoryProvider',
       debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
@@ -40,12 +40,13 @@ final authRepositoryProvider =
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-typedef AuthRepositoryRef = ProviderRef<FirebaseAuthenticationRepository>;
-String _$firebaseAuthHash() => r'46c40b7c5cf8ab936c0daa96a6af106bd2ae5d51';
+typedef AuthRepositoryRef =
+    AutoDisposeProviderRef<FirebaseAuthenticationRepository>;
+String _$firebaseAuthHash() => r'912368c3df3f72e4295bf7a8cda93b9c5749d923';
 
 /// See also [firebaseAuth].
 @ProviderFor(firebaseAuth)
-final firebaseAuthProvider = Provider<FirebaseAuth>.internal(
+final firebaseAuthProvider = AutoDisposeProvider<FirebaseAuth>.internal(
   firebaseAuth,
   name: r'firebaseAuthProvider',
   debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
@@ -57,12 +58,29 @@ final firebaseAuthProvider = Provider<FirebaseAuth>.internal(
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-typedef FirebaseAuthRef = ProviderRef<FirebaseAuth>;
-String _$authStateChangeHash() => r'f7c1451f0aab7c8bac41bcff2c4e22aeb936cb24';
+typedef FirebaseAuthRef = AutoDisposeProviderRef<FirebaseAuth>;
+String _$googleSignInHash() => r'c56f4872707cf78786c17f2d0fb3fb42821edc56';
+
+/// See also [googleSignIn].
+@ProviderFor(googleSignIn)
+final googleSignInProvider = AutoDisposeFutureProvider<GoogleSignIn>.internal(
+  googleSignIn,
+  name: r'googleSignInProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$googleSignInHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+@Deprecated('Will be removed in 3.0. Use Ref instead')
+// ignore: unused_element
+typedef GoogleSignInRef = AutoDisposeFutureProviderRef<GoogleSignIn>;
+String _$authStateChangeHash() => r'1fb0df9c1445438e567208261e54e8c0dbde0a8d';
 
 /// See also [authStateChange].
 @ProviderFor(authStateChange)
-final authStateChangeProvider = StreamProvider<AppUser?>.internal(
+final authStateChangeProvider = AutoDisposeStreamProvider<AppUser?>.internal(
   authStateChange,
   name: r'authStateChangeProvider',
   debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
@@ -74,8 +92,8 @@ final authStateChangeProvider = StreamProvider<AppUser?>.internal(
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-typedef AuthStateChangeRef = StreamProviderRef<AppUser?>;
-String _$firebaseIdTokenHash() => r'5dc557dc5d74b06f4192776187b0b6dbd9ec95a5';
+typedef AuthStateChangeRef = AutoDisposeStreamProviderRef<AppUser?>;
+String _$firebaseIdTokenHash() => r'fac680c4cd078ff8bb538e947b64a1ac9509f1dd';
 
 /// See also [firebaseIdToken].
 @ProviderFor(firebaseIdToken)

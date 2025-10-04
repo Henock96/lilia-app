@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/features/cart/data/cart_repository.dart';
@@ -7,7 +8,7 @@ import 'package:lilia_app/features/cart/data/cart_repository.dart';
 part 'cart_controller.g.dart';
 
 @riverpod
-CartRepository cartRepository(CartRepositoryRef ref) {
+CartRepository cartRepository(Ref ref) {
   final repository = CartRepository();
   ref.onDispose(repository.dispose);
   return repository;

@@ -1,13 +1,14 @@
 import 'dart:convert';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../models/restaurant.dart';
 
-
 part 'restaurant_repo.g.dart';
 
 class RestaurantRepository {
-  final String _baseUrl = 'https://lilia-backend.onrender.com'; // Assurez-vous que votre backend est en cours d'exécution sur ce port
+  final String _baseUrl =
+      'https://lilia-backend.onrender.com'; // Assurez-vous que votre backend est en cours d'exécution sur ce port
 
   Future<Restaurant> getRestaurant(String id) async {
     try {
@@ -25,6 +26,6 @@ class RestaurantRepository {
 }
 
 @Riverpod(keepAlive: true)
-RestaurantRepository restaurantRepository(RestaurantRepositoryRef ref) {
+RestaurantRepository restaurantRepository(Ref ref) {
   return RestaurantRepository();
 }

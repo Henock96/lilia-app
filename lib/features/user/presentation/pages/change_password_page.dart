@@ -22,22 +22,26 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
     super.dispose();
   }
 
-  Future<void> _changePassword() async {
+  Future<void> _changePassword(BuildContext context) async {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
       });
 
       try {
-        await ref.read(authControllerProvider.notifier).updatePassword(_newPasswordController.text);
+        await ref
+            .read(authControllerProvider.notifier)
+            .updatePassword(_newPasswordController.text);
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Mot de passe mis à jour avec succès.')),
         );
+
         Navigator.of(context).pop();
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: ${e.toString()}')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur: ${e.toString()}')));
       } finally {
         if (mounted) {
           setState(() {
@@ -48,13 +52,10 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Changer le mot de passe'),
-      ),
+      appBar: AppBar(title: const Text('Changer le mot de passe')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Form(
@@ -64,7 +65,9 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
             children: [
               TextFormField(
                 controller: _newPasswordController,
-                decoration: const InputDecoration(labelText: 'Nouveau mot de passe'),
+                decoration: const InputDecoration(
+                  labelText: 'Nouveau mot de passe',
+                ),
                 obscureText: true,
                 validator: (value) {
                   if (value == null || value.isEmpty || value.length < 6) {
@@ -76,7 +79,9 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _confirmPasswordController,
-                decoration: const InputDecoration(labelText: 'Confirmer le nouveau mot de passe'),
+                decoration: const InputDecoration(
+                  labelText: 'Confirmer le nouveau mot de passe',
+                ),
                 obscureText: true,
                 validator: (value) {
                   if (value != _newPasswordController.text) {
@@ -87,10 +92,11 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
               ),
               const SizedBox(height: 32),
               ElevatedButton(
-                onPressed: _isLoading ? null : _changePassword,
-                child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Changer le mot de passe'),
+                onPressed: () => _isLoading ? null : _changePassword(context),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Changer le mot de passe'),
               ),
-
             ],
           ),
         ),

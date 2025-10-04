@@ -28,7 +28,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final restaurantAsyncValue = ref.watch(
       restaurantControllerProvider(restaurantId),
     );
-    final cartAsyncValue = ref.watch(cartControllerProvider);
     final notificationHistory = ref.watch(notificationHistoryProvider);
     final List<String> imgList = [
       'assets/images/banner.png',
@@ -228,8 +227,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 (Theme.of(context).brightness == Brightness.dark
                                         ? Colors.white
                                         : Colors.black)
-                                    .withOpacity(
-                                      current == entry.key ? 0.9 : 0.4,
+                                    .withValues(
+                                      alpha: current == entry.key ? 0.9 : 0.4,
                                     ),
                           ),
                         ),

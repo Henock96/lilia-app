@@ -110,7 +110,7 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
     });
   }
 
-  Future<void> _sendResetEmail() async {
+  Future<void> _sendResetEmail(BuildContext context) async {
     final emailController = TextEditingController();
     final result = await showDialog<String>(
       context: context,
@@ -144,12 +144,14 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
         await ref
             .read(authControllerProvider.notifier)
             .sendPasswordResetEmailWithEmail(result);
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Un e-mail de réinitialisation a été envoyé.'),
           ),
         );
       } catch (e) {
+        if (!context.mounted) return;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Erreur: ${e.toString()}')));
@@ -176,10 +178,12 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
               prefixIcon: Icon(Icons.email_outlined),
             ),
             validator: (value) {
-              if (value == null || value.isEmpty)
+              if (value == null || value.isEmpty) {
                 return 'Veuillez entrer votre email';
-              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value))
+              }
+              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
                 return 'Veuillez entrer un email valide';
+              }
               return null;
             },
           ),
@@ -200,15 +204,16 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
               ),
             ),
             validator: (value) {
-              if (value == null || value.isEmpty)
+              if (value == null || value.isEmpty) {
                 return 'Veuillez entrer votre mot de passe';
+              }
               return null;
             },
           ),
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: _sendResetEmail,
+              onPressed: () => _sendResetEmail(context),
               child: const Text('Mot de passe oublié ?'),
             ),
           ),

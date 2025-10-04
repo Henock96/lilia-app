@@ -190,7 +190,7 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
                         children: [
                           Text('Commande:', style: TextStyle(fontSize: 16)),
                           Text(
-                            widget.orderId.substring(0, 8) + '...',
+                            '${widget.orderId.substring(0, 8)}...',
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ],
@@ -379,8 +379,7 @@ class _PaymentLoadingDialogState extends ConsumerState<PaymentLoadingDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async => false, // Empêcher la fermeture
+    return PopScope(
       child: AlertDialog(
         content: Column(
           mainAxisSize: MainAxisSize.min,

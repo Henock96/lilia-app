@@ -18,13 +18,16 @@ final notificationInitializerProvider = FutureProvider<void>((ref) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  FirebaseAnalytics analytics = FirebaseAnalytics.instance;
   runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
-
+  // Créer l'instance Analytics
+  static FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+  static FirebaseAnalyticsObserver observer = FirebaseAnalyticsObserver(
+    analytics: analytics,
+  );
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context, WidgetRef ref) {

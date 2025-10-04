@@ -6,8 +6,8 @@ import 'package:lilia_app/features/cart/presentation/cart_screen.dart';
 import 'package:lilia_app/features/commandes/presentation/checkout_page.dart';
 import 'package:lilia_app/features/commandes/presentation/commande_page.dart';
 import 'package:lilia_app/features/commandes/presentation/order_success_page.dart';
-import 'package:lilia_app/features/favoris/presentation/favoris_page.dart';
 import 'package:lilia_app/features/favoris/presentation/favoris_detail_page.dart';
+import 'package:lilia_app/features/favoris/presentation/favoris_page.dart';
 import 'package:lilia_app/features/home/presentation/bottom_navigation_bar.dart';
 import 'package:lilia_app/features/home/presentation/home.dart';
 import 'package:lilia_app/features/user/user_page.dart';
@@ -132,6 +132,25 @@ GoRouter router(Ref ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
+                path: AppRoutes.cart.path,
+                name: AppRoutes.cart.routeName,
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: CartScreen()),
+                routes: [
+                  GoRoute(
+                    path: AppRoutes.checkout.path,
+                    name: AppRoutes.checkout.routeName,
+                    pageBuilder: (context, state) {
+                      return MaterialPage(child: CheckoutPage());
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
                 path: AppRoutes.commandes.path,
                 name: AppRoutes.commandes.routeName,
                 pageBuilder: (context, state) =>
@@ -153,25 +172,7 @@ GoRouter router(Ref ref) {
               ),
             ],
           ),
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: AppRoutes.cart.path,
-                name: AppRoutes.cart.routeName,
-                pageBuilder: (context, state) =>
-                    const MaterialPage(child: CartScreen()),
-                routes: [
-                  GoRoute(
-                    path: AppRoutes.checkout.path,
-                    name: AppRoutes.checkout.routeName,
-                    pageBuilder: (context, state) {
-                      return MaterialPage(child: CheckoutPage());
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
+
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -185,6 +186,18 @@ GoRouter router(Ref ref) {
                     name: AppRoutes.favoris.routeName,
                     pageBuilder: (context, state) =>
                         const MaterialPage(child: FavorisPage()),
+                    routes: [
+                      GoRoute(
+                        path: AppRoutes.favoriteDetail.path,
+                        name: AppRoutes.favoriteDetail.routeName,
+                        pageBuilder: (context, state) {
+                          final Product? product = state.extra as Product?;
+                          return MaterialPage(
+                            child: FavorisDetailPage(product: product!),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                   GoRoute(
                     path: AppRoutes.address.path,

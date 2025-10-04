@@ -23,7 +23,7 @@ class _AddressPageState extends ConsumerState<AddressPage> {
     super.dispose();
   }
 
-  Future<void> _submitForm() async {
+  Future<void> _submitForm(BuildContext context) async {
     if (_formKey.currentState!.validate()) {
       try {
         await ref
@@ -33,6 +33,7 @@ class _AddressPageState extends ConsumerState<AddressPage> {
               ville: _villeController.text,
               pays: _paysController.text,
             );
+        if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Adresse ajoutée avec succès')),
         );
@@ -110,6 +111,7 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                                   await ref
                                       .read(adresseControllerProvider.notifier)
                                       .deleteAdresse(address.id);
+                                  if (!context.mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text(
@@ -118,6 +120,7 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                                     ),
                                   );
                                 } catch (e) {
+                                  if (!context.mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
@@ -186,7 +189,7 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                   Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: ElevatedButton(
-                      onPressed: _submitForm,
+                      onPressed: () => _submitForm(context),
                       child: Padding(
                         padding: const EdgeInsets.only(right: 10.0, left: 10.0),
                         child: const Text('Ajouter cette nouvelle adresse'),

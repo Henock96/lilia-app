@@ -25,7 +25,6 @@ class AdresseController extends _$AdresseController {
       final adresseRepo = ref.read(adresseRepositoryProvider.notifier);
       return adresseRepo.createAdresse(rue: rue, ville: ville, pays: pays);
       // Rafraîchir la liste pour refléter le changement de statut
-      ref.invalidateSelf();
     } catch (e) {
       // Propage l'erreur pour que l'UI puisse l'afficher
       rethrow;
