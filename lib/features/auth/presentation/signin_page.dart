@@ -290,12 +290,15 @@ class _SignUpNavigation extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text("Vous n'avez pas de compte ?", style: theme.textTheme.bodyLarge),
+        Text(
+          "Vous n'avez pas de compte ?",
+          style: TextStyle(color: Colors.black87, fontSize: 14),
+        ),
         TextButton(
           onPressed: () => context.goNamed(AppRoutes.signUp.routeName),
           child: const Text(
             "S'inscrire",
-            style: TextStyle(color: Colors.black87, fontSize: 15),
+            style: TextStyle(color: Colors.black87, fontSize: 14),
           ),
         ),
       ],

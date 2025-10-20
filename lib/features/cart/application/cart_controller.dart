@@ -23,7 +23,12 @@ class CartController extends _$CartController {
 
     // La logiqué est maintenant déclarative et réagit à l'état d'authentification
     // Utilisateur connecté
-    cartRepository.getCart(); // Déclenche la récupération initiale
+    Future.microtask(
+      () => cartRepository.getCart(),
+    ); // Déclenche la récupération initiale
+    ref.onDispose(() {
+      //cartRepository.clearCart();
+    }); // Vide le panier à la déconnexion
     return cartRepository.watchCart(); // Et écoute les changements
   }
 
@@ -71,5 +76,10 @@ class CartController extends _$CartController {
       debugPrint('Erreur lors du vidage du panier: $e');
       rethrow;
     }
+  }
+
+  Future<void> refresh() async {
+    final repository = ref.read(cartRepositoryProvider);
+    await repository.getCart();
   }
 }

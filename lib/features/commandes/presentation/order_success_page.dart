@@ -75,7 +75,7 @@ class _OrderSuccessPageState extends ConsumerState<OrderSuccessPage> {
                   context.goNamed(AppRoutes.home.routeName);
                 },
                 child: Text(
-                  'Retour à l\'Accueil',
+                  'Retour à l\'écran d\'accueil',
                   style: TextStyle(
                     color: Theme.of(context).primaryColor,
                     fontSize: 16,

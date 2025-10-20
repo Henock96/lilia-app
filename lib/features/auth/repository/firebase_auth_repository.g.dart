@@ -23,12 +23,12 @@ final httpClientProvider = AutoDisposeProvider<http.Client>.internal(
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
 typedef HttpClientRef = AutoDisposeProviderRef<http.Client>;
-String _$authRepositoryHash() => r'e7753e2345ff8c1eddc08f06cef532fbec3c0388';
+String _$authRepositoryHash() => r'7dceeaa712a59a31ee810a7bc5a26ea8b69bd47e';
 
 /// See also [authRepository].
 @ProviderFor(authRepository)
 final authRepositoryProvider =
-    AutoDisposeProvider<FirebaseAuthenticationRepository>.internal(
+    Provider<FirebaseAuthenticationRepository>.internal(
       authRepository,
       name: r'authRepositoryProvider',
       debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
@@ -40,13 +40,12 @@ final authRepositoryProvider =
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-typedef AuthRepositoryRef =
-    AutoDisposeProviderRef<FirebaseAuthenticationRepository>;
-String _$firebaseAuthHash() => r'912368c3df3f72e4295bf7a8cda93b9c5749d923';
+typedef AuthRepositoryRef = ProviderRef<FirebaseAuthenticationRepository>;
+String _$firebaseAuthHash() => r'cb440927c3ab863427fd4b052a8ccba4c024c863';
 
 /// See also [firebaseAuth].
 @ProviderFor(firebaseAuth)
-final firebaseAuthProvider = AutoDisposeProvider<FirebaseAuth>.internal(
+final firebaseAuthProvider = Provider<FirebaseAuth>.internal(
   firebaseAuth,
   name: r'firebaseAuthProvider',
   debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
@@ -58,12 +57,12 @@ final firebaseAuthProvider = AutoDisposeProvider<FirebaseAuth>.internal(
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-typedef FirebaseAuthRef = AutoDisposeProviderRef<FirebaseAuth>;
-String _$googleSignInHash() => r'c56f4872707cf78786c17f2d0fb3fb42821edc56';
+typedef FirebaseAuthRef = ProviderRef<FirebaseAuth>;
+String _$googleSignInHash() => r'6b68e7785a816a60cd0c722d8a0ef9c87c7cdc7d';
 
 /// See also [googleSignIn].
 @ProviderFor(googleSignIn)
-final googleSignInProvider = AutoDisposeFutureProvider<GoogleSignIn>.internal(
+final googleSignInProvider = Provider<GoogleSignIn>.internal(
   googleSignIn,
   name: r'googleSignInProvider',
   debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
@@ -75,12 +74,12 @@ final googleSignInProvider = AutoDisposeFutureProvider<GoogleSignIn>.internal(
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-typedef GoogleSignInRef = AutoDisposeFutureProviderRef<GoogleSignIn>;
-String _$authStateChangeHash() => r'1fb0df9c1445438e567208261e54e8c0dbde0a8d';
+typedef GoogleSignInRef = ProviderRef<GoogleSignIn>;
+String _$authStateChangeHash() => r'13565a8e927e644060491f8e10cca3bbaedd897e';
 
 /// See also [authStateChange].
 @ProviderFor(authStateChange)
-final authStateChangeProvider = AutoDisposeStreamProvider<AppUser?>.internal(
+final authStateChangeProvider = StreamProvider<AppUser?>.internal(
   authStateChange,
   name: r'authStateChangeProvider',
   debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
@@ -92,7 +91,7 @@ final authStateChangeProvider = AutoDisposeStreamProvider<AppUser?>.internal(
 
 @Deprecated('Will be removed in 3.0. Use Ref instead')
 // ignore: unused_element
-typedef AuthStateChangeRef = AutoDisposeStreamProviderRef<AppUser?>;
+typedef AuthStateChangeRef = StreamProviderRef<AppUser?>;
 String _$firebaseIdTokenHash() => r'fac680c4cd078ff8bb538e947b64a1ac9509f1dd';
 
 /// See also [firebaseIdToken].

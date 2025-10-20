@@ -8,6 +8,7 @@ class BuildLoadingState extends StatelessWidget {
     final theme = Theme.of(context);
     return Center(
       child: ListView.builder(
+        shrinkWrap: true,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         scrollDirection: Axis.vertical,
         itemCount: 5,

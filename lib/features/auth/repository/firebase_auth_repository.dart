@@ -90,17 +90,30 @@ class FirebaseAuthenticationRepository {
   }
 
   Future<AppUser?> signInWithGoogle() async {
-    //final googleUser = await _googleSignIn.authenticate();
+    // Étape 1: Initialiser GoogleSignIn si nécessaire
+    await _googleSignIn.initialize();
 
-    final authClient = _googleSignIn.authorizationClient;
-    final auth = await authClient.authorizationForScopes([
-      'email',
-      'profile',
-      'openid',
-    ]);
+    // Étape 2: Authentifier l'utilisateur avec Google Sign In
+    final googleUser = await _googleSignIn.authenticate();
+
+    if (googleUser == null) {
+      // L'utilisateur a annulé la connexion
+      return null;
+    }
+
+    // Étape 3: Obtenir l'ID token pour Firebase
+    final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+
+    if (googleAuth.idToken == null) {
+      throw Exception("Impossible d'obtenir le token d'authentification");
+    }
+
+    // Étape 4: Créer les credentials Firebase (seul l'idToken est nécessaire)
     final credential = GoogleAuthProvider.credential(
-      accessToken: auth?.accessToken,
+      idToken: googleAuth.idToken,
     );
+
+    // Étape 5: Se connecter à Firebase avec les credentials
     final userCred = await _firebaseAuth.signInWithCredential(credential);
     final user = userCred.user;
     if (user == null) {
@@ -133,8 +146,8 @@ class FirebaseAuthenticationRepository {
 
   Future<bool> signOut() async {
     try {
-      await //_googleSignIn.signOut();
-      _firebaseAuth.signOut();
+      await _googleSignIn.signOut();
+      await _firebaseAuth.signOut();
       return true;
     } on Exception {
       return false;
@@ -187,7 +200,7 @@ http.Client httpClient(Ref ref) {
 @Riverpod(keepAlive: true)
 FirebaseAuthenticationRepository authRepository(Ref ref) {
   final auth = ref.watch(firebaseAuthProvider);
-  final google = ref.watch(googleSignInProvider).requireValue;
+  final google = ref.watch(googleSignInProvider);
   final client = ref.watch(httpClientProvider);
   return FirebaseAuthenticationRepository(auth, google, client);
 }
@@ -198,10 +211,8 @@ FirebaseAuth firebaseAuth(Ref ref) {
 }
 
 @Riverpod(keepAlive: true)
-Future<GoogleSignIn> googleSignIn(Ref ref) async {
-  final instance = GoogleSignIn.instance;
-  await instance.initialize();
-  return instance;
+GoogleSignIn googleSignIn(Ref ref) {
+  return GoogleSignIn.instance;
 }
 
 @Riverpod(keepAlive: true)

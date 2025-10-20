@@ -57,7 +57,7 @@ class OrderDetailPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Commande Id #${order.id.substring(0, 8)}',
+                  'Numéro de commande : ${order.id.substring(0, 8)}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -99,9 +99,8 @@ class OrderDetailPage extends ConsumerWidget {
                 const SizedBox(height: 10),
                 ListTile(
                   leading: CircleAvatar(
-                    backgroundImage: NetworkImage(
-                      order.restaurant.imageUrl ??
-                          'https://via.placeholder.com/100',
+                    backgroundImage: AssetImage(
+                      order.restaurant.imageUrl ?? 'assets/images/logo.jpg',
                     ),
                   ),
                   title: Text(
@@ -109,7 +108,7 @@ class OrderDetailPage extends ConsumerWidget {
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                   subtitle: Text(
-                    order.restaurant.adresse ?? 'Adresse non disponible',
+                    order.restaurant.adresse ?? '15, Rue Banziris Poto Poto',
                     style: const TextStyle(color: Colors.grey),
                   ),
                   onTap: () {
@@ -130,17 +129,17 @@ class OrderDetailPage extends ConsumerWidget {
                 const Divider(height: 30),
 
                 Text(
-                  'Sommaire ',
+                  'Sommaire:',
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 5),
                 _buildSummaryRow('Sous-total', order.subTotal),
                 _buildSummaryRow('Prix de Livraison', order.deliveryFee),
                 _buildSummaryRow('Total', order.total, isTotal: true),
-                const SizedBox(height: 10),
+                const SizedBox(height: 20),
                 Text(
                   'Méthode de Paiement: ${_getDisplayStatusPaiement(order.paymentMethod)}',
                   style: TextStyle(
@@ -185,7 +184,11 @@ class OrderDetailPage extends ConsumerWidget {
             ),
           );
         },
-        loading: () => const BuildLoadingState(),
+        loading: () => Center(
+          child: CircularProgressIndicator(
+            color: Theme.of(context).primaryColor.withValues(alpha: 0.8),
+          ),
+        ),
         error: (err, stack) => BuildErrorState(err),
       ),
     );
@@ -240,7 +243,7 @@ class OrderDetailPage extends ConsumerWidget {
       case 'CASH_ON_DELIVERY':
         return 'Payez en Cash';
       default:
-        return 'Inconnu';
+        return 'MTN Mobile Money';
     }
   }
 

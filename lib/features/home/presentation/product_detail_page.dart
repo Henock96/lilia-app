@@ -49,11 +49,9 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
     Commander maintenant sur l'app Lilia
     ''';
     // Partager le texte
-    SharePlus.instance.share(
-      ShareParams(
-        text: message,
-        title: 'Découvrez ${widget.product.name} sur Lilia Food',
-      ),
+    Share.share(
+      message,
+      subject: 'Découvrez ${widget.product.name} sur Lilia Food!',
     );
   }
 

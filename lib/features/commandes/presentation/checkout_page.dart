@@ -136,7 +136,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                                       ),
                                       contentPadding:
                                           const EdgeInsets.symmetric(
-                                            horizontal: 12,
+                                            horizontal: 7,
                                             vertical: 8,
                                           ),
                                     ),
@@ -148,7 +148,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                                         value: adresse,
                                         child: Text(
                                           adresse.toString(),
-                                          style: const TextStyle(fontSize: 12),
+                                          style: const TextStyle(fontSize: 14),
                                         ),
                                       );
                                     }).toList(),
@@ -239,6 +239,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
+                                  const SizedBox(height: 10),
                                   Text(
                                     '${(item.quantite * item.variant.prix).toStringAsFixed(0)} FCFA',
                                     style: const TextStyle(
@@ -253,13 +254,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         ),
                         const Divider(height: 20),
                         _buildSummaryRow('Sous-total', subTotal),
+                        const SizedBox(height: 5),
                         _buildSummaryRow('Prix de livraison', _deliveryFee),
+                        const SizedBox(height: 5),
                         _buildSummaryRow('Total', total, isTotal: true),
                         const SizedBox(height: 20),
                         //const Spacer(),
                       ],
                     ),
                   ),
+                  const SizedBox(height: 50),
                   Padding(
                     padding: const EdgeInsets.all(15.0),
                     child: ElevatedButton(
@@ -345,7 +349,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             dense: true,
             contentPadding: EdgeInsets.zero,
           ),*/
-          const Divider(),
+          /*const Divider(),
           RadioGroup(
             groupValue: _selectedPaymentMethod,
             onChanged: (String? value) {
@@ -361,7 +365,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 ),
               ],
             ),
-          ),
+          ),*/
           // Option 2: MTN Mobile Money
           // Badge "Mode Test" si applicable
           if (_selectedPaymentMethod == 'MTN_MOMO')
@@ -540,9 +544,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
       if (!context.mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      /*ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Commande passée avec succès!')),
-      );
+      );*/
       context.goNamed(AppRoutes.orderSuccess.routeName);
     } catch (e) {
       if (!context.mounted) return;

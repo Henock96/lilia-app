@@ -325,12 +325,15 @@ class _SignInNavigation extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text('Vous avez déjà un compte ?', style: theme.textTheme.bodyMedium),
+        Text(
+          'Vous avez déjà un compte ?',
+          style: TextStyle(color: Colors.black87, fontSize: 14),
+        ),
         TextButton(
           onPressed: () => context.goNamed(AppRoutes.signIn.routeName),
           child: const Text(
             "Se connecter",
-            style: TextStyle(color: Colors.black87),
+            style: TextStyle(color: Colors.black87, fontSize: 12),
           ),
         ),
       ],

@@ -26,7 +26,12 @@ class Cart {
     if (items.isEmpty) {
       return 0.0;
     }
-    return items.fold(0.0, (total, item) => total + (item.variant.prix * item.quantite));
+    return items.fold(0.0, (total, item) => total + (item.variant.prix.toDouble() * item.quantite));
+  }
+
+  // Prix total formaté
+  String get formattedTotalPrice {
+    return '${totalPrice.toStringAsFixed(0)} FCFA';
   }
 
   factory Cart.fromJson(Map<String, dynamic> json) {

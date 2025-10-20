@@ -99,7 +99,7 @@ class _CommandePageState extends ConsumerState<CommandePage>
             ],
           );
         },
-        loading: () => const BuildLoadingState(),
+        loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => BuildErrorState(err),
       ),
     );
@@ -162,17 +162,17 @@ class _OrderCard extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Commande #${order.id.substring(0, 8)}',
+                  'Numéro de commande : ${order.id.substring(0, 8)}',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),
                 ),
-                Text(
-                  DateFormat('dd/MM/yyyy').format(order.createdAt),
-                  style: const TextStyle(color: Colors.grey),
-                ),
               ],
+            ),
+            Text(
+              DateFormat('dd.MM.yyyy HH:mm').format(order.createdAt),
+              style: const TextStyle(color: Colors.grey),
             ),
             const SizedBox(height: 8),
             Text(
@@ -181,7 +181,8 @@ class _OrderCard extends ConsumerWidget {
             ),
             const Divider(height: 20),
             Text('Statut: ${_formatStatus(order.status)}'),
-            Text('Total: ${order.total.toStringAsFixed(2)} FCFA'),
+            const SizedBox(height: 8), 
+            Text('Total: ${order.total.toStringAsFixed(1)} FCFA'),
             const SizedBox(height: 16),
             if (order.status == OrderStatus.enAttente)
               Align(

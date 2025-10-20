@@ -19,9 +19,14 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     // ID du restaurant à récupérer
     const String restaurantId = 'cmd9iay8y0000o4hjhi3w46z8';
 
@@ -186,7 +191,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         Text(
                           'Adresse: ${restaurant.address}',
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 13,
                             fontWeight: FontWeight.bold,
                           ),
                         ),

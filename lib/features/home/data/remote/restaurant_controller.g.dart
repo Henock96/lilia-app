@@ -7,7 +7,7 @@ part of 'restaurant_controller.dart';
 // **************************************************************************
 
 String _$restaurantControllerHash() =>
-    r'0e753484c303eb266d9d0fbc08b9eca69791953d';
+    r'3ca11f64a8d372f197488e778e773d7eb3ac837a';
 
 /// Copied from Dart SDK
 class _SystemHash {

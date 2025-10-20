@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lilia_app/common_widgets/connectivity_banner.dart';
 import 'package:lilia_app/routing/app_router.dart';
 import 'package:lilia_app/services/notification_service.dart';
 import 'package:lilia_app/theme/app_theme.dart';
@@ -39,11 +40,13 @@ class MyApp extends ConsumerWidget {
       notificationInitializerProvider,
     ); // Déclenche l'initialisation des notifications
     ref.watch(userDataSynchronizerProvider);
-    return MaterialApp.router(
-      routerConfig: router,
-      debugShowCheckedModeBanner: false,
-      title: 'Lilia App',
-      theme: appTheme,
+    return ConnectivityWrapper(
+      child: MaterialApp.router(
+        routerConfig: router,
+        debugShowCheckedModeBanner: false,
+        title: 'Lilia Food',
+        theme: appTheme,
+      ),
     );
   }
 }
