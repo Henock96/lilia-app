@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
-import 'package:lilia_app/common_widgets/build_loading_state.dart';
 
 import '../../../models/order_item.dart';
 import '../data/order_controller.dart';

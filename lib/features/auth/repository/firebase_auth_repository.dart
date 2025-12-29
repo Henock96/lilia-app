@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
@@ -93,60 +95,111 @@ class FirebaseAuthenticationRepository {
     // Étape 1: Initialiser GoogleSignIn si nécessaire
     await _googleSignIn.initialize();
 
-    // Étape 2: Authentifier l'utilisateur avec Google Sign In
+    // Étape 2: Déconnecter tout utilisateur Google précédent
+    // pour s'assurer d'avoir un état propre
+    await _googleSignIn.disconnect();
+
+    // Étape 3: Authentifier l'utilisateur avec Google Sign In
+    // Utilise authenticate() qui retourne un GoogleSignInUser
     final googleUser = await _googleSignIn.authenticate();
 
-    if (googleUser == null) {
-      // L'utilisateur a annulé la connexion
-      return null;
-    }
+    // Étape 4: Obtenir le client d'autorisation pour Firebase
 
-    // Étape 3: Obtenir l'ID token pour Firebase
+    // Étape 5: Obtenir l'ID token depuis les headers du client
+    //final headers = await authClient.credentials.headers;
     final GoogleSignInAuthentication googleAuth = googleUser.authentication;
+    final idToken = googleAuth.idToken;
 
-    if (googleAuth.idToken == null) {
+    if (idToken == null) {
       throw Exception("Impossible d'obtenir le token d'authentification");
     }
 
-    // Étape 4: Créer les credentials Firebase (seul l'idToken est nécessaire)
-    final credential = GoogleAuthProvider.credential(
-      idToken: googleAuth.idToken,
-    );
+    // Étape 6: Créer les credentials Firebase (seul l'idToken est nécessaire)
+    final credential = GoogleAuthProvider.credential(idToken: idToken);
 
-    // Étape 5: Se connecter à Firebase avec les credentials
+    // Étape 7: Se connecter à Firebase avec les credentials
     final userCred = await _firebaseAuth.signInWithCredential(credential);
     final user = userCred.user;
     if (user == null) {
       throw Exception("La connexion Google a échoué.");
     }
-    // Après une connexion réussie, vous pouvez envoyer les informations à votre backend si nécessaire.
-    final idToken = await user.getIdToken();
-    final url = Uri.parse('https://lilia-backend.onrender.com/auth/register');
-    final response = await _client.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $idToken',
-      },
-      body: jsonEncode({
-        'firebaseUid': user.uid,
-        'email': user.email,
-        'nom': user.displayName,
-        'telephone': user.phoneNumber,
-      }),
-    );
-    if (response.statusCode != 201 && response.statusCode != 200) {
+
+    // Étape 8: Synchroniser avec le backend
+    // Note: Le backend utilise UPSERT donc gère inscription ET connexion
+    try {
+      final firebaseIdToken = await user.getIdToken();
+      final url = Uri.parse('https://lilia-backend.onrender.com/auth/register');
+
+      if (kDebugMode) {
+        print('🔄 Synchronizing user with backend...');
+        print('📧 Email: ${user.email}');
+        print('🆔 Firebase UID: ${user.uid}');
+      }
+
+      final response = await _client.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $firebaseIdToken',
+        },
+        body: jsonEncode({
+          'firebaseUid': user.uid,
+          'email': user.email,
+          'nom': user.displayName,
+          'telephone': user.phoneNumber,
+        }),
+      ).timeout(const Duration(seconds: 10));
+
+      if (kDebugMode) {
+        print('📡 Backend response status: ${response.statusCode}');
+        print('📡 Backend response body: ${response.body}');
+      }
+
+      // Accepter 200 (utilisateur existant/mis à jour) et 201 (nouvel utilisateur créé)
+      if (response.statusCode != 201 && response.statusCode != 200) {
+        if (kDebugMode) {
+          print('❌ Backend sync failed with status ${response.statusCode}');
+        }
+        // Supprimer l'utilisateur Firebase seulement si le backend échoue
+        await user.delete();
+        throw Exception(
+          'Échec de la synchronisation avec le backend (${response.statusCode}): ${response.body}',
+        );
+      }
+
+      if (kDebugMode) {
+        print('✅ User successfully synchronized with backend');
+      }
+    } on http.ClientException catch (e) {
+      // Erreur réseau
+      if (kDebugMode) {
+        print('❌ Network error during backend sync: $e');
+      }
       await user.delete();
-      throw Exception(
-        'Échec de la sauvegarde des informations utilisateur sur le backend: ${response.body}',
-      );
+      throw Exception('Erreur réseau: Impossible de se connecter au serveur');
+    } on TimeoutException catch (e) {
+      // Timeout
+      if (kDebugMode) {
+        print('❌ Timeout during backend sync: $e');
+      }
+      await user.delete();
+      throw Exception('Le serveur ne répond pas. Veuillez réessayer.');
+    } catch (e) {
+      // Autre erreur
+      if (kDebugMode) {
+        print('❌ Unexpected error during backend sync: $e');
+      }
+      await user.delete();
+      rethrow;
     }
     return AppUser.fromFirebaseUser(user);
   }
 
   Future<bool> signOut() async {
     try {
-      await _googleSignIn.signOut();
+      // Déconnecter de Google Sign In (utilise disconnect pour nettoyer complètement)
+      await _googleSignIn.disconnect();
+      // Déconnecter de Firebase Auth
       await _firebaseAuth.signOut();
       return true;
     } on Exception {

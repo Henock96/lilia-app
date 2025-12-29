@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
-import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
 import 'package:lilia_app/models/order.dart';
@@ -181,7 +180,7 @@ class _OrderCard extends ConsumerWidget {
             ),
             const Divider(height: 20),
             Text('Statut: ${_formatStatus(order.status)}'),
-            const SizedBox(height: 8), 
+            const SizedBox(height: 8),
             Text('Total: ${order.total.toStringAsFixed(1)} FCFA'),
             const SizedBox(height: 16),
             if (order.status == OrderStatus.enAttente)

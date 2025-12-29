@@ -46,7 +46,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
 
     Prix: ${widget.product.prixOriginal} FCFA
 
-    Commander maintenant sur l'app Lilia
+    Commander maintenant sur l'app Lilia Food
     ''';
     // Partager le texte
     Share.share(

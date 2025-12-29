@@ -93,7 +93,7 @@ class _Header extends StatelessWidget {
         Icon(Icons.fastfood, size: 80, color: theme.colorScheme.primary),
         gapH16,
         Text(
-          'Rejoignez Lilia',
+          'Rejoignez Lilia Food',
           textAlign: TextAlign.center,
           style: theme.textTheme.titleLarge,
         ),
@@ -321,7 +321,7 @@ class _SignInNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    Theme.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [

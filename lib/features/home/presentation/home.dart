@@ -137,6 +137,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       ),*/
       body: RefreshIndicator(
         onRefresh: () async {
+          //ref.refresh();
           ref.invalidate(restaurantControllerProvider);
         },
         child: restaurantAsyncValue.when(
