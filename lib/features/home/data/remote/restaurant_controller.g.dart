@@ -6,151 +6,134 @@ part of 'restaurant_controller.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$restaurantControllerHash() =>
-    r'3ca11f64a8d372f197488e778e773d7eb3ac837a';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+/// Provider pour récupérer la liste de tous les restaurants
 
-/// Copied from Dart SDK
-class _SystemHash {
-  _SystemHash._();
+@ProviderFor(restaurantsList)
+final restaurantsListProvider = RestaurantsListProvider._();
 
-  static int combine(int hash, int value) {
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + value);
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + ((0x0007ffff & hash) << 10));
-    return hash ^ (hash >> 6);
-  }
+/// Provider pour récupérer la liste de tous les restaurants
 
-  static int finish(int hash) {
-    // ignore: parameter_assignments
-    hash = 0x1fffffff & (hash + ((0x03ffffff & hash) << 3));
-    // ignore: parameter_assignments
-    hash = hash ^ (hash >> 11);
-    return 0x1fffffff & (hash + ((0x00003fff & hash) << 15));
-  }
-}
-
-/// See also [restaurantController].
-@ProviderFor(restaurantController)
-const restaurantControllerProvider = RestaurantControllerFamily();
-
-/// See also [restaurantController].
-class RestaurantControllerFamily extends Family<AsyncValue<Restaurant>> {
-  /// See also [restaurantController].
-  const RestaurantControllerFamily();
-
-  /// See also [restaurantController].
-  RestaurantControllerProvider call(String restaurantId) {
-    return RestaurantControllerProvider(restaurantId);
-  }
-
-  @override
-  RestaurantControllerProvider getProviderOverride(
-    covariant RestaurantControllerProvider provider,
-  ) {
-    return call(provider.restaurantId);
-  }
-
-  static const Iterable<ProviderOrFamily>? _dependencies = null;
-
-  @override
-  Iterable<ProviderOrFamily>? get dependencies => _dependencies;
-
-  static const Iterable<ProviderOrFamily>? _allTransitiveDependencies = null;
-
-  @override
-  Iterable<ProviderOrFamily>? get allTransitiveDependencies =>
-      _allTransitiveDependencies;
-
-  @override
-  String? get name => r'restaurantControllerProvider';
-}
-
-/// See also [restaurantController].
-class RestaurantControllerProvider
-    extends AutoDisposeFutureProvider<Restaurant> {
-  /// See also [restaurantController].
-  RestaurantControllerProvider(String restaurantId)
-    : this._internal(
-        (ref) =>
-            restaurantController(ref as RestaurantControllerRef, restaurantId),
-        from: restaurantControllerProvider,
-        name: r'restaurantControllerProvider',
-        debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-            ? null
-            : _$restaurantControllerHash,
-        dependencies: RestaurantControllerFamily._dependencies,
-        allTransitiveDependencies:
-            RestaurantControllerFamily._allTransitiveDependencies,
-        restaurantId: restaurantId,
+final class RestaurantsListProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<RestaurantSummary>>,
+          List<RestaurantSummary>,
+          FutureOr<List<RestaurantSummary>>
+        >
+    with
+        $FutureModifier<List<RestaurantSummary>>,
+        $FutureProvider<List<RestaurantSummary>> {
+  /// Provider pour récupérer la liste de tous les restaurants
+  RestaurantsListProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'restaurantsListProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
       );
 
-  RestaurantControllerProvider._internal(
-    super._createNotifier, {
-    required super.name,
-    required super.dependencies,
-    required super.allTransitiveDependencies,
-    required super.debugGetCreateSourceHash,
-    required super.from,
-    required this.restaurantId,
-  }) : super.internal();
+  @override
+  String debugGetCreateSourceHash() => _$restaurantsListHash();
 
-  final String restaurantId;
+  @$internal
+  @override
+  $FutureProviderElement<List<RestaurantSummary>> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
 
   @override
-  Override overrideWith(
-    FutureOr<Restaurant> Function(RestaurantControllerRef provider) create,
-  ) {
-    return ProviderOverride(
-      origin: this,
-      override: RestaurantControllerProvider._internal(
-        (ref) => create(ref as RestaurantControllerRef),
-        from: from,
-        name: null,
-        dependencies: null,
-        allTransitiveDependencies: null,
-        debugGetCreateSourceHash: null,
-        restaurantId: restaurantId,
-      ),
-    );
+  FutureOr<List<RestaurantSummary>> create(Ref ref) {
+    return restaurantsList(ref);
+  }
+}
+
+String _$restaurantsListHash() => r'9de93e98d8872c1becac3e24bdda1238ed1e3440';
+
+/// Provider pour récupérer un restaurant spécifique avec ses produits
+
+@ProviderFor(restaurantController)
+final restaurantControllerProvider = RestaurantControllerFamily._();
+
+/// Provider pour récupérer un restaurant spécifique avec ses produits
+
+final class RestaurantControllerProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<Restaurant>,
+          Restaurant,
+          FutureOr<Restaurant>
+        >
+    with $FutureModifier<Restaurant>, $FutureProvider<Restaurant> {
+  /// Provider pour récupérer un restaurant spécifique avec ses produits
+  RestaurantControllerProvider._({
+    required RestaurantControllerFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'restaurantControllerProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$restaurantControllerHash();
+
+  @override
+  String toString() {
+    return r'restaurantControllerProvider'
+        ''
+        '($argument)';
   }
 
+  @$internal
   @override
-  AutoDisposeFutureProviderElement<Restaurant> createElement() {
-    return _RestaurantControllerProviderElement(this);
+  $FutureProviderElement<Restaurant> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<Restaurant> create(Ref ref) {
+    final argument = this.argument as String;
+    return restaurantController(ref, argument);
   }
 
   @override
   bool operator ==(Object other) {
-    return other is RestaurantControllerProvider &&
-        other.restaurantId == restaurantId;
+    return other is RestaurantControllerProvider && other.argument == argument;
   }
 
   @override
   int get hashCode {
-    var hash = _SystemHash.combine(0, runtimeType.hashCode);
-    hash = _SystemHash.combine(hash, restaurantId.hashCode);
-
-    return _SystemHash.finish(hash);
+    return argument.hashCode;
   }
 }
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-mixin RestaurantControllerRef on AutoDisposeFutureProviderRef<Restaurant> {
-  /// The parameter `restaurantId` of this provider.
-  String get restaurantId;
-}
+String _$restaurantControllerHash() =>
+    r'3ca11f64a8d372f197488e778e773d7eb3ac837a';
 
-class _RestaurantControllerProviderElement
-    extends AutoDisposeFutureProviderElement<Restaurant>
-    with RestaurantControllerRef {
-  _RestaurantControllerProviderElement(super.provider);
+/// Provider pour récupérer un restaurant spécifique avec ses produits
+
+final class RestaurantControllerFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<Restaurant>, String> {
+  RestaurantControllerFamily._()
+    : super(
+        retry: null,
+        name: r'restaurantControllerProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Provider pour récupérer un restaurant spécifique avec ses produits
+
+  RestaurantControllerProvider call(String restaurantId) =>
+      RestaurantControllerProvider._(argument: restaurantId, from: this);
 
   @override
-  String get restaurantId =>
-      (origin as RestaurantControllerProvider).restaurantId;
+  String toString() => r'restaurantControllerProvider';
 }
-
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:http/http.dart' as http;
@@ -18,7 +19,7 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
         debugPrint('Jeton détecté. Synchronisation du profil utilisateur...');
         try {
           final response = await http.get(
-            Uri.parse('https://lilia-backend.onrender.com/auth/profile'),
+            Uri.parse('${AppConstants.baseUrl}/auth/profile'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',

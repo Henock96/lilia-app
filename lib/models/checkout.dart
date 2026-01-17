@@ -4,7 +4,7 @@
 
 import 'dart:convert';
 
-Checkout checkoutFromMap(String str) => Checkout.fromMap(json.decode(str));
+Checkout checkoutFromMap(String str) => Checkout.fromMap(json.decode(str)["data"]);
 
 String checkoutToMap(Checkout data) => json.encode(data.toMap());
 
@@ -15,6 +15,7 @@ class Checkout {
   int subTotal;
   int deliveryFee;
   int total;
+  String? notes;
   String deliveryAddress;
   String paymentMethod;
   String status;
@@ -35,6 +36,7 @@ class Checkout {
     required this.createdAt,
     required this.updatedAt,
     required this.items,
+    this.notes,
   });
 
   Checkout copyWith({
@@ -44,6 +46,7 @@ class Checkout {
     int? subTotal,
     int? deliveryFee,
     int? total,
+    String? notes,
     String? deliveryAddress,
     String? paymentMethod,
     String? status,
@@ -58,6 +61,7 @@ class Checkout {
         subTotal: subTotal ?? this.subTotal,
         deliveryFee: deliveryFee ?? this.deliveryFee,
         total: total ?? this.total,
+        notes: notes ?? this.notes,
         deliveryAddress: deliveryAddress ?? this.deliveryAddress,
         paymentMethod: paymentMethod ?? this.paymentMethod,
         status: status ?? this.status,
@@ -73,6 +77,7 @@ class Checkout {
     subTotal: json["subTotal"],
     deliveryFee: json["deliveryFee"],
     total: json["total"],
+    notes: json["notes"],
     deliveryAddress: json["deliveryAddress"],
     paymentMethod: json["paymentMethod"],
     status: json["status"],
@@ -88,6 +93,7 @@ class Checkout {
     "subTotal": subTotal,
     "deliveryFee": deliveryFee,
     "total": total,
+    "notes": notes,
     "deliveryAddress": deliveryAddress,
     "paymentMethod": paymentMethod,
     "status": status,

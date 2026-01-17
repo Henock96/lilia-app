@@ -1,10 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
 
 class UserRepository {
-  final String _baseUrl = 'https://lilia-backend.onrender.com'; // Mettez votre URL de base ici
+  //final String _baseUrl = 'https://lilia-backend.onrender.com'; // Mettez votre URL de base ici
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
   Future<String?> _getIdToken() async {
@@ -19,7 +20,7 @@ class UserRepository {
     }
 
     final response = await http.put(
-      Uri.parse('$_baseUrl/auth/profile'),
+      Uri.parse('${AppConstants.baseUrl}/auth/profile'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
@@ -42,7 +43,7 @@ class UserRepository {
     }
 
     final response = await http.get(
-      Uri.parse('$_baseUrl/auth/profile'),
+      Uri.parse('${AppConstants.baseUrl}/auth/profile'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',

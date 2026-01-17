@@ -6,21 +6,49 @@ part of 'order_controller.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$userOrdersHash() => r'ddd9a0da444a5daea02a919cbe5974ed2acde17b';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 
-/// See also [UserOrders].
 @ProviderFor(UserOrders)
-final userOrdersProvider =
-    AutoDisposeAsyncNotifierProvider<UserOrders, List<Order>>.internal(
-      UserOrders.new,
-      name: r'userOrdersProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$userOrdersHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+final userOrdersProvider = UserOrdersProvider._();
 
-typedef _$UserOrders = AutoDisposeAsyncNotifier<List<Order>>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class UserOrdersProvider
+    extends $AsyncNotifierProvider<UserOrders, List<Order>> {
+  UserOrdersProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'userOrdersProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$userOrdersHash();
+
+  @$internal
+  @override
+  UserOrders create() => UserOrders();
+}
+
+String _$userOrdersHash() => r'19584bc37eb6bb44e8faf9811698ed387444e0d2';
+
+abstract class _$UserOrders extends $AsyncNotifier<List<Order>> {
+  FutureOr<List<Order>> build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final ref = this.ref as $Ref<AsyncValue<List<Order>>, List<Order>>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<List<Order>>, List<Order>>,
+              AsyncValue<List<Order>>,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, build);
+  }
+}

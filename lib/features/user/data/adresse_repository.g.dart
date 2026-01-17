@@ -6,21 +6,49 @@ part of 'adresse_repository.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$adresseRepositoryHash() => r'84f0130a63e6b9ff6af0646f5e445957651b574b';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 
-/// See also [AdresseRepository].
 @ProviderFor(AdresseRepository)
-final adresseRepositoryProvider =
-    AutoDisposeAsyncNotifierProvider<AdresseRepository, void>.internal(
-      AdresseRepository.new,
-      name: r'adresseRepositoryProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$adresseRepositoryHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+final adresseRepositoryProvider = AdresseRepositoryProvider._();
 
-typedef _$AdresseRepository = AutoDisposeAsyncNotifier<void>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class AdresseRepositoryProvider
+    extends $AsyncNotifierProvider<AdresseRepository, void> {
+  AdresseRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'adresseRepositoryProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$adresseRepositoryHash();
+
+  @$internal
+  @override
+  AdresseRepository create() => AdresseRepository();
+}
+
+String _$adresseRepositoryHash() => r'9719037275320df4f7b5aa008ba6898ee2aadd12';
+
+abstract class _$AdresseRepository extends $AsyncNotifier<void> {
+  FutureOr<void> build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final ref = this.ref as $Ref<AsyncValue<void>, void>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<void>, void>,
+              AsyncValue<void>,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, build);
+  }
+}

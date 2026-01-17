@@ -5,7 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
@@ -376,7 +376,7 @@ class NotificationService {
         }
 
         final url = Uri.parse(
-          'https://lilia-backend.onrender.com/notifications/register-token',
+          '${AppConstants.baseUrl}/notifications/register-token',
         );
 
         final response = await _httpClient

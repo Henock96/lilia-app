@@ -88,7 +88,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             error: (err, stack) => BuildErrorState(err),
           ),
           Spacer(),
-          cartState.valueOrNull != null && cartState.value!.items.isNotEmpty
+          cartState.value != null && cartState.value!.items.isNotEmpty
               ? Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -223,20 +223,27 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.network(
-                  widget.item.product.imageUrl,
-                  width: 60,
-                  height: 60,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      width: 60,
-                      height: 60,
-                      color: Colors.grey.shade200,
-                      child: const Icon(Icons.broken_image),
-                    );
-                  },
-                ),
+                child: widget.item.product.imageUrl != null
+                    ? Image.network(
+                        widget.item.product.imageUrl!,
+                        width: 60,
+                        height: 60,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            width: 60,
+                            height: 60,
+                            color: Colors.grey.shade200,
+                            child: const Icon(Icons.fastfood, color: Colors.grey),
+                          );
+                        },
+                      )
+                    : Container(
+                        width: 60,
+                        height: 60,
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.fastfood, color: Colors.grey),
+                      ),
               ),
               const SizedBox(width: 5),
               Expanded(

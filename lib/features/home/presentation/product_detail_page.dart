@@ -101,12 +101,37 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
                   Center(
                     child: Hero(
                       tag: widget.product.id,
-                      child: Image.network(
-                        widget.product.imageUrl,
-                        height: 300,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
+                      child: widget.product.imageUrl != null
+                          ? Image.network(
+                              widget.product.imageUrl!,
+                              height: 300,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  height: 300,
+                                  color: Colors.grey[200],
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.fastfood,
+                                      size: 80,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                );
+                              },
+                            )
+                          : Container(
+                              height: 300,
+                              color: Colors.grey[200],
+                              child: const Center(
+                                child: Icon(
+                                  Icons.fastfood,
+                                  size: 80,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 20),

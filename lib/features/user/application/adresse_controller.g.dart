@@ -6,21 +6,49 @@ part of 'adresse_controller.dart';
 // RiverpodGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+
+@ProviderFor(AdresseController)
+final adresseControllerProvider = AdresseControllerProvider._();
+
+final class AdresseControllerProvider
+    extends $AsyncNotifierProvider<AdresseController, List<Adresse>> {
+  AdresseControllerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'adresseControllerProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$adresseControllerHash();
+
+  @$internal
+  @override
+  AdresseController create() => AdresseController();
+}
+
 String _$adresseControllerHash() => r'69921e55dc02301a4a30fa11c0d8f906493ad213';
 
-/// See also [AdresseController].
-@ProviderFor(AdresseController)
-final adresseControllerProvider =
-    AsyncNotifierProvider<AdresseController, List<Adresse>>.internal(
-      AdresseController.new,
-      name: r'adresseControllerProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$adresseControllerHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
-
-typedef _$AdresseController = AsyncNotifier<List<Adresse>>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+abstract class _$AdresseController extends $AsyncNotifier<List<Adresse>> {
+  FutureOr<List<Adresse>> build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final ref = this.ref as $Ref<AsyncValue<List<Adresse>>, List<Adresse>>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<List<Adresse>>, List<Adresse>>,
+              AsyncValue<List<Adresse>>,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, build);
+  }
+}

@@ -6,22 +6,50 @@ part of 'user_sync_provider.dart';
 // RiverpodGenerator
 // **************************************************************************
 
-String _$userDataSynchronizerHash() =>
-    r'08f17ea2ca33da5c3e711c5789e89333766fef78';
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
 
-/// See also [UserDataSynchronizer].
 @ProviderFor(UserDataSynchronizer)
-final userDataSynchronizerProvider =
-    AutoDisposeAsyncNotifierProvider<UserDataSynchronizer, void>.internal(
-      UserDataSynchronizer.new,
-      name: r'userDataSynchronizerProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$userDataSynchronizerHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+final userDataSynchronizerProvider = UserDataSynchronizerProvider._();
 
-typedef _$UserDataSynchronizer = AutoDisposeAsyncNotifier<void>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class UserDataSynchronizerProvider
+    extends $AsyncNotifierProvider<UserDataSynchronizer, void> {
+  UserDataSynchronizerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'userDataSynchronizerProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$userDataSynchronizerHash();
+
+  @$internal
+  @override
+  UserDataSynchronizer create() => UserDataSynchronizer();
+}
+
+String _$userDataSynchronizerHash() =>
+    r'e2f40fa7d0c2dc8989552d2c3fa0c5ea4318792a';
+
+abstract class _$UserDataSynchronizer extends $AsyncNotifier<void> {
+  FutureOr<void> build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final ref = this.ref as $Ref<AsyncValue<void>, void>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<void>, void>,
+              AsyncValue<void>,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, build);
+  }
+}

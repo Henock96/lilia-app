@@ -46,7 +46,7 @@ class ConnectivityBanner extends ConsumerWidget {
         );
       },
       loading: () => child,
-      error: (_, __) => child,
+      error: (_, _) => child,
     );
   }
 }

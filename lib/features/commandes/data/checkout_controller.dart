@@ -18,6 +18,7 @@ class CheckoutController extends _$CheckoutController {
   Future<Checkout> placeOrder({
     required String adresseId,
     required String paymentMethod,
+    String? note,
     String? newAddressRue,
     $,
   }) async {
@@ -28,6 +29,7 @@ class CheckoutController extends _$CheckoutController {
       final order = await orderRepository.createOrders(
         adresseId: adresseId,
         paymentMethod: paymentMethod,
+        note: note,
         //newPhoneNumber: newPhoneNumber,
       );
 

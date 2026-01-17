@@ -6,38 +6,90 @@ part of 'cart_controller.dart';
 // RiverpodGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+
+@ProviderFor(cartRepository)
+final cartRepositoryProvider = CartRepositoryProvider._();
+
+final class CartRepositoryProvider
+    extends $FunctionalProvider<CartRepository, CartRepository, CartRepository>
+    with $Provider<CartRepository> {
+  CartRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'cartRepositoryProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$cartRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<CartRepository> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  CartRepository create(Ref ref) {
+    return cartRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(CartRepository value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<CartRepository>(value),
+    );
+  }
+}
+
 String _$cartRepositoryHash() => r'9dfca47f47d15cd4df54dcebdcf009d9816ce953';
 
-/// See also [cartRepository].
-@ProviderFor(cartRepository)
-final cartRepositoryProvider = AutoDisposeProvider<CartRepository>.internal(
-  cartRepository,
-  name: r'cartRepositoryProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$cartRepositoryHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
-
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef CartRepositoryRef = AutoDisposeProviderRef<CartRepository>;
-String _$cartControllerHash() => r'c956834ec9aedd71e81a20625522f2d8806c2d08';
-
-/// See also [CartController].
 @ProviderFor(CartController)
-final cartControllerProvider =
-    AutoDisposeStreamNotifierProvider<CartController, Cart?>.internal(
-      CartController.new,
-      name: r'cartControllerProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$cartControllerHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+final cartControllerProvider = CartControllerProvider._();
 
-typedef _$CartController = AutoDisposeStreamNotifier<Cart?>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class CartControllerProvider
+    extends $StreamNotifierProvider<CartController, Cart?> {
+  CartControllerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'cartControllerProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$cartControllerHash();
+
+  @$internal
+  @override
+  CartController create() => CartController();
+}
+
+String _$cartControllerHash() => r'9332f0358a3d6ee4fce6b92646f3d43aa7dcd20b';
+
+abstract class _$CartController extends $StreamNotifier<Cart?> {
+  Stream<Cart?> build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final ref = this.ref as $Ref<AsyncValue<Cart?>, Cart?>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<AsyncValue<Cart?>, Cart?>,
+              AsyncValue<Cart?>,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, build);
+  }
+}

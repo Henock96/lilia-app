@@ -102,11 +102,23 @@ class ProductCardFavoris extends ConsumerWidget {
                   height: 80,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(8),
-                    image: DecorationImage(
-                      image: NetworkImage(product.imageUrl),
-                      fit: BoxFit.cover,
-                    ),
+                    color: Colors.grey[200],
+                    image: product.imageUrl != null
+                        ? DecorationImage(
+                            image: NetworkImage(product.imageUrl!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
                   ),
+                  child: product.imageUrl == null
+                      ? const Center(
+                          child: Icon(
+                            Icons.fastfood,
+                            size: 40,
+                            color: Colors.grey,
+                          ),
+                        )
+                      : null,
                 ),
               ),
               const SizedBox(width: 16),

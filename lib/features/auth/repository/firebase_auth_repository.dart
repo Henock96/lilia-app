@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
+import 'package:lilia_app/constants/app_constants.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../app_user_model.dart';
@@ -65,7 +66,7 @@ class FirebaseAuthenticationRepository {
     }
     // Étape 3: Sauvegarder les informations dans notre backend
     final idToken = await user.getIdToken();
-    final url = Uri.parse('https://lilia-backend.onrender.com/auth/register');
+    final url = Uri.parse('${AppConstants.baseUrl}/auth/register');
 
     final response = await _client.post(
       url,
@@ -128,7 +129,7 @@ class FirebaseAuthenticationRepository {
     // Note: Le backend utilise UPSERT donc gère inscription ET connexion
     try {
       final firebaseIdToken = await user.getIdToken();
-      final url = Uri.parse('https://lilia-backend.onrender.com/auth/register');
+      final url = Uri.parse('${AppConstants.baseUrl}/auth/register');
 
       if (kDebugMode) {
         print('🔄 Synchronizing user with backend...');

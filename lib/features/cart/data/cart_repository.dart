@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/models/cart.dart';
 
 /// Exception personnalisée pour les erreurs de panier
@@ -18,7 +19,6 @@ class CartException implements Exception {
 }
 
 class CartRepository {
-  final String _baseUrl = 'https://lilia-backend.onrender.com';
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final _cartStreamController = StreamController<Cart?>.broadcast();
   bool _isClosed = false; // Flag pour savoir si le controller est fermé
@@ -64,7 +64,7 @@ class CartRepository {
     try {
       final response = await http
           .get(
-            Uri.parse('$_baseUrl/cart'),
+            Uri.parse('${AppConstants.baseUrl}/cart'),
             headers: {'Authorization': 'Bearer $token'},
           )
           .timeout(const Duration(seconds: 15));
@@ -98,7 +98,7 @@ class CartRepository {
     try {
       final response = await http
           .post(
-            Uri.parse('$_baseUrl/cart/add'),
+            Uri.parse('${AppConstants.baseUrl}/cart/add'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
@@ -182,7 +182,7 @@ class CartRepository {
     try {
       final response = await http
           .patch(
-            Uri.parse('$_baseUrl/cart/items/$cartItemId'),
+            Uri.parse('${AppConstants.baseUrl}/cart/items/$cartItemId'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',
@@ -230,7 +230,7 @@ class CartRepository {
     try {
       final response = await http
           .delete(
-            Uri.parse('$_baseUrl/cart/items/$cartItemId'),
+            Uri.parse('${AppConstants.baseUrl}/cart/items/$cartItemId'),
             headers: {'Authorization': 'Bearer $token'},
           )
           .timeout(const Duration(seconds: 15));
@@ -257,6 +257,95 @@ class CartRepository {
       if (e is CartException) rethrow;
       throw CartException(
         'Erreur lors de la suppression: ${e.toString()}',
+        code: 'UNKNOWN',
+      );
+    }
+  }
+
+  /// Recommande une commande précédente
+  /// Ajoute tous les produits de la commande au panier
+  Future<Map<String, dynamic>> reorderFromOrder({
+    required String orderId,
+  }) async {
+    final token = await _getIdToken();
+    if (token == null) {
+      throw CartException(
+        'Utilisateur non authentifié.',
+        code: 'UNAUTHENTICATED',
+      );
+    }
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('${AppConstants.baseUrl}/orders/$orderId/reorder'),
+            headers: {
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () {
+              throw TimeoutException(
+                'La requête a pris trop de temps. Vérifiez votre connexion.',
+              );
+            },
+          );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        debugPrint('✅ Order reordered successfully');
+        final data = jsonDecode(response.body);
+
+        // Rafraîchir le panier
+        await getCart();
+
+        return data;
+      } else if (response.statusCode == 400) {
+        final errorData = jsonDecode(response.body);
+        throw CartException(
+          errorData['message'] ?? 'Erreur lors de la recommande.',
+          code: 'INVALID_DATA',
+        );
+      } else if (response.statusCode == 403) {
+        throw CartException(
+          'Cette commande ne vous appartient pas.',
+          code: 'FORBIDDEN',
+        );
+      } else if (response.statusCode == 404) {
+        throw CartException(
+          'Commande non trouvée.',
+          code: 'NOT_FOUND',
+        );
+      } else if (response.statusCode >= 500) {
+        throw CartException(
+          'Erreur du serveur. Veuillez réessayer plus tard.',
+          code: 'SERVER_ERROR',
+        );
+      } else {
+        throw CartException(
+          'Erreur: ${response.statusCode}',
+          code: 'UNKNOWN_ERROR',
+        );
+      }
+    } on SocketException {
+      debugPrint('📡 No internet connection');
+      throw CartException(
+        'Pas de connexion internet. Vérifiez votre connexion.',
+        code: 'NO_INTERNET',
+      );
+    } on TimeoutException {
+      debugPrint('⏱️ Request timeout');
+      throw CartException(
+        'La requête a pris trop de temps. Vérifiez votre connexion.',
+        code: 'TIMEOUT',
+      );
+    } catch (e) {
+      debugPrint('❌ Error reordering: $e');
+      if (e is CartException) {
+        rethrow;
+      }
+      throw CartException(
+        'Une erreur est survenue: ${e.toString()}',
         code: 'UNKNOWN',
       );
     }

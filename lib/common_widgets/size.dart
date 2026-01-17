@@ -4,7 +4,7 @@ class SizeConfig {
   static MediaQueryData? _mediaQueryData;
   static Orientation? orientation;
 
-  init(BuildContext context) {
+  void init(BuildContext context) {
     _mediaQueryData = MediaQuery.of(context);
     orientation = _mediaQueryData!.orientation;
   }

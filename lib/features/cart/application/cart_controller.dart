@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/features/cart/data/cart_repository.dart';
@@ -68,7 +67,7 @@ class CartController extends _$CartController {
     }
   }
 
-  clearCart() async {
+  Future<void> clearCart() async {
     final cartRepo = ref.read(cartRepositoryProvider);
     try {
       cartRepo.clearCart();
@@ -81,5 +80,18 @@ class CartController extends _$CartController {
   Future<void> refresh() async {
     final repository = ref.read(cartRepositoryProvider);
     await repository.getCart();
+  }
+
+  /// Recommande une commande précédente
+  /// Retourne les détails du reorder (produits ajoutés, indisponibles, etc.)
+  Future<Map<String, dynamic>> reorder({required String orderId}) async {
+    final cartRepo = ref.read(cartRepositoryProvider);
+    try {
+      final result = await cartRepo.reorderFromOrder(orderId: orderId);
+      return result;
+    } catch (e) {
+      debugPrint('Erreur lors de la recommande: $e');
+      rethrow;
+    }
   }
 }

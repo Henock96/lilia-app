@@ -8,11 +8,15 @@ enum AppRoutes {
   profile,
   address,
   changePassword,
+  restaurantDetail,
   productDetail,
+  menuDetail,
   orderDetail,
   cart,
   checkout,
-  orderSuccess
+  orderSuccess,
+  reviews,
+  writeReview
 }
 
 extension AppRoutesExtension on AppRoutes {
@@ -36,8 +40,12 @@ extension AppRoutesExtension on AppRoutes {
         return 'address';
       case AppRoutes.changePassword:
         return 'change-password';
+      case AppRoutes.restaurantDetail:
+        return 'restaurant/:id';
       case AppRoutes.productDetail:
-        return '/product-details';
+        return 'product-detail';
+      case AppRoutes.menuDetail:
+        return 'menu-detail';
       case AppRoutes.orderDetail:
         return '/:orderId';
       case AppRoutes.cart:
@@ -46,6 +54,10 @@ extension AppRoutesExtension on AppRoutes {
         return '/checkout';
       case AppRoutes.orderSuccess:
         return '/order-success';
+      case AppRoutes.reviews:
+        return '/reviews';
+      case AppRoutes.writeReview:
+        return 'write';
     }
   }
 
@@ -69,8 +81,12 @@ extension AppRoutesExtension on AppRoutes {
         return 'Address';
       case AppRoutes.changePassword:
         return 'ChangePassword';
+      case AppRoutes.restaurantDetail:
+        return 'RestaurantDetail';
       case AppRoutes.productDetail:
         return 'Product-Details';
+      case AppRoutes.menuDetail:
+        return 'Menu-Details';
       case AppRoutes.orderDetail:
         return 'OrderId';
       case AppRoutes.cart:
@@ -79,6 +95,10 @@ extension AppRoutesExtension on AppRoutes {
         return 'Checkout';
       case AppRoutes.orderSuccess:
         return 'OrderSuccess';
+      case AppRoutes.reviews:
+        return 'Reviews';
+      case AppRoutes.writeReview:
+        return 'WriteReview';
     }
   }
 }

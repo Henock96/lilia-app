@@ -6,6 +6,14 @@ import '../../../../models/restaurant.dart';
 
 part 'restaurant_controller.g.dart';
 
+/// Provider pour récupérer la liste de tous les restaurants
+@riverpod
+Future<List<RestaurantSummary>> restaurantsList(Ref ref) async {
+  final repository = ref.watch(restaurantRepositoryProvider);
+  return repository.getAllRestaurants();
+}
+
+/// Provider pour récupérer un restaurant spécifique avec ses produits
 @riverpod
 Future<Restaurant> restaurantController(
     Ref ref, String restaurantId) async {

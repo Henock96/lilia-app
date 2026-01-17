@@ -6,59 +6,120 @@ part of 'connectivity_service.dart';
 // RiverpodGenerator
 // **************************************************************************
 
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// ignore_for_file: type=lint, type=warning
+
+@ProviderFor(connectivityService)
+final connectivityServiceProvider = ConnectivityServiceProvider._();
+
+final class ConnectivityServiceProvider
+    extends
+        $FunctionalProvider<
+          ConnectivityService,
+          ConnectivityService,
+          ConnectivityService
+        >
+    with $Provider<ConnectivityService> {
+  ConnectivityServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'connectivityServiceProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$connectivityServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<ConnectivityService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  ConnectivityService create(Ref ref) {
+    return connectivityService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(ConnectivityService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<ConnectivityService>(value),
+    );
+  }
+}
+
 String _$connectivityServiceHash() =>
     r'ab6e434875df17d5c2ce715e14e00dc71f8cd594';
 
-/// See also [connectivityService].
-@ProviderFor(connectivityService)
-final connectivityServiceProvider =
-    AutoDisposeProvider<ConnectivityService>.internal(
-      connectivityService,
-      name: r'connectivityServiceProvider',
-      debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-          ? null
-          : _$connectivityServiceHash,
-      dependencies: null,
-      allTransitiveDependencies: null,
-    );
+@ProviderFor(connectivityStatus)
+final connectivityStatusProvider = ConnectivityStatusProvider._();
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef ConnectivityServiceRef = AutoDisposeProviderRef<ConnectivityService>;
+final class ConnectivityStatusProvider
+    extends $FunctionalProvider<AsyncValue<bool>, bool, Stream<bool>>
+    with $FutureModifier<bool>, $StreamProvider<bool> {
+  ConnectivityStatusProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'connectivityStatusProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$connectivityStatusHash();
+
+  @$internal
+  @override
+  $StreamProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $StreamProviderElement(pointer);
+
+  @override
+  Stream<bool> create(Ref ref) {
+    return connectivityStatus(ref);
+  }
+}
+
 String _$connectivityStatusHash() =>
     r'0b1e528631fe85fe2b929921fa0a0ff6f2dc95b6';
 
-/// See also [connectivityStatus].
-@ProviderFor(connectivityStatus)
-final connectivityStatusProvider = AutoDisposeStreamProvider<bool>.internal(
-  connectivityStatus,
-  name: r'connectivityStatusProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$connectivityStatusHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
-
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef ConnectivityStatusRef = AutoDisposeStreamProviderRef<bool>;
-String _$isConnectedHash() => r'c8270f778792b7bbda7dd4a88a13063afdd4db61';
-
-/// See also [isConnected].
 @ProviderFor(isConnected)
-final isConnectedProvider = AutoDisposeFutureProvider<bool>.internal(
-  isConnected,
-  name: r'isConnectedProvider',
-  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
-      ? null
-      : _$isConnectedHash,
-  dependencies: null,
-  allTransitiveDependencies: null,
-);
+final isConnectedProvider = IsConnectedProvider._();
 
-@Deprecated('Will be removed in 3.0. Use Ref instead')
-// ignore: unused_element
-typedef IsConnectedRef = AutoDisposeFutureProviderRef<bool>;
-// ignore_for_file: type=lint
-// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package
+final class IsConnectedProvider
+    extends $FunctionalProvider<AsyncValue<bool>, bool, FutureOr<bool>>
+    with $FutureModifier<bool>, $FutureProvider<bool> {
+  IsConnectedProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'isConnectedProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$isConnectedHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<bool> create(Ref ref) {
+    return isConnected(ref);
+  }
+}
+
+String _$isConnectedHash() => r'c8270f778792b7bbda7dd4a88a13063afdd4db61';

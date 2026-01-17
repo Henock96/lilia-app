@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:http/http.dart' as http;
 import 'package:lilia_app/models/checkout.dart';
@@ -16,7 +17,7 @@ class OrderRepository extends _$OrderRepository {
     return;
   }
 
-  final String _baseUrl = 'https://lilia-backend.onrender.com';
+
 
   Future<List<Order>> getMyOrders() async {
     final token = await ref.read(firebaseIdTokenProvider.future);
@@ -25,11 +26,11 @@ class OrderRepository extends _$OrderRepository {
     }
     final headers = {'Authorization': 'Bearer $token'};
     final response = await http.get(
-      Uri.parse('$_baseUrl/orders/me'),
+      Uri.parse('${AppConstants.baseUrl}/orders/users'),
       headers: headers,
     );
     if (response.statusCode == 200) {
-      List<dynamic> ordersJson = json.decode(utf8.decode(response.bodyBytes));
+      List<dynamic> ordersJson = json.decode(utf8.decode(response.bodyBytes))["data"];
       return ordersJson.map((json) => Order.fromJson(json)).toList();
     } else {
       throw Exception('Failed to load orders: ${response.body}');
@@ -39,6 +40,7 @@ class OrderRepository extends _$OrderRepository {
   Future<Checkout> createOrders({
     required String adresseId,
     required String paymentMethod,
+    String? note
   }) async {
     final token = await ref.read(firebaseIdTokenProvider.future);
     if (token == null) {
@@ -51,9 +53,10 @@ class OrderRepository extends _$OrderRepository {
     final body = json.encode({
       'adresseId': adresseId,
       'paymentMethod': paymentMethod,
+      'notes': note,
     });
     final response = await http.post(
-      Uri.parse('$_baseUrl/orders/checkout'),
+      Uri.parse('${AppConstants.baseUrl}/orders/checkout'),
       headers: headers,
       body: body,
     );
@@ -71,7 +74,7 @@ class OrderRepository extends _$OrderRepository {
     }
     final headers = {'Authorization': 'Bearer $token'};
     final response = await http.patch(
-      Uri.parse('$_baseUrl/orders/$orderId/cancel'),
+      Uri.parse('${AppConstants.baseUrl}/orders/$orderId/cancel'),
       headers: headers,
     );
     if (response.statusCode != 200) {

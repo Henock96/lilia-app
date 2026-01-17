@@ -1,9 +1,11 @@
 // lib/repositories/address_repository.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
-import 'package:lilia_app/models/adresse.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+
+import '../../../models/adresse.dart';
 
 part 'adresse_repository.g.dart';
 
@@ -14,7 +16,7 @@ class AdresseRepository extends _$AdresseRepository {
     return;
   }
 
-  final String _baseUrl = 'https://lilia-backend.onrender.com';
+  //final String _baseUrl = 'https://lilia-backend.onrender.com';
 
   Future<List<Adresse>> getUserAdresses() async {
     final token = await ref.read(firebaseIdTokenProvider.future);
@@ -29,7 +31,7 @@ class AdresseRepository extends _$AdresseRepository {
 
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/adresses'),
+        Uri.parse('${AppConstants.baseUrl}/adresses'),
         headers: headers,
       );
 
@@ -62,7 +64,7 @@ class AdresseRepository extends _$AdresseRepository {
 
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/adresses'),
+        Uri.parse('${AppConstants.baseUrl}/adresses'),
         headers: headers,
         body: jsonEncode(data),
       );
@@ -91,7 +93,7 @@ class AdresseRepository extends _$AdresseRepository {
 
     try {
       final response = await http.delete(
-        Uri.parse('$_baseUrl/adresses/$adresseId'),
+        Uri.parse('${AppConstants.baseUrl}/adresses/$adresseId'),
         headers: headers,
       );
 

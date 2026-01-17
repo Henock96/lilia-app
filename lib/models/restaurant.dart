@@ -1,6 +1,44 @@
 
 import 'package:lilia_app/models/produit.dart';
 
+/// Modèle simplifié pour la liste des restaurants (sans les produits)
+class RestaurantSummary {
+  final String id;
+  final String name;
+  final String address;
+  final String? phoneNumber;
+  final String? imageUrl;
+  final String? description;
+  final double? averageRating;
+  final int? totalReviews;
+
+  RestaurantSummary({
+    required this.id,
+    required this.name,
+    required this.address,
+    this.phoneNumber,
+    this.imageUrl,
+    this.description,
+    this.averageRating,
+    this.totalReviews,
+  });
+
+  factory RestaurantSummary.fromJson(Map<String, dynamic> json) {
+    return RestaurantSummary(
+      id: json['id'],
+      name: json['nom'],
+      address: json['adresse'],
+      phoneNumber: json['phone'],
+      imageUrl: json['imageUrl'],
+      description: json['description'],
+      averageRating: json['averageRating'] != null
+          ? (json['averageRating'] as num).toDouble()
+          : null,
+      totalReviews: json['totalReviews'] as int?,
+    );
+  }
+}
+
 class Restaurant {
   final String id;
   final String name;

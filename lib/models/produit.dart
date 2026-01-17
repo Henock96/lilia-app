@@ -6,7 +6,7 @@ class Product {
   final String name;
   final String description;
   final double prixOriginal; // Correspond à 'prixOriginal' de votre JSON
-  final String imageUrl;
+  final String? imageUrl; // Peut être null si pas d'image
   final String restaurantId;
   final String categoryId;
   final Category? category; // La catégorie est maintenant imbriquée
@@ -17,7 +17,7 @@ class Product {
     required this.name,
     required this.description,
     required this.prixOriginal,
-    required this.imageUrl,
+    this.imageUrl,
     required this.restaurantId,
     required this.categoryId,
     this.category,
@@ -32,7 +32,7 @@ class Product {
     return Product(
       id: json['id'],
       name: json['nom'], // Correspond à 'nom' de votre JSON
-      description: json['description'],
+      description: json['description'] ?? '',
       prixOriginal: (json['prixOriginal'] as num).toDouble(),
       imageUrl: json['imageUrl'],
       restaurantId: json['restaurantId'],

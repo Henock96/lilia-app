@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_app/features/cart/presentation/cart_screen.dart';
@@ -11,6 +10,7 @@ import 'package:lilia_app/features/favoris/presentation/favoris_page.dart';
 import 'package:lilia_app/features/home/presentation/bottom_navigation_bar.dart';
 import 'package:lilia_app/features/home/presentation/home.dart';
 import 'package:lilia_app/features/user/user_page.dart';
+import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/routing/go_router_refresh_stream.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -20,7 +20,12 @@ import 'package:lilia_app/features/auth/presentation/signin_page.dart';
 import '../features/auth/presentation/signup_page.dart';
 import '../features/commandes/presentation/commande_detail_page.dart';
 import '../features/home/presentation/not_found_page.dart';
+import '../features/home/presentation/menu_detail_page.dart';
 import '../features/home/presentation/product_detail_page.dart';
+import '../features/home/presentation/restaurant_detail_screen.dart';
+import '../features/reviews/presentation/screens/reviews_screen.dart';
+import '../features/reviews/presentation/screens/write_review_screen.dart';
+import '../models/menu.dart';
 import '../models/produit.dart';
 import 'app_route_enum.dart';
 
@@ -48,7 +53,7 @@ GoRouter router(Ref ref) {
             user != null, // L'utilisateur est connecté s'il y a des données
         loading: () =>
             false, // Pendant le chargement, on considère l'utilisateur comme non connecté
-        error: (_, __) =>
+        error: (_, _) =>
             false, // En cas d'erreur, on considère l'utilisateur comme non connecté
       );
 
@@ -90,7 +95,45 @@ GoRouter router(Ref ref) {
         pageBuilder: (context, state) =>
             const MaterialPage(child: OrderSuccessPage()),
       ),
-      // * your other routes *
+
+
+      GoRoute(
+        path: AppRoutes.reviews.path,
+        name: AppRoutes.reviews.routeName,
+        pageBuilder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          if (extra == null) {
+            return const MaterialPage(child: NotFoundScreen());
+          }
+          return MaterialPage(
+            child: ReviewsScreen(
+              restaurantId: extra['restaurantId'] as String,
+              restaurantName: extra['restaurantName'] as String,
+            ),
+          );
+        },
+        routes: [
+          GoRoute(
+            path: AppRoutes.writeReview.path,
+            name: AppRoutes.writeReview.routeName,
+            pageBuilder: (context, state) {
+              final extra = state.extra as Map<String, dynamic>?;
+              if (extra == null) {
+                return const MaterialPage(child: NotFoundScreen());
+              }
+              return MaterialPage(
+                child: WriteReviewScreen(
+                  restaurantId: extra['restaurantId'] as String,
+                  restaurantName: extra['restaurantName'] as String,
+                  existingReviewId: extra['existingReviewId'] as String?,
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+
+
       // Route principale avec la barre de navigation
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -105,23 +148,49 @@ GoRouter router(Ref ref) {
                 pageBuilder: (context, state) =>
                     const MaterialPage(child: HomeScreen()),
                 routes: [
+                  // Route restaurant detail - maintenant sous Home pour garder la bottom bar
                   GoRoute(
-                    path:
-                        'product-detail', // Ou 'detail/:productId' si vous voulez passer l'ID dans l'URL
-                    name: AppRoutes
-                        .productDetail
-                        .routeName, // Ajoutez un nom de route dans votre enum
+                    path: 'restaurant/:id',
+                    name: AppRoutes.restaurantDetail.routeName,
                     pageBuilder: (context, state) {
-                      // Récupérer l'objet Product passé via 'extra'
+                      final restaurantId = state.pathParameters['id'];
+                      if (restaurantId == null) {
+                        return const MaterialPage(child: NotFoundScreen());
+                      }
+                      return MaterialPage(
+                        child: RestaurantDetailScreen(
+                          restaurantId: restaurantId,
+                        ),
+                      );
+                    },
+                  ),
+                  GoRoute(
+                    path: 'product-detail',
+                    name: AppRoutes.productDetail.routeName,
+                    pageBuilder: (context, state) {
                       final Product? product = state.extra as Product?;
                       if (product == null) {
-                        // Gérer le cas où le produit n'est pas passé (erreur, navigation directe sans extra)
                         return const MaterialPage(
                           child: NotFoundScreen(),
-                        ); // Ou une page d'erreur spécifique
+                        );
                       }
                       return MaterialPage(
                         child: ProductDetailPage(product: product),
+                      );
+                    },
+                  ),
+                  GoRoute(
+                    path: 'menu-detail',
+                    name: AppRoutes.menuDetail.routeName,
+                    pageBuilder: (context, state) {
+                      final MenuDuJour? menu = state.extra as MenuDuJour?;
+                      if (menu == null) {
+                        return const MaterialPage(
+                          child: NotFoundScreen(),
+                        );
+                      }
+                      return MaterialPage(
+                        child: MenuDetailPage(menu: menu),
                       );
                     },
                   ),

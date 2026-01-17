@@ -73,12 +73,37 @@ class _FavorisDetailPageState extends ConsumerState<FavorisDetailPage> {
                     child: Hero(
                       tag:
                           'favorite_${widget.product.id}', // Unique tag for favorites
-                      child: Image.network(
-                        widget.product.imageUrl,
-                        height: 250,
-                        width: double.infinity,
-                        fit: BoxFit.contain,
-                      ),
+                      child: widget.product.imageUrl != null
+                          ? Image.network(
+                              widget.product.imageUrl!,
+                              height: 250,
+                              width: double.infinity,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  height: 250,
+                                  color: Colors.grey[200],
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.fastfood,
+                                      size: 80,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                );
+                              },
+                            )
+                          : Container(
+                              height: 250,
+                              color: Colors.grey[200],
+                              child: const Center(
+                                child: Icon(
+                                  Icons.fastfood,
+                                  size: 80,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(height: 20),

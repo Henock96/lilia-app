@@ -114,12 +114,12 @@ class CartItem {
 
 class ProductItem {
   String nom;
-  String imageUrl;
+  String? imageUrl;
   String restaurantId;
 
   ProductItem({
     required this.nom,
-    required this.imageUrl,
+    this.imageUrl,
     required this.restaurantId,
   });
 

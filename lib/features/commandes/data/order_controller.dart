@@ -19,7 +19,7 @@ class UserOrders extends _$UserOrders {
   // Méthode pour mettre à jour une commande dans l'état local ou l'ajouter.
   void updateOrAddOrder(Order order) {
     // On récupère l'état actuel.
-    final currentState = state.valueOrNull ?? [];
+    final currentState = state.value ?? [];
     final index = currentState.indexWhere((o) => o.id == order.id);
 
     if (index != -1) {
