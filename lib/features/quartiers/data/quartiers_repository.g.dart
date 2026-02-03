@@ -1,6 +1,6 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'order_repository.dart';
+part of 'quartiers_repository.dart';
 
 // **************************************************************************
 // RiverpodGenerator
@@ -9,33 +9,34 @@ part of 'order_repository.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 
-@ProviderFor(OrderRepository)
-final orderRepositoryProvider = OrderRepositoryProvider._();
+@ProviderFor(QuartiersRepository)
+final quartiersRepositoryProvider = QuartiersRepositoryProvider._();
 
-final class OrderRepositoryProvider
-    extends $AsyncNotifierProvider<OrderRepository, void> {
-  OrderRepositoryProvider._()
+final class QuartiersRepositoryProvider
+    extends $AsyncNotifierProvider<QuartiersRepository, void> {
+  QuartiersRepositoryProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'orderRepositoryProvider',
+        name: r'quartiersRepositoryProvider',
         isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$orderRepositoryHash();
+  String debugGetCreateSourceHash() => _$quartiersRepositoryHash();
 
   @$internal
   @override
-  OrderRepository create() => OrderRepository();
+  QuartiersRepository create() => QuartiersRepository();
 }
 
-String _$orderRepositoryHash() => r'af3a4b5c6dca639b822ad32b0a70d7120ae5b33d';
+String _$quartiersRepositoryHash() =>
+    r'74ea21be0db205c7bcca006133cbb90e5dfed0a1';
 
-abstract class _$OrderRepository extends $AsyncNotifier<void> {
+abstract class _$QuartiersRepository extends $AsyncNotifier<void> {
   FutureOr<void> build();
   @$mustCallSuper
   @override

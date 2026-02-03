@@ -55,11 +55,13 @@ final class RestaurantsListProvider
 String _$restaurantsListHash() => r'9de93e98d8872c1becac3e24bdda1238ed1e3440';
 
 /// Provider pour récupérer un restaurant spécifique avec ses produits
+/// keepAlive: true pour garder les données en cache quand on quitte la page
 
 @ProviderFor(restaurantController)
 final restaurantControllerProvider = RestaurantControllerFamily._();
 
 /// Provider pour récupérer un restaurant spécifique avec ses produits
+/// keepAlive: true pour garder les données en cache quand on quitte la page
 
 final class RestaurantControllerProvider
     extends
@@ -70,13 +72,14 @@ final class RestaurantControllerProvider
         >
     with $FutureModifier<Restaurant>, $FutureProvider<Restaurant> {
   /// Provider pour récupérer un restaurant spécifique avec ses produits
+  /// keepAlive: true pour garder les données en cache quand on quitte la page
   RestaurantControllerProvider._({
     required RestaurantControllerFamily super.from,
     required String super.argument,
   }) : super(
          retry: null,
          name: r'restaurantControllerProvider',
-         isAutoDispose: true,
+         isAutoDispose: false,
          dependencies: null,
          $allTransitiveDependencies: null,
        );
@@ -114,9 +117,10 @@ final class RestaurantControllerProvider
 }
 
 String _$restaurantControllerHash() =>
-    r'3ca11f64a8d372f197488e778e773d7eb3ac837a';
+    r'e79edf359d8c21ec50eccf78b55afe25b90622bc';
 
 /// Provider pour récupérer un restaurant spécifique avec ses produits
+/// keepAlive: true pour garder les données en cache quand on quitte la page
 
 final class RestaurantControllerFamily extends $Family
     with $FunctionalFamilyOverride<FutureOr<Restaurant>, String> {
@@ -126,10 +130,11 @@ final class RestaurantControllerFamily extends $Family
         name: r'restaurantControllerProvider',
         dependencies: null,
         $allTransitiveDependencies: null,
-        isAutoDispose: true,
+        isAutoDispose: false,
       );
 
   /// Provider pour récupérer un restaurant spécifique avec ses produits
+  /// keepAlive: true pour garder les données en cache quand on quitte la page
 
   RestaurantControllerProvider call(String restaurantId) =>
       RestaurantControllerProvider._(argument: restaurantId, from: this);

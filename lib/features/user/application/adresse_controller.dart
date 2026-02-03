@@ -13,20 +13,24 @@ class AdresseController extends _$AdresseController {
     return repository.getUserAdresses();
   }
 
-  // Méthode pour annuler une commande
+  // Méthode pour créer une adresse
   Future<Adresse> createAdresse({
     required String rue,
     String ville = 'Brazzaville',
     String pays = 'Congo',
+    String? quartierId,
   }) async {
-    // On ne change pas l'état ici pour éviter un rechargement de toute la liste
-    // On va juste appeler le repo et rafraîchir la liste après
     try {
       final adresseRepo = ref.read(adresseRepositoryProvider.notifier);
-      return adresseRepo.createAdresse(rue: rue, ville: ville, pays: pays);
-      // Rafraîchir la liste pour refléter le changement de statut
+      final adresse = await adresseRepo.createAdresse(
+        rue: rue,
+        ville: ville,
+        pays: pays,
+        quartierId: quartierId,
+      );
+      ref.invalidateSelf(); // Rafraîchir la liste
+      return adresse;
     } catch (e) {
-      // Propage l'erreur pour que l'UI puisse l'afficher
       rethrow;
     }
   }

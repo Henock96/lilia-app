@@ -3,12 +3,15 @@ import 'package:go_router/go_router.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_app/features/cart/presentation/cart_screen.dart';
 import 'package:lilia_app/features/commandes/presentation/checkout_page.dart';
+import 'package:lilia_app/features/commandes/presentation/delivery_options_page.dart';
 import 'package:lilia_app/features/commandes/presentation/commande_page.dart';
 import 'package:lilia_app/features/commandes/presentation/order_success_page.dart';
 import 'package:lilia_app/features/favoris/presentation/favoris_detail_page.dart';
 import 'package:lilia_app/features/favoris/presentation/favoris_page.dart';
 import 'package:lilia_app/features/home/presentation/bottom_navigation_bar.dart';
 import 'package:lilia_app/features/home/presentation/home.dart';
+import 'package:lilia_app/features/onboarding/application/onboarding_provider.dart';
+import 'package:lilia_app/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:lilia_app/features/user/user_page.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/routing/go_router_refresh_stream.dart';
@@ -39,6 +42,9 @@ GoRouter router(Ref ref) {
   // C'est la source de vérité pour savoir si l'utilisateur est connecté.
   final authState = ref.watch(authStateChangeProvider);
 
+  // Écoute l'état de l'onboarding
+  final onboardingState = ref.watch(onboardingStatusProvider);
+
   return GoRouter(
     navigatorKey: _key,
     initialLocation: AppRoutes.home.path,
@@ -47,13 +53,33 @@ GoRouter router(Ref ref) {
       ref.watch(authRepositoryProvider).authStateChanges(),
     ),
     redirect: (context, state) {
-      // Gère les différents états de l'AsyncValue
+      // Vérifier si l'onboarding est complété
+      final bool onboardingCompleted = onboardingState.when(
+        data: (completed) => completed,
+        loading: () => true, // Pendant le chargement, on assume que c'est fait
+        error: (_, __) => true, // En cas d'erreur, on skip l'onboarding
+      );
+
+      final bool isOnboardingPage =
+          state.matchedLocation == AppRoutes.onboarding.path;
+
+      // Si l'onboarding n'est pas complété et on n'est pas sur la page d'onboarding
+      if (!onboardingCompleted && !isOnboardingPage) {
+        return AppRoutes.onboarding.path;
+      }
+
+      // Si l'onboarding est complété et on est sur la page d'onboarding
+      if (onboardingCompleted && isOnboardingPage) {
+        return AppRoutes.signIn.path;
+      }
+
+      // Gère les différents états de l'AsyncValue pour l'authentification
       final bool isLoggedIn = authState.when(
         data: (user) =>
             user != null, // L'utilisateur est connecté s'il y a des données
         loading: () =>
             false, // Pendant le chargement, on considère l'utilisateur comme non connecté
-        error: (_, _) =>
+        error: (_, __) =>
             false, // En cas d'erreur, on considère l'utilisateur comme non connecté
       );
 
@@ -63,7 +89,7 @@ GoRouter router(Ref ref) {
 
       // Redirige vers la page de connexion si l'utilisateur n'est pas connecté
       // et n'est pas déjà sur une page de connexion/inscription.
-      if (!isLoggedIn && !isLoggingIn) {
+      if (!isLoggedIn && !isLoggingIn && onboardingCompleted) {
         return AppRoutes.signIn.path;
       }
 
@@ -77,6 +103,13 @@ GoRouter router(Ref ref) {
       return null;
     },
     routes: [
+      // Route Onboarding
+      GoRoute(
+        path: AppRoutes.onboarding.path,
+        name: AppRoutes.onboarding.routeName,
+        pageBuilder: (context, state) =>
+            const MaterialPage(child: OnboardingScreen()),
+      ),
       GoRoute(
         path: AppRoutes.signIn.path,
         name: AppRoutes.signIn.routeName,
@@ -95,7 +128,6 @@ GoRouter router(Ref ref) {
         pageBuilder: (context, state) =>
             const MaterialPage(child: OrderSuccessPage()),
       ),
-
 
       GoRoute(
         path: AppRoutes.reviews.path,
@@ -133,7 +165,6 @@ GoRouter router(Ref ref) {
         ],
       ),
 
-
       // Route principale avec la barre de navigation
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -154,12 +185,16 @@ GoRouter router(Ref ref) {
                     name: AppRoutes.restaurantDetail.routeName,
                     pageBuilder: (context, state) {
                       final restaurantId = state.pathParameters['id'];
+                      final extra = state.extra as Map<String, dynamic>? ?? {};
                       if (restaurantId == null) {
                         return const MaterialPage(child: NotFoundScreen());
                       }
                       return MaterialPage(
                         child: RestaurantDetailScreen(
                           restaurantId: restaurantId,
+                          restaurantName: extra["restaurantName"] is String
+                              ? extra["restaurantName"]
+                              : 'Votre Restaurant',
                         ),
                       );
                     },
@@ -170,9 +205,7 @@ GoRouter router(Ref ref) {
                     pageBuilder: (context, state) {
                       final Product? product = state.extra as Product?;
                       if (product == null) {
-                        return const MaterialPage(
-                          child: NotFoundScreen(),
-                        );
+                        return const MaterialPage(child: NotFoundScreen());
                       }
                       return MaterialPage(
                         child: ProductDetailPage(product: product),
@@ -185,13 +218,9 @@ GoRouter router(Ref ref) {
                     pageBuilder: (context, state) {
                       final MenuDuJour? menu = state.extra as MenuDuJour?;
                       if (menu == null) {
-                        return const MaterialPage(
-                          child: NotFoundScreen(),
-                        );
+                        return const MaterialPage(child: NotFoundScreen());
                       }
-                      return MaterialPage(
-                        child: MenuDetailPage(menu: menu),
-                      );
+                      return MaterialPage(child: MenuDetailPage(menu: menu));
                     },
                   ),
                 ],
@@ -207,11 +236,26 @@ GoRouter router(Ref ref) {
                     const MaterialPage(child: CartScreen()),
                 routes: [
                   GoRoute(
-                    path: AppRoutes.checkout.path,
-                    name: AppRoutes.checkout.routeName,
+                    path: AppRoutes.deliveryOptions.path,
+                    name: AppRoutes.deliveryOptions.routeName,
                     pageBuilder: (context, state) {
-                      return MaterialPage(child: CheckoutPage());
+                      return const MaterialPage(child: DeliveryOptionsPage());
                     },
+                    routes: [
+                      GoRoute(
+                        path: AppRoutes.checkout.path,
+                        name: AppRoutes.checkout.routeName,
+                        pageBuilder: (context, state) {
+                          final deliveryOptions =
+                              state.extra as DeliveryOptions?;
+                          return MaterialPage(
+                            child: CheckoutPage(
+                              deliveryOptions: deliveryOptions,
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),

@@ -1,6 +1,21 @@
 
 import 'package:lilia_app/models/produit.dart';
 
+/// Modèle pour les spécialités d'un restaurant
+class Specialty {
+  final String id;
+  final String name;
+
+  Specialty({required this.id, required this.name});
+
+  factory Specialty.fromJson(Map<String, dynamic> json) {
+    return Specialty(
+      id: json['id'],
+      name: json['name'],
+    );
+  }
+}
+
 /// Modèle simplifié pour la liste des restaurants (sans les produits)
 class RestaurantSummary {
   final String id;
@@ -12,6 +27,14 @@ class RestaurantSummary {
   final double? averageRating;
   final int? totalReviews;
 
+  // Nouveaux champs
+  final bool isOpen;
+  final List<Specialty> specialties;
+  final int estimatedDeliveryTimeMin;
+  final int estimatedDeliveryTimeMax;
+  final double minimumOrderAmount;
+  final double fixedDeliveryFee;
+
   RestaurantSummary({
     required this.id,
     required this.name,
@@ -21,9 +44,31 @@ class RestaurantSummary {
     this.description,
     this.averageRating,
     this.totalReviews,
+    this.isOpen = true,
+    this.specialties = const [],
+    this.estimatedDeliveryTimeMin = 15,
+    this.estimatedDeliveryTimeMax = 30,
+    this.minimumOrderAmount = 0,
+    this.fixedDeliveryFee = 500,
   });
 
+  /// Retourne le temps de livraison formaté (ex: "15-30 min")
+  String get deliveryTimeFormatted =>
+      '$estimatedDeliveryTimeMin-$estimatedDeliveryTimeMax min';
+
+  /// Retourne les spécialités formatées (ex: "Pizza, Burger, Sushi")
+  String get specialtiesFormatted =>
+      specialties.map((s) => s.name).join(', ');
+
   factory RestaurantSummary.fromJson(Map<String, dynamic> json) {
+    // Parser les spécialités
+    List<Specialty> specialties = [];
+    if (json['specialties'] != null) {
+      specialties = (json['specialties'] as List)
+          .map((s) => Specialty.fromJson(s))
+          .toList();
+    }
+
     return RestaurantSummary(
       id: json['id'],
       name: json['nom'],
@@ -35,6 +80,12 @@ class RestaurantSummary {
           ? (json['averageRating'] as num).toDouble()
           : null,
       totalReviews: json['totalReviews'] as int?,
+      isOpen: json['isOpen'] ?? true,
+      specialties: specialties,
+      estimatedDeliveryTimeMin: json['estimatedDeliveryTimeMin'] ?? 15,
+      estimatedDeliveryTimeMax: json['estimatedDeliveryTimeMax'] ?? 30,
+      minimumOrderAmount: (json['minimumOrderAmount'] as num?)?.toDouble() ?? 0,
+      fixedDeliveryFee: (json['fixedDeliveryFee'] as num?)?.toDouble() ?? 500,
     );
   }
 }
@@ -43,10 +94,18 @@ class Restaurant {
   final String id;
   final String name;
   final String address;
-  final String? phoneNumber; // Peut être nullable si votre backend le permet
-  final String? imageUrl; // Peut être nullable
+  final String? phoneNumber;
+  final String? imageUrl;
   final List<Product> products;
-  final Map<String, Category> categoriesMap; // Pour un accès facile aux catégories par ID
+  final Map<String, Category> categoriesMap;
+
+  // Nouveaux champs
+  final bool isOpen;
+  final List<Specialty> specialties;
+  final int estimatedDeliveryTimeMin;
+  final int estimatedDeliveryTimeMax;
+  final double minimumOrderAmount;
+  final double fixedDeliveryFee;
 
   Restaurant({
     required this.id,
@@ -56,7 +115,17 @@ class Restaurant {
     this.imageUrl,
     required this.products,
     required this.categoriesMap,
+    this.isOpen = true,
+    this.specialties = const [],
+    this.estimatedDeliveryTimeMin = 15,
+    this.estimatedDeliveryTimeMax = 30,
+    this.minimumOrderAmount = 0,
+    this.fixedDeliveryFee = 500,
   });
+
+  /// Retourne le temps de livraison formaté
+  String get deliveryTimeFormatted =>
+      '$estimatedDeliveryTimeMin-$estimatedDeliveryTimeMax min';
 
   factory Restaurant.fromJson(Map<String, dynamic> json) {
     var productsList = json['products'] as List;
@@ -70,14 +139,28 @@ class Restaurant {
       }
     }
 
+    // Parser les spécialités
+    List<Specialty> specialties = [];
+    if (json['specialties'] != null) {
+      specialties = (json['specialties'] as List)
+          .map((s) => Specialty.fromJson(s))
+          .toList();
+    }
+
     return Restaurant(
       id: json['id'],
-      name: json['nom'], // Correspond à 'nom' de votre JSON
-      address: json['adresse'], // Correspond à 'adresse' de votre JSON
-      phoneNumber: json['phone'], // Correspond à 'phone' de votre JSON
+      name: json['nom'],
+      address: json['adresse'],
+      phoneNumber: json['phone'],
       imageUrl: json['imageUrl'],
       products: products,
       categoriesMap: categoriesMap,
+      isOpen: json['isOpen'] ?? true,
+      specialties: specialties,
+      estimatedDeliveryTimeMin: json['estimatedDeliveryTimeMin'] ?? 15,
+      estimatedDeliveryTimeMax: json['estimatedDeliveryTimeMax'] ?? 30,
+      minimumOrderAmount: (json['minimumOrderAmount'] as num?)?.toDouble() ?? 0,
+      fixedDeliveryFee: (json['fixedDeliveryFee'] as num?)?.toDouble() ?? 500,
     );
   }
 }

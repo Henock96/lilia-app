@@ -16,12 +16,13 @@ class Checkout {
   int deliveryFee;
   int total;
   String? notes;
-  String deliveryAddress;
+  String? deliveryAddress; // Nullable pour le mode retrait
   String paymentMethod;
   String status;
   DateTime createdAt;
   DateTime updatedAt;
   List<Item> items;
+  bool isDelivery;
 
   Checkout({
     required this.id,
@@ -30,13 +31,14 @@ class Checkout {
     required this.subTotal,
     required this.deliveryFee,
     required this.total,
-    required this.deliveryAddress,
+    this.deliveryAddress, // Optionnel maintenant
     required this.paymentMethod,
     required this.status,
     required this.createdAt,
     required this.updatedAt,
     required this.items,
     this.notes,
+    this.isDelivery = true,
   });
 
   Checkout copyWith({
@@ -53,6 +55,7 @@ class Checkout {
     DateTime? createdAt,
     DateTime? updatedAt,
     List<Item>? items,
+    bool? isDelivery,
   }) =>
       Checkout(
         id: id ?? this.id,
@@ -68,6 +71,7 @@ class Checkout {
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
         items: items ?? this.items,
+        isDelivery: isDelivery ?? this.isDelivery,
       );
 
   factory Checkout.fromMap(Map<String, dynamic> json) => Checkout(
@@ -78,12 +82,13 @@ class Checkout {
     deliveryFee: json["deliveryFee"],
     total: json["total"],
     notes: json["notes"],
-    deliveryAddress: json["deliveryAddress"],
+    deliveryAddress: json["deliveryAddress"], // Peut être null en mode retrait
     paymentMethod: json["paymentMethod"],
     status: json["status"],
     createdAt: DateTime.parse(json["createdAt"]),
     updatedAt: DateTime.parse(json["updatedAt"]),
     items: List<Item>.from(json["items"].map((x) => Item.fromMap(x))),
+    isDelivery: json["isDelivery"] ?? true,
   );
 
   Map<String, dynamic> toMap() => {
@@ -100,6 +105,7 @@ class Checkout {
     "createdAt": createdAt.toIso8601String(),
     "updatedAt": updatedAt.toIso8601String(),
     "items": List<dynamic>.from(items.map((x) => x.toMap())),
+    "isDelivery": isDelivery,
   };
 }
 

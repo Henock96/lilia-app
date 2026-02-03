@@ -35,13 +35,14 @@ class Order {
   final double subTotal;
   final double deliveryFee;
   final double total;
-  final String deliveryAddress;
+  final String? deliveryAddress; // Nullable pour le mode retrait
   final String paymentMethod;
   final OrderStatus status; // Changé de String à OrderStatus
   final DateTime createdAt;
   final DateTime updatedAt;
   final OrderRestaurant restaurant;
   final List<OrderItem> items;
+  final bool isDelivery; // Mode de livraison
 
   Order({
     required this.id,
@@ -50,13 +51,14 @@ class Order {
     required this.subTotal,
     required this.deliveryFee,
     required this.total,
-    required this.deliveryAddress,
+    this.deliveryAddress, // Optionnel maintenant
     required this.paymentMethod,
     required this.status,
     required this.createdAt,
     required this.updatedAt,
     required this.restaurant,
     required this.items,
+    this.isDelivery = true,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -72,13 +74,14 @@ class Order {
       subTotal: (json['subTotal'] as num).toDouble(),
       deliveryFee: (json['deliveryFee'] as num).toDouble(),
       total: (json['total'] as num).toDouble(),
-      deliveryAddress: json['deliveryAddress'],
+      deliveryAddress: json['deliveryAddress'], // Peut être null en mode retrait
       paymentMethod: json['paymentMethod'],
       status: _parseStatus(json['status']), // Utilise la fonction de parsing
       createdAt: DateTime.parse(json['createdAt']),
       updatedAt: DateTime.parse(json['updatedAt']),
       restaurant: OrderRestaurant.fromJson(json['restaurant']),
       items: items,
+      isDelivery: json['isDelivery'] ?? true,
     );
   }
 }

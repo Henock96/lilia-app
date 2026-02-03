@@ -16,11 +16,10 @@ class CheckoutController extends _$CheckoutController {
   }
 
   Future<Checkout> placeOrder({
-    required String adresseId,
+    String? adresseId,
     required String paymentMethod,
+    required bool isDelivery,
     String? note,
-    String? newAddressRue,
-    $,
   }) async {
     state = const AsyncLoading(); // Indique un état de chargement
 
@@ -29,8 +28,8 @@ class CheckoutController extends _$CheckoutController {
       final order = await orderRepository.createOrders(
         adresseId: adresseId,
         paymentMethod: paymentMethod,
+        isDelivery: isDelivery,
         note: note,
-        //newPhoneNumber: newPhoneNumber,
       );
 
       // Invalider le panier pour qu'il soit rechargé vide après la commande

@@ -46,12 +46,20 @@ class AdresseRepository extends _$AdresseRepository {
     }
   }
 
-  Future<Adresse> createAdresse({required String rue, required String ville, required String pays}) async {
+  Future<Adresse> createAdresse({
+    required String rue,
+    required String ville,
+    required String pays,
+    String? quartierId,
+  }) async {
     Map<String, dynamic> data = {
       "rue": rue,
       "ville": ville,
-      "country": pays
+      "country": pays,
     };
+    if (quartierId != null) {
+      data["quartierId"] = quartierId;
+    }
     final token = await ref.read(firebaseIdTokenProvider.future);
     if (token == null) {
       throw Exception('User not authenticated. No Firebase ID token available.');

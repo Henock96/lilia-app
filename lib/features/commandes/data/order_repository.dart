@@ -38,8 +38,9 @@ class OrderRepository extends _$OrderRepository {
   }
 
   Future<Checkout> createOrders({
-    required String adresseId,
+    String? adresseId,
     required String paymentMethod,
+    required bool isDelivery,
     String? note
   }) async {
     final token = await ref.read(firebaseIdTokenProvider.future);
@@ -50,11 +51,24 @@ class OrderRepository extends _$OrderRepository {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $token',
     };
-    final body = json.encode({
-      'adresseId': adresseId,
+
+    // Construire le body selon le mode de livraison
+    final Map<String, dynamic> bodyMap = {
       'paymentMethod': paymentMethod,
-      'notes': note,
-    });
+      'isDelivery': isDelivery,
+    };
+
+    // Ajouter l'adresse seulement si c'est une livraison
+    if (isDelivery && adresseId != null) {
+      bodyMap['adresseId'] = adresseId;
+    }
+
+    // Ajouter les notes si présentes
+    if (note != null && note.isNotEmpty) {
+      bodyMap['notes'] = note;
+    }
+
+    final body = json.encode(bodyMap);
     final response = await http.post(
       Uri.parse('${AppConstants.baseUrl}/orders/checkout'),
       headers: headers,

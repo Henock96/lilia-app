@@ -1,4 +1,5 @@
 enum AppRoutes {
+  onboarding,
   home,
   signIn,
   signUp,
@@ -13,6 +14,7 @@ enum AppRoutes {
   menuDetail,
   orderDetail,
   cart,
+  deliveryOptions,
   checkout,
   orderSuccess,
   reviews,
@@ -22,6 +24,8 @@ enum AppRoutes {
 extension AppRoutesExtension on AppRoutes {
   String get path {
     switch (this) {
+      case AppRoutes.onboarding:
+        return '/onboarding';
       case AppRoutes.home:
         return '/';
       case AppRoutes.signIn:
@@ -50,8 +54,10 @@ extension AppRoutesExtension on AppRoutes {
         return '/:orderId';
       case AppRoutes.cart:
         return '/cart';
+      case AppRoutes.deliveryOptions:
+        return 'delivery-options';
       case AppRoutes.checkout:
-        return '/checkout';
+        return 'checkout';
       case AppRoutes.orderSuccess:
         return '/order-success';
       case AppRoutes.reviews:
@@ -63,6 +69,8 @@ extension AppRoutesExtension on AppRoutes {
 
   String get routeName {
     switch (this) {
+      case AppRoutes.onboarding:
+        return 'Onboarding';
       case AppRoutes.home:
         return 'Home';
       case AppRoutes.signIn:
@@ -91,6 +99,8 @@ extension AppRoutesExtension on AppRoutes {
         return 'OrderId';
       case AppRoutes.cart:
         return 'Cart';
+      case AppRoutes.deliveryOptions:
+        return 'DeliveryOptions';
       case AppRoutes.checkout:
         return 'Checkout';
       case AppRoutes.orderSuccess:

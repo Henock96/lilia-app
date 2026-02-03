@@ -85,7 +85,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               );
             },
             loading: () => const BuildLoadingState(),
-            error: (err, stack) => BuildErrorState(err),
+            error: (err, stack) => BuildErrorState(
+              err,
+              onRetry: () => ref.invalidate(cartControllerProvider),
+            ),
           ),
           Spacer(),
           cartState.value != null && cartState.value!.items.isNotEmpty
@@ -129,7 +132,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                           ),
                           ElevatedButton(
                             onPressed: () {
-                              context.goNamed(AppRoutes.checkout.routeName);
+                              context.goNamed(AppRoutes.deliveryOptions.routeName);
                             },
                             child: const Padding(
                               padding: EdgeInsets.symmetric(

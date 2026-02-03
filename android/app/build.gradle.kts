@@ -46,25 +46,28 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
-    /*signingConfigs {
+    signingConfigs {
         create("release") {
             keyAlias = keystoreProperties["keyAlias"] as String
             keyPassword = keystoreProperties["keyPassword"] as String
             storeFile = keystoreProperties["storeFile"]?.let { file(it) }
             storePassword = keystoreProperties["storePassword"] as String
         }
-    }*/
+    }
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     implementation("com.google.android.material:material:1.13.0")
+
+    // Edge-to-edge support for Android 15+
+    implementation("androidx.activity:activity-ktx:1.9.3")
 
     // Firebase dependencies
     implementation(platform("com.google.firebase:firebase-bom:34.7.0"))

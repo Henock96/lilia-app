@@ -16,10 +16,12 @@ import 'widgets/menus_section.dart';
 
 class RestaurantDetailScreen extends ConsumerStatefulWidget {
   final String restaurantId;
+  final String restaurantName;
 
   const RestaurantDetailScreen({
     super.key,
     required this.restaurantId,
+    required this.restaurantName,
   });
 
   @override
@@ -49,7 +51,7 @@ class _RestaurantDetailScreenState
       appBar: AppBar(
         elevation: 0,
         centerTitle: true,
-        title: Text(widget.restaurantId),
+        title: Text(widget.restaurantName),
         actions: [
           // Bouton partager
           IconButton(
@@ -80,7 +82,12 @@ class _RestaurantDetailScreenState
         child: restaurantAsyncValue.when(
           data: (restaurant) => _buildContent(restaurant),
           loading: () => const BuildLoadingState(),
-          error: (err, stack) => BuildErrorState(err),
+          error: (err, stack) => BuildErrorState(
+            err,
+            onRetry: () => ref.invalidate(
+              restaurantControllerProvider(widget.restaurantId),
+            ),
+          ),
         ),
       ),
     );
@@ -171,10 +178,7 @@ class _RestaurantDetailScreenState
             padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
             child: Text(
               'Nos Produits',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
         ),
@@ -209,9 +213,7 @@ class _RestaurantDetailScreenState
           }),
 
         // Espace en bas
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 20),
-        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 20)),
       ],
     );
   }
@@ -219,8 +221,7 @@ class _RestaurantDetailScreenState
   List<String> _getUniqueCategories(List<Product> products) {
     final categories = <String>{};
     for (var product in products) {
-      if (product.category?.name != null &&
-          product.category!.name.isNotEmpty) {
+      if (product.category?.name != null && product.category!.name.isNotEmpty) {
         categories.add(product.category!.name);
       }
     }
@@ -231,7 +232,8 @@ class _RestaurantDetailScreenState
     return products.where((product) {
       // Filtre par recherche
       if (_searchQuery.isNotEmpty) {
-        final matchesSearch = product.name.toLowerCase().contains(_searchQuery) ||
+        final matchesSearch =
+            product.name.toLowerCase().contains(_searchQuery) ||
             product.description.toLowerCase().contains(_searchQuery);
         if (!matchesSearch) return false;
       }
@@ -267,17 +269,15 @@ class _RestaurantDetailScreenState
 
   void _shareRestaurant() {
     Share.share(
-      'Découvrez ${widget.restaurantId} sur Lilia Food ! Commandez vos plats préférés maintenant.',
-      subject: 'Restaurant ${widget.restaurantId}',
+      'Découvrez nos menus sur Lilia Food ! Commandez vos plats préférés maintenant.',
+      subject: 'Restaurant ${widget.restaurantName}',
     );
   }
 
   Future<void> _callRestaurant(String? phoneNumber) async {
     if (phoneNumber == null || phoneNumber.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Numéro de téléphone non disponible'),
-        ),
+        const SnackBar(content: Text('Numéro de téléphone non disponible')),
       );
       return;
     }
@@ -302,10 +302,7 @@ class _RestaurantInfoCard extends StatelessWidget {
   final Restaurant restaurant;
   final VoidCallback onCall;
 
-  const _RestaurantInfoCard({
-    required this.restaurant,
-    required this.onCall,
-  });
+  const _RestaurantInfoCard({required this.restaurant, required this.onCall});
 
   @override
   Widget build(BuildContext context) {
@@ -348,10 +345,7 @@ class _RestaurantInfoCard extends StatelessWidget {
                   children: [
                     const Text(
                       'Adresse',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                     Text(
                       restaurant.address,
@@ -368,27 +362,96 @@ class _RestaurantInfoCard extends StatelessWidget {
 
           const Divider(height: 24),
 
-          // Informations de livraison
+          // Statut ouvert/fermé
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: restaurant.isOpen
+                  ? Colors.green.withValues(alpha: 0.1)
+                  : Colors.red.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: restaurant.isOpen ? Colors.green : Colors.red,
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  restaurant.isOpen ? Icons.check_circle : Icons.cancel,
+                  color: restaurant.isOpen ? Colors.green : Colors.red,
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  restaurant.isOpen ? 'Ouvert' : 'Fermé',
+                  style: TextStyle(
+                    color: restaurant.isOpen ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Spécialités
+          if (restaurant.specialties.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              children: restaurant.specialties.map((specialty) {
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).primaryColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Text(
+                    specialty.name,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).primaryColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+
+          const Divider(height: 24),
+
+          // Informations de livraison (dynamiques)
           Row(
             children: [
               _InfoItem(
                 icon: Icons.delivery_dining,
                 label: 'Livraison',
-                value: '30-45 min',
+                value: restaurant.deliveryTimeFormatted,
                 color: Colors.blue,
               ),
               const SizedBox(width: 16),
               _InfoItem(
                 icon: Icons.shopping_bag,
                 label: 'Minimum',
-                value: '1000 FCFA',
+                value: restaurant.minimumOrderAmount > 0
+                    ? '${restaurant.minimumOrderAmount.toStringAsFixed(0)} FCFA'
+                    : 'Aucun',
                 color: Colors.orange,
               ),
               const SizedBox(width: 16),
               _InfoItem(
                 icon: Icons.local_shipping,
                 label: 'Frais',
-                value: '500 FCFA',
+                value: '${restaurant.fixedDeliveryFee.toStringAsFixed(0)} FCFA',
                 color: Colors.green,
               ),
             ],
@@ -447,19 +510,10 @@ class _InfoItem extends StatelessWidget {
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(height: 4),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Colors.grey,
-            ),
-          ),
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -494,7 +548,9 @@ class _CategoryTabs extends StatelessWidget {
               label: const Text('Tous'),
               selected: selectedCategory == null,
               onSelected: (_) => onCategorySelected(null),
-              selectedColor: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+              selectedColor: Theme.of(
+                context,
+              ).primaryColor.withValues(alpha: 0.2),
               checkmarkColor: Theme.of(context).primaryColor,
             ),
           ),
@@ -508,7 +564,9 @@ class _CategoryTabs extends StatelessWidget {
                 onSelected: (_) => onCategorySelected(
                   selectedCategory == category ? null : category,
                 ),
-                selectedColor: Theme.of(context).primaryColor.withValues(alpha: 0.2),
+                selectedColor: Theme.of(
+                  context,
+                ).primaryColor.withValues(alpha: 0.2),
                 checkmarkColor: Theme.of(context).primaryColor,
               ),
             );
@@ -524,10 +582,7 @@ class _CategorySection extends StatelessWidget {
   final String categoryName;
   final List<Product> products;
 
-  const _CategorySection({
-    required this.categoryName,
-    required this.products,
-  });
+  const _CategorySection({required this.categoryName, required this.products});
 
   @override
   Widget build(BuildContext context) {
@@ -554,10 +609,7 @@ class _CategorySection extends StatelessWidget {
                 ),
                 child: Text(
                   '${products.length}',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ),
             ],
@@ -672,10 +724,7 @@ class _ProductCard extends ConsumerWidget {
                     product.description,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 8),
                   Row(
@@ -727,24 +776,15 @@ class _ProductCard extends ConsumerWidget {
             children: [
               const Icon(Icons.check_circle, color: Colors.white),
               const SizedBox(width: 8),
-              Expanded(
-                child: Text('${product.name} ajouté au panier'),
-              ),
+              Expanded(child: Text('${product.name} ajouté au panier')),
             ],
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: Theme.of(context).primaryColor,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
-          duration: const Duration(seconds: 2),
-          action: SnackBarAction(
-            label: 'Voir',
-            textColor: Colors.white,
-            onPressed: () {
-              context.goNamed(AppRoutes.cart.routeName);
-            },
-          ),
+          duration: const Duration(seconds: 1),
         ),
       );
     } else {

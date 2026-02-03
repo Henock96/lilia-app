@@ -9,10 +9,7 @@ import 'package:lilia_app/routing/app_route_enum.dart';
 class MenusSection extends ConsumerWidget {
   final String? restaurantId;
 
-  const MenusSection({
-    super.key,
-    this.restaurantId,
-  });
+  const MenusSection({super.key, this.restaurantId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,10 +31,7 @@ class MenusSection extends ConsumerWidget {
                 children: [
                   const Text(
                     'Menus du Jour',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   if (menus.length > 3)
                     TextButton(
@@ -51,7 +45,7 @@ class MenusSection extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
             SizedBox(
-              height: 230,
+              height: 240,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -70,15 +64,13 @@ class MenusSection extends ConsumerWidget {
                 },
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 10),
           ],
         );
       },
       loading: () => const Padding(
         padding: EdgeInsets.all(16.0),
-        child: Center(
-          child: CircularProgressIndicator(),
-        ),
+        child: Center(child: CircularProgressIndicator()),
       ),
       error: (error, stack) => Padding(
         padding: const EdgeInsets.all(16.0),

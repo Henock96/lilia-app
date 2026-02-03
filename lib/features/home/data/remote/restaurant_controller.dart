@@ -14,7 +14,8 @@ Future<List<RestaurantSummary>> restaurantsList(Ref ref) async {
 }
 
 /// Provider pour récupérer un restaurant spécifique avec ses produits
-@riverpod
+/// keepAlive: true pour garder les données en cache quand on quitte la page
+@Riverpod(keepAlive: true)
 Future<Restaurant> restaurantController(
     Ref ref, String restaurantId) async {
   final repository = ref.watch(restaurantRepositoryProvider);
