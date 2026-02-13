@@ -166,6 +166,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
             ),
             titleBuilder: (index) => apiBanners[index].title,
+            hasTitle: (index) => apiBanners[index].title != null && apiBanners[index].title!.isNotEmpty,
           );
         }
         return _buildFallbackSlider();
@@ -189,7 +190,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget _buildSliderContent({
     required int itemCount,
     required Widget Function(int index) imageBuilder,
-    required String Function(int index) titleBuilder,
+    required String? Function(int index) titleBuilder,
+    bool Function(int index)? hasTitle,
   }) {
     return Column(
       children: [
@@ -227,31 +229,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   fit: StackFit.expand,
                   children: [
                     imageBuilder(index),
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.black.withValues(alpha: 0.5),
-                            Colors.transparent,
-                          ],
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
+                    if (hasTitle == null || hasTitle(index)) ...[
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.black.withValues(alpha: 0.5),
+                              Colors.transparent,
+                            ],
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                          ),
                         ),
                       ),
-                    ),
-                    Positioned(
-                      bottom: 16,
-                      left: 16,
-                      right: 16,
-                      child: Text(
-                        titleBuilder(index),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                      Positioned(
+                        bottom: 16,
+                        left: 16,
+                        right: 16,
+                        child: Text(
+                          titleBuilder(index) ?? '',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
