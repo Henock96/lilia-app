@@ -1,4 +1,3 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/features/reviews/data/review_repository.dart';
 import 'package:lilia_app/models/review.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';

@@ -74,7 +74,8 @@ class Order {
       subTotal: (json['subTotal'] as num).toDouble(),
       deliveryFee: (json['deliveryFee'] as num).toDouble(),
       total: (json['total'] as num).toDouble(),
-      deliveryAddress: json['deliveryAddress'], // Peut être null en mode retrait
+      deliveryAddress:
+          json['deliveryAddress'], // Peut être null en mode retrait
       paymentMethod: json['paymentMethod'],
       status: _parseStatus(json['status']), // Utilise la fonction de parsing
       createdAt: DateTime.parse(json['createdAt']),

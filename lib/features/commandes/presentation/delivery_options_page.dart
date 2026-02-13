@@ -14,7 +14,8 @@ class DeliveryOptionsPage extends ConsumerStatefulWidget {
   const DeliveryOptionsPage({super.key});
 
   @override
-  ConsumerState<DeliveryOptionsPage> createState() => _DeliveryOptionsPageState();
+  ConsumerState<DeliveryOptionsPage> createState() =>
+      _DeliveryOptionsPageState();
 }
 
 class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
@@ -85,7 +86,9 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // === SECTION MODE DE LIVRAISON ===
-                _buildSectionTitle('Comment souhaitez-vous recevoir votre commande ?'),
+                _buildSectionTitle(
+                  'Comment souhaitez-vous recevoir votre commande ?',
+                ),
                 const SizedBox(height: 12),
                 _buildDeliveryModeSection(),
                 const SizedBox(height: 24),
@@ -96,7 +99,8 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                   const SizedBox(height: 12),
                   quartiersAsync.when(
                     data: (quartiers) => _buildQuartierSection(quartiers),
-                    loading: () => const Center(child: CircularProgressIndicator()),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
                     error: (err, stack) => Text('Erreur: $err'),
                   ),
                   const SizedBox(height: 24),
@@ -106,7 +110,8 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                   const SizedBox(height: 12),
                   addressesAsync.when(
                     data: (addresses) => _buildAddressSection(addresses),
-                    loading: () => const Center(child: CircularProgressIndicator()),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
                     error: (err, stack) => Text('Erreur: $err'),
                   ),
                   const SizedBox(height: 24),
@@ -199,7 +204,9 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
               ),
               child: Icon(
                 Icons.delivery_dining,
-                color: _isDelivery ? Theme.of(context).primaryColor : Colors.grey,
+                color: _isDelivery
+                    ? Theme.of(context).primaryColor
+                    : Colors.grey,
                 size: 28,
               ),
             ),
@@ -257,18 +264,18 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
         borderRadius: BorderRadius.circular(12),
       ),
       child: DropdownButtonFormField<Quartier>(
-        value: selectedQuartierFromList,
+        initialValue: selectedQuartierFromList,
         decoration: InputDecoration(
           prefixIcon: const Icon(Icons.location_on_outlined),
           hintText: 'Choisissez votre quartier',
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 12,
+          ),
         ),
         items: quartiers.map((quartier) {
-          return DropdownMenuItem(
-            value: quartier,
-            child: Text(quartier.nom),
-          );
+          return DropdownMenuItem(value: quartier, child: Text(quartier.nom));
         }).toList(),
         onChanged: (Quartier? value) {
           setState(() {
@@ -343,10 +350,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
               }
             });
           },
-          icon: Icon(
-            _useNewAddress ? Icons.list : Icons.add,
-            size: 18,
-          ),
+          icon: Icon(_useNewAddress ? Icons.list : Icons.add, size: 18),
           label: Text(
             _useNewAddress
                 ? 'Utiliser une adresse existante (${addresses.length})'
@@ -375,7 +379,8 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
 
   Widget _buildAddressCard(Adresse adresse) {
     final isSelected = _selectedAddress?.id == adresse.id;
-    final matchesQuartier = _selectedQuartier != null &&
+    final matchesQuartier =
+        _selectedQuartier != null &&
         adresse.quartierId == _selectedQuartier!.id;
 
     return GestureDetector(
@@ -383,7 +388,8 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
         setState(() {
           _selectedAddress = adresse;
           // Si l'adresse a un quartier différent, mettre à jour le quartier sélectionné
-          if (adresse.quartier != null && adresse.quartierId != _selectedQuartier?.id) {
+          if (adresse.quartier != null &&
+              adresse.quartierId != _selectedQuartier?.id) {
             _selectedQuartier = adresse.quartier;
             _calculateDeliveryFee();
           }
@@ -430,7 +436,9 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                   Text(
                     adresse.rue,
                     style: TextStyle(
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.w500,
                       fontSize: 14,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -516,7 +524,10 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
               const Text('Sous-total', style: TextStyle(fontSize: 15)),
               Text(
                 '${subTotal.toStringAsFixed(0)} FCFA',
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ],
           ),
@@ -526,7 +537,10 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
             children: [
               Row(
                 children: [
-                  const Text('Frais de livraison', style: TextStyle(fontSize: 15)),
+                  const Text(
+                    'Frais de livraison',
+                    style: TextStyle(fontSize: 15),
+                  ),
                   if (_isCalculatingFee)
                     const Padding(
                       padding: EdgeInsets.only(left: 8),
@@ -541,8 +555,8 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
               Text(
                 _isDelivery
                     ? (_calculatedDeliveryFee != null
-                        ? '${_calculatedDeliveryFee!.toStringAsFixed(0)} FCFA'
-                        : 'Selectionnez un quartier')
+                          ? '${_calculatedDeliveryFee!.toStringAsFixed(0)} FCFA'
+                          : 'Selectionnez un quartier')
                     : 'Gratuit',
                 style: TextStyle(
                   fontSize: 15,
@@ -622,7 +636,9 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
         isDelivery: _isDelivery,
         quartier: _selectedQuartier,
         address: _selectedAddress,
-        newAddressRue: _useNewAddress ? _newAddressController.text.trim() : null,
+        newAddressRue: _useNewAddress
+            ? _newAddressController.text.trim()
+            : null,
         deliveryFee: _isDelivery ? (_calculatedDeliveryFee ?? 500) : 0,
       ),
     );

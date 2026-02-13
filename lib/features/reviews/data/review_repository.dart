@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/models/review.dart';
@@ -41,7 +40,9 @@ class ReviewRepository {
   Future<ReviewStats> getRestaurantStats(String restaurantId) async {
     try {
       final response = await http.get(
-        Uri.parse('${AppConstants.baseUrl}/reviews/restaurant/$restaurantId/stats'),
+        Uri.parse(
+          '${AppConstants.baseUrl}/reviews/restaurant/$restaurantId/stats',
+        ),
       );
 
       if (response.statusCode == 200) {
@@ -68,7 +69,9 @@ class ReviewRepository {
 
     try {
       final response = await http.get(
-        Uri.parse('${AppConstants.baseUrl}/reviews/restaurant/$restaurantId/can-review'),
+        Uri.parse(
+          '${AppConstants.baseUrl}/reviews/restaurant/$restaurantId/can-review',
+        ),
         headers: {'Authorization': 'Bearer $token'},
       );
 
@@ -83,10 +86,7 @@ class ReviewRepository {
       }
     } catch (e) {
       debugPrint('Error checking can review: $e');
-      return CanReviewResponse(
-        canReview: false,
-        reason: 'Erreur de connexion',
-      );
+      return CanReviewResponse(canReview: false, reason: 'Erreur de connexion');
     }
   }
 
@@ -97,7 +97,9 @@ class ReviewRepository {
 
     try {
       final response = await http.get(
-        Uri.parse('${AppConstants.baseUrl}/reviews/restaurant/$restaurantId/my-review'),
+        Uri.parse(
+          '${AppConstants.baseUrl}/reviews/restaurant/$restaurantId/my-review',
+        ),
         headers: {'Authorization': 'Bearer $token'},
       );
 

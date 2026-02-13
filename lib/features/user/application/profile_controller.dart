@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
 import 'package:lilia_app/features/user/data/cloudinary_service.dart';

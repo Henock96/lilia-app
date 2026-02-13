@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/models/menu.dart';
@@ -13,7 +12,9 @@ class MenuRepository {
   Future<List<MenuDuJour>> getActiveMenus({String? restaurantId}) async {
     try {
       final uri = restaurantId != null
-          ? Uri.parse('${AppConstants.baseUrl}/menus/active?restaurantId=$restaurantId')
+          ? Uri.parse(
+              '${AppConstants.baseUrl}/menus/active?restaurantId=$restaurantId',
+            )
           : Uri.parse('${AppConstants.baseUrl}/menus/active');
 
       final response = await http.get(uri);
@@ -61,9 +62,9 @@ class MenuRepository {
       if (isActive != null) queryParams['isActive'] = isActive.toString();
       if (includeExpired) queryParams['includeExpired'] = 'true';
 
-      final uri = Uri.parse('${AppConstants.baseUrl}/menus').replace(
-        queryParameters: queryParams.isEmpty ? null : queryParams,
-      );
+      final uri = Uri.parse(
+        '${AppConstants.baseUrl}/menus',
+      ).replace(queryParameters: queryParams.isEmpty ? null : queryParams);
 
       final response = await http.get(uri);
 

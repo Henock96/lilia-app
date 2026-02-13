@@ -113,6 +113,7 @@ class Item {
   String id;
   String orderId;
   String productId;
+  String? menuId;
   String variant;
   int quantite;
   int prix;
@@ -122,6 +123,7 @@ class Item {
     required this.id,
     required this.orderId,
     required this.productId,
+    this.menuId,
     required this.variant,
     required this.quantite,
     required this.prix,
@@ -132,6 +134,7 @@ class Item {
     String? id,
     String? orderId,
     String? productId,
+    String? menuId,
     String? variant,
     int? quantite,
     int? prix,
@@ -141,6 +144,7 @@ class Item {
         id: id ?? this.id,
         orderId: orderId ?? this.orderId,
         productId: productId ?? this.productId,
+        menuId: menuId ?? this.menuId,
         variant: variant ?? this.variant,
         quantite: quantite ?? this.quantite,
         prix: prix ?? this.prix,
@@ -151,6 +155,7 @@ class Item {
     id: json["id"],
     orderId: json["orderId"],
     productId: json["productId"],
+    menuId: json["menuId"],
     variant: json["variant"],
     quantite: json["quantite"],
     prix: json["prix"],
@@ -161,6 +166,7 @@ class Item {
     "id": id,
     "orderId": orderId,
     "productId": productId,
+    "menuId": menuId,
     "variant": variant,
     "quantite": quantite,
     "prix": prix,

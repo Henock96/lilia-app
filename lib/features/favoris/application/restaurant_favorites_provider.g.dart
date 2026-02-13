@@ -127,7 +127,7 @@ final class IsRestaurantFavoriteProvider
 }
 
 String _$isRestaurantFavoriteHash() =>
-    r'ac1bb97461e12dab65f499aa1352171c8033c813';
+    r'eec4c9c5aeca1f59331058c28f8b3860d5e84bd6';
 
 /// Provider pour vérifier si un restaurant est en favori (sync)
 

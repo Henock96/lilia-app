@@ -1,6 +1,92 @@
 
 import 'package:lilia_app/models/produit.dart';
 
+/// Enum des jours de la semaine
+enum DayOfWeek {
+  LUNDI,
+  MARDI,
+  MERCREDI,
+  JEUDI,
+  VENDREDI,
+  SAMEDI,
+  DIMANCHE;
+
+  String get label {
+    switch (this) {
+      case DayOfWeek.LUNDI: return 'Lundi';
+      case DayOfWeek.MARDI: return 'Mardi';
+      case DayOfWeek.MERCREDI: return 'Mercredi';
+      case DayOfWeek.JEUDI: return 'Jeudi';
+      case DayOfWeek.VENDREDI: return 'Vendredi';
+      case DayOfWeek.SAMEDI: return 'Samedi';
+      case DayOfWeek.DIMANCHE: return 'Dimanche';
+    }
+  }
+
+  String get shortLabel {
+    switch (this) {
+      case DayOfWeek.LUNDI: return 'Lun';
+      case DayOfWeek.MARDI: return 'Mar';
+      case DayOfWeek.MERCREDI: return 'Mer';
+      case DayOfWeek.JEUDI: return 'Jeu';
+      case DayOfWeek.VENDREDI: return 'Ven';
+      case DayOfWeek.SAMEDI: return 'Sam';
+      case DayOfWeek.DIMANCHE: return 'Dim';
+    }
+  }
+
+  static DayOfWeek fromString(String value) {
+    return DayOfWeek.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => DayOfWeek.LUNDI,
+    );
+  }
+
+  /// Retourne le DayOfWeek correspondant au jour actuel
+  static DayOfWeek get today {
+    const mapping = {
+      1: DayOfWeek.LUNDI,
+      2: DayOfWeek.MARDI,
+      3: DayOfWeek.MERCREDI,
+      4: DayOfWeek.JEUDI,
+      5: DayOfWeek.VENDREDI,
+      6: DayOfWeek.SAMEDI,
+      7: DayOfWeek.DIMANCHE,
+    };
+    return mapping[DateTime.now().weekday]!;
+  }
+}
+
+/// Modèle pour les horaires d'ouverture
+class OperatingHours {
+  final String id;
+  final String restaurantId;
+  final DayOfWeek dayOfWeek;
+  final String openTime;
+  final String closeTime;
+  final bool isClosed;
+
+  OperatingHours({
+    required this.id,
+    required this.restaurantId,
+    required this.dayOfWeek,
+    required this.openTime,
+    required this.closeTime,
+    this.isClosed = false,
+  });
+
+  factory OperatingHours.fromJson(Map<String, dynamic> json) {
+    return OperatingHours(
+      id: json['id'] ?? '',
+      restaurantId: json['restaurantId'] ?? '',
+      dayOfWeek: DayOfWeek.fromString(json['dayOfWeek'] ?? 'LUNDI'),
+      openTime: json['openTime'] ?? '08:00',
+      closeTime: json['closeTime'] ?? '22:00',
+      isClosed: json['isClosed'] ?? false,
+    );
+  }
+}
+
 /// Modèle pour les spécialités d'un restaurant
 class Specialty {
   final String id;
@@ -102,6 +188,7 @@ class Restaurant {
   // Nouveaux champs
   final bool isOpen;
   final List<Specialty> specialties;
+  final List<OperatingHours> operatingHours;
   final int estimatedDeliveryTimeMin;
   final int estimatedDeliveryTimeMax;
   final double minimumOrderAmount;
@@ -117,6 +204,7 @@ class Restaurant {
     required this.categoriesMap,
     this.isOpen = true,
     this.specialties = const [],
+    this.operatingHours = const [],
     this.estimatedDeliveryTimeMin = 15,
     this.estimatedDeliveryTimeMax = 30,
     this.minimumOrderAmount = 0,
@@ -147,6 +235,14 @@ class Restaurant {
           .toList();
     }
 
+    // Parser les horaires d'ouverture
+    List<OperatingHours> operatingHours = [];
+    if (json['operatingHours'] != null) {
+      operatingHours = (json['operatingHours'] as List)
+          .map((h) => OperatingHours.fromJson(h))
+          .toList();
+    }
+
     return Restaurant(
       id: json['id'],
       name: json['nom'],
@@ -157,6 +253,7 @@ class Restaurant {
       categoriesMap: categoriesMap,
       isOpen: json['isOpen'] ?? true,
       specialties: specialties,
+      operatingHours: operatingHours,
       estimatedDeliveryTimeMin: json['estimatedDeliveryTimeMin'] ?? 15,
       estimatedDeliveryTimeMax: json['estimatedDeliveryTimeMax'] ?? 30,
       minimumOrderAmount: (json['minimumOrderAmount'] as num?)?.toDouble() ?? 0,

@@ -49,7 +49,9 @@ class _CommandePageState extends ConsumerState<CommandePage>
             ),
             backgroundColor: theme.colorScheme.primary,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
         ref.read(latestUpdatedOrderIdProvider.notifier).state = null;
@@ -73,18 +75,12 @@ class _CommandePageState extends ConsumerState<CommandePage>
           indicatorWeight: 3,
           labelStyle: const TextStyle(fontWeight: FontWeight.w600),
           tabs: const [
-            Tab(
-              icon: Icon(Icons.pending_actions, size: 20),
-              text: 'En cours',
-            ),
+            Tab(icon: Icon(Icons.pending_actions, size: 20), text: 'En cours'),
             Tab(
               icon: Icon(Icons.check_circle_outline, size: 20),
               text: 'Terminées',
             ),
-            Tab(
-              icon: Icon(Icons.cancel_outlined, size: 20),
-              text: 'Annulées',
-            ),
+            Tab(icon: Icon(Icons.cancel_outlined, size: 20), text: 'Annulées'),
           ],
         ),
       ),
@@ -124,6 +120,7 @@ class _CommandePageState extends ConsumerState<CommandePage>
                 orders: cancelledOrders,
                 emptyMessage: 'Aucune commande annulée',
                 emptyIcon: Icons.cancel_outlined,
+                isDismissible: true,
                 key: const PageStorageKey('cancelledOrders'),
               ),
             ],
@@ -143,11 +140,13 @@ class _OrderListView extends ConsumerWidget {
   final List<Order> orders;
   final String emptyMessage;
   final IconData emptyIcon;
+  final bool isDismissible;
 
   const _OrderListView({
     required this.orders,
     required this.emptyMessage,
     required this.emptyIcon,
+    this.isDismissible = false,
     super.key,
   });
 
@@ -184,7 +183,120 @@ class _OrderListView extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         itemCount: orders.length,
         itemBuilder: (context, index) {
-          return _OrderCard(order: orders[index]);
+          final order = orders[index];
+          if (isDismissible) {
+            return Dismissible(
+              key: ValueKey(order.id),
+              direction: DismissDirection.endToStart,
+              confirmDismiss: (direction) async {
+                final confirmed =
+                    await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        title: Row(
+                          children: [
+                            Icon(Icons.delete_outline, color: Colors.red[700]),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Supprimer la commande ?',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        content: const Text(
+                          'Cette commande annulée sera retirée de votre liste.',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pop(false),
+                            child: const Text('Non, garder'),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: () => Navigator.of(context).pop(true),
+                            child: const Text(
+                              'Supprimer',
+                              style: TextStyle(fontSize: 13),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ) ??
+                    false;
+
+                if (!confirmed) return false;
+
+                try {
+                  await ref
+                      .read(userOrdersProvider.notifier)
+                      .removeOrder(order.id);
+                  if (!context.mounted) return false;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Row(
+                        children: [
+                          Icon(Icons.delete_outline, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text('Commande supprimée'),
+                        ],
+                      ),
+                      backgroundColor: Colors.green,
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  );
+                  return true;
+                } catch (e) {
+                  if (!context.mounted) return false;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Erreur: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                  return false;
+                }
+              },
+              background: Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 24),
+                child: const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.delete_outline, color: Colors.white, size: 28),
+                    SizedBox(height: 4),
+                    Text(
+                      'Supprimer',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              child: _OrderCard(order: order),
+            );
+          }
+          return _OrderCard(order: order);
         },
       ),
     );
@@ -199,9 +311,12 @@ class _OrderCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final statusInfo = _getStatusInfo(order.status);
+    //final statusInfo = _getStatusInfo(order.status);
     final firstItem = order.items.isNotEmpty ? order.items[0] : null;
-    final itemCount = order.items.fold<int>(0, (sum, item) => sum + item.quantite);
+    final itemCount = order.items.fold<int>(
+      0,
+      (sum, item) => sum + item.quantite,
+    );
 
     // Image du premier produit ou du restaurant
     final imageUrl = firstItem?.product.imageUrl ?? order.restaurant.imageUrl;
@@ -314,7 +429,11 @@ class _OrderCard extends ConsumerWidget {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.access_time, size: 14, color: Colors.grey[400]),
+                                Icon(
+                                  Icons.access_time,
+                                  size: 14,
+                                  color: Colors.grey[400],
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
                                   _formatDate(order.createdAt),
@@ -351,7 +470,10 @@ class _OrderCard extends ConsumerWidget {
             if (order.status == OrderStatus.enAttente)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
                   borderRadius: const BorderRadius.only(
@@ -363,7 +485,7 @@ class _OrderCard extends ConsumerWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'En attente de confirmation',
+                      'En attente de paiement',
                       style: TextStyle(
                         fontSize: 12,
                         color: Colors.grey[600],
@@ -371,14 +493,18 @@ class _OrderCard extends ConsumerWidget {
                       ),
                     ),
                     TextButton(
-                      onPressed: () => _showCancelConfirmationDialog(context, ref, order.id),
+                      onPressed: () =>
+                          _showCancelConfirmationDialog(context, ref, order.id),
                       style: TextButton.styleFrom(
-                        foregroundColor: Colors.red,
+                        foregroundColor: Theme.of(context).colorScheme.primary,
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                       ),
                       child: const Text(
                         'Annuler',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
                   ],
@@ -424,7 +550,7 @@ class _OrderCard extends ConsumerWidget {
     switch (status) {
       case OrderStatus.enAttente:
         return _StatusInfo(
-          label: 'En attente',
+          label: 'En attente de paiement',
           color: Colors.orange,
           icon: Icons.hourglass_empty,
         );
@@ -470,12 +596,20 @@ class _OrderCard extends ConsumerWidget {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Row(
             children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.orange[700]),
-              const SizedBox(width: 8),
-              const Text('Annuler la commande ?'),
+              Icon(
+                Icons.warning_amber_rounded,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+              const SizedBox(width: 6),
+              const Text(
+                'Annuler la commande ?',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              ),
             ],
           ),
           content: const Text(
@@ -496,7 +630,9 @@ class _OrderCard extends ConsumerWidget {
                 Navigator.of(context).pop();
                 if (!context.mounted) return;
                 try {
-                  await ref.read(userOrdersProvider.notifier).cancelOrder(orderId);
+                  await ref
+                      .read(userOrdersProvider.notifier)
+                      .cancelOrder(orderId);
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -697,9 +833,5 @@ class _StatusInfo {
   final Color color;
   final IconData icon;
 
-  _StatusInfo({
-    required this.label,
-    required this.color,
-    required this.icon,
-  });
+  _StatusInfo({required this.label, required this.color, required this.icon});
 }

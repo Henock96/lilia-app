@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/features/home/data/remote/menu_controller.dart';
 import 'package:lilia_app/features/home/presentation/widgets/menu_card.dart';
-import 'package:lilia_app/models/menu.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 
 class MenusSection extends ConsumerWidget {
@@ -35,9 +34,7 @@ class MenusSection extends ConsumerWidget {
                   ),
                   if (menus.length > 3)
                     TextButton(
-                      onPressed: () {
-                        // TODO: Naviguer vers une page avec tous les menus
-                      },
+                      onPressed: () {},
                       child: const Text('Voir tout'),
                     ),
                 ],
@@ -55,7 +52,7 @@ class MenusSection extends ConsumerWidget {
                   return MenuCard(
                     menu: menu,
                     onTap: () {
-                      context.goNamed(
+                      context.pushNamed(
                         AppRoutes.menuDetail.routeName,
                         extra: menu,
                       );

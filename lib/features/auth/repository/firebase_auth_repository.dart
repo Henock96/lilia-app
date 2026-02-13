@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:lilia_app/constants/app_constants.dart';
@@ -137,19 +136,21 @@ class FirebaseAuthenticationRepository {
         print('🆔 Firebase UID: ${user.uid}');
       }
 
-      final response = await _client.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $firebaseIdToken',
-        },
-        body: jsonEncode({
-          'firebaseUid': user.uid,
-          'email': user.email,
-          'nom': user.displayName,
-          'telephone': user.phoneNumber,
-        }),
-      ).timeout(const Duration(seconds: 10));
+      final response = await _client
+          .post(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $firebaseIdToken',
+            },
+            body: jsonEncode({
+              'firebaseUid': user.uid,
+              'email': user.email,
+              'nom': user.displayName,
+              'telephone': user.phoneNumber,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
 
       if (kDebugMode) {
         print('📡 Backend response status: ${response.statusCode}');

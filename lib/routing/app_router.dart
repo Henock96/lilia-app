@@ -13,7 +13,6 @@ import 'package:lilia_app/features/home/presentation/home.dart';
 import 'package:lilia_app/features/onboarding/application/onboarding_provider.dart';
 import 'package:lilia_app/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:lilia_app/features/user/user_page.dart';
-import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/routing/go_router_refresh_stream.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -57,7 +56,7 @@ GoRouter router(Ref ref) {
       final bool onboardingCompleted = onboardingState.when(
         data: (completed) => completed,
         loading: () => true, // Pendant le chargement, on assume que c'est fait
-        error: (_, __) => true, // En cas d'erreur, on skip l'onboarding
+        error: (_, _) => true, // En cas d'erreur, on skip l'onboarding
       );
 
       final bool isOnboardingPage =
@@ -79,7 +78,7 @@ GoRouter router(Ref ref) {
             user != null, // L'utilisateur est connecté s'il y a des données
         loading: () =>
             false, // Pendant le chargement, on considère l'utilisateur comme non connecté
-        error: (_, __) =>
+        error: (_, _) =>
             false, // En cas d'erreur, on considère l'utilisateur comme non connecté
       );
 

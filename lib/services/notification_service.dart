@@ -34,7 +34,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
         AndroidInitializationSettings('@mipmap/launcher_icon');
     const InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
-    await localNotifications.initialize(initializationSettings);
+    await localNotifications.initialize(settings: initializationSettings);
 
     // Détails de la notification
     const AndroidNotificationDetails androidDetails =
@@ -53,10 +53,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
     // Afficher la notification
     await localNotifications.show(
-      message.notification.hashCode,
-      message.notification!.title,
-      message.notification!.body,
-      platformDetails,
+      id: message.notification.hashCode,
+      title: message.notification!.title,
+      body: message.notification!.body,
+      notificationDetails: platformDetails,
       payload: jsonEncode(message.data), // Transmettre les données
     );
   }
@@ -170,7 +170,7 @@ class NotificationService {
         );
 
     await _localNotifications.initialize(
-      initializationSettings,
+      settings: initializationSettings,
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
@@ -267,10 +267,10 @@ class NotificationService {
     );
 
     _localNotifications.show(
-      notification.hashCode,
-      notification.title,
-      notification.body,
-      platformDetails,
+      id: notification.hashCode,
+      title: notification.title,
+      body: notification.body,
+      notificationDetails: platformDetails,
       payload: jsonEncode(message.data),
     );
   }
@@ -453,10 +453,10 @@ class NotificationService {
     );
 
     await _localNotifications.show(
-      0,
-      'Test Notification',
-      'This is a test notification',
-      platformDetails,
+      id: 0,
+      title: 'Test Notification',
+      body: 'This is a test notification',
+      notificationDetails: platformDetails,
     );
   }
 }

@@ -10,10 +10,7 @@ import 'package:lilia_app/routing/app_route_enum.dart';
 class MenuDetailPage extends ConsumerStatefulWidget {
   final MenuDuJour menu;
 
-  const MenuDetailPage({
-    super.key,
-    required this.menu,
-  });
+  const MenuDetailPage({super.key, required this.menu});
 
   @override
   ConsumerState<MenuDetailPage> createState() => _MenuDetailPageState();
@@ -69,10 +66,7 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [
-                            Colors.orange[400]!,
-                            Colors.orange[700]!,
-                          ],
+                          colors: [Colors.orange[400]!, Colors.orange[700]!],
                         ),
                       ),
                       child: const Center(
@@ -100,10 +94,7 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
                       const SizedBox(width: 8),
                       Text(
                         menu.restaurant.nom,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey[700],
-                        ),
+                        style: TextStyle(fontSize: 16, color: Colors.grey[700]),
                       ),
                     ],
                   ),
@@ -123,7 +114,11 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.check_circle, size: 16, color: Colors.green),
+                          Icon(
+                            Icons.check_circle,
+                            size: 16,
+                            color: Colors.green,
+                          ),
                           SizedBox(width: 6),
                           Text(
                             'Disponible maintenant',
@@ -171,7 +166,11 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.schedule, size: 18, color: Colors.orange),
+                              const Icon(
+                                Icons.schedule,
+                                size: 18,
+                                color: Colors.orange,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 'Debut: ${dateFormat.format(menu.dateDebut)}',
@@ -182,7 +181,11 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              const Icon(Icons.event_busy, size: 18, color: Colors.orange),
+                              const Icon(
+                                Icons.event_busy,
+                                size: 18,
+                                color: Colors.orange,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 'Fin: ${dateFormat.format(menu.dateFin)}',
@@ -198,7 +201,8 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
                   const SizedBox(height: 16),
 
                   // Description
-                  if (menu.description != null && menu.description!.isNotEmpty) ...[
+                  if (menu.description != null &&
+                      menu.description!.isNotEmpty) ...[
                     const Text(
                       'Description',
                       style: TextStyle(
@@ -209,10 +213,7 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
                     const SizedBox(height: 8),
                     Text(
                       menu.description!,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[700],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -257,28 +258,23 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
 
           // Liste des produits
           SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final menuProduct = menu.products[index];
-                return _ProductTile(
-                  product: menuProduct.product,
-                  ordre: menuProduct.ordre,
-                  onTap: () {
-                    context.goNamed(
-                      AppRoutes.productDetail.routeName,
-                      extra: menuProduct.product,
-                    );
-                  },
-                );
-              },
-              childCount: menu.products.length,
-            ),
+            delegate: SliverChildBuilderDelegate((context, index) {
+              final menuProduct = menu.products[index];
+              return _ProductTile(
+                product: menuProduct.product,
+                ordre: menuProduct.ordre,
+                onTap: () {
+                  context.pushNamed(
+                    AppRoutes.productDetail.routeName,
+                    extra: menuProduct.product,
+                  );
+                },
+              );
+            }, childCount: menu.products.length),
           ),
 
           // Espace pour le bouton en bas
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 100),
-          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
       ),
 
@@ -357,9 +353,7 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
     );
   }
 
-  void _addMenuToCart(BuildContext context) {
-    // Pour l'instant, on ajoute le premier produit du menu au panier
-    // TODO: Implementer une logique plus sophistiquee pour ajouter un menu complet
+  Future<void> _addMenuToCart(BuildContext context) async {
     final menu = widget.menu;
 
     if (menu.products.isEmpty) {
@@ -372,41 +366,25 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
       return;
     }
 
-    // Ajouter chaque produit du menu au panier
-    int addedCount = 0;
-    for (var menuProduct in menu.products) {
-      final product = menuProduct.product;
-      if (product.variants.isNotEmpty) {
-        for (int i = 0; i < _quantity; i++) {
-          ref.read(cartControllerProvider.notifier).addItem(
-                variantId: product.variants.first.id,
-              );
-        }
-        addedCount++;
-      }
-    }
+    try {
+      await ref
+          .read(cartControllerProvider.notifier)
+          .addMenu(menuId: menu.id, quantity: _quantity);
 
-    if (addedCount > 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '$addedCount produit${addedCount > 1 ? 's' : ''} du menu "${menu.nom}" ajoute${addedCount > 1 ? 's' : ''} au panier',
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Menu "${menu.nom}" ajoute au panier'),
+            backgroundColor: Theme.of(context).primaryColor,
           ),
-          backgroundColor: Colors.green,
-          action: SnackBarAction(
-            label: 'Voir panier',
-            textColor: Colors.white,
-            onPressed: () => context.goNamed(AppRoutes.cart.routeName),
-          ),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Impossible d\'ajouter les produits au panier'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 }
@@ -439,7 +417,9 @@ class _ProductTile extends StatelessWidget {
                   width: 28,
                   height: 28,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                    color: Theme.of(
+                      context,
+                    ).primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Center(
@@ -489,10 +469,7 @@ class _ProductTile extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         product.description,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -500,10 +477,7 @@ class _ProductTile extends StatelessWidget {
                   ),
                 ),
                 // Fleche
-                const Icon(
-                  Icons.chevron_right,
-                  color: Colors.grey,
-                ),
+                const Icon(Icons.chevron_right, color: Colors.grey),
               ],
             ),
           ),

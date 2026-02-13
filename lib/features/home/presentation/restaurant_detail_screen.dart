@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
-import 'package:lilia_app/features/reviews/presentation/widgets/star_rating.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -66,7 +65,7 @@ class _RestaurantDetailScreenState
                 AppRoutes.reviews.routeName,
                 extra: {
                   'restaurantId': widget.restaurantId,
-                  'restaurantName': widget.restaurantId,
+                  'restaurantName': widget.restaurantName,
                 },
               );
             },
@@ -396,6 +395,12 @@ class _RestaurantInfoCard extends StatelessWidget {
             ),
           ),
 
+          // Horaires d'ouverture
+          if (restaurant.operatingHours.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _OperatingHoursSection(operatingHours: restaurant.operatingHours),
+          ],
+
           // Spécialités
           if (restaurant.specialties.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -618,7 +623,7 @@ class _CategorySection extends StatelessWidget {
           ...products.map((product) {
             return GestureDetector(
               onTap: () {
-                context.goNamed(
+                context.pushNamed(
                   AppRoutes.productDetail.routeName,
                   extra: product,
                 );
@@ -766,27 +771,53 @@ class _ProductCard extends ConsumerWidget {
     );
   }
 
-  void _addToCart(BuildContext context, WidgetRef ref) {
+  Future<void> _addToCart(BuildContext context, WidgetRef ref) async {
     if (product.variants.isNotEmpty) {
       final variantId = product.variants.first.id;
-      ref.read(cartControllerProvider.notifier).addItem(variantId: variantId);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white),
-              const SizedBox(width: 8),
-              Expanded(child: Text('${product.name} ajouté au panier')),
-            ],
-          ),
-          backgroundColor: Theme.of(context).primaryColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-          duration: const Duration(seconds: 1),
-        ),
-      );
+      try {
+        await ref
+            .read(cartControllerProvider.notifier)
+            .addItem(variantId: variantId);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text('${product.name} ajouté au panier')),
+                ],
+              ),
+              backgroundColor: Theme.of(context).primaryColor,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              duration: const Duration(seconds: 1),
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.white),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(e.toString())),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -795,5 +826,160 @@ class _ProductCard extends ConsumerWidget {
         ),
       );
     }
+  }
+}
+
+// Section horaires d'ouverture
+class _OperatingHoursSection extends StatefulWidget {
+  final List<OperatingHours> operatingHours;
+
+  const _OperatingHoursSection({required this.operatingHours});
+
+  @override
+  State<_OperatingHoursSection> createState() => _OperatingHoursSectionState();
+}
+
+class _OperatingHoursSectionState extends State<_OperatingHoursSection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final today = DayOfWeek.today;
+    final todayHours = widget.operatingHours
+        .where((h) => h.dayOfWeek == today)
+        .toList();
+
+    // Trier les horaires par ordre des jours
+    final sortedHours = List<OperatingHours>.from(widget.operatingHours)
+      ..sort((a, b) => a.dayOfWeek.index.compareTo(b.dayOfWeek.index));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // En-tête cliquable
+        InkWell(
+          onTap: () => setState(() => _expanded = !_expanded),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(
+                    Icons.schedule,
+                    color: Colors.purple,
+                    size: 16,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Horaires',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      Text(
+                        todayHours.isNotEmpty
+                            ? todayHours.first.isClosed
+                                ? 'Fermé aujourd\'hui'
+                                : '${todayHours.first.openTime} - ${todayHours.first.closeTime}'
+                            : 'Non renseigné',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  _expanded ? Icons.expand_less : Icons.expand_more,
+                  color: Colors.grey,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Liste dépliable de tous les jours
+        if (_expanded) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Colors.grey.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Colors.grey.withValues(alpha: 0.15),
+              ),
+            ),
+            child: Column(
+              children: sortedHours.map((hours) {
+                final isToday = hours.dayOfWeek == today;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 36,
+                        child: Text(
+                          hours.dayOfWeek.shortLabel,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+                            color: isToday
+                                ? Theme.of(context).primaryColor
+                                : Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                      if (isToday)
+                        Container(
+                          width: 5,
+                          height: 5,
+                          margin: const EdgeInsets.only(right: 6),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).primaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                        )
+                      else
+                        const SizedBox(width: 11),
+                      Expanded(
+                        child: Text(
+                          hours.isClosed
+                              ? 'Fermé'
+                              : '${hours.openTime} - ${hours.closeTime}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: isToday ? FontWeight.w600 : FontWeight.normal,
+                            color: hours.isClosed
+                                ? Colors.red[400]
+                                : isToday
+                                    ? Colors.black87
+                                    : Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }

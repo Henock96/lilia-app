@@ -81,6 +81,21 @@ class OrderRepository extends _$OrderRepository {
     }
   }
 
+  Future<void> deleteOrder(String orderId) async {
+    final token = await ref.read(firebaseIdTokenProvider.future);
+    if (token == null) {
+      throw Exception('User not authenticated.');
+    }
+    final headers = {'Authorization': 'Bearer $token'};
+    final response = await http.delete(
+      Uri.parse('${AppConstants.baseUrl}/orders/$orderId'),
+      headers: headers,
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete order: ${response.body}');
+    }
+  }
+
   Future<void> cancelOrder(String orderId) async {
     final token = await ref.read(firebaseIdTokenProvider.future);
     if (token == null) {

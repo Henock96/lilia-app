@@ -67,6 +67,39 @@ class CartController extends _$CartController {
     }
   }
 
+  Future<void> addMenu({required String menuId, int quantity = 1}) async {
+    final cartRepo = ref.read(cartRepositoryProvider);
+    try {
+      await cartRepo.addMenuToCart(menuId: menuId, quantity: quantity);
+    } catch (e) {
+      debugPrint('Erreur lors de l\'ajout du menu au panier: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> updateMenuQuantity({
+    required String menuId,
+    required int quantity,
+  }) async {
+    final cartRepo = ref.read(cartRepositoryProvider);
+    try {
+      await cartRepo.updateMenuQuantity(menuId: menuId, quantity: quantity);
+    } catch (e) {
+      debugPrint('Erreur lors de la mise à jour du menu: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> removeMenu({required String menuId}) async {
+    final cartRepo = ref.read(cartRepositoryProvider);
+    try {
+      await cartRepo.removeMenu(menuId: menuId);
+    } catch (e) {
+      debugPrint('Erreur lors de la suppression du menu: $e');
+      rethrow;
+    }
+  }
+
   Future<void> clearCart() async {
     final cartRepo = ref.read(cartRepositoryProvider);
     try {

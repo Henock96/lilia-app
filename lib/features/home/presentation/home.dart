@@ -8,9 +8,11 @@ import 'package:lilia_app/features/favoris/application/restaurant_favorites_prov
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
 import 'package:lilia_app/features/notifications/presentation/notifications_history_screen.dart';
 import 'package:lilia_app/features/reviews/presentation/widgets/star_rating.dart';
+import 'package:lilia_app/models/banner.dart';
 import 'package:lilia_app/models/restaurant.dart';
 
 import '../../../routing/app_route_enum.dart';
+import '../data/remote/banner_controller.dart';
 import '../data/remote/restaurant_controller.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -29,11 +31,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   final CarouselSliderController _carouselController =
       CarouselSliderController();
 
-  // Liste des bannières pour le slider
-  final List<String> _bannerImages = [
-    'assets/images/banner.png',
-    'assets/images/banner.png',
-    'assets/images/banner.png',
+  // Bannières par défaut (fallback si aucune bannière API)
+  static const List<Map<String, String>> _defaultBanners = [
+    {'image': 'assets/images/banner.png', 'title': 'Bienvenue sur Lilia Food'},
+    {'image': 'assets/images/banner.png', 'title': 'Livraison rapide'},
+    {'image': 'assets/images/banner.png', 'title': 'Nouveaux restaurants'},
   ];
 
   @override
@@ -41,62 +43,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     super.build(context);
     final restaurantsAsync = ref.watch(restaurantsListProvider);
     final notificationHistory = ref.watch(notificationHistoryProvider);
+    final bannersAsync = ref.watch(bannersListProvider);
+    //final theme = Theme.of(context);
 
     return Scaffold(
+      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         elevation: 0,
+        backgroundColor: Colors.white,
         centerTitle: true,
-        title: const Text('Lilia Food'),
-        actions: [
-          notificationHistory.when(
-            data: (notifications) => Badge(
-              label: Text(notifications.length.toString()),
-              isLabelVisible: notifications.isNotEmpty,
-              child: IconButton(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const NotificationsHistoryScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.notifications_none, color: Colors.black),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Lilia Food',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                color: Colors.black,
               ),
             ),
-            loading: () => IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.notifications_none, color: Colors.black),
-            ),
-            error: (_, _) => IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.notifications_outlined, color: Colors.red),
-            ),
-          ),
+          ],
+        ),
+        actions: [
+          _buildNotificationButton(notificationHistory),
+          const SizedBox(width: 8),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(restaurantsListProvider);
+          ref.invalidate(bannersListProvider);
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 8),
-              // Section Slider d'annonces
-              _buildAnnouncementSlider(),
+              const SizedBox(height: 16),
+
+              // Slider d'annonces dynamique
+              _buildSimpleSlider(bannersAsync),
+
               const SizedBox(height: 24),
-              // Section Liste des restaurants
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0),
-                child: Text(
-                  'Nos Restaurants',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+
+              // Titre de la section restaurants
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Nos Restaurants',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      '${restaurantsAsync.value?.length ?? 0} disponibles',
+                      style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                    ),
+                  ],
                 ),
               ),
+
               const SizedBox(height: 16),
+
+              // Liste des restaurants
               _buildRestaurantsList(restaurantsAsync),
+
               const SizedBox(height: 20),
             ],
           ),
@@ -105,34 +120,118 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  Widget _buildAnnouncementSlider() {
-    final imageSliders = _bannerImages
-        .asMap()
-        .entries
-        .map(
-          (entry) => Container(
-            margin: const EdgeInsets.symmetric(horizontal: 5.0),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12.0),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  Image.asset(
-                    entry.value,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
+  Widget _buildNotificationButton(
+    AsyncValue<List<dynamic>> notificationHistory,
+  ) {
+    return notificationHistory.when(
+      data: (notifications) => Badge(
+        label: Text(notifications.length.toString()),
+        isLabelVisible: notifications.isNotEmpty,
+        backgroundColor: Colors.red,
+        child: IconButton(
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const NotificationsHistoryScreen(),
+              ),
+            );
+          },
+          icon: Icon(Icons.notifications_outlined, color: Colors.grey[700]),
+        ),
+      ),
+      loading: () => IconButton(
+        onPressed: () {},
+        icon: Icon(Icons.notifications_outlined, color: Colors.grey[700]),
+      ),
+      error: (_, _) => IconButton(
+        onPressed: () {},
+        icon: const Icon(Icons.notifications_outlined, color: Colors.red),
+      ),
+    );
+  }
+
+  Widget _buildSimpleSlider(AsyncValue<List<AppBanner>> bannersAsync) {
+    return bannersAsync.when(
+      data: (apiBanners) {
+        // Si des bannières API existent, les utiliser ; sinon fallback
+        if (apiBanners.isNotEmpty) {
+          return _buildSliderContent(
+            itemCount: apiBanners.length,
+            imageBuilder: (index) => Image.network(
+              apiBanners[index].imageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Image.asset(
+                'assets/images/banner.png',
+                fit: BoxFit.cover,
+              ),
+            ),
+            titleBuilder: (index) => apiBanners[index].title,
+          );
+        }
+        return _buildFallbackSlider();
+      },
+      loading: () => _buildFallbackSlider(),
+      error: (_, _) => _buildFallbackSlider(),
+    );
+  }
+
+  Widget _buildFallbackSlider() {
+    return _buildSliderContent(
+      itemCount: _defaultBanners.length,
+      imageBuilder: (index) => Image.asset(
+        _defaultBanners[index]['image']!,
+        fit: BoxFit.cover,
+      ),
+      titleBuilder: (index) => _defaultBanners[index]['title']!,
+    );
+  }
+
+  Widget _buildSliderContent({
+    required int itemCount,
+    required Widget Function(int index) imageBuilder,
+    required String Function(int index) titleBuilder,
+  }) {
+    return Column(
+      children: [
+        CarouselSlider.builder(
+          itemCount: itemCount,
+          carouselController: _carouselController,
+          options: CarouselOptions(
+            autoPlay: true,
+            autoPlayInterval: const Duration(seconds: 4),
+            enlargeCenterPage: true,
+            aspectRatio: 2.2,
+            viewportFraction: 0.92,
+            onPageChanged: (index, reason) {
+              setState(() {
+                _currentSlide = index;
+              });
+            },
+          ),
+          itemBuilder: (context, index, realIndex) {
+            return Container(
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
                   ),
-                  // Overlay gradient
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: Container(
-                      height: 60,
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    imageBuilder(index),
+                    Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
-                            Colors.black.withValues(alpha: 0.6),
+                            Colors.black.withValues(alpha: 0.5),
                             Colors.transparent,
                           ],
                           begin: Alignment.bottomCenter,
@@ -140,52 +239,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        )
-        .toList();
-
-    return Column(
-      children: [
-        CarouselSlider(
-          items: imageSliders,
-          carouselController: _carouselController,
-          options: CarouselOptions(
-            autoPlay: true,
-            autoPlayInterval: const Duration(seconds: 4),
-            enlargeCenterPage: true,
-            aspectRatio: 2.0,
-            viewportFraction: 0.9,
-            onPageChanged: (index, reason) {
-              setState(() {
-                _currentSlide = index;
-              });
-            },
-          ),
-        ),
-        const SizedBox(height: 12),
-        // Indicateurs de page
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: _bannerImages.asMap().entries.map((entry) {
-            return GestureDetector(
-              onTap: () => _carouselController.animateToPage(entry.key),
-              child: Container(
-                width: _currentSlide == entry.key ? 24.0 : 8.0,
-                height: 8.0,
-                margin: const EdgeInsets.symmetric(horizontal: 4.0),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
-                  color: _currentSlide == entry.key
-                      ? Theme.of(context).primaryColor
-                      : Colors.grey.withValues(alpha: 0.4),
+                    Positioned(
+                      bottom: 16,
+                      left: 16,
+                      right: 16,
+                      child: Text(
+                        titleBuilder(index),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             );
-          }).toList(),
+          },
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(itemCount, (index) {
+            final isActive = _currentSlide == index;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: isActive ? 20 : 6,
+              height: 6,
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(3),
+                color: isActive
+                    ? Theme.of(context).primaryColor
+                    : Colors.grey[300],
+              ),
+            );
+          }),
         ),
       ],
     );
@@ -221,10 +311,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           itemCount: restaurants.length,
           itemBuilder: (context, index) {
             final restaurant = restaurants[index];
-            final restaurantId = restaurants[index].id;
             return _RestaurantCard(
               restaurant: restaurant,
-              restaurantId: restaurantId,
+              restaurantId: restaurant.id,
             );
           },
         );
@@ -247,117 +336,104 @@ class _RestaurantCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isFavorite = ref.watch(isRestaurantFavoriteProvider(restaurant.id));
+    final theme = Theme.of(context);
 
     return Opacity(
-      // Réduire l'opacité si le restaurant est fermé
-      opacity: restaurant.isOpen ? 1.0 : 0.7,
-      child: Card(
+      opacity: restaurant.isOpen ? 1.0 : 0.6,
+      child: Container(
         margin: const EdgeInsets.only(bottom: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        elevation: 3,
-        child: InkWell(
-          onTap: () {
-            context.goNamed(
-              AppRoutes.restaurantDetail.routeName,
-              pathParameters: {'id': restaurant.id},
-              extra: {'restaurantName': restaurant.name},
-            );
-          },
-          borderRadius: BorderRadius.circular(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Image du restaurant avec badges
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(12),
-                    ),
-                    child: restaurant.imageUrl != null
-                        ? Image.network(
-                            restaurant.imageUrl!,
-                            height: 150,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                height: 150,
-                                color: Colors.grey[200],
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.restaurant,
-                                    size: 48,
-                                    color: Colors.grey,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              context.goNamed(
+                AppRoutes.restaurantDetail.routeName,
+                pathParameters: {'id': restaurant.id},
+                extra: {'restaurantName': restaurant.name},
+              );
+            },
+            borderRadius: BorderRadius.circular(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image du restaurant avec badges
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(16),
+                      ),
+                      child: restaurant.imageUrl != null
+                          ? Image.network(
+                              restaurant.imageUrl!,
+                              height: 150,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  height: 150,
+                                  color: Colors.grey[200],
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.restaurant,
+                                      size: 48,
+                                      color: Colors.grey,
+                                    ),
                                   ),
+                                );
+                              },
+                            )
+                          : Container(
+                              height: 150,
+                              color: Colors.grey[200],
+                              child: const Center(
+                                child: Icon(
+                                  Icons.restaurant,
+                                  size: 48,
+                                  color: Colors.grey,
                                 ),
-                              );
-                            },
-                          )
-                        : Container(
-                            height: 150,
-                            color: Colors.grey[200],
-                            child: const Center(
-                              child: Icon(
-                                Icons.restaurant,
-                                size: 48,
-                                color: Colors.grey,
                               ),
                             ),
-                          ),
-                  ),
-                  // Badge Ouvert/Fermé en haut à gauche
-                  Positioned(
-                    top: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: restaurant.isOpen ? Colors.green : Colors.red,
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.2),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            restaurant.isOpen
-                                ? Icons.check_circle
-                                : Icons.cancel,
+                    ),
+                    // Badge Ouvert/Fermé
+                    Positioned(
+                      top: 10,
+                      left: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: restaurant.isOpen ? Colors.green : Colors.red,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          restaurant.isOpen ? 'Ouvert' : 'Fermé',
+                          style: const TextStyle(
                             color: Colors.white,
-                            size: 14,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            restaurant.isOpen ? 'Ouvert' : 'Fermé',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
-                  // Bouton favori en haut à droite
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Material(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      elevation: 2,
-                      child: InkWell(
+                    // Bouton favori
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: GestureDetector(
                         onTap: () {
                           ref
                               .read(restaurantFavoritesProvider.notifier)
@@ -374,202 +450,186 @@ class _RestaurantCard extends ConsumerWidget {
                             ),
                           );
                         },
-                        borderRadius: BorderRadius.circular(20),
-                        child: Padding(
+                        child: Container(
                           padding: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
                           child: Icon(
                             isFavorite ? Icons.favorite : Icons.favorite_border,
                             color: isFavorite ? Colors.red : Colors.grey,
-                            size: 22,
+                            size: 20,
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  // Temps de livraison en bas à droite
-                  Positioned(
-                    bottom: 8,
-                    right: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.access_time,
-                            color: Colors.white,
-                            size: 14,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            restaurant.deliveryTimeFormatted,
-                            style: const TextStyle(
+                    // Temps de livraison
+                    Positioned(
+                      bottom: 10,
+                      right: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.access_time,
                               color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
+                              size: 12,
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              // Informations du restaurant
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Nom et note
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            restaurant.name,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (restaurant.averageRating != null &&
-                            restaurant.totalReviews != null &&
-                            restaurant.totalReviews! > 0)
-                          RatingBadge(
-                            rating: restaurant.averageRating!,
-                            reviewCount: restaurant.totalReviews!,
-                          ),
-                      ],
-                    ),
-
-                    // Spécialités (chips)
-                    if (restaurant.specialties.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        children: restaurant.specialties.take(3).map((
-                          specialty,
-                        ) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Theme.of(
-                                context,
-                              ).primaryColor.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: Theme.of(
-                                  context,
-                                ).primaryColor.withValues(alpha: 0.3),
-                              ),
-                            ),
-                            child: Text(
-                              specialty.name,
-                              style: TextStyle(
+                            const SizedBox(width: 4),
+                            Text(
+                              restaurant.deliveryTimeFormatted,
+                              style: const TextStyle(
+                                color: Colors.white,
                                 fontSize: 11,
-                                color: Theme.of(context).primaryColor,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
-                          );
-                        }).toList(),
-                      ),
-                    ],
-
-                    const SizedBox(height: 8),
-
-                    // Adresse et infos livraison
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.location_on,
-                          size: 16,
-                          color: Colors.grey,
+                          ],
                         ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            restaurant.address,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[600],
+                      ),
+                    ),
+                  ],
+                ),
+                // Informations du restaurant
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Nom et note
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              restaurant.name,
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
+                          if (restaurant.averageRating != null &&
+                              restaurant.totalReviews != null &&
+                              restaurant.totalReviews! > 0)
+                            RatingBadge(
+                              rating: restaurant.averageRating!,
+                              reviewCount: restaurant.totalReviews!,
+                            ),
+                        ],
+                      ),
+
+                      // Spécialités
+                      if (restaurant.specialties.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: restaurant.specialties.take(3).map((
+                            specialty,
+                          ) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.primaryColor.withValues(
+                                  alpha: 0.1,
+                                ),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                specialty.name,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: theme.primaryColor,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            );
+                          }).toList(),
                         ),
                       ],
-                    ),
 
-                    const SizedBox(height: 6),
+                      const SizedBox(height: 10),
 
-                    // Infos de livraison (frais + minimum)
-                    Row(
-                      children: [
-                        // Frais de livraison
-                        Icon(
-                          Icons.delivery_dining,
-                          size: 16,
-                          color: Colors.grey[600],
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${restaurant.fixedDeliveryFee.toStringAsFixed(0)} FCFA',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        // Minimum de commande
-                        if (restaurant.minimumOrderAmount > 0) ...[
+                      // Adresse et infos livraison
+                      Row(
+                        children: [
                           Icon(
-                            Icons.shopping_bag_outlined,
-                            size: 16,
-                            color: Colors.grey[600],
+                            Icons.location_on_outlined,
+                            size: 14,
+                            color: Colors.grey[500],
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              restaurant.address,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 6),
+
+                      // Frais de livraison et minimum
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.delivery_dining_outlined,
+                            size: 14,
+                            color: Colors.grey[500],
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'Min. ${restaurant.minimumOrderAmount.toStringAsFixed(0)} FCFA',
+                            '${restaurant.fixedDeliveryFee.toStringAsFixed(0)} FCFA',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
                             ),
                           ),
+                          if (restaurant.minimumOrderAmount > 0) ...[
+                            const SizedBox(width: 12),
+                            Icon(
+                              Icons.shopping_bag_outlined,
+                              size: 14,
+                              color: Colors.grey[500],
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Min. ${restaurant.minimumOrderAmount.toStringAsFixed(0)} FCFA',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
-
-                    // Description (si disponible)
-                    if (restaurant.description != null &&
-                        restaurant.description!.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        restaurant.description!,
-                        style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                  ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

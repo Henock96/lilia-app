@@ -118,8 +118,9 @@ class CartRepository {
         debugPrint('✅ Item added to cart successfully');
         await getCart();
       } else if (response.statusCode == 400) {
+        final errorData = jsonDecode(response.body);
         throw CartException(
-          'Données invalides. Veuillez réessayer.',
+          errorData['message'] ?? 'Données invalides. Veuillez réessayer.',
           code: 'INVALID_DATA',
         );
       } else if (response.statusCode == 404) {
@@ -240,6 +241,182 @@ class CartRepository {
       } else {
         throw CartException(
           'Impossible de supprimer l\'article.',
+          code: 'DELETE_FAILED',
+        );
+      }
+    } on SocketException {
+      throw CartException(
+        'Pas de connexion internet.',
+        code: 'NO_INTERNET',
+      );
+    } on TimeoutException {
+      throw CartException(
+        'La requête a pris trop de temps.',
+        code: 'TIMEOUT',
+      );
+    } catch (e) {
+      if (e is CartException) rethrow;
+      throw CartException(
+        'Erreur lors de la suppression: ${e.toString()}',
+        code: 'UNKNOWN',
+      );
+    }
+  }
+
+  /// Ajoute un menu complet au panier
+  Future<void> addMenuToCart({
+    required String menuId,
+    required int quantity,
+  }) async {
+    final token = await _getIdToken();
+    if (token == null) {
+      throw CartException(
+        'Utilisateur non authentifié.',
+        code: 'UNAUTHENTICATED',
+      );
+    }
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse('${AppConstants.baseUrl}/cart/add-menu'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({'menuId': menuId, 'quantite': quantity}),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        final cart = data != null ? Cart.fromJson(data) : null;
+        _safeAdd(cart);
+      } else if (response.statusCode == 400) {
+        final errorData = jsonDecode(response.body);
+        throw CartException(
+          errorData['message'] ?? 'Impossible d\'ajouter le menu.',
+          code: 'INVALID_DATA',
+        );
+      } else if (response.statusCode == 404) {
+        throw CartException(
+          'Menu non trouvé.',
+          code: 'NOT_FOUND',
+        );
+      } else if (response.statusCode >= 500) {
+        throw CartException(
+          'Erreur du serveur. Veuillez réessayer plus tard.',
+          code: 'SERVER_ERROR',
+        );
+      } else {
+        throw CartException(
+          'Erreur: ${response.statusCode}',
+          code: 'UNKNOWN_ERROR',
+        );
+      }
+    } on SocketException {
+      throw CartException(
+        'Pas de connexion internet. Vérifiez votre connexion.',
+        code: 'NO_INTERNET',
+      );
+    } on TimeoutException {
+      throw CartException(
+        'La requête a pris trop de temps. Vérifiez votre connexion.',
+        code: 'TIMEOUT',
+      );
+    } catch (e) {
+      if (e is CartException) rethrow;
+      throw CartException(
+        'Une erreur est survenue: ${e.toString()}',
+        code: 'UNKNOWN',
+      );
+    }
+  }
+
+  /// Met à jour la quantité d'un menu dans le panier
+  Future<void> updateMenuQuantity({
+    required String menuId,
+    required int quantity,
+  }) async {
+    final token = await _getIdToken();
+    if (token == null) {
+      throw CartException(
+        'Utilisateur non authentifié.',
+        code: 'UNAUTHENTICATED',
+      );
+    }
+
+    if (quantity == 0) {
+      await removeMenu(menuId: menuId);
+      return;
+    }
+
+    try {
+      final response = await http
+          .patch(
+            Uri.parse('${AppConstants.baseUrl}/cart/menus/$menuId'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({'quantite': quantity}),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final cart = data != null ? Cart.fromJson(data) : null;
+        _safeAdd(cart);
+      } else {
+        throw CartException(
+          'Impossible de mettre à jour la quantité du menu.',
+          code: 'UPDATE_FAILED',
+        );
+      }
+    } on SocketException {
+      throw CartException(
+        'Pas de connexion internet.',
+        code: 'NO_INTERNET',
+      );
+    } on TimeoutException {
+      throw CartException(
+        'La requête a pris trop de temps.',
+        code: 'TIMEOUT',
+      );
+    } catch (e) {
+      if (e is CartException) rethrow;
+      throw CartException(
+        'Erreur lors de la mise à jour: ${e.toString()}',
+        code: 'UNKNOWN',
+      );
+    }
+  }
+
+  /// Supprime un menu complet du panier
+  Future<void> removeMenu({required String menuId}) async {
+    final token = await _getIdToken();
+    if (token == null) {
+      throw CartException(
+        'Utilisateur non authentifié.',
+        code: 'UNAUTHENTICATED',
+      );
+    }
+
+    try {
+      final response = await http
+          .delete(
+            Uri.parse('${AppConstants.baseUrl}/cart/menus/$menuId'),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final cart = data != null ? Cart.fromJson(data) : null;
+        _safeAdd(cart);
+      } else {
+        throw CartException(
+          'Impossible de supprimer le menu.',
           code: 'DELETE_FAILED',
         );
       }

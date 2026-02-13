@@ -85,7 +85,7 @@ class ProductCardFavoris extends ConsumerWidget {
         );
     return GestureDetector(
       onTap: () {
-        context.goNamed(AppRoutes.favoriteDetail.routeName, extra: product);
+        context.pushNamed(AppRoutes.favoriteDetail.routeName, extra: product);
       },
       child: Card(
         margin: const EdgeInsets.symmetric(vertical: 8),

@@ -7,6 +7,7 @@ import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/commandes/data/checkout_controller.dart';
 import 'package:lilia_app/features/commandes/presentation/delivery_options_page.dart';
+import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
@@ -26,9 +27,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _noteController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-
-  // Numéro MTN Mobile Money pour le paiement
-  final String _paymentPhoneNumber = '+242 06 745 46 10';
 
   @override
   void dispose() {
@@ -73,11 +71,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             return const Center(child: Text('Votre panier est vide'));
           }
 
-          final double subTotal = cart.items.fold(0.0, (sum, item) {
-            return sum + (item.variant.prix * item.quantite);
-          });
+          final double subTotal = cart.totalPrice;
           final double deliveryFee = options.deliveryFee;
           final double total = subTotal + deliveryFee;
+          final String restaurantId = cart.items.first.product.restaurantId;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -136,7 +133,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     child: ElevatedButton(
                       onPressed: checkoutState.isLoading
                           ? null
-                          : () => _showPaymentInstructions(context, total, options),
+                          : () => _showPaymentInstructions(context, total, options, restaurantId),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).primaryColor,
                         shape: RoundedRectangleBorder(
@@ -341,7 +338,45 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       ),
       child: Column(
         children: [
-          ...cart.items.map((item) {
+          // Menus groupés
+          ...cart.menuGroups.entries.map((entry) {
+            final groupItems = entry.value;
+            final menuInfo = groupItems.first.menu;
+            final quantite = groupItems.first.quantite;
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${quantite}x ${menuInfo?.nom ?? "Menu"}',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        '${((menuInfo?.prix ?? 0) * quantite).toStringAsFixed(0)} FCFA',
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  ...groupItems.map((item) => Padding(
+                    padding: const EdgeInsets.only(left: 16, top: 2),
+                    child: Text(
+                      '- ${item.product.nom}',
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    ),
+                  )),
+                ],
+              ),
+            );
+          }),
+          // Items individuels
+          ...cart.individualItems.map((item) {
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
@@ -421,6 +456,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     BuildContext context,
     double total,
     DeliveryOptions options,
+    String restaurantId,
   ) async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -447,6 +483,19 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       } else if (options.address != null) {
         finalAddressId = options.address!.id;
       }
+    }
+
+    if (!context.mounted) return;
+
+    // Récupérer le numéro de téléphone du restaurant
+    String paymentPhoneNumber = 'Non disponible';
+    try {
+      final restaurant = await ref.read(
+        restaurantControllerProvider(restaurantId).future,
+      );
+      paymentPhoneNumber = restaurant.phoneNumber ?? 'Non disponible';
+    } catch (_) {
+      // En cas d'erreur, on continue avec le numéro par défaut
     }
 
     if (!context.mounted) return;
@@ -496,7 +545,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            _paymentPhoneNumber,
+                            paymentPhoneNumber,
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -507,7 +556,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                       IconButton(
                         icon: const Icon(Icons.copy, color: Colors.orange),
                         onPressed: () {
-                          Clipboard.setData(ClipboardData(text: _paymentPhoneNumber));
+                          Clipboard.setData(ClipboardData(text: paymentPhoneNumber));
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Numero copie!'),

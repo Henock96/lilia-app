@@ -55,8 +55,9 @@ class RestaurantFavorites extends _$RestaurantFavorites {
 
   Future<void> remove(RestaurantSummary restaurant) async {
     final currentFavorites = await future;
-    final updatedFavorites =
-        currentFavorites.where((r) => r.id != restaurant.id).toList();
+    final updatedFavorites = currentFavorites
+        .where((r) => r.id != restaurant.id)
+        .toList();
     await _setFavorites(updatedFavorites);
   }
 
@@ -73,7 +74,7 @@ bool isRestaurantFavorite(Ref ref, String restaurantId) {
   return favoritesAsync.when(
     data: (favorites) => favorites.any((r) => r.id == restaurantId),
     loading: () => false,
-    error: (_, __) => false,
+    error: (_, _) => false,
   );
 }
 

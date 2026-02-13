@@ -34,6 +34,15 @@ class UserOrders extends _$UserOrders {
     state = AsyncData([...currentState]);
   }
 
+  // Méthode pour supprimer une commande annulée (backend + local).
+  Future<void> removeOrder(String orderId) async {
+    final orderRepository = ref.read(orderRepositoryProvider.notifier);
+    await orderRepository.deleteOrder(orderId);
+    final currentState = state.value ?? [];
+    currentState.removeWhere((o) => o.id == orderId);
+    state = AsyncData([...currentState]);
+  }
+
   // Méthode pour annuler une commande.
   Future<void> cancelOrder(String orderId) async {
     final orderRepository = ref.read(orderRepositoryProvider.notifier);

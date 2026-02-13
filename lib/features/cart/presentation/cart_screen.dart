@@ -75,13 +75,28 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   ),
                 );
               }
-              return ListView.builder(
-                shrinkWrap: true,
-                itemCount: cart.items.length,
-                itemBuilder: (context, index) {
-                  final item = cart.items[index];
-                  return CartItemCard(item: item);
-                },
+
+              final individualItems = cart.individualItems;
+              final menuGroups = cart.menuGroups;
+
+              return Expanded(
+                child: ListView(
+                  children: [
+                    // Menus groupés
+                    ...menuGroups.entries.map((entry) {
+                      final menuId = entry.key;
+                      final groupItems = entry.value;
+                      return MenuCartCard(
+                        menuId: menuId,
+                        items: groupItems,
+                      );
+                    }),
+                    // Items individuels
+                    ...individualItems.map(
+                      (item) => CartItemCard(item: item),
+                    ),
+                  ],
+                ),
               );
             },
             loading: () => const BuildLoadingState(),
@@ -90,7 +105,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               onRetry: () => ref.invalidate(cartControllerProvider),
             ),
           ),
-          Spacer(),
+          if (cartState.value == null || cartState.value!.items.isEmpty)
+            const Spacer(),
           cartState.value != null && cartState.value!.items.isNotEmpty
               ? Container(
                   decoration: BoxDecoration(
@@ -155,6 +171,232 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 )
               : Container(),
         ],
+      ),
+    );
+  }
+}
+
+/// Card affichant un menu groupé dans le panier
+class MenuCartCard extends ConsumerStatefulWidget {
+  final String menuId;
+  final List<CartItem> items;
+
+  const MenuCartCard({
+    super.key,
+    required this.menuId,
+    required this.items,
+  });
+
+  @override
+  ConsumerState<MenuCartCard> createState() => _MenuCartCardState();
+}
+
+class _MenuCartCardState extends ConsumerState<MenuCartCard> {
+  bool _isLoading = false;
+
+  MenuInfo? get _menuInfo => widget.items.isNotEmpty ? widget.items.first.menu : null;
+  int get _quantity => widget.items.isNotEmpty ? widget.items.first.quantite : 0;
+
+  Future<void> _updateQuantity(int newQuantity) async {
+    setState(() => _isLoading = true);
+    try {
+      await ref.read(cartControllerProvider.notifier).updateMenuQuantity(
+            menuId: widget.menuId,
+            quantity: newQuantity,
+          );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _removeMenu() async {
+    setState(() => _isLoading = true);
+    try {
+      await ref.read(cartControllerProvider.notifier).removeMenu(
+            menuId: widget.menuId,
+          );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final menuInfo = _menuInfo;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      clipBehavior: Clip.antiAlias,
+      child: Opacity(
+        opacity: _isLoading ? 0.6 : 1.0,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // En-tête du menu
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.restaurant_menu,
+                    size: 20,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          menuInfo?.nom ?? 'Menu',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                        Text(
+                          '${menuInfo?.prix.toStringAsFixed(0) ?? '0'} FCFA',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Liste des produits inclus
+            ...widget.items.map((item) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(6),
+                        child: item.product.imageUrl != null
+                            ? Image.network(
+                                item.product.imageUrl!,
+                                width: 40,
+                                height: 40,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Container(
+                                    width: 40,
+                                    height: 40,
+                                    color: Colors.grey.shade200,
+                                    child: const Icon(Icons.fastfood,
+                                        size: 18, color: Colors.grey),
+                                  );
+                                },
+                              )
+                            : Container(
+                                width: 40,
+                                height: 40,
+                                color: Colors.grey.shade200,
+                                child: const Icon(Icons.fastfood,
+                                    size: 18, color: Colors.grey),
+                              ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.product.nom,
+                              style: const TextStyle(fontSize: 13),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              item.variant.label,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+            const Divider(height: 1),
+            // Contrôles quantité / suppression
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (_quantity > 1)
+                    Expanded(
+                      child: Text(
+                        'Sous-total: ${(menuInfo!.prix * _quantity).toStringAsFixed(0)} FCFA',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade700,
+                        ),
+                      ),
+                    ),
+                  if (_isLoading)
+                    const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  else ...[
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline),
+                      onPressed: _isLoading
+                          ? null
+                          : () => _updateQuantity(_quantity - 1),
+                    ),
+                    Text(
+                      '$_quantity',
+                      style: const TextStyle(fontSize: 18),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      onPressed: _isLoading
+                          ? null
+                          : () => _updateQuantity(_quantity + 1),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: _isLoading ? null : _removeMenu,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

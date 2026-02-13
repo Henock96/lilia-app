@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:lilia_app/constants/app_constants.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -29,7 +28,9 @@ class RestaurantRepository {
   /// Récupérer un restaurant par son ID avec ses produits
   Future<Restaurant> getRestaurant(String id) async {
     try {
-      final response = await http.get(Uri.parse('${AppConstants.baseUrl}/restaurants/$id'));
+      final response = await http.get(
+        Uri.parse('${AppConstants.baseUrl}/restaurants/$id'),
+      );
 
       if (response.statusCode == 200) {
         return Restaurant.fromJson(json.decode(response.body));

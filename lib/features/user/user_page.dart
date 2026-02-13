@@ -8,6 +8,7 @@ import 'package:lilia_app/features/user/edit_profile_page.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 
 import '../../common_widgets/build_error_state.dart';
+import 'presentation/pages/about_page.dart';
 
 class UserPage extends ConsumerWidget {
   const UserPage({super.key});
@@ -67,7 +68,8 @@ class UserPage extends ConsumerWidget {
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     border: Border.all(
-                                      color: theme.colorScheme.primary.withValues(alpha: 0.2),
+                                      color: theme.colorScheme.primary
+                                          .withValues(alpha: 0.2),
                                       width: 4,
                                     ),
                                   ),
@@ -78,7 +80,11 @@ class UserPage extends ConsumerWidget {
                                         ? NetworkImage(user.imageUrl!)
                                         : null,
                                     child: user.imageUrl == null
-                                        ? Icon(Iconsax.user, size: 50, color: Colors.grey[400])
+                                        ? Icon(
+                                            Iconsax.user,
+                                            size: 50,
+                                            color: Colors.grey[400],
+                                          )
                                         : null,
                                   ),
                                 ),
@@ -87,7 +93,10 @@ class UserPage extends ConsumerWidget {
                                   decoration: BoxDecoration(
                                     color: theme.colorScheme.primary,
                                     shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 3),
+                                    border: Border.all(
+                                      color: Colors.white,
+                                      width: 3,
+                                    ),
                                   ),
                                   child: const Icon(
                                     Iconsax.camera,
@@ -110,7 +119,11 @@ class UserPage extends ConsumerWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Iconsax.sms, size: 16, color: Colors.grey[500]),
+                              Icon(
+                                Iconsax.sms,
+                                size: 16,
+                                color: Colors.grey[500],
+                              ),
                               const SizedBox(width: 6),
                               Text(
                                 user.email ?? 'Email non disponible',
@@ -147,7 +160,8 @@ class UserPage extends ConsumerWidget {
                             iconColor: Colors.red[400]!,
                             title: 'Mes Favoris',
                             subtitle: 'Vos restaurants préférés',
-                            onTap: () => context.goNamed(AppRoutes.favoris.routeName),
+                            onTap: () =>
+                                context.goNamed(AppRoutes.favoris.routeName),
                             showTopBorder: false,
                           ),
                           _ProfileMenuItem(
@@ -155,13 +169,14 @@ class UserPage extends ConsumerWidget {
                             iconColor: Colors.blue[400]!,
                             title: 'Adresses de livraison',
                             subtitle: 'Gérer vos adresses',
-                            onTap: () => context.goNamed(AppRoutes.address.routeName),
+                            onTap: () =>
+                                context.goNamed(AppRoutes.address.routeName),
                           ),
                           _ProfileMenuItem(
                             icon: Iconsax.user_edit,
                             iconColor: Colors.orange[400]!,
                             title: 'Modifier le profil',
-                            subtitle: 'Nom, téléphone, photo',
+                            subtitle: 'Nom, téléphone',
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -176,7 +191,9 @@ class UserPage extends ConsumerWidget {
                             iconColor: Colors.purple[400]!,
                             title: 'Mot de passe',
                             subtitle: 'Changer votre mot de passe',
-                            onTap: () => context.goNamed(AppRoutes.changePassword.routeName),
+                            onTap: () => context.goNamed(
+                              AppRoutes.changePassword.routeName,
+                            ),
                             showBottomBorder: false,
                           ),
                         ],
@@ -203,7 +220,14 @@ class UserPage extends ConsumerWidget {
                         iconColor: Colors.teal[400]!,
                         title: 'À propos de Lilia Food',
                         subtitle: 'Version, conditions d\'utilisation',
-                        onTap: () {},
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const AboutPage(),
+                            ),
+                          );
+                        },
                         showTopBorder: false,
                         showBottomBorder: false,
                       ),
@@ -230,7 +254,9 @@ class UserPage extends ConsumerWidget {
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
-                          foregroundColor: Colors.red,
+                          foregroundColor: Theme.of(
+                            context,
+                          ).colorScheme.primary,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
@@ -240,14 +266,19 @@ class UserPage extends ConsumerWidget {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Iconsax.logout, color: Colors.red[400]),
+                            Icon(
+                              Iconsax.logout,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                             const SizedBox(width: 10),
                             Text(
                               'Se déconnecter',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.red[400],
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.primary.withValues(alpha: 0.4),
                               ),
                             ),
                           ],
@@ -276,10 +307,15 @@ class UserPage extends ConsumerWidget {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Row(
             children: [
-              Icon(Iconsax.logout, color: Colors.red[400]),
+              Icon(
+                Iconsax.logout,
+                color: Theme.of(context).colorScheme.primary,
+              ),
               const SizedBox(width: 8),
               const Text('Se déconnecter ?'),
             ],
@@ -294,7 +330,7 @@ class UserPage extends ConsumerWidget {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
+                backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
               ),
               child: const Text('Déconnecter'),
@@ -366,10 +402,7 @@ class _ProfileMenuItem extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[500],
-                    ),
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                   ),
                 ],
               ),

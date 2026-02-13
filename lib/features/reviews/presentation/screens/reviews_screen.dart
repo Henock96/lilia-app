@@ -25,9 +25,7 @@ class ReviewsScreen extends ConsumerWidget {
     final canReviewAsync = ref.watch(canReviewProvider(restaurantId));
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Avis - $restaurantName'),
-      ),
+      appBar: AppBar(title: Text('Avis - $restaurantName')),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(restaurantReviewsProvider(restaurantId));
@@ -44,7 +42,7 @@ class ReviewsScreen extends ConsumerWidget {
                   padding: EdgeInsets.all(16),
                   child: Center(child: CircularProgressIndicator()),
                 ),
-                error: (_, __) => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
               ),
             ),
 
@@ -95,7 +93,8 @@ class ReviewsScreen extends ConsumerWidget {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                canReview.reason ?? 'Vous ne pouvez pas laisser d\'avis',
+                                canReview.reason ??
+                                    'Vous ne pouvez pas laisser d\'avis',
                                 style: TextStyle(color: Colors.grey[700]),
                               ),
                             ),
@@ -106,7 +105,7 @@ class ReviewsScreen extends ConsumerWidget {
                   }
                 },
                 loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
               ),
             ),
 
@@ -116,10 +115,7 @@ class ReviewsScreen extends ConsumerWidget {
                 padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
                 child: Text(
                   'Tous les avis',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -133,14 +129,15 @@ class ReviewsScreen extends ConsumerWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.rate_review_outlined, size: 64, color: Colors.grey),
+                          Icon(
+                            Icons.rate_review_outlined,
+                            size: 64,
+                            color: Colors.grey,
+                          ),
                           SizedBox(height: 16),
                           Text(
                             'Aucun avis pour le moment',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Colors.grey,
-                            ),
+                            style: TextStyle(fontSize: 16, color: Colors.grey),
                           ),
                           SizedBox(height: 8),
                           Text(
@@ -154,23 +151,20 @@ class ReviewsScreen extends ConsumerWidget {
                 }
 
                 return SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final review = reviews[index];
-                      return ReviewCard(
-                        review: review,
-                        // TODO: Vérifier si c'est l'avis de l'utilisateur connecté
-                        isOwner: false,
-                        onEdit: () => _navigateToWriteReview(
-                          context,
-                          ref,
-                          existingReviewId: review.id,
-                        ),
-                        onDelete: () => _deleteReview(context, ref, review.id),
-                      );
-                    },
-                    childCount: reviews.length,
-                  ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final review = reviews[index];
+                    return ReviewCard(
+                      review: review,
+                      // TODO: Vérifier si c'est l'avis de l'utilisateur connecté
+                      isOwner: false,
+                      onEdit: () => _navigateToWriteReview(
+                        context,
+                        ref,
+                        existingReviewId: review.id,
+                      ),
+                      onDelete: () => _deleteReview(context, ref, review.id),
+                    );
+                  }, childCount: reviews.length),
                 );
               },
               loading: () => const SliverFillRemaining(
@@ -181,7 +175,11 @@ class ReviewsScreen extends ConsumerWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                      const Icon(
+                        Icons.error_outline,
+                        size: 48,
+                        color: Colors.red,
+                      ),
                       const SizedBox(height: 16),
                       Text('Erreur: $error'),
                       const SizedBox(height: 16),
@@ -251,9 +249,9 @@ class ReviewsScreen extends ConsumerWidget {
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Erreur: $e')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
                 }
               }
             },
@@ -304,10 +302,7 @@ class _StatsSection extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '${stats.totalReviews} avis',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                 ),
               ],
             ),
