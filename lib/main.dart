@@ -5,9 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:lilia_app/common_widgets/connectivity_banner.dart';
 import 'package:lilia_app/routing/app_router.dart';
+import 'package:lilia_app/services/analytics_service.dart';
 import 'package:lilia_app/services/notification_service.dart';
 import 'package:lilia_app/theme/app_theme.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
 
 import 'features/auth/user_sync_provider.dart';
 import 'firebase_options.dart';
@@ -21,21 +21,16 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await initializeDateFormatting('fr_FR', null);
+  // Propriétés utilisateur par défaut
+  AnalyticsService.setUserProperties();
   runApp(const ProviderScope(child: MyApp()));
 }
 
 class MyApp extends ConsumerWidget {
   const MyApp({super.key});
-  // Créer l'instance Analytics
-  static FirebaseAnalytics analytics = FirebaseAnalytics.instance;
-  static FirebaseAnalyticsObserver observer = FirebaseAnalyticsObserver(
-    analytics: analytics,
-  );
-  // This widget is the root of your application.
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // En "regardant" (watching) les providers, même si vous n'utilisez pas directement leur valeur,
-    // cela garantit que leur logique d'initialisation est exécutée.
     final GoRouter router = ref.watch(routerProvider);
     final appTheme = AppTheme.theme;
     ref.watch(

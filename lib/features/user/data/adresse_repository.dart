@@ -16,12 +16,10 @@ class AdresseRepository extends _$AdresseRepository {
     return;
   }
 
-  //final String _baseUrl = 'https://lilia-backend.onrender.com';
-
   Future<List<Adresse>> getUserAdresses() async {
     final token = await ref.read(firebaseIdTokenProvider.future);
     if (token == null) {
-      throw Exception('User not authenticated. No Firebase ID token available.');
+      throw Exception('Veuillez vous reconnecter.');
     }
 
     final headers = {
@@ -39,10 +37,10 @@ class AdresseRepository extends _$AdresseRepository {
         List<dynamic> addressesJson = json.decode(response.body);
         return addressesJson.map((json) => Adresse.fromJson(json)).toList();
       } else {
-        throw Exception('Failed to load user addresses: ${response.statusCode} - ${response.body}');
+        throw Exception('Impossible de charger vos adresses.');
       }
-    } catch (e) {
-      throw Exception('Failed to connect to the server or fetch addresses: $e');
+    } on http.ClientException {
+      throw Exception('Problème de connexion. Vérifiez votre internet.');
     }
   }
 
@@ -62,7 +60,7 @@ class AdresseRepository extends _$AdresseRepository {
     }
     final token = await ref.read(firebaseIdTokenProvider.future);
     if (token == null) {
-      throw Exception('User not authenticated. No Firebase ID token available.');
+      throw Exception('Veuillez vous reconnecter.');
     }
 
     final headers = {
@@ -81,17 +79,17 @@ class AdresseRepository extends _$AdresseRepository {
         var addressesJson = json.decode(response.body);
         return Adresse.fromJson(addressesJson);
       } else {
-        throw Exception('Failed to load user addresses: ${response.statusCode} - ${response.body}');
+        throw Exception('Impossible de sauvegarder l\'adresse.');
       }
-    } catch (e) {
-      throw Exception('Failed to connect to the server or fetch addresses: $e');
+    } on http.ClientException {
+      throw Exception('Problème de connexion. Vérifiez votre internet.');
     }
   }
 
   Future<void> deleteAdresse(String adresseId) async {
     final token = await ref.read(firebaseIdTokenProvider.future);
     if (token == null) {
-      throw Exception('User not authenticated. No Firebase ID token available.');
+      throw Exception('Veuillez vous reconnecter.');
     }
 
     final headers = {
@@ -106,10 +104,10 @@ class AdresseRepository extends _$AdresseRepository {
       );
 
       if (response.statusCode != 200 && response.statusCode != 204) {
-        throw Exception('Failed to delete address: ${response.statusCode} - ${response.body}');
+        throw Exception('Impossible de supprimer l\'adresse.');
       }
-    } catch (e) {
-      throw Exception('Failed to connect to the server or delete address: $e');
+    } on http.ClientException {
+      throw Exception('Problème de connexion. Vérifiez votre internet.');
     }
   }
 }

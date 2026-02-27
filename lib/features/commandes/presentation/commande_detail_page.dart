@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/models/order.dart';
 
 import '../../../models/order_item.dart';
+import '../../cart/application/cart_controller.dart';
 import '../data/order_controller.dart';
 
 class OrderDetailPage extends ConsumerWidget {
@@ -84,6 +86,11 @@ class OrderDetailPage extends ConsumerWidget {
                 // Bouton Annuler pour les commandes en attente
                 if (order.status == OrderStatus.enAttente)
                   _buildCancelButton(context, ref, order.id),
+
+                // Bouton Commander à nouveau pour les commandes livrées ou annulées
+                if (order.status == OrderStatus.livrer ||
+                    order.status == OrderStatus.annuler)
+                  _buildReorderButton(context, ref, order.id),
 
                 const SizedBox(height: 16),
               ],
@@ -658,6 +665,154 @@ class OrderDetailPage extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildReorderButton(
+    BuildContext context,
+    WidgetRef ref,
+    String orderId,
+  ) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ElevatedButton(
+        onPressed: () => _handleReorder(context, ref, orderId),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 0,
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Iconsax.refresh, color: Colors.white),
+            SizedBox(width: 10),
+            Text(
+              'Commander à nouveau',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _handleReorder(
+    BuildContext context,
+    WidgetRef ref,
+    String orderId,
+  ) async {
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+
+    try {
+      final result = await ref
+          .read(cartControllerProvider.notifier)
+          .reorder(orderId: orderId);
+
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+
+      final totalAdded = result['totalAdded'] ?? 0;
+      final totalUnavailable = result['totalUnavailable'] ?? 0;
+
+      if (totalAdded > 0) {
+        String message = '$totalAdded article${totalAdded > 1 ? 's' : ''} ajouté${totalAdded > 1 ? 's' : ''} au panier';
+        if (totalUnavailable > 0) {
+          message += '\n$totalUnavailable article${totalUnavailable > 1 ? 's' : ''} indisponible${totalUnavailable > 1 ? 's' : ''}';
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(child: Text(message)),
+              ],
+            ),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            action: SnackBarAction(
+              label: 'Voir le panier',
+              textColor: Colors.white,
+              onPressed: () {
+                context.go('/cart');
+              },
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: Colors.white),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('Aucun article disponible pour cette commande'),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // Close loading dialog
+
+      String errorMessage = 'Erreur lors de la recommande';
+      if (e.toString().contains('autre restaurant')) {
+        errorMessage = 'Votre panier contient des articles d\'un autre restaurant. Videz-le d\'abord.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white),
+              const SizedBox(width: 8),
+              Expanded(child: Text(errorMessage)),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildPlaceholderImage() {

@@ -10,6 +10,7 @@ import 'package:lilia_app/features/notifications/presentation/notifications_hist
 import 'package:lilia_app/features/reviews/presentation/widgets/star_rating.dart';
 import 'package:lilia_app/models/banner.dart';
 import 'package:lilia_app/models/restaurant.dart';
+import 'package:lilia_app/services/analytics_service.dart';
 
 import '../../../routing/app_route_enum.dart';
 import '../data/remote/banner_controller.dart';
@@ -69,7 +70,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           const SizedBox(width: 8),
         ],
       ),
-      body: RefreshIndicator(
+      body: SafeArea(
+        child: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(restaurantsListProvider);
           ref.invalidate(bannersListProvider);
@@ -116,6 +118,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ],
           ),
         ),
+      ),
       ),
     );
   }
@@ -171,8 +174,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         }
         return _buildFallbackSlider();
       },
-      loading: () => _buildFallbackSlider(),
+      loading: () => _buildBannerShimmer(),
       error: (_, _) => _buildFallbackSlider(),
+    );
+  }
+
+  Widget _buildBannerShimmer() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _ShimmerBannerPlaceholder(),
+        ),
+        const SizedBox(height: 12),
+        // Indicateurs de dots shimmer
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(3, (index) {
+            return Container(
+              width: index == 0 ? 20 : 6,
+              height: 6,
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(3),
+                color: Colors.grey[300],
+              ),
+            );
+          }),
+        ),
+      ],
     );
   }
 
@@ -442,6 +472,11 @@ class _RestaurantCard extends ConsumerWidget {
                           ref
                               .read(restaurantFavoritesProvider.notifier)
                               .toggleFavorite(restaurant);
+                          AnalyticsService.logFavoriteToggle(
+                            restaurantId: restaurant.id,
+                            restaurantName: restaurant.name,
+                            isFavorite: !isFavorite,
+                          );
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
@@ -637,6 +672,93 @@ class _RestaurantCard extends ConsumerWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Widget shimmer animé pour le placeholder de bannière
+class _ShimmerBannerPlaceholder extends StatefulWidget {
+  @override
+  State<_ShimmerBannerPlaceholder> createState() => _ShimmerBannerPlaceholderState();
+}
+
+class _ShimmerBannerPlaceholderState extends State<_ShimmerBannerPlaceholder>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat();
+    _animation = Tween<double>(begin: -1.0, end: 2.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Container(
+          height: MediaQuery.of(context).size.width / 2.2 * 0.92,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              begin: Alignment(_animation.value - 1, 0),
+              end: Alignment(_animation.value, 0),
+              colors: [
+                Colors.grey[200]!,
+                Colors.grey[100]!,
+                Colors.grey[200]!,
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ),
+          ),
+          child: Stack(
+            children: [
+              // Simulated title placeholder
+              Positioned(
+                bottom: 16,
+                left: 16,
+                right: 80,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      height: 14,
+                      width: 160,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300]!.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      height: 10,
+                      width: 100,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[300]!.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

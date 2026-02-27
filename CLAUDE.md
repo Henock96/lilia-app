@@ -132,12 +132,25 @@ After modifying files with `@riverpod` annotations or adding new routes:
 - Handles foreground, background, and terminated app states
 - Order updates via notifications trigger `latestUpdatedOrderIdProvider` and refresh orders
 
+### Stock Management (Client-Side)
+Products and menus support stock tracking. Key fields and behavior:
+- `Product` model (`lib/models/produit.dart`): `int? stockRestant` + `bool get isAvailable`
+- `stockRestant == null` means unlimited stock; `stockRestant == 0` means out of stock
+- `restaurant_detail_screen.dart`: Unavailable products are displayed with:
+  - 50% opacity (`Opacity` widget)
+  - Red "Epuise" badge on the product image
+  - Add-to-cart button replaced by a red "Epuise" text badge
+  - Price text greyed out
+- Backend rejects orders containing out-of-stock products with `BadRequestException`
+- Stock is reset daily by a backend cron job (5h UTC+1)
+
 ### Common Gotchas
 - Firebase must be initialized before creating ProviderScope in main.dart
 - Google Sign In requires initialization: `await GoogleSignIn.instance.initialize()`
 - Cart repository uses broadcast stream controller - must check `_isClosed` before adding events
 - When user signs out, invalidate all user-specific providers to clear cached data
 - Product navigation passes objects via `extra` - handle null case for direct URL access
+- Out-of-stock products (`stockRestant == 0`) must not be added to cart - check `product.isAvailable` before allowing add-to-cart actions
 
 ### Theme and Styling
 - Custom theme defined in `lib/theme/app_theme.dart`
@@ -155,9 +168,63 @@ After modifying files with `@riverpod` annotations or adding new routes:
 - `riverpod_annotation` + `riverpod_generator`: Code generation for providers
 - `go_router`: Declarative routing with deep linking
 - `firebase_auth`, `firebase_core`, `firebase_messaging`: Firebase integration
+- `firebase_analytics`: Event tracking et suivi utilisateur
 - `http`: HTTP client for backend API calls
 - `flutter_local_notifications`: Local notification display
 - `google_sign_in`: Google authentication
 - `shared_preferences`: Local key-value storage
 - `cloudinary_public`: Image upload service
 - `build_runner`: Code generation tool
+
+---
+
+## Modifications - Février 2026
+
+### 1. Messages d'erreur backend propres
+**Fichiers modifiés:**
+- `lib/features/commandes/data/order_repository.dart` - Ajout de `_extractErrorMessage()` pour parser les réponses JSON du backend NestJS et extraire le champ `message`. Les erreurs affichées sont maintenant en français clair au lieu de JSON brut.
+- `lib/features/commandes/presentation/checkout_page.dart` - Remplacement du SnackBar rouge par `_showOrderError()` qui affiche un AlertDialog avec icône contextuelle selon le type d'erreur (restaurant fermé, stock épuisé, montant minimum, session expirée, etc.)
+- `lib/common_widgets/build_error_state.dart` - Amélioration de `_formatError()` pour extraire les messages JSON et nettoyer les préfixes techniques
+- `lib/features/user/data/adresse_repository.dart` - Messages d'erreur en français clair
+
+**Messages d'erreur backend reconnus:**
+| Erreur backend | Icône | Titre affiché |
+|---|---|---|
+| "fermé" | store | Restaurant fermé |
+| "rupture/stock" | remove_shopping_cart | Produit indisponible |
+| "minimum/montant" | monetization_on | Montant insuffisant |
+| "panier vide" | shopping_cart | Panier vide |
+| "adresse" | location_off | Problème d'adresse |
+| "reconnecter" | lock | Session expirée |
+
+### 2. Firebase Analytics intégré
+**Fichier créé:**
+- `lib/services/analytics_service.dart` - Service centralisé pour tous les événements analytics
+
+**Fichiers modifiés:**
+- `lib/main.dart` - Initialisation des propriétés utilisateur (country: CG, currency: XAF)
+- `lib/routing/app_router.dart` - Ajout de `AnalyticsService.observer` au GoRouter pour le tracking automatique des écrans
+- `lib/features/auth/controller/auth_controller.dart` - logLogin/logSignUp (email, google)
+- `lib/features/commandes/presentation/checkout_page.dart` - logBeginCheckout, logOrderCreated, logOrderFailed
+- `lib/features/commandes/data/order_controller.dart` - logOrderCancelled
+- `lib/features/home/presentation/home.dart` - logFavoriteToggle
+- `lib/features/home/presentation/restaurant_detail_screen.dart` - logRestaurantViewed, logAddToCart
+- `lib/features/home/presentation/product_detail_page.dart` - logProductViewed, logAddToCart
+
+**Événements trackés:**
+| Événement | Paramètres |
+|---|---|
+| `order_created` + `purchase` | order_id, total, payment_method, is_delivery, restaurant_id, item_count |
+| `order_failed` | error_message, payment_method, is_delivery |
+| `order_cancelled` | order_id |
+| `begin_checkout` | total, is_delivery |
+| `restaurant_viewed` | restaurant_id, restaurant_name |
+| `add_to_cart` (standard GA) | product_id, product_name, price, quantity, restaurant_id |
+| `view_item` (standard GA) | product_id, product_name, price |
+| `login` / `sign_up` | method (email/google) |
+| `add_favorite` / `remove_favorite` | restaurant_id, restaurant_name |
+| Tracking automatique des écrans via GoRouter observer |
+
+### 3. Shimmer loading pour les bannières
+**Fichier modifié:**
+- `lib/features/home/presentation/home.dart` - Remplacement des images par défaut pendant le chargement par un effet shimmer animé (`_ShimmerBannerPlaceholder`) avec gradient animé et placeholders de texte

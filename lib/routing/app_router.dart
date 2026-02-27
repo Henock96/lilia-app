@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
+import 'package:lilia_app/services/analytics_service.dart';
 import 'package:lilia_app/features/cart/presentation/cart_screen.dart';
 import 'package:lilia_app/features/commandes/presentation/checkout_page.dart';
 import 'package:lilia_app/features/commandes/presentation/delivery_options_page.dart';
@@ -47,6 +48,7 @@ GoRouter router(Ref ref) {
   return GoRouter(
     navigatorKey: _key,
     initialLocation: AppRoutes.home.path,
+    observers: [AnalyticsService.observer],
     // Le refreshListenable doit écouter le même flux pour déclencher la redirection.
     refreshListenable: GoRouterRefreshStream(
       ref.watch(authRepositoryProvider).authStateChanges(),

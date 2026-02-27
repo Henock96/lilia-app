@@ -1,3 +1,4 @@
+import 'package:lilia_app/services/analytics_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_app/models/order.dart';
 import 'order_repository.dart';
@@ -48,10 +49,8 @@ class UserOrders extends _$UserOrders {
     final orderRepository = ref.read(orderRepositoryProvider.notifier);
     try {
       await orderRepository.cancelOrder(orderId);
-      // La mise à jour de l'état se fera via l'événement SSE.
-      // Pour une réactivité perçue plus rapide, on pourrait aussi mettre à jour l'état local ici.
+      AnalyticsService.logOrderCancelled(orderId: orderId);
     } catch (e) {
-      // Propager l'erreur pour que l'UI puisse l'afficher.
       rethrow;
     }
   }

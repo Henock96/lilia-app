@@ -7,6 +7,7 @@ import 'package:lilia_app/features/commandes/data/order_repository.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
+import 'package:lilia_app/services/analytics_service.dart';
 import 'package:lilia_app/services/notification_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
@@ -47,7 +48,7 @@ class AuthController extends _$AuthController {
       await ref
           .read(authRepositoryProvider)
           .signInWithEmailAndPassword(email: email, password: password);
-      // L'état sera mis à jour par le stream authStateChanges, qui déclenchera _setupNotifications
+      AnalyticsService.logLogin(method: 'email');
     } on FirebaseAuthException catch (e, st) {
       final error = FirebaseAuthErrorHandler.handleException(e);
       final errorMessage = FirebaseAuthErrorHandler.getErrorMessage(error);
@@ -80,7 +81,7 @@ class AuthController extends _$AuthController {
             name: name,
             phone: phone,
           );
-      // L'état sera mis à jour par le stream authStateChanges, qui déclenchera _setupNotifications
+      AnalyticsService.logSignUp(method: 'email');
     } on FirebaseAuthException catch (e, st) {
       final error = FirebaseAuthErrorHandler.handleException(e);
       final errorMessage = FirebaseAuthErrorHandler.getErrorMessage(error);
@@ -108,9 +109,9 @@ class AuthController extends _$AuthController {
         state = const AsyncValue.data(null);
       } else {
         // Connexion réussie
+        AnalyticsService.logLogin(method: 'google');
         state = AsyncValue.data(googleUser);
       }
-      // L'état sera mis à jour par le stream authStateChanges, qui déclenchera _setupNotifications
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }

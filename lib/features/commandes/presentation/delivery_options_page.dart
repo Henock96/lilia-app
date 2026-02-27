@@ -80,71 +80,73 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
             return sum + (item.variant.prix * item.quantite);
           });
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // === SECTION MODE DE LIVRAISON ===
-                _buildSectionTitle(
-                  'Comment souhaitez-vous recevoir votre commande ?',
-                ),
-                const SizedBox(height: 12),
-                _buildDeliveryModeSection(),
-                const SizedBox(height: 24),
-
-                // === SECTION QUARTIER (seulement si livraison) ===
-                if (_isDelivery) ...[
-                  _buildSectionTitle('Sélectionnez votre quartier'),
-                  const SizedBox(height: 12),
-                  quartiersAsync.when(
-                    data: (quartiers) => _buildQuartierSection(quartiers),
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (err, stack) => Text('Erreur: $err'),
+          return SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // === SECTION MODE DE LIVRAISON ===
+                  _buildSectionTitle(
+                    'Comment souhaitez-vous recevoir votre commande ?',
                   ),
+                  const SizedBox(height: 12),
+                  _buildDeliveryModeSection(),
                   const SizedBox(height: 24),
 
-                  // === SECTION ADRESSE ===
-                  _buildSectionTitle('Adresse de livraison'),
-                  const SizedBox(height: 12),
-                  addressesAsync.when(
-                    data: (addresses) => _buildAddressSection(addresses),
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (err, stack) => Text('Erreur: $err'),
+                  // === SECTION QUARTIER (seulement si livraison) ===
+                  if (_isDelivery) ...[
+                    _buildSectionTitle('Sélectionnez votre quartier'),
+                    const SizedBox(height: 12),
+                    quartiersAsync.when(
+                      data: (quartiers) => _buildQuartierSection(quartiers),
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (err, stack) => Text('Erreur: $err'),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // === SECTION ADRESSE ===
+                    _buildSectionTitle('Adresse de livraison'),
+                    const SizedBox(height: 12),
+                    addressesAsync.when(
+                      data: (addresses) => _buildAddressSection(addresses),
+                      loading: () =>
+                          const Center(child: CircularProgressIndicator()),
+                      error: (err, stack) => Text('Erreur: $err'),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+
+                  // === SECTION RÉSUMÉ DES FRAIS ===
+                  _buildDeliveryFeeSummary(subTotal),
+                  const SizedBox(height: 32),
+
+                  // === BOUTON CONTINUER ===
+                  SizedBox(
+                    width: double.infinity,
+                    height: 54,
+                    child: ElevatedButton(
+                      onPressed: _canContinue() ? _continueToCheckout : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).primaryColor,
+                        disabledBackgroundColor: Colors.grey[300],
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Continuer',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 24),
                 ],
-
-                // === SECTION RÉSUMÉ DES FRAIS ===
-                _buildDeliveryFeeSummary(subTotal),
-                const SizedBox(height: 32),
-
-                // === BOUTON CONTINUER ===
-                SizedBox(
-                  width: double.infinity,
-                  height: 54,
-                  child: ElevatedButton(
-                    onPressed: _canContinue() ? _continueToCheckout : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      disabledBackgroundColor: Colors.grey[300],
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: const Text(
-                      'Continuer',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           );
         },

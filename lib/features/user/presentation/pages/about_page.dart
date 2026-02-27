@@ -4,7 +4,7 @@ import 'package:iconsax/iconsax.dart';
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
 
-  static const String _appVersion = '1.0.13';
+  static const String _appVersion = '1.1.1';
   static const String _appName = 'Lilia Food';
 
   @override

@@ -27,7 +27,7 @@ class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: widget.navigationShell,
+      body: SafeArea(child: widget.navigationShell),
       bottomNavigationBar: NavigationBar(
         height: 65,
         elevation: 0,

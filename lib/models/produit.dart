@@ -5,12 +5,13 @@ class Product {
   final String id;
   final String name;
   final String description;
-  final double prixOriginal; // Correspond à 'prixOriginal' de votre JSON
-  final String? imageUrl; // Peut être null si pas d'image
+  final double prixOriginal;
+  final String? imageUrl;
   final String restaurantId;
   final String categoryId;
-  final Category? category; // La catégorie est maintenant imbriquée
+  final Category? category;
   final List<ProductVariant> variants;
+  final int? stockRestant;
 
   Product({
     required this.id,
@@ -22,7 +23,10 @@ class Product {
     required this.categoryId,
     this.category,
     required this.variants,
+    this.stockRestant,
   });
+
+  bool get isAvailable => stockRestant == null || stockRestant! > 0;
 
   factory Product.fromJson(Map<String, dynamic> json) {
     var variantsList = json['variants'] as List;
@@ -31,7 +35,7 @@ class Product {
 
     return Product(
       id: json['id'],
-      name: json['nom'], // Correspond à 'nom' de votre JSON
+      name: json['nom'],
       description: json['description'] ?? '',
       prixOriginal: (json['prixOriginal'] as num).toDouble(),
       imageUrl: json['imageUrl'],
@@ -39,6 +43,7 @@ class Product {
       categoryId: json['categoryId'],
       category: json['category'] != null ? Category.fromJson(json['category']) : null,
       variants: variants,
+      stockRestant: json['stockRestant'] as int?,
     );
   }
 }

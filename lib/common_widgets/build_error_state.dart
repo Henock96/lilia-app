@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -56,12 +58,28 @@ class BuildErrorState extends ConsumerWidget {
 
   String _formatError(Object error) {
     String errorStr = error.toString();
-    // Limiter la longueur et rendre plus lisible
+    // Nettoyer les préfixes techniques
     if (errorStr.startsWith('Exception: ')) {
       errorStr = errorStr.substring(11);
     }
-    if (errorStr.length > 100) {
-      errorStr = '${errorStr.substring(0, 100)}...';
+    // Tenter d'extraire le message JSON du backend
+    if (errorStr.contains('"message"')) {
+      try {
+        final parsed = Map<String, dynamic>.from(
+          const JsonDecoder().convert(errorStr) as Map,
+        );
+        if (parsed['message'] != null) {
+          errorStr = parsed['message'].toString();
+        }
+      } catch (_) {}
+    }
+    // Nettoyer les messages techniques restants
+    errorStr = errorStr
+        .replaceAll(RegExp(r'Failed to \w+ \w+:\s*'), '')
+        .replaceAll(RegExp(r'\{"statusCode":\d+,"message":"'), '')
+        .replaceAll(RegExp(r'"\}$'), '');
+    if (errorStr.length > 150) {
+      errorStr = '${errorStr.substring(0, 150)}...';
     }
     return errorStr;
   }

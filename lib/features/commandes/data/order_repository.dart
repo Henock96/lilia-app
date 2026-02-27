@@ -10,6 +10,24 @@ import '../../../models/order.dart';
 
 part 'order_repository.g.dart';
 
+/// Extraire le message d'erreur lisible depuis une réponse HTTP du backend
+String _extractErrorMessage(http.Response response, String fallback) {
+  try {
+    final body = json.decode(utf8.decode(response.bodyBytes));
+    if (body is Map<String, dynamic> && body['message'] != null) {
+      final message = body['message'];
+      // NestJS peut retourner un String ou une List de messages
+      if (message is List) {
+        return message.join('. ');
+      }
+      return message.toString();
+    }
+  } catch (_) {
+    // Si le body n'est pas du JSON valide, on continue avec le fallback
+  }
+  return fallback;
+}
+
 @Riverpod(keepAlive: true)
 class OrderRepository extends _$OrderRepository {
   @override
@@ -17,12 +35,10 @@ class OrderRepository extends _$OrderRepository {
     return;
   }
 
-
-
   Future<List<Order>> getMyOrders() async {
     final token = await ref.read(firebaseIdTokenProvider.future);
     if (token == null) {
-      throw Exception('User not authenticated.');
+      throw Exception('Veuillez vous reconnecter.');
     }
     final headers = {'Authorization': 'Bearer $token'};
     final response = await http.get(
@@ -33,7 +49,10 @@ class OrderRepository extends _$OrderRepository {
       List<dynamic> ordersJson = json.decode(utf8.decode(response.bodyBytes))["data"];
       return ordersJson.map((json) => Order.fromJson(json)).toList();
     } else {
-      throw Exception('Failed to load orders: ${response.body}');
+      throw Exception(_extractErrorMessage(
+        response,
+        'Impossible de charger vos commandes. Veuillez réessayer.',
+      ));
     }
   }
 
@@ -45,7 +64,7 @@ class OrderRepository extends _$OrderRepository {
   }) async {
     final token = await ref.read(firebaseIdTokenProvider.future);
     if (token == null) {
-      throw Exception('User not authenticated.');
+      throw Exception('Veuillez vous reconnecter.');
     }
     final headers = {
       'Content-Type': 'application/json',
@@ -77,14 +96,17 @@ class OrderRepository extends _$OrderRepository {
     if (response.statusCode == 201) {
       return checkoutFromMap(response.body);
     } else {
-      throw Exception('Failed to create order: ${response.body}');
+      throw Exception(_extractErrorMessage(
+        response,
+        'Impossible de passer la commande. Veuillez réessayer.',
+      ));
     }
   }
 
   Future<void> deleteOrder(String orderId) async {
     final token = await ref.read(firebaseIdTokenProvider.future);
     if (token == null) {
-      throw Exception('User not authenticated.');
+      throw Exception('Veuillez vous reconnecter.');
     }
     final headers = {'Authorization': 'Bearer $token'};
     final response = await http.delete(
@@ -92,14 +114,17 @@ class OrderRepository extends _$OrderRepository {
       headers: headers,
     );
     if (response.statusCode != 200) {
-      throw Exception('Failed to delete order: ${response.body}');
+      throw Exception(_extractErrorMessage(
+        response,
+        'Impossible de supprimer la commande.',
+      ));
     }
   }
 
   Future<void> cancelOrder(String orderId) async {
     final token = await ref.read(firebaseIdTokenProvider.future);
     if (token == null) {
-      throw Exception('User not authenticated.');
+      throw Exception('Veuillez vous reconnecter.');
     }
     final headers = {'Authorization': 'Bearer $token'};
     final response = await http.patch(
@@ -107,7 +132,10 @@ class OrderRepository extends _$OrderRepository {
       headers: headers,
     );
     if (response.statusCode != 200) {
-      throw Exception('Failed to cancel order: ${response.body}');
+      throw Exception(_extractErrorMessage(
+        response,
+        'Impossible d\'annuler la commande.',
+      ));
     }
   }
 }

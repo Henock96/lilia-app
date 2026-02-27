@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
+import 'package:lilia_app/services/analytics_service.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../models/produit.dart';
@@ -35,6 +36,13 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage>
     );
     _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
+    // Analytics: produit consulté
+    AnalyticsService.logProductViewed(
+      productId: widget.product.id,
+      productName: widget.product.name,
+      price: widget.product.prixOriginal,
     );
   }
 
@@ -101,6 +109,14 @@ Téléchargez l'app Lilia Food pour commander !
       await ref
           .read(cartControllerProvider.notifier)
           .addItem(variantId: variantId, quantity: _quantity);
+      // Analytics: ajout au panier
+      AnalyticsService.logAddToCart(
+        productId: widget.product.id,
+        productName: widget.product.name,
+        price: _unitPrice,
+        quantity: _quantity,
+        restaurantId: widget.product.restaurantId,
+      );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

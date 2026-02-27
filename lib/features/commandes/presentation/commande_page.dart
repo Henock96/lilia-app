@@ -101,29 +101,31 @@ class _CommandePageState extends ConsumerState<CommandePage>
               .where((o) => o.status == OrderStatus.annuler)
               .toList();
 
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _OrderListView(
-                orders: onGoingOrders,
-                emptyMessage: 'Aucune commande en cours',
-                emptyIcon: Icons.shopping_bag_outlined,
-                key: const PageStorageKey('onGoingOrders'),
-              ),
-              _OrderListView(
-                orders: completedOrders,
-                emptyMessage: 'Aucune commande terminée',
-                emptyIcon: Icons.check_circle_outline,
-                key: const PageStorageKey('completedOrders'),
-              ),
-              _OrderListView(
-                orders: cancelledOrders,
-                emptyMessage: 'Aucune commande annulée',
-                emptyIcon: Icons.cancel_outlined,
-                isDismissible: true,
-                key: const PageStorageKey('cancelledOrders'),
-              ),
-            ],
+          return SafeArea(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _OrderListView(
+                  orders: onGoingOrders,
+                  emptyMessage: 'Aucune commande en cours',
+                  emptyIcon: Icons.shopping_bag_outlined,
+                  key: const PageStorageKey('onGoingOrders'),
+                ),
+                _OrderListView(
+                  orders: completedOrders,
+                  emptyMessage: 'Aucune commande terminée',
+                  emptyIcon: Icons.check_circle_outline,
+                  key: const PageStorageKey('completedOrders'),
+                ),
+                _OrderListView(
+                  orders: cancelledOrders,
+                  emptyMessage: 'Aucune commande annulée',
+                  emptyIcon: Icons.cancel_outlined,
+                  isDismissible: true,
+                  key: const PageStorageKey('cancelledOrders'),
+                ),
+              ],
+            ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),

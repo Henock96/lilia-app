@@ -11,6 +11,7 @@ import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
+import 'package:lilia_app/services/analytics_service.dart';
 
 import '../../../models/cart.dart';
 
@@ -27,6 +28,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _noteController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+
+  bool _analyticsLogged = false;
 
   @override
   void dispose() {
@@ -75,6 +78,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           final double deliveryFee = options.deliveryFee;
           final double total = subTotal + deliveryFee;
           final String restaurantId = cart.items.first.product.restaurantId;
+
+          // Analytics: début du checkout (une seule fois)
+          if (!_analyticsLogged) {
+            _analyticsLogged = true;
+            AnalyticsService.logBeginCheckout(
+              total: total,
+              isDelivery: options.isDelivery,
+            );
+          }
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -475,9 +487,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           finalAddressId = newAddress.id;
         } catch (e) {
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erreur: ${e.toString()}')),
-          );
+          _showOrderError(context, Exception('Impossible de sauvegarder l\'adresse de livraison. Veuillez réessayer.'));
           return;
         }
       } else if (options.address != null) {
@@ -626,7 +636,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             ElevatedButton(
               onPressed: () async {
                 try {
-                  await ref.read(checkoutControllerProvider.notifier).placeOrder(
+                  final checkout = await ref.read(checkoutControllerProvider.notifier).placeOrder(
                     adresseId: finalAddressId,
                     paymentMethod: 'MTN_MOMO',
                     isDelivery: options.isDelivery,
@@ -635,19 +645,31 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         : _noteController.text.trim(),
                   );
 
+                  // Analytics: commande réussie
+                  AnalyticsService.logOrderCreated(
+                    orderId: checkout.id,
+                    total: total,
+                    paymentMethod: 'MTN_MOMO',
+                    isDelivery: options.isDelivery,
+                    restaurantId: restaurantId,
+                    itemCount: checkout.items.length,
+                  );
+
                   if (!context.mounted) return;
                   Navigator.of(dialogContext).pop();
                   ref.read(cartControllerProvider.notifier).clearCart();
                   context.goNamed(AppRoutes.orderSuccess.routeName);
                 } catch (e) {
+                  // Analytics: commande échouée
+                  AnalyticsService.logOrderFailed(
+                    errorMessage: e.toString(),
+                    paymentMethod: 'MTN_MOMO',
+                    isDelivery: options.isDelivery,
+                  );
+
                   if (!context.mounted) return;
                   Navigator.of(dialogContext).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Erreur: ${e.toString()}'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                  _showOrderError(context, e);
                 }
               },
               style: ElevatedButton.styleFrom(
@@ -664,6 +686,71 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           ],
         );
       },
+    );
+  }
+
+  void _showOrderError(BuildContext context, Object error) {
+    // Nettoyer le message d'erreur
+    String message = error.toString();
+    if (message.startsWith('Exception: ')) {
+      message = message.substring(11);
+    }
+
+    // Déterminer l'icône et la couleur selon le type d'erreur
+    IconData icon = Icons.error_outline;
+    Color iconColor = Colors.red;
+    String title = 'Erreur de commande';
+
+    if (message.contains('fermé')) {
+      icon = Icons.store;
+      iconColor = Colors.orange;
+      title = 'Restaurant fermé';
+    } else if (message.contains('rupture') || message.contains('stock')) {
+      icon = Icons.remove_shopping_cart;
+      iconColor = Colors.orange;
+      title = 'Produit indisponible';
+    } else if (message.contains('minimum') || message.contains('montant')) {
+      icon = Icons.monetization_on;
+      iconColor = Colors.amber.shade700;
+      title = 'Montant insuffisant';
+    } else if (message.contains('panier') && message.contains('vide')) {
+      icon = Icons.shopping_cart_outlined;
+      iconColor = Colors.grey;
+      title = 'Panier vide';
+    } else if (message.contains('adresse')) {
+      icon = Icons.location_off;
+      iconColor = Colors.blue;
+      title = 'Problème d\'adresse';
+    } else if (message.contains('reconnecter') || message.contains('authentif')) {
+      icon = Icons.lock_outline;
+      iconColor = Colors.red;
+      title = 'Session expirée';
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(icon, color: iconColor, size: 28),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(title, style: const TextStyle(fontSize: 17)),
+            ),
+          ],
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Compris'),
+          ),
+        ],
+      ),
     );
   }
 }
