@@ -195,4 +195,89 @@ class AnalyticsService {
       },
     );
   }
+
+  // === ÉVÉNEMENTS HOME SCREEN ===
+
+  static Future<void> logSearchFromHome({
+    required String query,
+    int? resultCount,
+  }) async {
+    await _analytics.logSearch(searchTerm: query);
+    if (resultCount != null) {
+      await _analytics.logEvent(
+        name: 'search_results',
+        parameters: {
+          'query': query.length > 100 ? query.substring(0, 100) : query,
+          'result_count': resultCount,
+        },
+      );
+    }
+  }
+
+  static Future<void> logPopularDishTap({
+    required String productId,
+    required String productName,
+  }) async {
+    await _analytics.logEvent(
+      name: 'popular_dish_tap',
+      parameters: {
+        'product_id': productId,
+        'product_name': productName,
+      },
+    );
+  }
+
+  static Future<void> logCategoryTap({
+    required String categoryName,
+  }) async {
+    await _analytics.logEvent(
+      name: 'category_tap',
+      parameters: {
+        'category_name': categoryName,
+      },
+    );
+  }
+
+  static Future<void> logAddToCartFromHome({
+    required String productId,
+    required String productName,
+    required String source,
+    required double price,
+  }) async {
+    await _analytics.logEvent(
+      name: 'add_to_cart_from_home',
+      parameters: {
+        'product_id': productId,
+        'product_name': productName,
+        'source': source,
+        'price': price,
+      },
+    );
+  }
+
+  static Future<void> logPopularRestaurantTap({
+    required String restaurantId,
+    required String restaurantName,
+  }) async {
+    await _analytics.logEvent(
+      name: 'popular_restaurant_tap',
+      parameters: {
+        'restaurant_id': restaurantId,
+        'restaurant_name': restaurantName,
+      },
+    );
+  }
+
+  static Future<void> logRecommendationTap({
+    required String productId,
+    required String productName,
+  }) async {
+    await _analytics.logEvent(
+      name: 'recommendation_tap',
+      parameters: {
+        'product_id': productId,
+        'product_name': productName,
+      },
+    );
+  }
 }

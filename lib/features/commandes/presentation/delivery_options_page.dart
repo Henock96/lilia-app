@@ -509,7 +509,8 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
 
   Widget _buildDeliveryFeeSummary(double subTotal) {
     final deliveryFee = _isDelivery ? (_calculatedDeliveryFee ?? 0) : 0.0;
-    final total = subTotal + deliveryFee;
+    final serviceFee = (subTotal * 0.10).roundToDouble();
+    final total = subTotal + deliveryFee + serviceFee;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -564,6 +565,20 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
                   color: !_isDelivery ? Colors.green : null,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Frais de service', style: TextStyle(fontSize: 15)),
+              Text(
+                '${serviceFee.toStringAsFixed(0)} FCFA',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],

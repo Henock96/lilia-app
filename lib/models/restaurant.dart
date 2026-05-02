@@ -57,7 +57,7 @@ enum DayOfWeek {
   }
 }
 
-/// Modèle pour les horaires d'ouverture
+/// ModÃ¨le pour les horaires d'ouverture
 class OperatingHours {
   final String id;
   final String restaurantId;
@@ -87,7 +87,7 @@ class OperatingHours {
   }
 }
 
-/// Modèle pour les spécialités d'un restaurant
+/// ModÃ¨le pour les spÃ©cialitÃ©s d'un restaurant
 class Specialty {
   final String id;
   final String name;
@@ -102,7 +102,7 @@ class Specialty {
   }
 }
 
-/// Modèle simplifié pour la liste des restaurants (sans les produits)
+/// ModÃ¨le simplifiÃ© pour la liste des restaurants (sans les produits)
 class RestaurantSummary {
   final String id;
   final String name;
@@ -138,16 +138,16 @@ class RestaurantSummary {
     this.fixedDeliveryFee = 500,
   });
 
-  /// Retourne le temps de livraison formaté (ex: "15-30 min")
+  /// Retourne le temps de livraison formatÃ© (ex: "15-30 min")
   String get deliveryTimeFormatted =>
       '$estimatedDeliveryTimeMin-$estimatedDeliveryTimeMax min';
 
-  /// Retourne les spécialités formatées (ex: "Pizza, Burger, Sushi")
+  /// Retourne les spÃ©cialitÃ©s formatÃ©es (ex: "Pizza, Burger, Sushi")
   String get specialtiesFormatted =>
       specialties.map((s) => s.name).join(', ');
 
   factory RestaurantSummary.fromJson(Map<String, dynamic> json) {
-    // Parser les spécialités
+    // Parser les spÃ©cialitÃ©s
     List<Specialty> specialties = [];
     if (json['specialties'] != null) {
       specialties = (json['specialties'] as List)
@@ -193,6 +193,8 @@ class Restaurant {
   final int estimatedDeliveryTimeMax;
   final double minimumOrderAmount;
   final double fixedDeliveryFee;
+  final double? averageRating;
+  final int? totalReviews;
 
   Restaurant({
     required this.id,
@@ -209,17 +211,19 @@ class Restaurant {
     this.estimatedDeliveryTimeMax = 30,
     this.minimumOrderAmount = 0,
     this.fixedDeliveryFee = 500,
+    this.averageRating,
+    this.totalReviews,
   });
 
-  /// Retourne le temps de livraison formaté
+  /// Retourne le temps de livraison formatÃ©
   String get deliveryTimeFormatted =>
       '$estimatedDeliveryTimeMin-$estimatedDeliveryTimeMax min';
 
   factory Restaurant.fromJson(Map<String, dynamic> json) {
-    var productsList = json['products'] as List;
+    var productsList = (json['products'] as List?) ?? [];
     List<Product> products = productsList.map((i) => Product.fromJson(i)).toList();
 
-    // Construire une map de catégories à partir des produits
+    // Construire une map de catÃ©gories Ã  partir des produits
     Map<String, Category> categoriesMap = {};
     for (var product in products) {
       if (product.category != null && !categoriesMap.containsKey(product.category!.id)) {
@@ -227,7 +231,7 @@ class Restaurant {
       }
     }
 
-    // Parser les spécialités
+    // Parser les spÃ©cialitÃ©s
     List<Specialty> specialties = [];
     if (json['specialties'] != null) {
       specialties = (json['specialties'] as List)
@@ -258,6 +262,10 @@ class Restaurant {
       estimatedDeliveryTimeMax: json['estimatedDeliveryTimeMax'] ?? 30,
       minimumOrderAmount: (json['minimumOrderAmount'] as num?)?.toDouble() ?? 0,
       fixedDeliveryFee: (json['fixedDeliveryFee'] as num?)?.toDouble() ?? 500,
+      averageRating: json['averageRating'] != null
+          ? (json['averageRating'] as num).toDouble()
+          : null,
+      totalReviews: json['totalReviews'] as int?,
     );
   }
 }
@@ -274,7 +282,7 @@ class Category {
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
       id: json['id'],
-      name: json['nom'], // Correspond à 'nom' de votre JSON
+      name: json['nom'], // Correspond Ã  'nom' de votre JSON
     );
   }
 }

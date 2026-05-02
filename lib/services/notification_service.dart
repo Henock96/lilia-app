@@ -414,6 +414,47 @@ class NotificationService {
     }
   }
 
+  // Supprimer le token FCM du serveur (appeler au logout)
+  Future<void> removeTokenFromServer() async {
+    if (fcmToken == null) {
+      debugPrint('FCM Token is null, nothing to remove from server.');
+      return;
+    }
+
+    try {
+      final idToken = await _authRepository.getIdToken();
+      if (idToken == null) {
+        debugPrint('Firebase ID Token is null, cannot remove FCM token.');
+        return;
+      }
+
+      final url = Uri.parse(
+        '${AppConstants.baseUrl}/notifications/token',
+      );
+
+      final response = await _httpClient
+          .delete(
+            url,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $idToken',
+            },
+            body: jsonEncode({'token': fcmToken}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        debugPrint('FCM Token removed successfully from the server.');
+      } else {
+        debugPrint(
+          'Failed to remove FCM token. Status: ${response.statusCode}, Body: ${response.body}',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error removing FCM token from server: $e');
+    }
+  }
+
   // 🔥 MÉTHODE POUR NETTOYER LES SUBSCRIPTIONS
   void _cancelSubscriptions() {
     _onMessageSubscription?.cancel();

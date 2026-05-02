@@ -121,13 +121,20 @@ class MenuCard extends StatelessWidget {
                           ),
                       ],
                     ),
-                    // Nombre de produits
+                    // Type / Nombre de produits
                     const SizedBox(height: 4),
                     Text(
-                      '${menu.products.length} produit${menu.products.length > 1 ? 's' : ''}',
+                      menu.isPlatSpecial
+                          ? 'Plat special'
+                          : '${menu.products.length} produit${menu.products.length > 1 ? 's' : ''}',
                       style: TextStyle(
                         fontSize: 11,
-                        color: Colors.grey[500],
+                        color: menu.isPlatSpecial
+                            ? Colors.orange[700]
+                            : Colors.grey[500],
+                        fontWeight: menu.isPlatSpecial
+                            ? FontWeight.w600
+                            : FontWeight.normal,
                       ),
                     ),
                   ],

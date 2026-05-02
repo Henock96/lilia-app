@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 
 import 'package:lilia_app/constants/app_constants.dart';
@@ -10,49 +10,35 @@ import '../../../models/order.dart';
 
 part 'order_repository.g.dart';
 
-/// Extraire le message d'erreur lisible depuis une réponse HTTP du backend
 String _extractErrorMessage(http.Response response, String fallback) {
   try {
     final body = json.decode(utf8.decode(response.bodyBytes));
     if (body is Map<String, dynamic> && body['message'] != null) {
       final message = body['message'];
-      // NestJS peut retourner un String ou une List de messages
-      if (message is List) {
-        return message.join('. ');
-      }
+      if (message is List) return message.join('. ');
       return message.toString();
     }
-  } catch (_) {
-    // Si le body n'est pas du JSON valide, on continue avec le fallback
-  }
+  } catch (_) {}
   return fallback;
 }
 
 @Riverpod(keepAlive: true)
 class OrderRepository extends _$OrderRepository {
   @override
-  Future<void> build() async {
-    return;
-  }
+  Future<void> build() async {}
 
   Future<List<Order>> getMyOrders() async {
     final token = await ref.read(firebaseIdTokenProvider.future);
-    if (token == null) {
-      throw Exception('Veuillez vous reconnecter.');
-    }
-    final headers = {'Authorization': 'Bearer $token'};
+    if (token == null) throw Exception('Veuillez vous reconnecter.');
     final response = await http.get(
-      Uri.parse('${AppConstants.baseUrl}/orders/users'),
-      headers: headers,
+      Uri.parse('${AppConstants.baseUrl}/orders/my'),
+      headers: {'Authorization': 'Bearer $token'},
     );
     if (response.statusCode == 200) {
       List<dynamic> ordersJson = json.decode(utf8.decode(response.bodyBytes))["data"];
       return ordersJson.map((json) => Order.fromJson(json)).toList();
     } else {
-      throw Exception(_extractErrorMessage(
-        response,
-        'Impossible de charger vos commandes. Veuillez réessayer.',
-      ));
+      throw Exception(_extractErrorMessage(response, 'Impossible de charger vos commandes.'));
     }
   }
 
@@ -60,82 +46,69 @@ class OrderRepository extends _$OrderRepository {
     String? adresseId,
     required String paymentMethod,
     required bool isDelivery,
-    String? note
+    String? note,
+    String? contactPhone,
+    String? promoCode,
+    bool useLoyaltyPoints = false,
   }) async {
     final token = await ref.read(firebaseIdTokenProvider.future);
-    if (token == null) {
-      throw Exception('Veuillez vous reconnecter.');
-    }
-    final headers = {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
+    if (token == null) throw Exception('Veuillez vous reconnecter.');
 
-    // Construire le body selon le mode de livraison
     final Map<String, dynamic> bodyMap = {
       'paymentMethod': paymentMethod,
       'isDelivery': isDelivery,
+      if (isDelivery && adresseId != null) 'adresseId': adresseId,
+      if (note != null && note.isNotEmpty) 'notes': note,
+      if (contactPhone != null && contactPhone.isNotEmpty) 'contactPhone': contactPhone,
+      if (promoCode != null && promoCode.isNotEmpty) 'promoCode': promoCode,
+      if (useLoyaltyPoints) 'useLoyaltyPoints': true,
     };
 
-    // Ajouter l'adresse seulement si c'est une livraison
-    if (isDelivery && adresseId != null) {
-      bodyMap['adresseId'] = adresseId;
-    }
-
-    // Ajouter les notes si présentes
-    if (note != null && note.isNotEmpty) {
-      bodyMap['notes'] = note;
-    }
-
-    final body = json.encode(bodyMap);
     final response = await http.post(
       Uri.parse('${AppConstants.baseUrl}/orders/checkout'),
-      headers: headers,
-      body: body,
+      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      body: json.encode(bodyMap),
     );
     if (response.statusCode == 201) {
       return checkoutFromMap(response.body);
     } else {
-      throw Exception(_extractErrorMessage(
-        response,
-        'Impossible de passer la commande. Veuillez réessayer.',
-      ));
+      throw Exception(_extractErrorMessage(response, 'Impossible de passer la commande.'));
+    }
+  }
+
+  Future<void> reorder(String orderId) async {
+    final token = await ref.read(firebaseIdTokenProvider.future);
+    if (token == null) throw Exception('Veuillez vous reconnecter.');
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/orders/$orderId/reorder'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      throw Exception(_extractErrorMessage(response, 'Impossible de recommander.'));
     }
   }
 
   Future<void> deleteOrder(String orderId) async {
     final token = await ref.read(firebaseIdTokenProvider.future);
-    if (token == null) {
-      throw Exception('Veuillez vous reconnecter.');
-    }
-    final headers = {'Authorization': 'Bearer $token'};
+    if (token == null) throw Exception('Veuillez vous reconnecter.');
     final response = await http.delete(
       Uri.parse('${AppConstants.baseUrl}/orders/$orderId'),
-      headers: headers,
+      headers: {'Authorization': 'Bearer $token'},
     );
     if (response.statusCode != 200) {
-      throw Exception(_extractErrorMessage(
-        response,
-        'Impossible de supprimer la commande.',
-      ));
+      throw Exception(_extractErrorMessage(response, 'Impossible de supprimer la commande.'));
     }
   }
 
   Future<void> cancelOrder(String orderId) async {
     final token = await ref.read(firebaseIdTokenProvider.future);
-    if (token == null) {
-      throw Exception('Veuillez vous reconnecter.');
-    }
-    final headers = {'Authorization': 'Bearer $token'};
+    if (token == null) throw Exception('Veuillez vous reconnecter.');
     final response = await http.patch(
       Uri.parse('${AppConstants.baseUrl}/orders/$orderId/cancel'),
-      headers: headers,
+      headers: {'Authorization': 'Bearer $token'},
     );
     if (response.statusCode != 200) {
-      throw Exception(_extractErrorMessage(
-        response,
-        'Impossible d\'annuler la commande.',
-      ));
+      throw Exception(_extractErrorMessage(response, 'Impossible d\'annuler la commande.'));
     }
   }
 }

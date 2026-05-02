@@ -439,6 +439,51 @@ class CartRepository {
     }
   }
 
+  /// Vide tout le panier via l'API backend
+  Future<void> clearAllItems() async {
+    final token = await _getIdToken();
+    if (token == null) {
+      throw CartException(
+        'Utilisateur non authentifié.',
+        code: 'UNAUTHENTICATED',
+      );
+    }
+
+    try {
+      final response = await http
+          .delete(
+            Uri.parse('${AppConstants.baseUrl}/cart/clear'),
+            headers: {'Authorization': 'Bearer $token'},
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        _safeAdd(null);
+      } else {
+        throw CartException(
+          'Impossible de vider le panier.',
+          code: 'CLEAR_FAILED',
+        );
+      }
+    } on SocketException {
+      throw CartException(
+        'Pas de connexion internet.',
+        code: 'NO_INTERNET',
+      );
+    } on TimeoutException {
+      throw CartException(
+        'La requête a pris trop de temps.',
+        code: 'TIMEOUT',
+      );
+    } catch (e) {
+      if (e is CartException) rethrow;
+      throw CartException(
+        'Erreur lors du vidage du panier: ${e.toString()}',
+        code: 'UNKNOWN',
+      );
+    }
+  }
+
   /// Recommande une commande précédente
   /// Ajoute tous les produits de la commande au panier
   Future<Map<String, dynamic>> reorderFromOrder({
@@ -470,8 +515,8 @@ class CartRepository {
           );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        debugPrint('✅ Order reordered successfully');
         final data = jsonDecode(response.body);
+        debugPrint('✅ Order reordered: summary=${data['summary']}');
 
         // Rafraîchir le panier
         await getCart();

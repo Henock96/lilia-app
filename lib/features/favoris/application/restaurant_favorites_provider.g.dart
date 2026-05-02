@@ -21,7 +21,7 @@ final class RestaurantFavoritesProvider
         argument: null,
         retry: null,
         name: r'restaurantFavoritesProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -35,7 +35,7 @@ final class RestaurantFavoritesProvider
 }
 
 String _$restaurantFavoritesHash() =>
-    r'523fbe517aecc306918a6dd0aba121341438e4d3';
+    r'1bd3bec11a98a1ffaacc544b2595a7d12fe683d3';
 
 abstract class _$RestaurantFavorites
     extends $AsyncNotifier<List<RestaurantSummary>> {
@@ -64,17 +64,17 @@ abstract class _$RestaurantFavorites
   }
 }
 
-/// Provider pour vérifier si un restaurant est en favori (sync)
+/// Provider synchrone pour vérifier si un restaurant est favori
 
 @ProviderFor(isRestaurantFavorite)
 final isRestaurantFavoriteProvider = IsRestaurantFavoriteFamily._();
 
-/// Provider pour vérifier si un restaurant est en favori (sync)
+/// Provider synchrone pour vérifier si un restaurant est favori
 
 final class IsRestaurantFavoriteProvider
     extends $FunctionalProvider<bool, bool, bool>
     with $Provider<bool> {
-  /// Provider pour vérifier si un restaurant est en favori (sync)
+  /// Provider synchrone pour vérifier si un restaurant est favori
   IsRestaurantFavoriteProvider._({
     required IsRestaurantFavoriteFamily super.from,
     required String super.argument,
@@ -127,9 +127,9 @@ final class IsRestaurantFavoriteProvider
 }
 
 String _$isRestaurantFavoriteHash() =>
-    r'eec4c9c5aeca1f59331058c28f8b3860d5e84bd6';
+    r'ac1bb97461e12dab65f499aa1352171c8033c813';
 
-/// Provider pour vérifier si un restaurant est en favori (sync)
+/// Provider synchrone pour vérifier si un restaurant est favori
 
 final class IsRestaurantFavoriteFamily extends $Family
     with $FunctionalFamilyOverride<bool, String> {
@@ -142,7 +142,7 @@ final class IsRestaurantFavoriteFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// Provider pour vérifier si un restaurant est en favori (sync)
+  /// Provider synchrone pour vérifier si un restaurant est favori
 
   IsRestaurantFavoriteProvider call(String restaurantId) =>
       IsRestaurantFavoriteProvider._(argument: restaurantId, from: this);

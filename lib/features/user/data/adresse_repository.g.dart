@@ -33,7 +33,7 @@ final class AdresseRepositoryProvider
   AdresseRepository create() => AdresseRepository();
 }
 
-String _$adresseRepositoryHash() => r'af55b31f968943db27955dd140aff72f08bcaf30';
+String _$adresseRepositoryHash() => r'9366294d960daab120a7f4d15d339c06464f99f6';
 
 abstract class _$AdresseRepository extends $AsyncNotifier<void> {
   FutureOr<void> build();

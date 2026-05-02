@@ -16,8 +16,13 @@ class QuartiersRepository extends _$QuartiersRepository {
 
   /// Récupère la liste de tous les quartiers
   Future<List<Quartier>> getAllQuartiers() async {
+    final token = await ref.read(firebaseIdTokenProvider.future);
+
     final response = await http.get(
       Uri.parse('${AppConstants.baseUrl}/quartiers'),
+      headers: {
+        if (token != null) 'Authorization': 'Bearer $token',
+      },
     );
 
     if (response.statusCode == 200) {

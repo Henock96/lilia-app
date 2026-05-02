@@ -68,6 +68,14 @@ extension ProductJson on Product {
       'categoryId': categoryId,
       'category': category?.toJson(),
       'variants': variants.map((v) => v.toJson()).toList(),
+      'stockRestant': stockRestant,
+      'orderCount': orderCount,
+      if (restaurantName != null)
+        'restaurant': {
+          'nom': restaurantName,
+          'imageUrl': restaurantImageUrl,
+          'isOpen': restaurantIsOpen,
+        },
     };
   }
 }

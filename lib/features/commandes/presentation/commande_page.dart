@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
+import 'package:lilia_app/features/commandes/data/order_repository.dart';
 import 'package:lilia_app/models/order.dart';
 import 'package:intl/intl.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
@@ -44,7 +45,7 @@ class _CommandePageState extends ConsumerState<CommandePage>
               children: [
                 const Icon(Icons.notifications_active, color: Colors.white),
                 const SizedBox(width: 8),
-                Text('Commande #${next.substring(0, 8)} mise à jour'),
+                Text('Commande #${next.substring(0, 8)} mise Ã  jour'),
               ],
             ),
             backgroundColor: theme.colorScheme.primary,
@@ -78,9 +79,9 @@ class _CommandePageState extends ConsumerState<CommandePage>
             Tab(icon: Icon(Icons.pending_actions, size: 20), text: 'En cours'),
             Tab(
               icon: Icon(Icons.check_circle_outline, size: 20),
-              text: 'Terminées',
+              text: 'TerminÃ©es',
             ),
-            Tab(icon: Icon(Icons.cancel_outlined, size: 20), text: 'Annulées'),
+            Tab(icon: Icon(Icons.cancel_outlined, size: 20), text: 'AnnulÃ©es'),
           ],
         ),
       ),
@@ -90,6 +91,7 @@ class _CommandePageState extends ConsumerState<CommandePage>
               .where(
                 (o) =>
                     o.status == OrderStatus.enAttente ||
+                    o.status == OrderStatus.payer ||
                     o.status == OrderStatus.enPreparation ||
                     o.status == OrderStatus.pret,
               )
@@ -113,13 +115,13 @@ class _CommandePageState extends ConsumerState<CommandePage>
                 ),
                 _OrderListView(
                   orders: completedOrders,
-                  emptyMessage: 'Aucune commande terminée',
+                  emptyMessage: 'Aucune commande terminÃ©e',
                   emptyIcon: Icons.check_circle_outline,
                   key: const PageStorageKey('completedOrders'),
                 ),
                 _OrderListView(
                   orders: cancelledOrders,
-                  emptyMessage: 'Aucune commande annulée',
+                  emptyMessage: 'Aucune commande annulÃ©e',
                   emptyIcon: Icons.cancel_outlined,
                   isDismissible: true,
                   key: const PageStorageKey('cancelledOrders'),
@@ -171,7 +173,7 @@ class _OrderListView extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Vos commandes apparaîtront ici',
+              'Vos commandes apparaÃ®tront ici',
               style: TextStyle(fontSize: 14, color: Colors.grey[400]),
             ),
           ],
@@ -212,7 +214,7 @@ class _OrderListView extends ConsumerWidget {
                           ],
                         ),
                         content: const Text(
-                          'Cette commande annulée sera retirée de votre liste.',
+                          'Cette commande annulÃ©e sera retirÃ©e de votre liste.',
                         ),
                         actions: [
                           TextButton(
@@ -248,7 +250,7 @@ class _OrderListView extends ConsumerWidget {
                         children: [
                           Icon(Icons.delete_outline, color: Colors.white),
                           SizedBox(width: 8),
-                          Text('Commande supprimée'),
+                          Text('Commande supprimÃ©e'),
                         ],
                       ),
                       backgroundColor: Colors.green,
@@ -345,7 +347,7 @@ class _OrderCard extends ConsumerWidget {
         ),
         child: Column(
           children: [
-            // En-tête avec image et infos principales
+            // En-tÃªte avec image et infos principales
             Row(
               children: [
                 // Image du produit
@@ -379,7 +381,7 @@ class _OrderCard extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Numéro de commande et date
+                        // NumÃ©ro de commande et date
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -413,7 +415,7 @@ class _OrderCard extends ConsumerWidget {
                         // Produits
                         Text(
                           firstItem != null
-                              ? '$itemCount article${itemCount > 1 ? 's' : ''} • ${firstItem.product.nom}${order.items.length > 1 ? ' +${order.items.length - 1}' : ''}'
+                              ? '$itemCount article${itemCount > 1 ? 's' : ''} â€¢ ${firstItem.product.nom}${order.items.length > 1 ? ' +${order.items.length - 1}' : ''}'
                               : 'Aucun article',
                           style: TextStyle(
                             fontSize: 13,
@@ -556,27 +558,33 @@ class _OrderCard extends ConsumerWidget {
           color: Colors.orange,
           icon: Icons.hourglass_empty,
         );
+      case OrderStatus.payer:
+        return _StatusInfo(
+          label: 'PayÃ©e',
+          color: Colors.purple,
+          icon: Icons.payment,
+        );
       case OrderStatus.enPreparation:
         return _StatusInfo(
-          label: 'En préparation',
+          label: 'En prÃ©paration',
           color: Colors.blue,
           icon: Icons.restaurant,
         );
       case OrderStatus.pret:
         return _StatusInfo(
-          label: 'Prête',
+          label: 'PrÃªte',
           color: Colors.green,
           icon: Icons.check_circle,
         );
       case OrderStatus.livrer:
         return _StatusInfo(
-          label: 'Livrée',
+          label: 'LivrÃ©e',
           color: Colors.teal,
           icon: Icons.local_shipping,
         );
       case OrderStatus.annuler:
         return _StatusInfo(
-          label: 'Annulée',
+          label: 'AnnulÃ©e',
           color: Colors.red,
           icon: Icons.cancel,
         );
@@ -615,7 +623,7 @@ class _OrderCard extends ConsumerWidget {
             ],
           ),
           content: const Text(
-            'Cette action est irréversible. Êtes-vous sûr de vouloir annuler cette commande ?',
+            'Cette action est irrÃ©versible. ÃŠtes-vous sÃ»r de vouloir annuler cette commande ?',
           ),
           actions: <Widget>[
             TextButton(
@@ -642,7 +650,7 @@ class _OrderCard extends ConsumerWidget {
                         children: [
                           Icon(Icons.check_circle, color: Colors.white),
                           SizedBox(width: 8),
-                          Text('Commande annulée avec succès'),
+                          Text('Commande annulÃ©e avec succÃ¨s'),
                         ],
                       ),
                       backgroundColor: Colors.green,
@@ -713,27 +721,33 @@ class _StatusBadge extends StatelessWidget {
           color: Colors.orange,
           icon: Icons.hourglass_empty,
         );
+      case OrderStatus.payer:
+        return _StatusInfo(
+          label: 'PayÃ©e',
+          color: Colors.purple,
+          icon: Icons.payment,
+        );
       case OrderStatus.enPreparation:
         return _StatusInfo(
-          label: 'En préparation',
+          label: 'En prÃ©paration',
           color: Colors.blue,
           icon: Icons.restaurant,
         );
       case OrderStatus.pret:
         return _StatusInfo(
-          label: 'Prête',
+          label: 'PrÃªte',
           color: Colors.green,
           icon: Icons.check_circle,
         );
       case OrderStatus.livrer:
         return _StatusInfo(
-          label: 'Livrée',
+          label: 'LivrÃ©e',
           color: Colors.teal,
           icon: Icons.local_shipping,
         );
       case OrderStatus.annuler:
         return _StatusInfo(
-          label: 'Annulée',
+          label: 'AnnulÃ©e',
           color: Colors.red,
           icon: Icons.cancel,
         );
@@ -754,7 +768,7 @@ class _OrderProgressBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final steps = ['Confirmée', 'En préparation', 'Prête', 'En route'];
+    final steps = ['ConfirmÃ©e', 'En prÃ©paration', 'PrÃªte', 'En route'];
     int currentStep = 0;
 
     switch (status) {
@@ -780,7 +794,7 @@ class _OrderProgressBar extends StatelessWidget {
       child: Row(
         children: List.generate(steps.length * 2 - 1, (index) {
           if (index.isOdd) {
-            // Ligne entre les étapes
+            // Ligne entre les Ã©tapes
             final stepIndex = index ~/ 2;
             return Expanded(
               child: Container(
@@ -791,7 +805,7 @@ class _OrderProgressBar extends StatelessWidget {
               ),
             );
           } else {
-            // Point d'étape
+            // Point d'Ã©tape
             final stepIndex = index ~/ 2;
             final isCompleted = stepIndex <= currentStep;
             final isCurrent = stepIndex == currentStep;
@@ -837,3 +851,4 @@ class _StatusInfo {
 
   _StatusInfo({required this.label, required this.color, required this.icon});
 }
+

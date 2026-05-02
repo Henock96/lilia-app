@@ -103,7 +103,7 @@ class CartController extends _$CartController {
   Future<void> clearCart() async {
     final cartRepo = ref.read(cartRepositoryProvider);
     try {
-      cartRepo.clearCart();
+      await cartRepo.clearAllItems();
     } catch (e) {
       debugPrint('Erreur lors du vidage du panier: $e');
       rethrow;

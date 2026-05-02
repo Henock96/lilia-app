@@ -33,7 +33,7 @@ class RestaurantRepository {
       );
 
       if (response.statusCode == 200) {
-        return Restaurant.fromJson(json.decode(response.body));
+        return Restaurant.fromJson(json.decode(response.body)["data"]);
       } else {
         throw Exception('Failed to load restaurant: ${response.statusCode}');
       }

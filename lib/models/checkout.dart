@@ -14,7 +14,10 @@ class Checkout {
   String userId;
   int subTotal;
   int deliveryFee;
+  int serviceFee;
+  int discountAmount;
   int total;
+  String? promoCode;
   String? notes;
   String? deliveryAddress; // Nullable pour le mode retrait
   String paymentMethod;
@@ -30,7 +33,10 @@ class Checkout {
     required this.userId,
     required this.subTotal,
     required this.deliveryFee,
+    this.serviceFee = 0,
+    this.discountAmount = 0,
     required this.total,
+    this.promoCode,
     this.deliveryAddress, // Optionnel maintenant
     required this.paymentMethod,
     required this.status,
@@ -47,7 +53,10 @@ class Checkout {
     String? userId,
     int? subTotal,
     int? deliveryFee,
+    int? serviceFee,
+    int? discountAmount,
     int? total,
+    String? promoCode,
     String? notes,
     String? deliveryAddress,
     String? paymentMethod,
@@ -63,7 +72,10 @@ class Checkout {
         userId: userId ?? this.userId,
         subTotal: subTotal ?? this.subTotal,
         deliveryFee: deliveryFee ?? this.deliveryFee,
+        serviceFee: serviceFee ?? this.serviceFee,
+        discountAmount: discountAmount ?? this.discountAmount,
         total: total ?? this.total,
+        promoCode: promoCode ?? this.promoCode,
         notes: notes ?? this.notes,
         deliveryAddress: deliveryAddress ?? this.deliveryAddress,
         paymentMethod: paymentMethod ?? this.paymentMethod,
@@ -80,7 +92,10 @@ class Checkout {
     userId: json["userId"],
     subTotal: json["subTotal"],
     deliveryFee: json["deliveryFee"],
+    serviceFee: (json["serviceFee"] as num?)?.toInt() ?? 0,
+    discountAmount: (json["discountAmount"] as num?)?.toInt() ?? 0,
     total: json["total"],
+    promoCode: json["promoCode"]?["code"] as String?,
     notes: json["notes"],
     deliveryAddress: json["deliveryAddress"], // Peut être null en mode retrait
     paymentMethod: json["paymentMethod"],
@@ -97,7 +112,10 @@ class Checkout {
     "userId": userId,
     "subTotal": subTotal,
     "deliveryFee": deliveryFee,
+    "serviceFee": serviceFee,
+    "discountAmount": discountAmount,
     "total": total,
+    "promoCode": promoCode,
     "notes": notes,
     "deliveryAddress": deliveryAddress,
     "paymentMethod": paymentMethod,

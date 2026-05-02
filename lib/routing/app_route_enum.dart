@@ -18,7 +18,9 @@ enum AppRoutes {
   checkout,
   orderSuccess,
   reviews,
-  writeReview
+  writeReview,
+  search,
+  draftOrders,
 }
 
 extension AppRoutesExtension on AppRoutes {
@@ -64,6 +66,10 @@ extension AppRoutesExtension on AppRoutes {
         return '/reviews';
       case AppRoutes.writeReview:
         return 'write';
+      case AppRoutes.search:
+        return 'search';
+      case AppRoutes.draftOrders:
+        return 'draft-orders';
     }
   }
 
@@ -109,6 +115,10 @@ extension AppRoutesExtension on AppRoutes {
         return 'Reviews';
       case AppRoutes.writeReview:
         return 'WriteReview';
+      case AppRoutes.search:
+        return 'Search';
+      case AppRoutes.draftOrders:
+        return 'DraftOrders';
     }
   }
 }

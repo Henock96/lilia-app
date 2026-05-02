@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_error_handler.dart';
@@ -19,13 +19,13 @@ part 'auth_controller.g.dart';
 class AuthController extends _$AuthController {
   @override
   Stream<AppUser?> build() {
-    // Écoute les changements d'état d'authentification de Firebase
+    // Ã‰coute les changements d'Ã©tat d'authentification de Firebase
     final authStream = ref.watch(authRepositoryProvider).authStateChanges();
 
-    // Écoute le stream pour déclencher l'initialisation des notifications
+    // Ã‰coute le stream pour dÃ©clencher l'initialisation des notifications
     authStream.listen((user) {
       if (user != null) {
-        // L'utilisateur est connecté
+        // L'utilisateur est connectÃ©
         _setupNotifications();
       }
     });
@@ -59,18 +59,13 @@ class AuthController extends _$AuthController {
         print('Runtime type: ${e.runtimeType}');
       }
       state = AsyncValue.error(
-        "Une erreur inconnue est survenue. Veuillez réessayer.",
+        "Une erreur inconnue est survenue. Veuillez rÃ©essayer.",
         st,
       );
     }
   }
 
-  Future<void> createUserWithEmailAndPassword(
-    String email,
-    String password,
-    String name,
-    String phone,
-  ) async {
+  Future<void> createUserWithEmailAndPassword(String email, String password, String name, String phone, {String? referralCode}) async {
     state = const AsyncValue.loading();
     try {
       await ref
@@ -80,6 +75,7 @@ class AuthController extends _$AuthController {
             password: password,
             name: name,
             phone: phone,
+            referralCode: referralCode,
           );
       AnalyticsService.logSignUp(method: 'email');
     } on FirebaseAuthException catch (e, st) {
@@ -92,7 +88,7 @@ class AuthController extends _$AuthController {
         print('Runtime type: ${e.runtimeType}');
       }
       state = AsyncValue.error(
-        "Une erreur inconnue est survenue. Veuillez réessayer.",
+        "Une erreur inconnue est survenue. Veuillez rÃ©essayer.",
         st,
       );
     }
@@ -105,10 +101,10 @@ class AuthController extends _$AuthController {
           .read(authRepositoryProvider)
           .signInWithGoogle();
       if (googleUser == null) {
-        // L'utilisateur a annulé la connexion Google
+        // L'utilisateur a annulÃ© la connexion Google
         state = const AsyncValue.data(null);
       } else {
-        // Connexion réussie
+        // Connexion rÃ©ussie
         AnalyticsService.logLogin(method: 'google');
         state = AsyncValue.data(googleUser);
       }
@@ -119,6 +115,10 @@ class AuthController extends _$AuthController {
 
   Future<bool> signOut() async {
     try {
+      // Remove FCM token from server before signing out
+      final notificationService = ref.read(notificationServiceProvider);
+      await notificationService.removeTokenFromServer();
+
       final authRepository = ref.read(authRepositoryProvider);
       await authRepository.signOut();
 
@@ -139,7 +139,7 @@ class AuthController extends _$AuthController {
     state = const AsyncValue.loading();
     try {
       await ref.read(authRepositoryProvider).updatePassword(newPassword);
-      state = const AsyncValue.data(null); // Succès
+      state = const AsyncValue.data(null); // SuccÃ¨s
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
@@ -152,7 +152,7 @@ class AuthController extends _$AuthController {
       await ref
           .read(authRepositoryProvider)
           .sendPasswordResetEmailWithEmail(email);
-      state = const AsyncValue.data(null); // Succès
+      state = const AsyncValue.data(null); // SuccÃ¨s
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
@@ -163,10 +163,12 @@ class AuthController extends _$AuthController {
     state = const AsyncValue.loading();
     try {
       await ref.read(authRepositoryProvider).sendPasswordResetEmail();
-      state = const AsyncValue.data(null); // Succès
+      state = const AsyncValue.data(null); // SuccÃ¨s
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
     }
   }
 }
+
+

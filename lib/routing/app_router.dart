@@ -26,8 +26,10 @@ import '../features/home/presentation/not_found_page.dart';
 import '../features/home/presentation/menu_detail_page.dart';
 import '../features/home/presentation/product_detail_page.dart';
 import '../features/home/presentation/restaurant_detail_screen.dart';
+import '../features/home/presentation/search_screen.dart';
 import '../features/reviews/presentation/screens/reviews_screen.dart';
 import '../features/reviews/presentation/screens/write_review_screen.dart';
+import '../features/cart/presentation/draft_orders_screen.dart';
 import '../models/menu.dart';
 import '../models/produit.dart';
 import 'app_route_enum.dart';
@@ -214,6 +216,12 @@ GoRouter router(Ref ref) {
                     },
                   ),
                   GoRoute(
+                    path: 'search',
+                    name: AppRoutes.search.routeName,
+                    pageBuilder: (context, state) =>
+                        const MaterialPage(child: SearchScreen()),
+                  ),
+                  GoRoute(
                     path: 'menu-detail',
                     name: AppRoutes.menuDetail.routeName,
                     pageBuilder: (context, state) {
@@ -324,6 +332,12 @@ GoRouter router(Ref ref) {
                     name: AppRoutes.changePassword.routeName,
                     pageBuilder: (context, state) =>
                         const MaterialPage(child: ChangePasswordPage()),
+                  ),
+                  GoRoute(
+                    path: AppRoutes.draftOrders.path,
+                    name: AppRoutes.draftOrders.routeName,
+                    pageBuilder: (context, state) =>
+                        const MaterialPage(child: DraftOrdersScreen()),
                   ),
                 ],
               ),

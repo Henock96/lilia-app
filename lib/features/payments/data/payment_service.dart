@@ -102,7 +102,7 @@ class PaymentService {
         throw Exception('User not authenticated');
       }
 
-      final url = Uri.parse('$baseUrl/payments/create');
+      final url = Uri.parse('$baseUrl/payments');
 
       final response = await _httpClient
           .post(

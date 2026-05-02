@@ -1,43 +1,44 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import 'package:lilia_app/constants/app_constants.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../models/restaurant.dart';
 
 part 'restaurant_favorites_provider.g.dart';
 
-const _kRestaurantFavoritesKey = 'restaurant_favorites';
-
-@riverpod
+@Riverpod(keepAlive: true)
 class RestaurantFavorites extends _$RestaurantFavorites {
-  late SharedPreferences _prefs;
-
   @override
   Future<List<RestaurantSummary>> build() async {
-    _prefs = await SharedPreferences.getInstance();
-    return _getFavorites();
+    return _fetchFromBackend();
   }
 
-  List<RestaurantSummary> _getFavorites() {
-    final favoritesJson = _prefs.getStringList(_kRestaurantFavoritesKey) ?? [];
-    return favoritesJson
-        .map((jsonString) => RestaurantSummary.fromJson(jsonDecode(jsonString)))
-        .toList();
+  Future<String?> _getToken() async {
+    return await FirebaseAuth.instance.currentUser?.getIdToken();
   }
 
-  Future<void> _setFavorites(List<RestaurantSummary> restaurants) async {
-    final favoritesJson = restaurants
-        .map((restaurant) => jsonEncode(restaurant.toJson()))
-        .toList();
-    await _prefs.setStringList(_kRestaurantFavoritesKey, favoritesJson);
-    state = AsyncData(restaurants);
+  Future<List<RestaurantSummary>> _fetchFromBackend() async {
+    final token = await _getToken();
+    if (token == null) return [];
+
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/favorites'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode == 200) {
+      final List data = json.decode(utf8.decode(response.bodyBytes));
+      return data.map((e) => RestaurantSummary.fromJson(e)).toList();
+    }
+    return [];
   }
 
   Future<void> toggleFavorite(RestaurantSummary restaurant) async {
-    final currentFavorites = await future;
-    final isFav = currentFavorites.any((r) => r.id == restaurant.id);
-
+    final current = await future;
+    final isFav = current.any((r) => r.id == restaurant.id);
     if (isFav) {
       await remove(restaurant);
     } else {
@@ -46,35 +47,52 @@ class RestaurantFavorites extends _$RestaurantFavorites {
   }
 
   Future<void> add(RestaurantSummary restaurant) async {
-    final currentFavorites = await future;
-    if (!currentFavorites.any((r) => r.id == restaurant.id)) {
-      final updatedFavorites = [...currentFavorites, restaurant];
-      await _setFavorites(updatedFavorites);
+    final token = await _getToken();
+    if (token == null) return;
+
+    // Optimistic update
+    final current = await future;
+    state = AsyncData([...current, restaurant]);
+
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/favorites/${restaurant.id}'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      // Rollback
+      state = AsyncData(current);
     }
   }
 
   Future<void> remove(RestaurantSummary restaurant) async {
-    final currentFavorites = await future;
-    final updatedFavorites = currentFavorites
-        .where((r) => r.id != restaurant.id)
-        .toList();
-    await _setFavorites(updatedFavorites);
-  }
+    final token = await _getToken();
+    if (token == null) return;
 
-  Future<bool> isFavorite(String restaurantId) async {
-    final currentFavorites = await future;
-    return currentFavorites.any((r) => r.id == restaurantId);
+    // Optimistic update
+    final current = await future;
+    state = AsyncData(current.where((r) => r.id != restaurant.id).toList());
+
+    final response = await http.delete(
+      Uri.parse('${AppConstants.baseUrl}/favorites/${restaurant.id}'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      // Rollback
+      state = AsyncData(current);
+    }
   }
 }
 
-/// Provider pour vérifier si un restaurant est en favori (sync)
+/// Provider synchrone pour vérifier si un restaurant est favori
 @riverpod
 bool isRestaurantFavorite(Ref ref, String restaurantId) {
   final favoritesAsync = ref.watch(restaurantFavoritesProvider);
   return favoritesAsync.when(
     data: (favorites) => favorites.any((r) => r.id == restaurantId),
     loading: () => false,
-    error: (_, _) => false,
+    error: (_, __) => false,
   );
 }
 

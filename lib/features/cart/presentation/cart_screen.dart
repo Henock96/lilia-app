@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,8 +6,11 @@ import 'package:iconsax/iconsax.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
+import 'package:lilia_app/features/home/data/remote/home_controller.dart';
 import 'package:lilia_app/models/cart.dart';
+import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
+import 'package:lilia_app/services/analytics_service.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -25,56 +29,88 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     });
   }
 
+  bool _isClearing = false;
+
+  Future<void> _clearCart() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Vider le panier'),
+        content: const Text(
+          'Voulez-vous vraiment supprimer tous les articles du panier ?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Tout supprimer'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isClearing = true);
+    try {
+      await ref.read(cartControllerProvider.notifier).clearCart();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isClearing = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final cartState = ref.watch(cartControllerProvider);
+    final hasItems =
+        cartState.value != null && cartState.value!.items.isNotEmpty;
 
     return Scaffold(
-      appBar: AppBar(centerTitle: true, title: const Text('Mon Panier')),
+      appBar: AppBar(
+        centerTitle: true,
+        title: const Text('Mon Panier'),
+        actions: [
+          if (hasItems)
+            _isClearing
+                ? const Padding(
+                    padding: EdgeInsets.all(14),
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  )
+                : TextButton.icon(
+                    onPressed: _clearCart,
+                    icon: const Icon(
+                      Icons.delete_sweep,
+                      size: 20,
+                      color: Colors.red,
+                    ),
+                    label: const Text(
+                      'Tout supprimer',
+                      style: TextStyle(color: Colors.red, fontSize: 13),
+                    ),
+                  ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
             cartState.when(
               data: (cart) {
                 if (cart == null || cart.items.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 200),
-                        Icon(
-                          Iconsax.shopping_bag,
-                          size: 100,
-                          color: Colors.black,
-                        ),
-                        Text(
-                          'Votre Panier est vide !',
-                          style: TextStyle(fontSize: 18, color: Colors.black87),
-                        ),
-                        const SizedBox(height: 20),
-                        TextButton(
-                          style: ButtonStyle(
-                            backgroundColor: WidgetStateProperty.all(
-                              Theme.of(context).primaryColor,
-                            ),
-                            padding: WidgetStateProperty.all(
-                              const EdgeInsets.symmetric(
-                                vertical: 12,
-                                horizontal: 20,
-                              ),
-                            ),
-                          ),
-                          onPressed: () {
-                            context.goNamed(AppRoutes.home.routeName);
-                          },
-                          child: Text(
-                            'Commencer vos achats',
-                            style: TextStyle(color: Colors.white, fontSize: 16),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
+                  return Expanded(child: _EmptyCartWithSuggestions());
                 }
 
                 final individualItems = cart.individualItems;
@@ -103,8 +139,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 onRetry: () => ref.invalidate(cartControllerProvider),
               ),
             ),
-            if (cartState.value == null || cartState.value!.items.isEmpty)
-              const Spacer(),
             cartState.value != null && cartState.value!.items.isNotEmpty
                 ? Container(
                     decoration: BoxDecoration(
@@ -560,6 +594,353 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ============ PANIER VIDE AVEC SUGGESTIONS ============
+
+class _EmptyCartWithSuggestions extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final popularAsync = ref.watch(popularProductsProvider);
+
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          const SizedBox(height: 60),
+          Icon(Iconsax.shopping_bag, size: 80, color: Colors.grey[300]),
+          const SizedBox(height: 16),
+          const Text(
+            'Votre panier est vide',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Ajoutez des plats pour commencer',
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: () => context.goNamed(AppRoutes.home.routeName),
+            icon: const Icon(Icons.explore, size: 20),
+            label: const Text(
+              'Explorer les plats',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 32),
+          // Section plats populaires
+          popularAsync.when(
+            data: (products) {
+              if (products.isEmpty) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.local_fire_department,
+                          size: 20,
+                          color: Colors.orange[700],
+                        ),
+                        const SizedBox(width: 6),
+                        const Text(
+                          'Plats populaires',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...products
+                      .take(5)
+                      .map((product) => _SuggestionTile(product: product)),
+                ],
+              );
+            },
+            loading: () => Padding(
+              padding: const EdgeInsets.all(32),
+              child: CircularProgressIndicator(color: theme.primaryColor),
+            ),
+            error: (_, _) => const SizedBox.shrink(),
+          ),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+}
+
+class _SuggestionTile extends ConsumerWidget {
+  final Product product;
+
+  const _SuggestionTile({required this.product});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final isAvailable = product.isAvailable;
+
+    return Opacity(
+      opacity: isAvailable ? 1.0 : 0.5,
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 1,
+        child: InkWell(
+          onTap: () {
+            context.pushNamed(
+              AppRoutes.productDetail.routeName,
+              extra: product,
+            );
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: product.imageUrl != null
+                      ? Image.network(
+                          product.imageUrl!,
+                          width: 60,
+                          height: 60,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, _, _) => _buildPlaceholder(),
+                        )
+                      : _buildPlaceholder(),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (product.restaurantName != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          product.restaurantName!,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                      const SizedBox(height: 4),
+                      Text(
+                        '${product.displayPrice.toStringAsFixed(0)} FCFA',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: theme.primaryColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (isAvailable)
+                  GestureDetector(
+                    onTap: () => _handleAddToCart(context, ref),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: theme.primaryColor,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.add,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Epuise',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      width: 60,
+      height: 60,
+      color: Colors.grey[200],
+      child: const Icon(Icons.fastfood, size: 28, color: Colors.grey),
+    );
+  }
+
+  void _handleAddToCart(BuildContext context, WidgetRef ref) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Connectez-vous pour ajouter au panier'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (product.variants.length > 1) {
+      _showVariantBottomSheet(context, ref);
+    } else if (product.variants.isNotEmpty) {
+      _addToCart(context, ref, product.variants.first);
+    }
+  }
+
+  void _addToCart(BuildContext context, WidgetRef ref, ProductVariant variant) {
+    AnalyticsService.logAddToCartFromHome(
+      productId: product.id,
+      productName: product.name,
+      source: 'empty_cart_suggestion',
+      price: variant.prix,
+    );
+    ref
+        .read(cartControllerProvider.notifier)
+        .addItem(variantId: variant.id)
+        .then((_) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${product.name} ajoute au panier'),
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        })
+        .catchError((e) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Erreur: $e'),
+                backgroundColor: Colors.red,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        });
+  }
+
+  void _showVariantBottomSheet(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                product.name,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Choisir une option',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              ...product.variants.map((variant) {
+                return InkWell(
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _addToCart(context, ref, variant);
+                  },
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    margin: const EdgeInsets.only(bottom: 6),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey[200]!),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          variant.label,
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        Text(
+                          '${variant.prix.toStringAsFixed(0)} FCFA',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: theme.primaryColor,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
     );
   }
 }

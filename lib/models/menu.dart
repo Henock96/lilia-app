@@ -6,6 +6,8 @@ class MenuDuJour {
   final String? description;
   final String? imageUrl;
   final double prix;
+  final String type; // 'COMBO' ou 'PLAT_SPECIAL'
+  final String? ingredients; // Composition pour PLAT_SPECIAL
   final DateTime dateDebut;
   final DateTime dateFin;
   final bool isActive;
@@ -21,6 +23,8 @@ class MenuDuJour {
     this.description,
     this.imageUrl,
     required this.prix,
+    this.type = 'COMBO',
+    this.ingredients,
     required this.dateDebut,
     required this.dateFin,
     required this.isActive,
@@ -30,6 +34,8 @@ class MenuDuJour {
     required this.createdAt,
     required this.updatedAt,
   });
+
+  bool get isPlatSpecial => type == 'PLAT_SPECIAL';
 
   factory MenuDuJour.fromJson(Map<String, dynamic> json) {
     var productsList = json['products'] as List? ?? [];
@@ -42,6 +48,8 @@ class MenuDuJour {
       description: json['description'],
       imageUrl: json['imageUrl'],
       prix: (json['prix'] as num).toDouble(),
+      type: json['type'] as String? ?? 'COMBO',
+      ingredients: json['ingredients'] as String?,
       dateDebut: DateTime.parse(json['dateDebut']),
       dateFin: DateTime.parse(json['dateFin']),
       isActive: json['isActive'] ?? true,

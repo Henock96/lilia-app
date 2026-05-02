@@ -242,36 +242,91 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
 
                   const SizedBox(height: 24),
 
-                  // Section produits
-                  Text(
-                    'Produits inclus (${menu.products.length})',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                  // Section conditionnelle : Composition (PLAT_SPECIAL) ou Produits (COMBO)
+                  if (menu.isPlatSpecial) ...[
+                    const Text(
+                      'Composition',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 12),
+                    if (menu.ingredients != null &&
+                        menu.ingredients!.isNotEmpty)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.orange[50],
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.orange[200]!,
+                          ),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.restaurant,
+                              color: Colors.orange[700],
+                              size: 22,
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                menu.ingredients!,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  color: Colors.grey[800],
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Text(
+                        'Composition non renseignee',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[500],
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ] else ...[
+                    Text(
+                      'Produits inclus (${menu.products.length})',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                 ],
               ),
             ),
           ),
 
-          // Liste des produits
-          SliverList(
-            delegate: SliverChildBuilderDelegate((context, index) {
-              final menuProduct = menu.products[index];
-              return _ProductTile(
-                product: menuProduct.product,
-                ordre: menuProduct.ordre,
-                onTap: () {
-                  context.pushNamed(
-                    AppRoutes.productDetail.routeName,
-                    extra: menuProduct.product,
-                  );
-                },
-              );
-            }, childCount: menu.products.length),
-          ),
+          // Liste des produits (seulement pour COMBO, ou masquee pour PLAT_SPECIAL)
+          if (!menu.isPlatSpecial)
+            SliverList(
+              delegate: SliverChildBuilderDelegate((context, index) {
+                final menuProduct = menu.products[index];
+                return _ProductTile(
+                  product: menuProduct.product,
+                  ordre: menuProduct.ordre,
+                  onTap: () {
+                    context.pushNamed(
+                      AppRoutes.productDetail.routeName,
+                      extra: menuProduct.product,
+                    );
+                  },
+                );
+              }, childCount: menu.products.length),
+            ),
 
           // Espace pour le bouton en bas
           const SliverToBoxAdapter(child: SizedBox(height: 100)),

@@ -1,47 +1,39 @@
-import 'package:firebase_auth/firebase_auth.dart';
+﻿import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/adresse.dart';
 
 class AppUser {
   const AppUser({
-    required this.uid, // Firebase UID
-    this.id, // Database ID
+    required this.uid,
+    this.id,
     this.email,
     this.emailVerified = false,
     this.displayName,
     this.nom,
     this.phone,
-    this.adresse, this.imageUrl,
+    this.adresse,
+    this.imageUrl,
+    this.referralCode,
+    this.loyaltyPoints = 0,
   });
 
-  // Firebase data
   final String uid;
   final String? email;
-  final bool
-  emailVerified;
+  final bool emailVerified;
   final String? displayName;
-
-  // Local database data
   final String? id;
   final String? nom;
   final String? phone;
   final String? imageUrl;
   final Adresse? adresse;
+  final String? referralCode;
+  final int loyaltyPoints;
 
-  // Mapper un User Firebase vers AppUser
   static AppUser? fromFirebaseUser(User? user) {
-    if (user == null) {
-      return null;
-    }
-    return AppUser(
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      emailVerified: user.emailVerified,
-    );
+    if (user == null) return null;
+    return AppUser(uid: user.uid, email: user.email, displayName: user.displayName, emailVerified: user.emailVerified);
   }
 
-  // Mapper un JSON de votre backend vers AppUser
   factory AppUser.fromJson(Map<String, dynamic> json) {
     return AppUser(
       id: json['id'],
@@ -49,11 +41,12 @@ class AppUser {
       email: json['email'],
       nom: json['nom'],
       phone: json['phone'],
-      imageUrl: json['imageUrl'], // On peut utiliser le nom de la bdd comme displayName
+      imageUrl: json['imageUrl'],
+      referralCode: json['referralCode'],
+      loyaltyPoints: (json['loyaltyPoints'] as num?)?.toInt() ?? 0,
     );
   }
 
-  // Copier l'objet avec de nouvelles valeurs
   AppUser copyWith({
     String? id,
     String? uid,
@@ -64,6 +57,8 @@ class AppUser {
     String? imageUrl,
     String? phone,
     Adresse? adresse,
+    String? referralCode,
+    int? loyaltyPoints,
   }) {
     return AppUser(
       id: id ?? this.id,
@@ -74,7 +69,9 @@ class AppUser {
       nom: nom ?? this.nom,
       phone: phone ?? this.phone,
       adresse: adresse ?? this.adresse,
-      imageUrl: imageUrl ?? this.imageUrl
+      imageUrl: imageUrl ?? this.imageUrl,
+      referralCode: referralCode ?? this.referralCode,
+      loyaltyPoints: loyaltyPoints ?? this.loyaltyPoints,
     );
   }
 }

@@ -1,10 +1,11 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
+import 'package:lilia_app/features/cart/application/draft_orders_provider.dart';
 import 'package:lilia_app/features/commandes/data/checkout_controller.dart';
 import 'package:lilia_app/features/commandes/presentation/delivery_options_page.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
@@ -14,6 +15,9 @@ import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/services/analytics_service.dart';
 
 import '../../../models/cart.dart';
+import '../../user/application/profile_controller.dart';
+import '../../../models/promo_validation_result.dart';
+import '../data/promo_repository.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
   final DeliveryOptions? deliveryOptions;
@@ -28,19 +32,25 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _noteController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+  final TextEditingController _promoController = TextEditingController();
 
   bool _analyticsLogged = false;
+  PromoValidationResult? _promoResult;
+  bool _promoLoading = false;
+  String? _promoError;
+  bool _useLoyaltyPoints = false;
 
   @override
   void dispose() {
     _noteController.dispose();
     _phoneController.dispose();
+    _promoController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Récupérer les options de livraison
+    // RÃ©cupÃ©rer les options de livraison
     final options = widget.deliveryOptions;
 
     // Si pas d'options, rediriger vers la page de choix
@@ -75,11 +85,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           }
 
           final double subTotal = cart.totalPrice;
-          final double deliveryFee = options.deliveryFee;
-          final double total = subTotal + deliveryFee;
+          final double deliveryFee =
+              _promoResult?.newDeliveryFee ?? options.deliveryFee;
+          final double serviceFee = (subTotal * 0.08).roundToDouble();
+          final double discountAmount = _promoResult?.discountAmount ?? 0;
+          final double total =
+              subTotal + deliveryFee + serviceFee - discountAmount;
           final String restaurantId = cart.items.first.product.restaurantId;
 
-          // Analytics: début du checkout (une seule fois)
+          // Analytics: dÃ©but du checkout (une seule fois)
           if (!_analyticsLogged) {
             _analyticsLogged = true;
             AnalyticsService.logBeginCheckout(
@@ -95,16 +109,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // === RÉCAPITULATIF MODE DE LIVRAISON ===
+                  // === RÃ‰CAPITULATIF MODE DE LIVRAISON ===
                   _buildDeliveryRecap(options),
                   const SizedBox(height: 24),
 
-                  // === SECTION TÉLÉPHONE ===
+                  // === SECTION TÃ‰LÃ‰PHONE ===
                   _buildSectionTitle('Numero de telephone'),
                   const SizedBox(height: 8),
                   userProfileAsync.when(
                     data: (user) => _buildPhoneSection(user.phone),
-                    loading: () => const Center(child: CircularProgressIndicator()),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
                     error: (err, stack) => _buildPhoneSection(null),
                   ),
                   const SizedBox(height: 24),
@@ -126,10 +141,58 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   ),
                   const SizedBox(height: 24),
 
-                  // === SECTION RÉSUMÉ ===
+                  // === SECTION CODE PROMO ===
+                  _buildSectionTitle('Code promo'),
+                  const SizedBox(height: 8),
+                  _buildPromoSection(
+                    restaurantId: restaurantId,
+                    subTotal: subTotal,
+                    originalDeliveryFee: options.deliveryFee,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // === SECTION POINTS DE FIDELITE ===
+                  if (userPoints >= 100) ...[
+                    _buildSectionTitle('Points de fidelite'),
+                    const SizedBox(height: 8),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.amber[50],
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.amber.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: SwitchListTile(
+                        value: _useLoyaltyPoints,
+                        onChanged: (v) => setState(() => _useLoyaltyPoints = v),
+                        title: Text(
+                          'Utiliser mes points',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          'Reduction de \ FCFA',
+                          style: TextStyle(color: Colors.amber[800]),
+                        ),
+                        secondary: const Icon(Icons.stars, color: Colors.amber),
+                        activeColor: Colors.amber[700],
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  // === SECTION RÃ‰SUMÃ‰ ===
                   _buildSectionTitle('Resume de la commande'),
                   const SizedBox(height: 12),
-                  _buildOrderSummary(cart, subTotal, deliveryFee, total, options),
+                  _buildOrderSummary(
+                    cart: cart,
+                    subTotal: subTotal,
+                    deliveryFee: deliveryFee,
+                    originalDeliveryFee: options.deliveryFee,
+                    serviceFee: serviceFee,
+                    discountAmount: discountAmount,
+                    total: total,
+                    options: options,
+                  ),
                   const SizedBox(height: 24),
 
                   // === SECTION PAIEMENT ===
@@ -145,7 +208,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     child: ElevatedButton(
                       onPressed: checkoutState.isLoading
                           ? null
-                          : () => _showPaymentInstructions(context, total, options, restaurantId),
+                          : () => _showPaymentInstructions(
+                              context,
+                              total,
+                              options,
+                              restaurantId,
+                            ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).primaryColor,
                         shape: RoundedRectangleBorder(
@@ -162,6 +230,32 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // === BOUTON ENREGISTRER POUR PLUS TARD ===
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: OutlinedButton.icon(
+                      onPressed: checkoutState.isLoading
+                          ? null
+                          : () => _saveDraft(cart, restaurantId),
+                      icon: const Icon(Icons.bookmark_border_rounded, size: 20),
+                      label: const Text(
+                        'Enregistrer pour plus tard',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        side: BorderSide(color: Colors.grey[300]!),
+                      ),
                     ),
                   ),
                 ],
@@ -214,7 +308,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  options.isDelivery ? 'Livraison a domicile' : 'Retrait au restaurant',
+                  options.isDelivery
+                      ? 'Livraison a domicile'
+                      : 'Retrait au restaurant',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -243,7 +339,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             ),
           ),
           TextButton(
-            onPressed: () => context.goNamed(AppRoutes.deliveryOptions.routeName),
+            onPressed: () =>
+                context.goNamed(AppRoutes.deliveryOptions.routeName),
             child: const Text('Modifier'),
           ),
         ],
@@ -280,10 +377,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         labelText: 'Numero de telephone',
         hintText: 'Ex: 06 XXX XX XX',
         prefixIcon: const Icon(Icons.phone),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 16,
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
       ),
       validator: (value) {
         if (value == null || value.isEmpty) {
@@ -315,10 +413,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               children: [
                 Text(
                   'MTN Mobile Money',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 SizedBox(height: 4),
                 Text(
@@ -334,13 +429,199 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     );
   }
 
-  Widget _buildOrderSummary(
-    Cart cart,
-    double subTotal,
-    double deliveryFee,
-    double total,
-    DeliveryOptions options,
-  ) {
+  Widget _buildPromoSection({
+    required String restaurantId,
+    required double subTotal,
+    required double originalDeliveryFee,
+  }) {
+    // Code promo dÃ©jÃ  appliquÃ© : afficher un rÃ©cap avec bouton supprimer
+    if (_promoResult != null) {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.green.shade50,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.green.shade200),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green.shade700, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _promoResult!.code,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: Colors.green.shade800,
+                    ),
+                  ),
+                  if (_promoResult!.description != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      _promoResult!.description!,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.green.shade700,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 2),
+                  Text(
+                    _promoResult!.discountLabel,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: Colors.green.shade800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, size: 20),
+              color: Colors.grey,
+              onPressed: () {
+                setState(() {
+                  _promoResult = null;
+                  _promoError = null;
+                  _promoController.clear();
+                });
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Champ de saisie du code promo
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _promoController,
+                textCapitalization: TextCapitalization.characters,
+                decoration: InputDecoration(
+                  hintText: 'Entrer un code promo',
+                  prefixIcon: const Icon(Icons.local_offer_outlined, size: 20),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 14,
+                  ),
+                  errorText: _promoError,
+                ),
+                onChanged: (_) {
+                  if (_promoError != null) {
+                    setState(() => _promoError = null);
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              height: 48,
+              child: ElevatedButton(
+                onPressed: _promoLoading
+                    ? null
+                    : () => _applyPromoCode(
+                        restaurantId: restaurantId,
+                        subTotal: subTotal,
+                        deliveryFee: originalDeliveryFee,
+                      ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
+                child: _promoLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        'Appliquer',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _applyPromoCode({
+    required String restaurantId,
+    required double subTotal,
+    required double deliveryFee,
+  }) async {
+    final code = _promoController.text.trim();
+    if (code.isEmpty) {
+      setState(() => _promoError = 'Veuillez entrer un code promo');
+      return;
+    }
+
+    setState(() {
+      _promoLoading = true;
+      _promoError = null;
+    });
+
+    try {
+      final result = await ref
+          .read(promoRepositoryProvider.notifier)
+          .validateCode(
+            code: code,
+            restaurantId: restaurantId,
+            subTotal: subTotal,
+            deliveryFee: deliveryFee,
+          );
+
+      if (!mounted) return;
+      setState(() {
+        _promoResult = result;
+        _promoLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      String message = e.toString();
+      if (message.startsWith('Exception: ')) {
+        message = message.substring(11);
+      }
+      setState(() {
+        _promoError = message;
+        _promoLoading = false;
+      });
+    }
+  }
+
+  Widget _buildOrderSummary({
+    required Cart cart,
+    required double subTotal,
+    required double deliveryFee,
+    required double originalDeliveryFee,
+    required double serviceFee,
+    required double discountAmount,
+    required double total,
+    required DeliveryOptions options,
+  }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -350,7 +631,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       ),
       child: Column(
         children: [
-          // Menus groupés
+          // Menus groupÃ©s
           ...cart.menuGroups.entries.map((entry) {
             final groupItems = entry.value;
             final menuInfo = groupItems.first.menu;
@@ -366,23 +647,34 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                       Expanded(
                         child: Text(
                           '${quantite}x ${menuInfo?.nom ?? "Menu"}',
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Text(
                         '${((menuInfo?.prix ?? 0) * quantite).toStringAsFixed(0)} FCFA',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
-                  ...groupItems.map((item) => Padding(
-                    padding: const EdgeInsets.only(left: 16, top: 2),
-                    child: Text(
-                      '- ${item.product.nom}',
-                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ...groupItems.map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(left: 16, top: 2),
+                      child: Text(
+                        '- ${item.product.nom}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
                     ),
-                  )),
+                  ),
                 ],
               ),
             );
@@ -416,18 +708,93 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text('Frais de livraison', style: TextStyle(fontSize: 15)),
+              _buildDeliveryFeeLabel(
+                isDelivery: options.isDelivery,
+                deliveryFee: deliveryFee,
+                originalDeliveryFee: originalDeliveryFee,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Frais de service', style: TextStyle(fontSize: 15)),
               Text(
-                options.isDelivery
-                    ? '${deliveryFee.toStringAsFixed(0)} FCFA'
-                    : 'Gratuit',
-                style: TextStyle(
+                '${serviceFee.toStringAsFixed(0)} FCFA',
+                style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
-                  color: !options.isDelivery ? Colors.green : null,
                 ),
               ),
             ],
           ),
+          // Ligne rÃ©duction promo
+          if (_promoResult != null) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.local_offer,
+                        size: 16,
+                        color: Colors.green,
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          'Promo ${_promoResult!.code}',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Colors.green,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  _promoResult!.discountLabel,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          // Ligne reduction fidelite
+          if (_useLoyaltyPoints && loyaltyDiscount > 0) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.stars, size: 16, color: Colors.amber),
+                    SizedBox(width: 4),
+                    Text(
+                      'Points fidelite',
+                      style: TextStyle(fontSize: 15, color: Colors.amber),
+                    ),
+                  ],
+                ),
+                Text(
+                  '-\ FCFA',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.amber,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const Divider(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -451,6 +818,57 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     );
   }
 
+  Widget _buildDeliveryFeeLabel({
+    required bool isDelivery,
+    required double deliveryFee,
+    required double originalDeliveryFee,
+  }) {
+    if (!isDelivery) {
+      return const Text(
+        'Gratuit',
+        style: TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          color: Colors.green,
+        ),
+      );
+    }
+
+    final isFreeDeliveryPromo =
+        _promoResult != null &&
+        _promoResult!.discountType == DiscountType.freeDelivery;
+
+    if (isFreeDeliveryPromo) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${originalDeliveryFee.toStringAsFixed(0)} FCFA',
+            style: const TextStyle(
+              fontSize: 14,
+              decoration: TextDecoration.lineThrough,
+              color: Colors.grey,
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Text(
+            'Gratuit',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Colors.green,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Text(
+      '${deliveryFee.toStringAsFixed(0)} FCFA',
+      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
+    );
+  }
+
   Widget _buildSummaryRow(String label, double value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -464,19 +882,70 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     );
   }
 
+  Future<void> _saveDraft(Cart cart, String restaurantId) async {
+    try {
+      // Recuperer le nom du restaurant
+      final restaurant = await ref.read(
+        restaurantControllerProvider(restaurantId).future,
+      );
+      final restaurantName = restaurant.name;
+
+      await ref
+          .read(draftOrdersProvider.notifier)
+          .saveDraft(cart: cart, restaurantName: restaurantName);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Commande enregistree pour plus tard'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+
+      // Depiler checkout et delivery-options du tab panier
+      // pour que le retour au tab panier affiche le CartScreen
+      Navigator.of(context).popUntil((route) => route.isFirst);
+
+      // Naviguer vers l'ecran des brouillons (tab profil)
+      context.goNamed(AppRoutes.draftOrders.routeName);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
   Future<void> _showPaymentInstructions(
     BuildContext context,
     double total,
     DeliveryOptions options,
     String restaurantId,
   ) async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      // Montrer un feedback si le formulaire n'est pas valide
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Veuillez remplir le numero de telephone'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
 
-    // Préparer l'adresse si c'est une livraison
+    // PrÃ©parer l'adresse si c'est une livraison
     String? finalAddressId;
     if (options.isDelivery) {
       if (options.newAddressRue != null) {
-        // Créer une nouvelle adresse
+        // CrÃ©er une nouvelle adresse
         try {
           final newAddress = await ref
               .read(adresseControllerProvider.notifier)
@@ -487,7 +956,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           finalAddressId = newAddress.id;
         } catch (e) {
           if (!context.mounted) return;
-          _showOrderError(context, Exception('Impossible de sauvegarder l\'adresse de livraison. Veuillez réessayer.'));
+          _showOrderError(
+            context,
+            Exception(
+              'Impossible de sauvegarder l\'adresse de livraison. Veuillez rÃ©essayer.',
+            ),
+          );
           return;
         }
       } else if (options.address != null) {
@@ -497,7 +971,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     if (!context.mounted) return;
 
-    // Récupérer le numéro de téléphone du restaurant
+    // RÃ©cupÃ©rer le numÃ©ro de tÃ©lÃ©phone du restaurant
     String paymentPhoneNumber = 'Non disponible';
     try {
       final restaurant = await ref.read(
@@ -505,7 +979,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       );
       paymentPhoneNumber = restaurant.phoneNumber ?? 'Non disponible';
     } catch (_) {
-      // En cas d'erreur, on continue avec le numéro par défaut
+      // En cas d'erreur, on continue avec le numÃ©ro par dÃ©faut
     }
 
     if (!context.mounted) return;
@@ -522,7 +996,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             children: [
               Icon(Icons.payment, color: Colors.orange.shade700, size: 24),
               const SizedBox(width: 8),
-              const Text('Instructions de paiement', style: TextStyle(fontSize: 18)),
+              const Text(
+                'Instructions de paiement',
+                style: TextStyle(fontSize: 18),
+              ),
             ],
           ),
           content: SingleChildScrollView(
@@ -535,7 +1012,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   style: TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 16),
-                // Numéro de paiement
+                // NumÃ©ro de paiement
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -566,7 +1043,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                       IconButton(
                         icon: const Icon(Icons.copy, color: Colors.orange),
                         onPressed: () {
-                          Clipboard.setData(ClipboardData(text: paymentPhoneNumber));
+                          Clipboard.setData(
+                            ClipboardData(text: paymentPhoneNumber),
+                          );
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Numero copie!'),
@@ -613,15 +1092,33 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     children: [
                       Text(
                         'Etapes:',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                       SizedBox(height: 8),
                       Text('1. Composez *105#', style: TextStyle(fontSize: 13)),
-                      Text('2. Choisir "Envoi d\'argent"', style: TextStyle(fontSize: 13)),
-                      Text('3. Choisir "Abonne Mobile Money"', style: TextStyle(fontSize: 13)),
-                      Text('4. Entrer le numero ci-dessus', style: TextStyle(fontSize: 13)),
-                      Text('5. Entrer le montant', style: TextStyle(fontSize: 13)),
-                      Text('6. Confirmer avec votre code PIN', style: TextStyle(fontSize: 13)),
+                      Text(
+                        '2. Choisir "Envoi d\'argent"',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                      Text(
+                        '3. Choisir "Abonne Mobile Money"',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                      Text(
+                        '4. Entrer le numero ci-dessus',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                      Text(
+                        '5. Entrer le montant',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                      Text(
+                        '6. Confirmer avec votre code PIN',
+                        style: TextStyle(fontSize: 13),
+                      ),
                     ],
                   ),
                 ),
@@ -636,16 +1133,22 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             ElevatedButton(
               onPressed: () async {
                 try {
-                  final checkout = await ref.read(checkoutControllerProvider.notifier).placeOrder(
-                    adresseId: finalAddressId,
-                    paymentMethod: 'MTN_MOMO',
-                    isDelivery: options.isDelivery,
-                    note: _noteController.text.trim().isEmpty
-                        ? null
-                        : _noteController.text.trim(),
-                  );
+                  final checkout = await ref
+                      .read(checkoutControllerProvider.notifier)
+                      .placeOrder(
+                        adresseId: finalAddressId,
+                        paymentMethod: 'MTN_MOMO',
+                        isDelivery: options.isDelivery,
+                        note: _noteController.text.trim().isEmpty
+                            ? null
+                            : _noteController.text.trim(),
+                        contactPhone: _phoneController.text.trim().isEmpty
+                            ? null
+                            : _phoneController.text.trim(),
+                        promoCode: _promoResult?.code,
+                      );
 
-                  // Analytics: commande réussie
+                  // Analytics: commande rÃ©ussie
                   AnalyticsService.logOrderCreated(
                     orderId: checkout.id,
                     total: total,
@@ -660,7 +1163,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   ref.read(cartControllerProvider.notifier).clearCart();
                   context.goNamed(AppRoutes.orderSuccess.routeName);
                 } catch (e) {
-                  // Analytics: commande échouée
+                  // Analytics: commande Ã©chouÃ©e
                   AnalyticsService.logOrderFailed(
                     errorMessage: e.toString(),
                     paymentMethod: 'MTN_MOMO',
@@ -696,15 +1199,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       message = message.substring(11);
     }
 
-    // Déterminer l'icône et la couleur selon le type d'erreur
+    // DÃ©terminer l'icÃ´ne et la couleur selon le type d'erreur
     IconData icon = Icons.error_outline;
     Color iconColor = Colors.red;
     String title = 'Erreur de commande';
 
-    if (message.contains('fermé')) {
+    if (message.contains('fermÃ©')) {
       icon = Icons.store;
       iconColor = Colors.orange;
-      title = 'Restaurant fermé';
+      title = 'Restaurant fermÃ©';
     } else if (message.contains('rupture') || message.contains('stock')) {
       icon = Icons.remove_shopping_cart;
       iconColor = Colors.orange;
@@ -720,11 +1223,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     } else if (message.contains('adresse')) {
       icon = Icons.location_off;
       iconColor = Colors.blue;
-      title = 'Problème d\'adresse';
-    } else if (message.contains('reconnecter') || message.contains('authentif')) {
+      title = 'ProblÃ¨me d\'adresse';
+    } else if (message.contains('promo') || message.contains('code')) {
+      icon = Icons.local_offer;
+      iconColor = Colors.purple;
+      title = 'Code promo invalide';
+    } else if (message.contains('reconnecter') ||
+        message.contains('authentif')) {
       icon = Icons.lock_outline;
       iconColor = Colors.red;
-      title = 'Session expirée';
+      title = 'Session expirÃ©e';
     }
 
     showDialog(
@@ -735,9 +1243,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           children: [
             Icon(icon, color: iconColor, size: 28),
             const SizedBox(width: 10),
-            Expanded(
-              child: Text(title, style: const TextStyle(fontSize: 17)),
-            ),
+            Expanded(child: Text(title, style: const TextStyle(fontSize: 17))),
           ],
         ),
         content: Text(

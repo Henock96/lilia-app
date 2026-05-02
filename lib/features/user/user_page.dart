@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
@@ -160,16 +160,24 @@ class UserPage extends ConsumerWidget {
                               icon: Iconsax.heart,
                               iconColor: Colors.red[400]!,
                               title: 'Mes Favoris',
-                              subtitle: 'Vos restaurants préférés',
+                              subtitle: 'Vos restaurants prÃ©fÃ©rÃ©s',
                               onTap: () =>
                                   context.goNamed(AppRoutes.favoris.routeName),
                               showTopBorder: false,
                             ),
                             _ProfileMenuItem(
+                              icon: Iconsax.document_text,
+                              iconColor: Colors.amber[700]!,
+                              title: 'Commandes en attente',
+                              subtitle: 'Commandes enregistrees pour plus tard',
+                              onTap: () =>
+                                  context.goNamed(AppRoutes.draftOrders.routeName),
+                            ),
+                            _ProfileMenuItem(
                               icon: Iconsax.location,
                               iconColor: Colors.blue[400]!,
                               title: 'Adresses de livraison',
-                              subtitle: 'Gérer vos adresses',
+                              subtitle: 'GÃ©rer vos adresses',
                               onTap: () =>
                                   context.goNamed(AppRoutes.address.routeName),
                             ),
@@ -177,7 +185,7 @@ class UserPage extends ConsumerWidget {
                               icon: Iconsax.user_edit,
                               iconColor: Colors.orange[400]!,
                               title: 'Modifier le profil',
-                              subtitle: 'Nom, téléphone',
+                              subtitle: 'Nom, tÃ©lÃ©phone',
                               onTap: () {
                                 Navigator.push(
                                   context,
@@ -220,7 +228,7 @@ class UserPage extends ConsumerWidget {
                         child: _ProfileMenuItem(
                           icon: Iconsax.info_circle,
                           iconColor: Colors.teal[400]!,
-                          title: 'À propos de Lilia Food',
+                          title: 'Ã€ propos de Lilia Food',
                           subtitle: 'Version, conditions d\'utilisation',
                           onTap: () {
                             Navigator.push(
@@ -237,7 +245,7 @@ class UserPage extends ConsumerWidget {
 
                       const SizedBox(height: 24),
 
-                      // Bouton Déconnexion
+                      // Bouton DÃ©connexion
                       Container(
                         width: double.infinity,
                         decoration: BoxDecoration(
@@ -274,7 +282,7 @@ class UserPage extends ConsumerWidget {
                               ),
                               const SizedBox(width: 10),
                               Text(
-                                'Se déconnecter',
+                                'Se dÃ©connecter',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
@@ -320,11 +328,11 @@ class UserPage extends ConsumerWidget {
                 color: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(width: 8),
-              const Text('Se déconnecter ?'),
+              const Text('Se dÃ©connecter ?'),
             ],
           ),
           content: const Text(
-            'Êtes-vous sûr de vouloir vous déconnecter de votre compte ?',
+            'ÃŠtes-vous sÃ»r de vouloir vous dÃ©connecter de votre compte ?',
           ),
           actions: <Widget>[
             TextButton(
@@ -336,7 +344,7 @@ class UserPage extends ConsumerWidget {
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Déconnecter'),
+              child: const Text('DÃ©connecter'),
               onPressed: () async {
                 Navigator.of(context).pop();
                 await ref.read(authControllerProvider.notifier).signOut();
@@ -413,6 +421,216 @@ class _ProfileMenuItem extends StatelessWidget {
             Icon(Iconsax.arrow_right_3, color: Colors.grey[400], size: 20),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+
+
+class _LoyaltyCard extends ConsumerStatefulWidget {
+  final WidgetRef ref;
+  const _LoyaltyCard({required this.ref});
+
+  @override
+  ConsumerState<_LoyaltyCard> createState() => _LoyaltyCardState();
+}
+
+class _LoyaltyCardState extends ConsumerState<_LoyaltyCard> {
+  bool _showHistory = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final userAsync = ref.watch(userProfileProvider);
+    final transactionsAsync = ref.watch(loyaltyTransactionsProvider);
+
+    return userAsync.when(
+      data: (user) => Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFF8C00), Color(0xFFFFB347)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.orange.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 4))],
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.stars, color: Colors.white, size: 22),
+                    SizedBox(width: 8),
+                    Text('Points de fidelite', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  ],
+                ),
+                TextButton(
+                  onPressed: () => setState(() => _showHistory = !_showHistory),
+                  child: Text(_showHistory ? 'Masquer' : 'Historique', style: const TextStyle(color: Colors.white, fontSize: 12)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Text('${user.loyaltyPoints}', style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold)),
+                const SizedBox(width: 8),
+                const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('points', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                    Text('= 1 pt par 100 FCFA', style: TextStyle(color: Colors.white60, fontSize: 11)),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text('Valeur: ${(user.loyaltyPoints * 5)} FCFA de reduction (min. 100 pts)', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+            if (_showHistory) ...[
+              const SizedBox(height: 12),
+              const Divider(color: Colors.white30),
+              const SizedBox(height: 8),
+              transactionsAsync.when(
+                data: (transactions) => transactions.isEmpty
+                    ? const Text('Aucune transaction', style: TextStyle(color: Colors.white70, fontSize: 13))
+                    : Column(
+                        children: transactions.take(10).map((t) => Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(child: Text(t.reason, style: const TextStyle(color: Colors.white, fontSize: 12), overflow: TextOverflow.ellipsis)),
+                              Text(
+                                '${t.points > 0 ? "+" : ""}${t.points} pts',
+                                style: TextStyle(
+                                  color: t.points > 0 ? Colors.white : Colors.white70,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )).toList(),
+                      ),
+                loading: () => const Center(child: CircularProgressIndicator(color: Colors.white)),
+                error: (_, __) => const Text('Erreur chargement', style: TextStyle(color: Colors.white70)),
+              ),
+            ],
+          ],
+        ),
+      ),
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
+class _ReferralCard extends ConsumerWidget {
+  final WidgetRef ref;
+  const _ReferralCard({required this.ref});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statsAsync = ref.watch(referralStatsProvider);
+
+    return statsAsync.when(
+      data: (stats) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.purple.withValues(alpha: 0.2)),
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.card_giftcard, color: Colors.purple, size: 22),
+                SizedBox(width: 8),
+                Text('Parrainage', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.purple)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            const Text('Mon code de parrainage', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(height: 6),
+            GestureDetector(
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: stats.referralCode));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Code copie !'), backgroundColor: Colors.purple),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.purple.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(stats.referralCode, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 4, color: Colors.purple)),
+                    const Icon(Icons.copy, color: Colors.purple, size: 20),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _StatBadge(label: 'Parraines', value: '${stats.totalReferrals}'),
+                const SizedBox(width: 12),
+                _StatBadge(label: 'Recompenses', value: '${stats.rewardedReferrals}'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.purple.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Text(
+                'Parrainez un ami: +500 pts pour vous, +200 pts pour lui a sa 1ere commande',
+                style: TextStyle(fontSize: 11, color: Colors.purple),
+              ),
+            ),
+          ],
+        ),
+      ),
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
+class _StatBadge extends StatelessWidget {
+  final String label;
+  final String value;
+  const _StatBadge({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.purple.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.purple)),
+          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        ],
       ),
     );
   }

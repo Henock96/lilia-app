@@ -61,7 +61,31 @@ class _RestaurantDetailScreenState
       appBar: AppBar(
         elevation: 0,
         centerTitle: true,
-        title: Text(widget.restaurantName),
+        title: Column(
+          children: [
+            Text(
+              widget.restaurantName,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            if (restaurantAsyncValue.value != null &&
+                restaurantAsyncValue.value!.averageRating != null)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.star_rounded, size: 16, color: Colors.amber),
+                  const SizedBox(width: 3),
+                  Text(
+                    '${restaurantAsyncValue.value!.averageRating}',
+                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  ),
+                  Text(
+                    ' (${restaurantAsyncValue.value!.totalReviews} avis)',
+                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                  ),
+                ],
+              ),
+          ],
+        ),
         actions: [
           // Bouton partager
           IconButton(

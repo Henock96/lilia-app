@@ -3,6 +3,7 @@ import 'package:lilia_app/models/order_item.dart';
 // Enum pour les statuts de commande, doit correspondre au backend
 enum OrderStatus {
   enAttente,
+  payer,
   enPreparation,
   pret,
   livrer,
@@ -15,6 +16,8 @@ OrderStatus _parseStatus(String status) {
   switch (status) {
     case 'EN_ATTENTE':
       return OrderStatus.enAttente;
+    case 'PAYER':
+      return OrderStatus.payer;
     case 'EN_PREPARATION':
       return OrderStatus.enPreparation;
     case 'PRET':
@@ -34,6 +37,8 @@ class Order {
   final String userId;
   final double subTotal;
   final double deliveryFee;
+  final double serviceFee;
+  final double discountAmount;
   final double total;
   final String? deliveryAddress; // Nullable pour le mode retrait
   final String paymentMethod;
@@ -50,6 +55,8 @@ class Order {
     required this.userId,
     required this.subTotal,
     required this.deliveryFee,
+    this.serviceFee = 0,
+    this.discountAmount = 0,
     required this.total,
     this.deliveryAddress, // Optionnel maintenant
     required this.paymentMethod,
@@ -73,6 +80,8 @@ class Order {
       userId: json['userId'],
       subTotal: (json['subTotal'] as num).toDouble(),
       deliveryFee: (json['deliveryFee'] as num).toDouble(),
+      serviceFee: (json['serviceFee'] as num?)?.toDouble() ?? 0,
+      discountAmount: (json['discountAmount'] as num?)?.toDouble() ?? 0,
       total: (json['total'] as num).toDouble(),
       deliveryAddress:
           json['deliveryAddress'], // Peut être null en mode retrait

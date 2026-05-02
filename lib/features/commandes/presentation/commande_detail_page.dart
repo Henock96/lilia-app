@@ -733,10 +733,11 @@ class OrderDetailPage extends ConsumerWidget {
           .reorder(orderId: orderId);
 
       if (!context.mounted) return;
-      Navigator.of(context).pop(); // Close loading dialog
+      Navigator.of(context, rootNavigator: true).pop(); // Close loading dialog
 
-      final totalAdded = result['totalAdded'] ?? 0;
-      final totalUnavailable = result['totalUnavailable'] ?? 0;
+      final summary = result['summary'] as Map<String, dynamic>? ?? {};
+      final totalAdded = summary['totalAdded'] ?? result['totalAdded'] ?? 0;
+      final totalUnavailable = summary['totalUnavailable'] ?? result['totalUnavailable'] ?? 0;
 
       if (totalAdded > 0) {
         String message = '$totalAdded article${totalAdded > 1 ? 's' : ''} ajouté${totalAdded > 1 ? 's' : ''} au panier';
@@ -789,7 +790,7 @@ class OrderDetailPage extends ConsumerWidget {
       }
     } catch (e) {
       if (!context.mounted) return;
-      Navigator.of(context).pop(); // Close loading dialog
+      Navigator.of(context, rootNavigator: true).pop(); // Close loading dialog
 
       String errorMessage = 'Erreur lors de la recommande';
       if (e.toString().contains('autre restaurant')) {
@@ -908,6 +909,13 @@ class OrderDetailPage extends ConsumerWidget {
           description: 'Votre commande est en attente de confirmation',
           color: Colors.orange,
           icon: Iconsax.timer_1,
+        );
+      case OrderStatus.payer:
+        return _StatusInfo(
+          label: 'Payée',
+          description: 'Votre paiement a été confirmé',
+          color: Colors.purple,
+          icon: Iconsax.card_tick,
         );
       case OrderStatus.enPreparation:
         return _StatusInfo(

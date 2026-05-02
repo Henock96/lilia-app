@@ -34,7 +34,8 @@ class AdresseRepository extends _$AdresseRepository {
       );
 
       if (response.statusCode == 200) {
-        List<dynamic> addressesJson = json.decode(response.body);
+        final decoded = json.decode(response.body);
+        final List<dynamic> addressesJson = decoded['data'];
         return addressesJson.map((json) => Adresse.fromJson(json)).toList();
       } else {
         throw Exception('Impossible de charger vos adresses.');
@@ -76,8 +77,8 @@ class AdresseRepository extends _$AdresseRepository {
       );
 
       if (response.statusCode == 201) {
-        var addressesJson = json.decode(response.body);
-        return Adresse.fromJson(addressesJson);
+        final decoded = json.decode(response.body);
+        return Adresse.fromJson(decoded['data']);
       } else {
         throw Exception('Impossible de sauvegarder l\'adresse.');
       }

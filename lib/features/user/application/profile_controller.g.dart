@@ -81,7 +81,88 @@ final class UserProfileProvider
   }
 }
 
-String _$userProfileHash() => r'a095bf522f4a9c1587515ecf90da94db04924728';
+String _$userProfileHash() => r'a287223e5bef2dbd5a964cae13367afc78cb4598';
+
+@ProviderFor(referralStats)
+final referralStatsProvider = ReferralStatsProvider._();
+
+final class ReferralStatsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<ReferralStats>,
+          ReferralStats,
+          FutureOr<ReferralStats>
+        >
+    with $FutureModifier<ReferralStats>, $FutureProvider<ReferralStats> {
+  ReferralStatsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'referralStatsProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$referralStatsHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<ReferralStats> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<ReferralStats> create(Ref ref) {
+    return referralStats(ref);
+  }
+}
+
+String _$referralStatsHash() => r'b43a16a60fc370140238a5c139249a19a19d8ec1';
+
+@ProviderFor(loyaltyTransactions)
+final loyaltyTransactionsProvider = LoyaltyTransactionsProvider._();
+
+final class LoyaltyTransactionsProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<LoyaltyTransaction>>,
+          List<LoyaltyTransaction>,
+          FutureOr<List<LoyaltyTransaction>>
+        >
+    with
+        $FutureModifier<List<LoyaltyTransaction>>,
+        $FutureProvider<List<LoyaltyTransaction>> {
+  LoyaltyTransactionsProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'loyaltyTransactionsProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$loyaltyTransactionsHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<List<LoyaltyTransaction>> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<List<LoyaltyTransaction>> create(Ref ref) {
+    return loyaltyTransactions(ref);
+  }
+}
+
+String _$loyaltyTransactionsHash() =>
+    r'12cdf338a8f8eecd0cbbe084f368c75f707af7da';
 
 @ProviderFor(ProfileController)
 final profileControllerProvider = ProfileControllerProvider._();
@@ -107,7 +188,7 @@ final class ProfileControllerProvider
   ProfileController create() => ProfileController();
 }
 
-String _$profileControllerHash() => r'47d672bfa5330cd3514c2cbb187f518e6e492ab9';
+String _$profileControllerHash() => r'791b2819b742e73ce7bce43950718c22e2aecf7f';
 
 abstract class _$ProfileController extends $AsyncNotifier<void> {
   FutureOr<void> build();

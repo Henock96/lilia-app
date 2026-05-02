@@ -12,6 +12,10 @@ class Product {
   final Category? category;
   final List<ProductVariant> variants;
   final int? stockRestant;
+  final int? orderCount;
+  final String? restaurantName;
+  final String? restaurantImageUrl;
+  final bool? restaurantIsOpen;
 
   Product({
     required this.id,
@@ -24,9 +28,19 @@ class Product {
     this.category,
     required this.variants,
     this.stockRestant,
+    this.orderCount,
+    this.restaurantName,
+    this.restaurantImageUrl,
+    this.restaurantIsOpen,
   });
 
   bool get isAvailable => stockRestant == null || stockRestant! > 0;
+
+  /// Prix d'affichage (premier variant ou prix original)
+  double get displayPrice {
+    if (variants.isNotEmpty) return variants.first.prix;
+    return prixOriginal;
+  }
 
   factory Product.fromJson(Map<String, dynamic> json) {
     var variantsList = json['variants'] as List;
@@ -44,6 +58,10 @@ class Product {
       category: json['category'] != null ? Category.fromJson(json['category']) : null,
       variants: variants,
       stockRestant: json['stockRestant'] as int?,
+      orderCount: json['orderCount'] as int?,
+      restaurantName: json['restaurant']?['nom'] as String?,
+      restaurantImageUrl: json['restaurant']?['imageUrl'] as String?,
+      restaurantIsOpen: json['restaurant']?['isOpen'] as bool?,
     );
   }
 }
