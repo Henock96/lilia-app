@@ -92,7 +92,7 @@ bool isRestaurantFavorite(Ref ref, String restaurantId) {
   return favoritesAsync.when(
     data: (favorites) => favorites.any((r) => r.id == restaurantId),
     loading: () => false,
-    error: (_, __) => false,
+    error: (_, _) => false,
   );
 }
 

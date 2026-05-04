@@ -19,7 +19,7 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
         debugPrint('Jeton détecté. Synchronisation du profil utilisateur...');
         try {
           final response = await http.get(
-            Uri.parse('${AppConstants.baseUrl}/auth/profile'),
+            Uri.parse('${AppConstants.baseUrl}/users/me'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $token',

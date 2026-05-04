@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
@@ -32,7 +32,7 @@ class FirebaseAuthenticationRepository {
     return _firebaseAuth.authStateChanges().map(_convertUser);
   }
 
-  // RÃ©cupÃ¨re le jeton ID Firebase de l'utilisateur actuellement connectÃ©.
+  // Récupère le jeton ID Firebase de l'utilisateur actuellement connecté.
   Future<String?> getIdToken() async {
     return await _firebaseAuth.currentUser?.getIdToken();
   }
@@ -65,7 +65,7 @@ class FirebaseAuthenticationRepository {
     required String phone,
   String? referralCode,
   }) async {
-    // Ã‰tape 1: CrÃ©er l'utilisateur dans Firebase Auth
+    // Étape 1: Créer l'utilisateur dans Firebase Auth
     final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
       email: email,
       password: password,
@@ -73,9 +73,9 @@ class FirebaseAuthenticationRepository {
 
     final user = userCredential.user;
     if (user == null) {
-      throw Exception("La crÃ©ation de l'utilisateur a Ã©chouÃ©.");
+      throw Exception("La création de l'utilisateur a échoué.");
     }
-    // Ã‰tape 3: Sauvegarder les informations dans notre backend
+    // Étape 3: Sauvegarder les informations dans notre backend
     final idToken = await user.getIdToken();
     final url = Uri.parse('${AppConstants.baseUrl}/users/sync');
 
@@ -95,30 +95,30 @@ class FirebaseAuthenticationRepository {
     );
 
     if (response.statusCode != 200 && response.statusCode != 201) {
-      // Si le backend Ã©choue, nous devrions peut-Ãªtre supprimer l'utilisateur de Firebase
-      // pour Ã©viter un Ã©tat incohÃ©rent. Pour l'instant, nous lanÃ§ons une exception.
+      // Si le backend échoue, nous devrions peut-être supprimer l'utilisateur de Firebase
+      // pour éviter un état incohérent. Pour l'instant, nous lançons une exception.
       await user.delete();
       throw Exception(
-        'Ã‰chec de la sauvegarde des informations utilisateur sur le backend: ${response.body}',
+        'Échec de la sauvegarde des informations utilisateur sur le backend: ${response.body}',
       );
     }
   }
 
   Future<AppUser?> signInWithGoogle() async {
-    // Ã‰tape 1: Initialiser GoogleSignIn si nÃ©cessaire
+    // Étape 1: Initialiser GoogleSignIn si nécessaire
     await _googleSignIn.initialize();
 
-    // Ã‰tape 2: DÃ©connecter tout utilisateur Google prÃ©cÃ©dent
-    // pour s'assurer d'avoir un Ã©tat propre
+    // Étape 2: Déconnecter tout utilisateur Google précédent
+    // pour s'assurer d'avoir un état propre
     await _googleSignIn.disconnect();
 
-    // Ã‰tape 3: Authentifier l'utilisateur avec Google Sign In
+    // Étape 3: Authentifier l'utilisateur avec Google Sign In
     // Utilise authenticate() qui retourne un GoogleSignInUser
     final googleUser = await _googleSignIn.authenticate();
 
-    // Ã‰tape 4: Obtenir le client d'autorisation pour Firebase
+    // Étape 4: Obtenir le client d'autorisation pour Firebase
 
-    // Ã‰tape 5: Obtenir l'ID token depuis les headers du client
+    // Étape 5: Obtenir l'ID token depuis les headers du client
     //final headers = await authClient.credentials.headers;
     final GoogleSignInAuthentication googleAuth = googleUser.authentication;
     final idToken = googleAuth.idToken;
@@ -127,18 +127,18 @@ class FirebaseAuthenticationRepository {
       throw Exception("Impossible d'obtenir le token d'authentification");
     }
 
-    // Ã‰tape 6: CrÃ©er les credentials Firebase (seul l'idToken est nÃ©cessaire)
+    // Étape 6: Créer les credentials Firebase (seul l'idToken est nécessaire)
     final credential = GoogleAuthProvider.credential(idToken: idToken);
 
-    // Ã‰tape 7: Se connecter Ã  Firebase avec les credentials
+    // Étape 7: Se connecter à Firebase avec les credentials
     final userCred = await _firebaseAuth.signInWithCredential(credential);
     final user = userCred.user;
     if (user == null) {
-      throw Exception("La connexion Google a Ã©chouÃ©.");
+      throw Exception("La connexion Google a échoué.");
     }
 
-    // Ã‰tape 8: Synchroniser avec le backend
-    // Note: Le backend utilise UPSERT donc gÃ¨re inscription ET connexion
+    // Étape 8: Synchroniser avec le backend
+    // Note: Le backend utilise UPSERT donc gère inscription ET connexion
     try {
       final firebaseIdToken = await user.getIdToken();
       final url = Uri.parse('${AppConstants.baseUrl}/users/sync');
@@ -170,15 +170,15 @@ class FirebaseAuthenticationRepository {
         print('ðŸ“¡ Backend response body: ${response.body}');
       }
 
-      // Accepter 200 (utilisateur existant/mis Ã  jour) et 201 (nouvel utilisateur crÃ©Ã©)
+      // Accepter 200 (utilisateur existant/mis à jour) et 201 (nouvel utilisateur créé)
       if (response.statusCode != 201 && response.statusCode != 200) {
         if (kDebugMode) {
           print('âŒ Backend sync failed with status ${response.statusCode}');
         }
-        // Supprimer l'utilisateur Firebase seulement si le backend Ã©choue
+        // Supprimer l'utilisateur Firebase seulement si le backend échoue
         await user.delete();
         throw Exception(
-          'Ã‰chec de la synchronisation avec le backend (${response.statusCode}): ${response.body}',
+          'Échec de la synchronisation avec le backend (${response.statusCode}): ${response.body}',
         );
       }
 
@@ -186,19 +186,19 @@ class FirebaseAuthenticationRepository {
         print('âœ… User successfully synchronized with backend');
       }
     } on http.ClientException catch (e) {
-      // Erreur rÃ©seau
+      // Erreur réseau
       if (kDebugMode) {
         print('âŒ Network error during backend sync: $e');
       }
       await user.delete();
-      throw Exception('Erreur rÃ©seau: Impossible de se connecter au serveur');
+      throw Exception('Erreur réseau: Impossible de se connecter au serveur');
     } on TimeoutException catch (e) {
       // Timeout
       if (kDebugMode) {
         print('âŒ Timeout during backend sync: $e');
       }
       await user.delete();
-      throw Exception('Le serveur ne rÃ©pond pas. Veuillez rÃ©essayer.');
+      throw Exception('Le serveur ne répond pas. Veuillez réessayer.');
     } catch (e) {
       // Autre erreur
       if (kDebugMode) {
@@ -212,9 +212,9 @@ class FirebaseAuthenticationRepository {
 
   Future<bool> signOut() async {
     try {
-      // DÃ©connecter de Google Sign In (utilise disconnect pour nettoyer complÃ¨tement)
+      // Déconnecter de Google Sign In (utilise disconnect pour nettoyer complètement)
       await _googleSignIn.disconnect();
-      // DÃ©connecter de Firebase Auth
+      // Déconnecter de Firebase Auth
       await _firebaseAuth.signOut();
       return true;
     } on Exception {
@@ -226,10 +226,10 @@ class FirebaseAuthenticationRepository {
     try {
       await _firebaseAuth.currentUser?.updatePassword(newPassword);
     } on FirebaseAuthException catch (e) {
-      // GÃ©rer les erreurs, par exemple si l'utilisateur doit se reconnecter
+      // Gérer les erreurs, par exemple si l'utilisateur doit se reconnecter
       if (e.code == 'requires-recent-login') {
         throw Exception(
-          'Cette opÃ©ration est sensible et nÃ©cessite une authentification rÃ©cente. Veuillez vous dÃ©connecter et vous reconnecter avant de rÃ©essayer.',
+          'Cette opération est sensible et nécessite une authentification récente. Veuillez vous déconnecter et vous reconnecter avant de réessayer.',
         );
       }
       rethrow;
@@ -251,7 +251,7 @@ class FirebaseAuthenticationRepository {
         await _firebaseAuth.sendPasswordResetEmail(email: user.email!);
       } else {
         throw Exception(
-          "Aucun utilisateur connectÃ© ou l'email n'est pas disponible.",
+          "Aucun utilisateur connecté ou l'email n'est pas disponible.",
         );
       }
     } catch (e) {
