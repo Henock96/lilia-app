@@ -334,7 +334,7 @@ class NotificationService {
       }
 
       _setupMessageHandlers();
-      _onTokenRefreshSubscription?.cancel(); // Annuler l'ancien si existe
+      _onTokenRefreshSubscription?.cancel();
       _onTokenRefreshSubscription = _fcm.onTokenRefresh.listen((newToken) {
         if (!_isDisposed) {
           debugPrint('FCM Token refreshed: $newToken');
@@ -342,10 +342,6 @@ class NotificationService {
           registerTokenOnServer();
         }
       });
-      // Enregistrer le token initial
-      if (fcmToken != null) {
-        await registerTokenOnServer();
-      }
 
       // Gérer l'ouverture de l'app via une notification (app terminée)
       final initialMessage = await _fcm.getInitialMessage();
@@ -360,6 +356,8 @@ class NotificationService {
 
   // 8. Amélioration de registerTokenOnServer avec retry
   Future<void> registerTokenOnServer({int maxRetries = 3}) async {
+    // Essayer d'obtenir le token si pas encore disponible (ex: init() appelé avant connexion)
+    fcmToken ??= await _fcm.getToken();
     if (fcmToken == null) {
       debugPrint('FCM Token is null, cannot register on server.');
       return;

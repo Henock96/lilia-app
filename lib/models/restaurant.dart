@@ -57,7 +57,7 @@ enum DayOfWeek {
   }
 }
 
-/// ModÃ¨le pour les horaires d'ouverture
+/// Modèle pour les horaires d'ouverture
 class OperatingHours {
   final String id;
   final String restaurantId;
@@ -87,7 +87,7 @@ class OperatingHours {
   }
 }
 
-/// ModÃ¨le pour les spÃ©cialitÃ©s d'un restaurant
+/// Modèle pour les spécialités d'un restaurant
 class Specialty {
   final String id;
   final String name;
@@ -102,7 +102,7 @@ class Specialty {
   }
 }
 
-/// ModÃ¨le simplifiÃ© pour la liste des restaurants (sans les produits)
+/// Modèle simplifié pour la liste des restaurants (sans les produits)
 class RestaurantSummary {
   final String id;
   final String name;
@@ -138,16 +138,16 @@ class RestaurantSummary {
     this.fixedDeliveryFee = 500,
   });
 
-  /// Retourne le temps de livraison formatÃ© (ex: "15-30 min")
+  /// Retourne le temps de livraison formaté (ex: "15-30 min")
   String get deliveryTimeFormatted =>
       '$estimatedDeliveryTimeMin-$estimatedDeliveryTimeMax min';
 
-  /// Retourne les spÃ©cialitÃ©s formatÃ©es (ex: "Pizza, Burger, Sushi")
+  /// Retourne les spécialités formatées (ex: "Pizza, Burger, Sushi")
   String get specialtiesFormatted =>
       specialties.map((s) => s.name).join(', ');
 
   factory RestaurantSummary.fromJson(Map<String, dynamic> json) {
-    // Parser les spÃ©cialitÃ©s
+    // Parser les spécialités
     List<Specialty> specialties = [];
     if (json['specialties'] != null) {
       specialties = (json['specialties'] as List)
@@ -215,7 +215,7 @@ class Restaurant {
     this.totalReviews,
   });
 
-  /// Retourne le temps de livraison formatÃ©
+  /// Retourne le temps de livraison formaté
   String get deliveryTimeFormatted =>
       '$estimatedDeliveryTimeMin-$estimatedDeliveryTimeMax min';
 
@@ -223,7 +223,7 @@ class Restaurant {
     var productsList = (json['products'] as List?) ?? [];
     List<Product> products = productsList.map((i) => Product.fromJson(i)).toList();
 
-    // Construire une map de catÃ©gories Ã  partir des produits
+    // Construire une map de catégories à partir des produits
     Map<String, Category> categoriesMap = {};
     for (var product in products) {
       if (product.category != null && !categoriesMap.containsKey(product.category!.id)) {
@@ -231,7 +231,7 @@ class Restaurant {
       }
     }
 
-    // Parser les spÃ©cialitÃ©s
+    // Parser les spécialités
     List<Specialty> specialties = [];
     if (json['specialties'] != null) {
       specialties = (json['specialties'] as List)
@@ -282,7 +282,7 @@ class Category {
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
       id: json['id'],
-      name: json['nom'], // Correspond Ã  'nom' de votre JSON
+      name: json['nom'], // Correspond à 'nom' de votre JSON
     );
   }
 }

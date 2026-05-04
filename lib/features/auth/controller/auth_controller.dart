@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_error_handler.dart';
@@ -19,13 +19,13 @@ part 'auth_controller.g.dart';
 class AuthController extends _$AuthController {
   @override
   Stream<AppUser?> build() {
-    // Ã‰coute les changements d'Ã©tat d'authentification de Firebase
+    // Écoute les changements d'état d'authentification de Firebase
     final authStream = ref.watch(authRepositoryProvider).authStateChanges();
 
-    // Ã‰coute le stream pour dÃ©clencher l'initialisation des notifications
+    // Écoute le stream pour déclencher l'initialisation des notifications
     authStream.listen((user) {
       if (user != null) {
-        // L'utilisateur est connectÃ©
+        // L'utilisateur est connecté
         _setupNotifications();
       }
     });
@@ -34,8 +34,10 @@ class AuthController extends _$AuthController {
   }
 
   Future<void> _setupNotifications() async {
+    // Ne pas rappeler init() - déjà exécuté au démarrage via notificationInitializerProvider.
+    // registerTokenOnServer() récupère le token FCM si besoin et l'enregistre maintenant
+    // que l'utilisateur est authentifié.
     final notificationService = ref.read(notificationServiceProvider);
-    await notificationService.init();
     await notificationService.registerTokenOnServer();
   }
 
@@ -59,7 +61,7 @@ class AuthController extends _$AuthController {
         print('Runtime type: ${e.runtimeType}');
       }
       state = AsyncValue.error(
-        "Une erreur inconnue est survenue. Veuillez rÃ©essayer.",
+        "Une erreur inconnue est survenue. Veuillez réessayer.",
         st,
       );
     }
@@ -88,7 +90,7 @@ class AuthController extends _$AuthController {
         print('Runtime type: ${e.runtimeType}');
       }
       state = AsyncValue.error(
-        "Une erreur inconnue est survenue. Veuillez rÃ©essayer.",
+        "Une erreur inconnue est survenue. Veuillez réessayer.",
         st,
       );
     }
@@ -101,10 +103,10 @@ class AuthController extends _$AuthController {
           .read(authRepositoryProvider)
           .signInWithGoogle();
       if (googleUser == null) {
-        // L'utilisateur a annulÃ© la connexion Google
+        // L'utilisateur a annulé la connexion Google
         state = const AsyncValue.data(null);
       } else {
-        // Connexion rÃ©ussie
+        // Connexion réussie
         AnalyticsService.logLogin(method: 'google');
         state = AsyncValue.data(googleUser);
       }
@@ -139,7 +141,7 @@ class AuthController extends _$AuthController {
     state = const AsyncValue.loading();
     try {
       await ref.read(authRepositoryProvider).updatePassword(newPassword);
-      state = const AsyncValue.data(null); // SuccÃ¨s
+      state = const AsyncValue.data(null); // Succès
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
@@ -152,7 +154,7 @@ class AuthController extends _$AuthController {
       await ref
           .read(authRepositoryProvider)
           .sendPasswordResetEmailWithEmail(email);
-      state = const AsyncValue.data(null); // SuccÃ¨s
+      state = const AsyncValue.data(null); // Succès
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
@@ -163,7 +165,7 @@ class AuthController extends _$AuthController {
     state = const AsyncValue.loading();
     try {
       await ref.read(authRepositoryProvider).sendPasswordResetEmail();
-      state = const AsyncValue.data(null); // SuccÃ¨s
+      state = const AsyncValue.data(null); // Succès
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;

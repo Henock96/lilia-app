@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,7 +15,6 @@ import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/services/analytics_service.dart';
 
 import '../../../models/cart.dart';
-import '../../user/application/profile_controller.dart';
 import '../../../models/promo_validation_result.dart';
 import '../data/promo_repository.dart';
 
@@ -50,7 +49,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
   @override
   Widget build(BuildContext context) {
-    // RÃ©cupÃ©rer les options de livraison
+    // Récupérer les options de livraison
     final options = widget.deliveryOptions;
 
     // Si pas d'options, rediriger vers la page de choix
@@ -89,11 +88,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               _promoResult?.newDeliveryFee ?? options.deliveryFee;
           final double serviceFee = (subTotal * 0.08).roundToDouble();
           final double discountAmount = _promoResult?.discountAmount ?? 0;
+          final int userPoints = userProfileAsync.value?.loyaltyPoints ?? 0;
+          final double loyaltyDiscount = userPoints * 5.0;
           final double total =
               subTotal + deliveryFee + serviceFee - discountAmount;
           final String restaurantId = cart.items.first.product.restaurantId;
 
-          // Analytics: dÃ©but du checkout (une seule fois)
+          // Analytics: début du checkout (une seule fois)
           if (!_analyticsLogged) {
             _analyticsLogged = true;
             AnalyticsService.logBeginCheckout(
@@ -109,11 +110,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // === RÃ‰CAPITULATIF MODE DE LIVRAISON ===
+                  // === RÉCAPITULATIF MODE DE LIVRAISON ===
                   _buildDeliveryRecap(options),
                   const SizedBox(height: 24),
 
-                  // === SECTION TÃ‰LÃ‰PHONE ===
+                  // === SECTION TÉLÉPHONE ===
                   _buildSectionTitle('Numero de telephone'),
                   const SizedBox(height: 8),
                   userProfileAsync.when(
@@ -171,16 +172,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         subtitle: Text(
-                          'Reduction de \ FCFA',
+                          'Reduction de  FCFA',
                           style: TextStyle(color: Colors.amber[800]),
                         ),
                         secondary: const Icon(Icons.stars, color: Colors.amber),
-                        activeColor: Colors.amber[700],
+                        activeThumbColor: Colors.amber[700],
                       ),
                     ),
                     const SizedBox(height: 24),
                   ],
-                  // === SECTION RÃ‰SUMÃ‰ ===
+                  // === SECTION RÉSUMÉ ===
                   _buildSectionTitle('Resume de la commande'),
                   const SizedBox(height: 12),
                   _buildOrderSummary(
@@ -190,6 +191,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     originalDeliveryFee: options.deliveryFee,
                     serviceFee: serviceFee,
                     discountAmount: discountAmount,
+                    loyaltyDiscount: loyaltyDiscount,
                     total: total,
                     options: options,
                   ),
@@ -434,7 +436,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     required double subTotal,
     required double originalDeliveryFee,
   }) {
-    // Code promo dÃ©jÃ  appliquÃ© : afficher un rÃ©cap avec bouton supprimer
+    // Code promo déjà appliqué : afficher un récap avec bouton supprimer
     if (_promoResult != null) {
       return Container(
         padding: const EdgeInsets.all(12),
@@ -619,6 +621,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     required double originalDeliveryFee,
     required double serviceFee,
     required double discountAmount,
+    required double loyaltyDiscount,
     required double total,
     required DeliveryOptions options,
   }) {
@@ -631,7 +634,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       ),
       child: Column(
         children: [
-          // Menus groupÃ©s
+          // Menus groupés
           ...cart.menuGroups.entries.map((entry) {
             final groupItems = entry.value;
             final menuInfo = groupItems.first.menu;
@@ -729,7 +732,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               ),
             ],
           ),
-          // Ligne rÃ©duction promo
+          // Ligne réduction promo
           if (_promoResult != null) ...[
             const SizedBox(height: 8),
             Row(
@@ -785,7 +788,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   ],
                 ),
                 Text(
-                  '-\ FCFA',
+                  '- FCFA',
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -941,11 +944,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       return;
     }
 
-    // PrÃ©parer l'adresse si c'est une livraison
+    // Préparer l'adresse si c'est une livraison
     String? finalAddressId;
     if (options.isDelivery) {
       if (options.newAddressRue != null) {
-        // CrÃ©er une nouvelle adresse
+        // Créer une nouvelle adresse
         try {
           final newAddress = await ref
               .read(adresseControllerProvider.notifier)
@@ -959,7 +962,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           _showOrderError(
             context,
             Exception(
-              'Impossible de sauvegarder l\'adresse de livraison. Veuillez rÃ©essayer.',
+              'Impossible de sauvegarder l\'adresse de livraison. Veuillez réessayer.',
             ),
           );
           return;
@@ -971,7 +974,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     if (!context.mounted) return;
 
-    // RÃ©cupÃ©rer le numÃ©ro de tÃ©lÃ©phone du restaurant
+    // Récupérer le numéro de téléphone du restaurant
     String paymentPhoneNumber = 'Non disponible';
     try {
       final restaurant = await ref.read(
@@ -979,7 +982,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       );
       paymentPhoneNumber = restaurant.phoneNumber ?? 'Non disponible';
     } catch (_) {
-      // En cas d'erreur, on continue avec le numÃ©ro par dÃ©faut
+      // En cas d'erreur, on continue avec le numéro par défaut
     }
 
     if (!context.mounted) return;
@@ -1012,7 +1015,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   style: TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 16),
-                // NumÃ©ro de paiement
+                // Numéro de paiement
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -1148,7 +1151,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         promoCode: _promoResult?.code,
                       );
 
-                  // Analytics: commande rÃ©ussie
+                  // Analytics: commande réussie
                   AnalyticsService.logOrderCreated(
                     orderId: checkout.id,
                     total: total,
@@ -1163,7 +1166,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   ref.read(cartControllerProvider.notifier).clearCart();
                   context.goNamed(AppRoutes.orderSuccess.routeName);
                 } catch (e) {
-                  // Analytics: commande Ã©chouÃ©e
+                  // Analytics: commande échouée
                   AnalyticsService.logOrderFailed(
                     errorMessage: e.toString(),
                     paymentMethod: 'MTN_MOMO',
@@ -1199,15 +1202,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       message = message.substring(11);
     }
 
-    // DÃ©terminer l'icÃ´ne et la couleur selon le type d'erreur
+    // Déterminer l'icône et la couleur selon le type d'erreur
     IconData icon = Icons.error_outline;
     Color iconColor = Colors.red;
     String title = 'Erreur de commande';
 
-    if (message.contains('fermÃ©')) {
+    if (message.contains('fermé')) {
       icon = Icons.store;
       iconColor = Colors.orange;
-      title = 'Restaurant fermÃ©';
+      title = 'Restaurant fermé';
     } else if (message.contains('rupture') || message.contains('stock')) {
       icon = Icons.remove_shopping_cart;
       iconColor = Colors.orange;
@@ -1223,7 +1226,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     } else if (message.contains('adresse')) {
       icon = Icons.location_off;
       iconColor = Colors.blue;
-      title = 'ProblÃ¨me d\'adresse';
+      title = 'Problème d\'adresse';
     } else if (message.contains('promo') || message.contains('code')) {
       icon = Icons.local_offer;
       iconColor = Colors.purple;
@@ -1232,7 +1235,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         message.contains('authentif')) {
       icon = Icons.lock_outline;
       iconColor = Colors.red;
-      title = 'Session expirÃ©e';
+      title = 'Session expirée';
     }
 
     showDialog(

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/features/favoris/application/restaurant_favorites_provider.dart';
-import 'package:lilia_app/features/home/data/remote/home_controller.dart';
 import 'package:lilia_app/features/reviews/presentation/widgets/star_rating.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
