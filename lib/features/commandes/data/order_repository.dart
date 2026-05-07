@@ -50,6 +50,9 @@ class OrderRepository extends _$OrderRepository {
     String? contactPhone,
     String? promoCode,
     bool useLoyaltyPoints = false,
+    String? idempotencyKey,
+    double? deliveryLatitude,
+    double? deliveryLongitude,
   }) async {
     final token = await ref.read(firebaseIdTokenProvider.future);
     if (token == null) throw Exception('Veuillez vous reconnecter.');
@@ -62,11 +65,17 @@ class OrderRepository extends _$OrderRepository {
       if (contactPhone != null && contactPhone.isNotEmpty) 'contactPhone': contactPhone,
       if (promoCode != null && promoCode.isNotEmpty) 'promoCode': promoCode,
       if (useLoyaltyPoints) 'useLoyaltyPoints': true,
+      if (deliveryLatitude != null) 'deliveryLatitude': deliveryLatitude,
+      if (deliveryLongitude != null) 'deliveryLongitude': deliveryLongitude,
     };
 
     final response = await http.post(
       Uri.parse('${AppConstants.baseUrl}/orders/checkout'),
-      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+        if (idempotencyKey != null) 'Idempotency-Key': idempotencyKey,
+      },
       body: json.encode(bodyMap),
     );
     if (response.statusCode == 201) {

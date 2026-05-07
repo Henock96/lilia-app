@@ -27,15 +27,11 @@ class RestaurantCard extends ConsumerWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          border: Border.all(
+            color: theme.colorScheme.outline.withValues(alpha: 0.12),
+          ),
         ),
         child: Material(
           color: Colors.transparent,
@@ -80,13 +76,11 @@ class RestaurantCard extends ConsumerWidget {
                             )
                           : Container(
                               height: 150,
-                              color: Colors.grey[200],
-                              child: const Center(
-                                child: Icon(
-                                  Icons.restaurant,
-                                  size: 48,
-                                  color: Colors.grey,
-                                ),
+                              color: theme.colorScheme.surfaceContainerHighest,
+                              child: Icon(
+                                Icons.restaurant,
+                                size: 48,
+                                color: theme.colorScheme.outline,
                               ),
                             ),
                     ),
@@ -104,7 +98,7 @@ class RestaurantCard extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          restaurant.isOpen ? 'Ouvert' : 'FermÃƒÆ’Ã‚Â©',
+                          restaurant.isOpen ? 'Ouvert' : 'Fermé',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 11,
@@ -131,8 +125,8 @@ class RestaurantCard extends ConsumerWidget {
                             SnackBar(
                               content: Text(
                                 isFavorite
-                                    ? '${restaurant.name} retirÃƒÆ’Ã‚Â© des favoris'
-                                    : '${restaurant.name} ajoutÃƒÆ’Ã‚Â© aux favoris',
+                                    ? '${restaurant.name} retiré des favoris'
+                                    : '${restaurant.name} ajouté aux favoris',
                               ),
                               duration: const Duration(seconds: 2),
                               behavior: SnackBarBehavior.floating,
@@ -141,13 +135,17 @@ class RestaurantCard extends ConsumerWidget {
                         },
                         child: Container(
                           padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface.withValues(
+                              alpha: 0.9,
+                            ),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: isFavorite ? Colors.red : Colors.grey,
+                            color: isFavorite
+                                ? Colors.red
+                                : theme.colorScheme.outline,
                             size: 20,
                           ),
                         ),
@@ -261,7 +259,7 @@ class RestaurantCard extends ConsumerWidget {
                           Icon(
                             Icons.location_on_outlined,
                             size: 14,
-                            color: Colors.grey[500],
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                           const SizedBox(width: 4),
                           Expanded(
@@ -269,7 +267,7 @@ class RestaurantCard extends ConsumerWidget {
                               restaurant.address,
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey[600],
+                                color: theme.colorScheme.onSurfaceVariant,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -286,14 +284,14 @@ class RestaurantCard extends ConsumerWidget {
                           Icon(
                             Icons.delivery_dining_outlined,
                             size: 14,
-                            color: Colors.grey[500],
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             '${restaurant.fixedDeliveryFee.toStringAsFixed(0)} FCFA',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey[600],
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
                           if (restaurant.minimumOrderAmount > 0) ...[
@@ -301,14 +299,14 @@ class RestaurantCard extends ConsumerWidget {
                             Icon(
                               Icons.shopping_bag_outlined,
                               size: 14,
-                              color: Colors.grey[500],
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               'Min. ${restaurant.minimumOrderAmount.toStringAsFixed(0)} FCFA',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Colors.grey[600],
+                                color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -325,7 +323,6 @@ class RestaurantCard extends ConsumerWidget {
     );
   }
 }
-
 
 class _VisualBadge extends StatelessWidget {
   final String label;

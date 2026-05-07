@@ -6,12 +6,12 @@ enum OrderStatus {
   payer,
   enPreparation,
   pret,
+  enRoute,
   livrer,
   annuler,
-  unknow, // Pour les cas inattendus
+  unknow,
 }
 
-// Fonction helper pour convertir String en OrderStatus
 OrderStatus _parseStatus(String status) {
   switch (status) {
     case 'EN_ATTENTE':
@@ -22,6 +22,8 @@ OrderStatus _parseStatus(String status) {
       return OrderStatus.enPreparation;
     case 'PRET':
       return OrderStatus.pret;
+    case 'EN_ROUTE':
+      return OrderStatus.enRoute;
     case 'LIVRER':
       return OrderStatus.livrer;
     case 'ANNULER':

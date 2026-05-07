@@ -133,7 +133,7 @@ Téléchargez l'app Lilia Food pour commander !
                 ),
               ],
             ),
-            backgroundColor: Theme.of(context).primaryColor,
+            backgroundColor: Theme.of(context).colorScheme.primary,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
@@ -167,6 +167,8 @@ Téléchargez l'app Lilia Food pour commander !
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = Theme.of(context).colorScheme;
+
     final isFavorite = ref
         .watch(favoritesProvider)
         .maybeWhen(
@@ -175,7 +177,6 @@ Téléchargez l'app Lilia Food pour commander !
         );
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
       body: CustomScrollView(
         slivers: [
           // AppBar avec image
@@ -184,9 +185,11 @@ Téléchargez l'app Lilia Food pour commander !
           // Contenu
           SliverToBoxAdapter(
             child: Container(
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -213,7 +216,7 @@ Téléchargez l'app Lilia Food pour commander !
         ],
       ),
       // Bouton fixe en bas
-      bottomNavigationBar: _buildBottomBar(theme),
+      bottomNavigationBar: _buildBottomBar(theme, cs),
     );
   }
 
@@ -222,12 +225,12 @@ Téléchargez l'app Lilia Food pour commander !
       expandedHeight: 320,
       pinned: true,
       stretch: true,
-      backgroundColor: Colors.white,
+      backgroundColor: theme.colorScheme.surface,
       elevation: 0,
       leading: Container(
         margin: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.9),
+          color: theme.colorScheme.surface.withValues(alpha: 0.9),
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
@@ -237,7 +240,7 @@ Téléchargez l'app Lilia Food pour commander !
           ],
         ),
         child: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -245,7 +248,7 @@ Téléchargez l'app Lilia Food pour commander !
         Container(
           margin: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.9),
+            color: theme.colorScheme.surface.withValues(alpha: 0.9),
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
@@ -257,7 +260,7 @@ Téléchargez l'app Lilia Food pour commander !
           child: IconButton(
             icon: Icon(
               isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: isFavorite ? Colors.red : Colors.black87,
+              color: isFavorite ? Colors.red : theme.colorScheme.onSurface,
             ),
             onPressed: () {
               final notifier = ref.read(favoritesProvider.notifier);
@@ -272,7 +275,7 @@ Téléchargez l'app Lilia Food pour commander !
         Container(
           margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.9),
+            color: theme.colorScheme.surface.withValues(alpha: 0.9),
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
@@ -282,7 +285,10 @@ Téléchargez l'app Lilia Food pour commander !
             ],
           ),
           child: IconButton(
-            icon: const Icon(Icons.share_outlined, color: Colors.black87),
+            icon: Icon(
+              Icons.share_outlined,
+              color: theme.colorScheme.onSurface,
+            ),
             onPressed: () => _shareProduct(context),
           ),
         ),
@@ -311,8 +317,8 @@ Téléchargez l'app Lilia Food pour commander !
                     gradient: LinearGradient(
                       colors: [
                         Colors.transparent,
-                        Colors.white.withValues(alpha: 0.8),
-                        Colors.white,
+                        theme.colorScheme.surface.withValues(alpha: 0.8),
+                        theme.colorScheme.surface,
                       ],
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
@@ -328,21 +334,26 @@ Téléchargez l'app Lilia Food pour commander !
   }
 
   Widget _buildPlaceholderImage() {
-    return Container(
-      color: Colors.grey[200],
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.fastfood, size: 80, color: Colors.grey[400]),
-            const SizedBox(height: 8),
-            Text(
-              'Image non disponible',
-              style: TextStyle(color: Colors.grey[500]),
+    return Builder(
+      builder: (context) {
+        final cs = Theme.of(context).colorScheme;
+        return Container(
+          color: cs.surfaceContainerHighest,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.fastfood, size: 80, color: cs.outline),
+                const SizedBox(height: 8),
+                Text(
+                  'Image non disponible',
+                  style: TextStyle(color: cs.onSurfaceVariant),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -373,14 +384,14 @@ Téléchargez l'app Lilia Food pour commander !
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
-                      theme.primaryColor,
-                      theme.primaryColor.withValues(alpha: 0.8),
+                      theme.colorScheme.primary,
+                      theme.colorScheme.primary.withValues(alpha: 0.8),
                     ],
                   ),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: theme.primaryColor.withValues(alpha: 0.3),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.3),
                       blurRadius: 8,
                       offset: const Offset(0, 4),
                     ),
@@ -438,16 +449,20 @@ Téléchargez l'app Lilia Food pour commander !
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.info_outline, size: 20, color: Colors.grey),
-              SizedBox(width: 8),
+              Icon(
+                Icons.info_outline,
+                size: 20,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
               Text(
                 'Description',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Colors.grey,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -457,7 +472,7 @@ Téléchargez l'app Lilia Food pour commander !
             widget.product.description,
             style: TextStyle(
               fontSize: 15,
-              color: Colors.grey[700],
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               height: 1.5,
             ),
           ),
@@ -475,7 +490,7 @@ Téléchargez l'app Lilia Food pour commander !
         children: [
           Row(
             children: [
-              Icon(Icons.tune, size: 20, color: theme.primaryColor),
+              Icon(Icons.tune, size: 20, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
               const Text(
                 'Choisir une variante',
@@ -507,13 +522,15 @@ Téléchargez l'app Lilia Food pour commander !
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? theme.primaryColor.withValues(alpha: 0.08)
-                      : Colors.grey[50],
+                      ? theme.colorScheme.primary.withValues(alpha: 0.08)
+                      : theme.colorScheme.surfaceContainerHighest.withValues(
+                          alpha: 0.5,
+                        ),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: isSelected
-                        ? theme.primaryColor
-                        : Colors.grey.withValues(alpha: 0.2),
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.outline.withValues(alpha: 0.3),
                     width: isSelected ? 2 : 1,
                   ),
                 ),
@@ -527,10 +544,12 @@ Téléchargez l'app Lilia Food pour commander !
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isSelected
-                            ? theme.primaryColor
+                            ? theme.colorScheme.primary
                             : Colors.transparent,
                         border: Border.all(
-                          color: isSelected ? theme.primaryColor : Colors.grey,
+                          color: isSelected
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.outline,
                           width: 2,
                         ),
                       ),
@@ -553,8 +572,8 @@ Téléchargez l'app Lilia Food pour commander !
                               ? FontWeight.w600
                               : FontWeight.w500,
                           color: isSelected
-                              ? theme.primaryColor
-                              : Colors.black87,
+                              ? theme.colorScheme.primary
+                              : theme.colorScheme.onSurface,
                         ),
                       ),
                     ),
@@ -564,7 +583,9 @@ Téléchargez l'app Lilia Food pour commander !
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
-                        color: isSelected ? theme.primaryColor : Colors.black87,
+                        color: isSelected
+                            ? theme.colorScheme.primary
+                            : theme.colorScheme.onSurface,
                       ),
                     ),
                   ],
@@ -584,11 +605,15 @@ Téléchargez l'app Lilia Food pour commander !
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.shopping_bag_outlined, size: 20, color: Colors.grey),
-              SizedBox(width: 8),
-              Text(
+              Icon(
+                Icons.shopping_bag_outlined,
+                size: 20,
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 8),
+              const Text(
                 'Quantité',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
@@ -598,7 +623,7 @@ Téléchargez l'app Lilia Food pour commander !
           Container(
             padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: Colors.grey[100],
+              color: theme.colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
@@ -669,14 +694,16 @@ Téléchargez l'app Lilia Food pour commander !
           height: 44,
           decoration: BoxDecoration(
             color: isPrimary
-                ? theme.primaryColor
-                : (enabled ? Colors.white : Colors.grey[200]),
+                ? theme.colorScheme.primary
+                : (enabled
+                      ? theme.colorScheme.surface
+                      : theme.colorScheme.surfaceContainerHighest),
             borderRadius: BorderRadius.circular(12),
             boxShadow: enabled
                 ? [
                     BoxShadow(
                       color: isPrimary
-                          ? theme.primaryColor.withValues(alpha: 0.3)
+                          ? theme.colorScheme.primary.withValues(alpha: 0.3)
                           : Colors.black.withValues(alpha: 0.05),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
@@ -688,7 +715,9 @@ Téléchargez l'app Lilia Food pour commander !
             icon,
             color: isPrimary
                 ? Colors.white
-                : (enabled ? Colors.black87 : Colors.grey[400]),
+                : (enabled
+                      ? theme.colorScheme.onSurface
+                      : theme.colorScheme.outline),
             size: 22,
           ),
         ),
@@ -696,18 +725,16 @@ Téléchargez l'app Lilia Food pour commander !
     );
   }
 
-  Widget _buildBottomBar(ThemeData theme) {
+  Widget _buildBottomBar(ThemeData theme, ColorScheme cs) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 16,
-            offset: const Offset(0, -4),
+        color: cs.surface,
+        border: Border(
+          top: BorderSide(
+            color: theme.colorScheme.outline.withValues(alpha: 0.12),
           ),
-        ],
+        ),
       ),
       child: SafeArea(
         child: Row(
@@ -720,7 +747,7 @@ Téléchargez l'app Lilia Food pour commander !
                 children: [
                   Text(
                     'Total',
-                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                    style: TextStyle(fontSize: 14, color: cs.onSurface),
                   ),
                   const SizedBox(height: 2),
                   AnimatedSwitcher(
@@ -731,7 +758,7 @@ Téléchargez l'app Lilia Food pour commander !
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
-                        color: theme.primaryColor,
+                        color: cs.primary,
                       ),
                     ),
                   ),
@@ -747,8 +774,8 @@ Téléchargez l'app Lilia Food pour commander !
                 child: ElevatedButton(
                   onPressed: _addToCart,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: theme.primaryColor,
-                    foregroundColor: Colors.white,
+                    backgroundColor: cs.primary,
+                    foregroundColor: cs.onPrimary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -760,13 +787,7 @@ Téléchargez l'app Lilia Food pour commander !
                     children: [
                       Icon(Icons.shopping_cart_outlined, size: 22),
                       SizedBox(width: 8),
-                      Text(
-                        'Ajouter au panier',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      Text('Ajouter au panier'),
                     ],
                   ),
                 ),

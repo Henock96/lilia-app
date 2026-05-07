@@ -1,3 +1,5 @@
+﻿import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,6 +16,7 @@ import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/services/analytics_service.dart';
 
+import '../../../constants/app_constants.dart';
 import '../../../models/cart.dart';
 import '../../../models/promo_validation_result.dart';
 import '../data/promo_repository.dart';
@@ -38,6 +41,22 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   bool _promoLoading = false;
   String? _promoError;
   bool _useLoyaltyPoints = false;
+  String _selectedPaymentMethod = 'MTN_MOMO';
+  String? _idempotencyKey;
+
+  String _getOrCreateIdempotencyKey() {
+    _idempotencyKey ??= _generateUuidV4();
+    return _idempotencyKey!;
+  }
+
+  String _generateUuidV4() {
+    final rng = Random.secure();
+    final bytes = List<int>.generate(16, (_) => rng.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
+  }
 
   @override
   void dispose() {
@@ -68,12 +87,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => context.goNamed(AppRoutes.deliveryOptions.routeName),
         ),
         title: const Text(
           'Confirmer la commande',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
@@ -91,7 +110,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           final int userPoints = userProfileAsync.value?.loyaltyPoints ?? 0;
           final double loyaltyDiscount = userPoints * 5.0;
           final double total =
-              subTotal + deliveryFee + serviceFee - discountAmount;
+              subTotal + deliveryFee + serviceFee - discountAmount - (_useLoyaltyPoints ? loyaltyDiscount : 0);
           final String restaurantId = cart.items.first.product.restaurantId;
 
           // Analytics: début du checkout (une seule fois)
@@ -172,7 +191,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         subtitle: Text(
-                          'Reduction de  FCFA',
+                          'Reduction de ${loyaltyDiscount.toStringAsFixed(0)} FCFA',
                           style: TextStyle(color: Colors.amber[800]),
                         ),
                         secondary: const Icon(Icons.stars, color: Colors.amber),
@@ -217,7 +236,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                               restaurantId,
                             ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).primaryColor,
+                        backgroundColor: Theme.of(context).colorScheme.primary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -256,7 +275,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        side: BorderSide(color: Colors.grey[300]!),
+                        side: BorderSide(
+                          color: Theme.of(context).colorScheme.outline,
+                        ),
                       ),
                     ),
                   ),
@@ -275,16 +296,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   Widget _buildDeliveryRecap(DeliveryOptions options) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: options.isDelivery
-            ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
+            ? cs.primary.withValues(alpha: 0.1)
             : Colors.green.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: options.isDelivery
-              ? Theme.of(context).primaryColor.withValues(alpha: 0.3)
+              ? cs.primary.withValues(alpha: 0.3)
               : Colors.green.withValues(alpha: 0.3),
         ),
       ),
@@ -293,14 +315,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: cs.surface,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               options.isDelivery ? Icons.delivery_dining : Icons.store,
-              color: options.isDelivery
-                  ? Theme.of(context).primaryColor
-                  : Colors.green,
+              color: options.isDelivery ? cs.primary : Colors.green,
               size: 28,
             ),
           ),
@@ -322,19 +342,19 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   const SizedBox(height: 4),
                   Text(
                     'Quartier: ${options.quartier!.nom}',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 14),
                   ),
                 ],
                 if (options.isDelivery && options.address != null) ...[
                   Text(
                     options.address!.rue,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 14),
                   ),
                 ],
                 if (options.isDelivery && options.newAddressRue != null) ...[
                   Text(
                     options.newAddressRue!,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 14),
                   ),
                 ],
               ],
@@ -353,11 +373,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-        color: Colors.black87,
-      ),
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
     );
   }
 
@@ -398,35 +414,92 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   Widget _buildPaymentSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.orange.shade200),
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.orange.shade50,
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.phone_android, color: Colors.orange.shade700, size: 32),
-          const SizedBox(width: 16),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'MTN Mobile Money',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Paiement securise',
-                  style: TextStyle(fontSize: 13, color: Colors.black54),
-                ),
-              ],
-            ),
+    return Column(
+      children: [
+        _buildPaymentOption(
+          method: 'MTN_MOMO',
+          label: 'MTN Mobile Money',
+          color: Colors.amber.shade700,
+        ),
+        const SizedBox(height: 12),
+        _buildPaymentOption(
+          method: 'AIRTEL_MONEY',
+          label: 'Airtel Money',
+          color: Colors.red.shade600,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentOption({
+    required String method,
+    required String label,
+    required Color color,
+  }) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isSelected = _selectedPaymentMethod == method;
+
+    // In dark mode use a lighter tint so text stays legible
+    final displayColor = isDark && isSelected
+        ? Color.lerp(color, Colors.white, 0.45)!
+        : color;
+
+    final bgColor = isSelected
+        ? (isDark
+            ? color.withValues(alpha: 0.18)
+            : color.withValues(alpha: 0.08))
+        : cs.surfaceContainerHighest;
+    final borderColor = isSelected
+        ? displayColor.withValues(alpha: isDark ? 0.6 : 0.4)
+        : cs.outlineVariant;
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedPaymentMethod = method),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: bgColor,
+          border: Border.all(
+            color: borderColor,
+            width: isSelected ? 2 : 1,
           ),
-          const Icon(Icons.check_circle, color: Colors.green),
-        ],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.phone_android,
+              color: isSelected ? displayColor : cs.onSurfaceVariant,
+              size: 32,
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? displayColor : cs.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Paiement securise',
+                    style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+                  ),
+                ],
+              ),
+            ),
+            isSelected
+                ? Icon(Icons.check_circle, color: displayColor)
+                : Icon(Icons.circle_outlined, color: cs.outlineVariant),
+          ],
+        ),
       ),
     );
   }
@@ -485,7 +558,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             ),
             IconButton(
               icon: const Icon(Icons.close, size: 20),
-              color: Colors.grey,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               onPressed: () {
                 setState(() {
                   _promoResult = null;
@@ -540,7 +613,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         deliveryFee: originalDeliveryFee,
                       ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -625,12 +698,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     required double total,
     required DeliveryOptions options,
   }) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: cs.outline.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -673,7 +747,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         '- ${item.product.nom}',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade600,
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -788,7 +862,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   ],
                 ),
                 Text(
-                  '- FCFA',
+                  '- ${loyaltyDiscount.toStringAsFixed(0)} FCFA',
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -811,7 +885,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor,
+                  color: cs.primary,
                 ),
               ),
             ],
@@ -847,10 +921,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         children: [
           Text(
             '${originalDeliveryFee.toStringAsFixed(0)} FCFA',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               decoration: TextDecoration.lineThrough,
-              color: Colors.grey,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
           ),
           const SizedBox(width: 6),
@@ -974,16 +1048,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     if (!context.mounted) return;
 
-    // Récupérer le numéro de téléphone du restaurant
-    String paymentPhoneNumber = 'Non disponible';
-    try {
-      final restaurant = await ref.read(
-        restaurantControllerProvider(restaurantId).future,
-      );
-      paymentPhoneNumber = restaurant.phoneNumber ?? 'Non disponible';
-    } catch (_) {
-      // En cas d'erreur, on continue avec le numéro par défaut
-    }
+    final isMtn = _selectedPaymentMethod == 'MTN_MOMO';
+    final paymentPhoneNumber = isMtn
+        ? AppConstants.mtnMomoPaymentNumber
+        : AppConstants.airtelMoneyPaymentNumber;
+    final methodLabel = isMtn ? 'MTN Mobile Money' : 'Airtel Money';
+    final dialogIsDark = Theme.of(context).brightness == Brightness.dark;
+    final rawMethodColor = isMtn ? Colors.amber.shade700 : Colors.red.shade600;
+    final methodColor = dialogIsDark
+        ? Color.lerp(rawMethodColor, Colors.white, 0.45)!
+        : rawMethodColor;
 
     if (!context.mounted) return;
 
@@ -991,13 +1065,20 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
+        final cs = Theme.of(context).colorScheme;
+        final isDark = dialogIsDark;
+        final cardBg = isDark
+            ? methodColor.withValues(alpha: 0.15)
+            : methodColor.withValues(alpha: 0.08);
+        final cardBorder = methodColor.withValues(alpha: 0.3);
+
         return AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
           title: Row(
             children: [
-              Icon(Icons.payment, color: Colors.orange.shade700, size: 24),
+              Icon(Icons.payment, color: methodColor, size: 24),
               const SizedBox(width: 8),
               const Text(
                 'Instructions de paiement',
@@ -1010,18 +1091,18 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Pour valider votre commande, effectuez le paiement via MTN Mobile Money:',
-                  style: TextStyle(fontSize: 14),
+                Text(
+                  'Pour valider votre commande, effectuez le paiement via $methodLabel:',
+                  style: const TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 16),
                 // Numéro de paiement
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
+                    color: cardBg,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange.shade200),
+                    border: Border.all(color: cardBorder),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1029,22 +1110,26 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Numero MTN MoMo',
-                            style: TextStyle(fontSize: 12, color: Colors.grey),
+                          Text(
+                            'Numero $methodLabel',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: cs.onSurfaceVariant,
+                            ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             paymentPhoneNumber,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
+                              color: cs.onSurface,
                             ),
                           ),
                         ],
                       ),
                       IconButton(
-                        icon: const Icon(Icons.copy, color: Colors.orange),
+                        icon: Icon(Icons.copy, color: methodColor),
                         onPressed: () {
                           Clipboard.setData(
                             ClipboardData(text: paymentPhoneNumber),
@@ -1065,7 +1150,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade50,
+                    color: isDark
+                        ? Colors.green.withValues(alpha: 0.15)
+                        : Colors.green.shade50,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -1083,45 +1170,73 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Instructions
+                // Instructions USSD
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: isDark
+                        ? Colors.blue.withValues(alpha: 0.12)
+                        : Colors.blue.shade50,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
+                      const Text(
                         'Etapes:',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                         ),
                       ),
-                      SizedBox(height: 8),
-                      Text('1. Composez *105#', style: TextStyle(fontSize: 13)),
-                      Text(
-                        '2. Choisir "Envoi d\'argent"',
-                        style: TextStyle(fontSize: 13),
-                      ),
-                      Text(
-                        '3. Choisir "Abonne Mobile Money"',
-                        style: TextStyle(fontSize: 13),
-                      ),
-                      Text(
-                        '4. Entrer le numero ci-dessus',
-                        style: TextStyle(fontSize: 13),
-                      ),
-                      Text(
-                        '5. Entrer le montant',
-                        style: TextStyle(fontSize: 13),
-                      ),
-                      Text(
-                        '6. Confirmer avec votre code PIN',
-                        style: TextStyle(fontSize: 13),
-                      ),
+                      const SizedBox(height: 8),
+                      if (isMtn) ...[
+                        const Text(
+                          '1. Composez *105#',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        const Text(
+                          '2. Choisir "Envoi d\'argent"',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        const Text(
+                          '3. Choisir "Abonne Mobile Money"',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        const Text(
+                          '4. Entrer le numero ci-dessus',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        const Text(
+                          '5. Entrer le montant',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        const Text(
+                          '6. Confirmer avec votre code PIN',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ] else ...[
+                        const Text(
+                          '1. Composez *555#',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        const Text(
+                          '2. Choisir "Envoyer de l\'argent"',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        const Text(
+                          '3. Entrer le numero ci-dessus',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        const Text(
+                          '4. Entrer le montant',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        const Text(
+                          '5. Confirmer avec votre code PIN',
+                          style: TextStyle(fontSize: 13),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -1140,7 +1255,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                       .read(checkoutControllerProvider.notifier)
                       .placeOrder(
                         adresseId: finalAddressId,
-                        paymentMethod: 'MTN_MOMO',
+                        paymentMethod: _selectedPaymentMethod,
                         isDelivery: options.isDelivery,
                         note: _noteController.text.trim().isEmpty
                             ? null
@@ -1149,13 +1264,18 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                             ? null
                             : _phoneController.text.trim(),
                         promoCode: _promoResult?.code,
+                        idempotencyKey: _getOrCreateIdempotencyKey(),
+                        useLoyaltyPoints: _useLoyaltyPoints,
                       );
+
+                  // Reset key so a new order gets a new key
+                  _idempotencyKey = null;
 
                   // Analytics: commande réussie
                   AnalyticsService.logOrderCreated(
                     orderId: checkout.id,
                     total: total,
-                    paymentMethod: 'MTN_MOMO',
+                    paymentMethod: _selectedPaymentMethod,
                     isDelivery: options.isDelivery,
                     restaurantId: restaurantId,
                     itemCount: checkout.items.length,
@@ -1169,7 +1289,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   // Analytics: commande échouée
                   AnalyticsService.logOrderFailed(
                     errorMessage: e.toString(),
-                    paymentMethod: 'MTN_MOMO',
+                    paymentMethod: _selectedPaymentMethod,
                     isDelivery: options.isDelivery,
                   );
 
@@ -1179,7 +1299,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).primaryColor,
+                backgroundColor: methodColor,
               ),
               child: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),

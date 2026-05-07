@@ -12,12 +12,8 @@ class AboutPage extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text(
-          'À propos',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('À propos'),
         centerTitle: true,
         elevation: 0,
       ),
@@ -32,15 +28,11 @@ class AboutPage extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(32),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  border: Border.all(
+                    color: theme.colorScheme.outline.withValues(alpha: 0.15),
+                  ),
                 ),
                 child: Column(
                   children: [
@@ -69,7 +61,10 @@ class AboutPage extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       'Version $_appVersion',
-                      style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Text(
@@ -77,7 +72,7 @@ class AboutPage extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey[600],
+                        color: theme.colorScheme.onSurfaceVariant,
                         height: 1.4,
                       ),
                     ),
@@ -90,15 +85,11 @@ class AboutPage extends StatelessWidget {
               // Section Informations légales
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  border: Border.all(
+                    color: theme.colorScheme.outline.withValues(alpha: 0.15),
+                  ),
                 ),
                 child: Column(
                   children: [
@@ -132,15 +123,11 @@ class AboutPage extends StatelessWidget {
               // Section Contact
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  border: Border.all(
+                    color: theme.colorScheme.outline.withValues(alpha: 0.15),
+                  ),
                 ),
                 child: Column(
                   children: [
@@ -168,13 +155,19 @@ class AboutPage extends StatelessWidget {
 
               // Footer
               Text(
-                '© 2025 $_appName. Tous droits réservés.',
-                style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                '© 2026 $_appName. Tous droits réservés.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 4),
               Text(
-                'Fait avec amour au Congo',
-                style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+                'Fait avec amour par DreesisLab',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
 
               const SizedBox(height: 24),
@@ -290,37 +283,35 @@ class _TextDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         elevation: 0,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+      body: Builder(
+        builder: (context) {
+          final cs = Theme.of(context).colorScheme;
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: cs.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
               ),
-            ],
-          ),
-          child: Text(
-            content,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[700],
-              height: 1.6,
+              child: Text(
+                content,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: cs.onSurfaceVariant,
+                  height: 1.6,
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

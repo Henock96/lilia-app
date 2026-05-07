@@ -16,33 +16,35 @@ class DraftOrdersScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: const Text(
-          'Commandes en attente',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Commandes en attente'),
       ),
       body: draftsAsync.when(
         data: (drafts) {
           if (drafts.isEmpty) {
+            final cs = Theme.of(context).colorScheme;
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Iconsax.document_text, size: 70, color: Colors.grey[300]),
+                  Icon(
+                    Iconsax.document_text,
+                    size: 70,
+                    color: cs.onSurfaceVariant,
+                  ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Aucune commande en attente',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: cs.onSurface,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Vos commandes enregistrees\napparaitront ici',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                    style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -137,9 +139,7 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
     );
 
     if (confirmed == true) {
-      await ref
-          .read(draftOrdersProvider.notifier)
-          .deleteDraft(widget.draft.id);
+      await ref.read(draftOrdersProvider.notifier).deleteDraft(widget.draft.id);
     }
   }
 
@@ -165,13 +165,13 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: theme.primaryColor.withValues(alpha: 0.1),
+                      color: theme.colorScheme.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
                       Iconsax.shop,
                       size: 20,
-                      color: theme.primaryColor,
+                      color: theme.colorScheme.primary,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -193,7 +193,7 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
                           _formatDate(draft.createdAt),
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[500],
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -201,7 +201,11 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
                   ),
                   IconButton(
                     onPressed: _delete,
-                    icon: Icon(Icons.close, size: 20, color: Colors.grey[400]),
+                    icon: Icon(
+                      Icons.close,
+                      size: 20,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                     tooltip: 'Supprimer',
                   ),
                 ],
@@ -209,40 +213,50 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
               const SizedBox(height: 10),
 
               // Items preview
-              ...draft.items.take(3).map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  children: [
-                    Text(
-                      '${item.quantite}x',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: theme.primaryColor,
+              ...draft.items
+                  .take(3)
+                  .map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        children: [
+                          Text(
+                            '${item.quantite}x',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              item.product.nom,
+                              style: const TextStyle(fontSize: 13),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Text(
+                            '${item.variant.prix * item.quantite} FCFA',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        item.product.nom,
-                        style: const TextStyle(fontSize: 13),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Text(
-                      '${item.variant.prix * item.quantite} FCFA',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              )),
+                  ),
               if (draft.items.length > 3)
                 Padding(
                   padding: const EdgeInsets.only(top: 2),
                   child: Text(
                     '+${draft.items.length - 3} autre(s) article(s)',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               const SizedBox(height: 10),
@@ -257,7 +271,10 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
                     children: [
                       Text(
                         '${draft.totalItems} article(s)',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -278,7 +295,10 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
                         )
                       : ElevatedButton.icon(
                           onPressed: _restore,
-                          icon: const Icon(Icons.shopping_cart_outlined, size: 18),
+                          icon: const Icon(
+                            Icons.shopping_cart_outlined,
+                            size: 18,
+                          ),
                           label: const Text(
                             'Commander',
                             style: TextStyle(fontWeight: FontWeight.w600),

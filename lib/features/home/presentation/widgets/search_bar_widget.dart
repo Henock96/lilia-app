@@ -17,27 +17,23 @@ class SearchBarWidget extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
-              ),
-            ],
+            color: theme.colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(35),
+            border: Border.all(
+              color: theme.colorScheme.outline.withValues(alpha: 0.35),
+            ),
           ),
           child: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: theme.primaryColor.withValues(alpha: 0.1),
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   Icons.search_rounded,
-                  color: theme.primaryColor,
+                  color: theme.colorScheme.primary,
                   size: 20,
                 ),
               ),
@@ -46,7 +42,7 @@ class SearchBarWidget extends StatelessWidget {
                 child: Text(
                   'Rechercher un plat, restaurant...',
                   style: TextStyle(
-                    color: Colors.grey[400],
+                    color: theme.colorScheme.onSurfaceVariant,
                     fontSize: 14,
                     fontWeight: FontWeight.w400,
                   ),
@@ -54,7 +50,7 @@ class SearchBarWidget extends StatelessWidget {
               ),
               Icon(
                 Icons.tune_rounded,
-                color: Colors.grey[350],
+                color: theme.colorScheme.outline,
                 size: 20,
               ),
             ],

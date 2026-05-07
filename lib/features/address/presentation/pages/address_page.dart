@@ -19,12 +19,8 @@ class _AddressPageState extends ConsumerState<AddressPage> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text(
-          'Mes Adresses',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Mes Adresses'),
         centerTitle: true,
         elevation: 0,
       ),
@@ -41,14 +37,17 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                     'Aucune adresse enregistrée',
                     style: TextStyle(
                       fontSize: 18,
-                      color: Colors.grey[500],
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Ajoutez une adresse de livraison',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
                   ),
                 ],
               ),
@@ -102,13 +101,14 @@ class _AddressPageState extends ConsumerState<AddressPage> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
+        final sheetTheme = Theme.of(context);
         return Container(
           padding: EdgeInsets.only(
             bottom: MediaQuery.of(context).viewInsets.bottom,
           ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          decoration: BoxDecoration(
+            color: sheetTheme.colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -124,7 +124,7 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: Colors.grey[300],
+                        color: sheetTheme.colorScheme.outlineVariant,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -137,8 +137,9 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: theme.colorScheme.primary
-                              .withValues(alpha: 0.1),
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.1,
+                          ),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Icon(
@@ -171,7 +172,11 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey[300]!),
+                        borderSide: BorderSide(
+                          color: sheetTheme.colorScheme.outline.withValues(
+                            alpha: 0.4,
+                          ),
+                        ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -181,7 +186,8 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                         ),
                       ),
                       filled: true,
-                      fillColor: Colors.grey[50],
+                      fillColor: sheetTheme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.5),
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -206,7 +212,10 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey[300]!),
+                              borderSide: BorderSide(
+                                color: sheetTheme.colorScheme.outline
+                                    .withValues(alpha: 0.4),
+                              ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -216,7 +225,10 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                               ),
                             ),
                             filled: true,
-                            fillColor: Colors.grey[50],
+                            fillColor: sheetTheme
+                                .colorScheme
+                                .surfaceContainerHighest
+                                .withValues(alpha: 0.5),
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -238,7 +250,10 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.grey[300]!),
+                              borderSide: BorderSide(
+                                color: sheetTheme.colorScheme.outline
+                                    .withValues(alpha: 0.4),
+                              ),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
@@ -248,7 +263,10 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                               ),
                             ),
                             filled: true,
-                            fillColor: Colors.grey[50],
+                            fillColor: sheetTheme
+                                .colorScheme
+                                .surfaceContainerHighest
+                                .withValues(alpha: 0.5),
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -282,8 +300,10 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                               SnackBar(
                                 content: const Row(
                                   children: [
-                                    Icon(Icons.check_circle,
-                                        color: Colors.white),
+                                    Icon(
+                                      Icons.check_circle,
+                                      color: Colors.white,
+                                    ),
                                     SizedBox(width: 8),
                                     Text('Adresse ajoutée avec succès'),
                                   ],
@@ -302,8 +322,10 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                               SnackBar(
                                 content: Row(
                                   children: [
-                                    const Icon(Icons.error_outline,
-                                        color: Colors.white),
+                                    const Icon(
+                                      Icons.error_outline,
+                                      color: Colors.white,
+                                    ),
                                     const SizedBox(width: 8),
                                     Expanded(child: Text('Erreur: $e')),
                                   ],
@@ -348,8 +370,9 @@ class _AddressPageState extends ConsumerState<AddressPage> {
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Row(
             children: [
               Icon(Icons.warning_amber_rounded, color: Colors.orange[700]),
@@ -428,16 +451,18 @@ class _AddressCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final cs = theme.colorScheme;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -450,13 +475,13 @@ class _AddressCard extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: isFirst
-                    ? theme.colorScheme.primary.withValues(alpha: 0.1)
-                    : Colors.grey[100],
+                    ? cs.primary.withValues(alpha: 0.1)
+                    : cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 Iconsax.location,
-                color: isFirst ? theme.colorScheme.primary : Colors.grey[500],
+                color: isFirst ? cs.primary : cs.onSurfaceVariant,
                 size: 24,
               ),
             ),
@@ -487,8 +512,9 @@ class _AddressCard extends StatelessWidget {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: theme.colorScheme.primary
-                                .withValues(alpha: 0.1),
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.1,
+                            ),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -505,24 +531,27 @@ class _AddressCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Iconsax.building_3,
-                          size: 14, color: Colors.grey[400]),
+                      Icon(
+                        Iconsax.building_3,
+                        size: 14,
+                        color: cs.onSurfaceVariant,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         address.ville,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.grey[500],
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Icon(Iconsax.flag, size: 14, color: Colors.grey[400]),
+                      Icon(Iconsax.flag, size: 14, color: cs.onSurfaceVariant),
                       const SizedBox(width: 4),
                       Text(
                         address.country,
                         style: TextStyle(
                           fontSize: 13,
-                          color: Colors.grey[500],
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
                     ],
@@ -531,13 +560,13 @@ class _AddressCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Iconsax.map, size: 14, color: Colors.grey[400]),
+                        Icon(Iconsax.map, size: 14, color: cs.onSurfaceVariant),
                         const SizedBox(width: 4),
                         Text(
                           address.quartier!.nom,
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey[500],
+                            color: cs.onSurfaceVariant,
                           ),
                         ),
                       ],

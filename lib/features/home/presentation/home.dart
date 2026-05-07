@@ -15,8 +15,6 @@ import '../data/remote/home_controller.dart';
 import '../data/remote/restaurant_controller.dart';
 import 'widgets/category_list_widget.dart';
 import 'widgets/popular_dishes_section.dart';
-import 'widgets/popular_restaurants_section.dart';
-import 'widgets/recommendations_section.dart';
 import 'widgets/search_bar_widget.dart';
 import 'widgets/section_header.dart';
 
@@ -51,23 +49,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final bannersAsync = ref.watch(bannersListProvider);
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
       appBar: AppBar(
         elevation: 0,
-        //backgroundColor: Colors.white,
         centerTitle: true,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Lilia Food',
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                color: Colors.black,
-              ),
-            ),
-          ],
-        ),
+        title: const Text('Lilia Food'),
         actions: [
           _buildNotificationButton(notificationHistory),
           const SizedBox(width: 8),
@@ -79,8 +64,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ref.invalidate(restaurantsListProvider);
             ref.invalidate(bannersListProvider);
             ref.invalidate(popularProductsProvider);
-            ref.invalidate(popularRestaurantsProvider);
-            ref.invalidate(recommendationsProvider);
             ref.invalidate(categoriesListProvider);
           },
           child: SingleChildScrollView(
@@ -112,16 +95,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
                 const SizedBox(height: 20),
 
-                // 5. Restaurants Populaires
-                const SectionHeader(title: 'Restaurants Populaires'),
-                const SizedBox(height: 12),
-                const PopularRestaurantsSection(),
-
-                // 6. Recommandations (conditionnel, gere en interne)
-                const RecommendationsSection(),
-
-                const SizedBox(height: 20),
-
                 // 7. Tous les restaurants (existant)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -137,7 +110,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       ),
                       Text(
                         '${restaurantsAsync.value?.length ?? 0} disponibles',
-                        style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -173,16 +149,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               ),
             );
           },
-          icon: Icon(Icons.notifications_outlined, color: Colors.grey[700]),
+          icon: const Icon(Icons.notifications_outlined),
         ),
       ),
-      loading: () => IconButton(
-        onPressed: () {},
-        icon: Icon(Icons.notifications_outlined, color: Colors.grey[700]),
+      loading: () => const IconButton(
+        onPressed: null,
+        icon: Icon(Icons.notifications_outlined),
       ),
-      error: (_, _) => IconButton(
-        onPressed: () {},
-        icon: const Icon(Icons.notifications_outlined, color: Colors.red),
+      error: (_, _) => const IconButton(
+        onPressed: null,
+        icon: Icon(Icons.notifications_outlined, color: Colors.red),
       ),
     );
   }
@@ -309,8 +285,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(3),
                 color: isActive
-                    ? Theme.of(context).primaryColor
-                    : Colors.grey[300],
+                    ? Theme.of(context).colorScheme.primary
+                    : Theme.of(context).colorScheme.outline,
               ),
             );
           }),

@@ -71,6 +71,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final cartState = ref.watch(cartControllerProvider);
     final hasItems =
         cartState.value != null && cartState.value!.items.isNotEmpty;
@@ -142,14 +143,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             cartState.value != null && cartState.value!.items.isNotEmpty
                 ? Container(
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.shade300,
-                          blurRadius: 5,
-                          offset: const Offset(0, -2),
+                      color: cs.surface,
+                      border: Border(
+                        top: BorderSide(
+                          color: cs.outline.withValues(alpha: 0.2),
                         ),
-                      ],
+                      ),
                     ),
                     padding: const EdgeInsets.all(20),
                     child: Column(
@@ -165,7 +164,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                                   '${cartState.value!.totalItems} article(s)',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.grey.shade600,
+                                    color: cs.onSurfaceVariant,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -267,6 +266,7 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final menuInfo = _menuInfo;
 
     return Card(
@@ -280,13 +280,13 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
             // En-tête du menu
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+              color: cs.primary.withValues(alpha: 0.1),
               child: Row(
                 children: [
                   Icon(
                     Icons.restaurant_menu,
                     size: 20,
-                    color: Theme.of(context).primaryColor,
+                    color: cs.primary,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -298,7 +298,7 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
-                            color: Theme.of(context).primaryColor,
+                            color: cs.primary,
                           ),
                         ),
                         Text(
@@ -306,7 +306,7 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
-                            color: Theme.of(context).primaryColor,
+                            color: cs.primary,
                           ),
                         ),
                       ],
@@ -336,11 +336,11 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
                                 return Container(
                                   width: 40,
                                   height: 40,
-                                  color: Colors.grey.shade200,
-                                  child: const Icon(
+                                  color: cs.surfaceContainerHighest,
+                                  child: Icon(
                                     Icons.fastfood,
                                     size: 18,
-                                    color: Colors.grey,
+                                    color: cs.outline,
                                   ),
                                 );
                               },
@@ -348,11 +348,11 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
                           : Container(
                               width: 40,
                               height: 40,
-                              color: Colors.grey.shade200,
-                              child: const Icon(
+                              color: cs.surfaceContainerHighest,
+                              child: Icon(
                                 Icons.fastfood,
                                 size: 18,
-                                color: Colors.grey,
+                                color: cs.outline,
                               ),
                             ),
                     ),
@@ -371,7 +371,7 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
                             item.variant.label,
                             style: TextStyle(
                               fontSize: 11,
-                              color: Colors.grey.shade600,
+                              color: cs.onSurfaceVariant,
                             ),
                           ),
                         ],
@@ -394,7 +394,7 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
                         'Sous-total: ${(menuInfo!.prix * _quantity).toStringAsFixed(0)} FCFA',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey.shade700,
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -488,6 +488,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Opacity(
@@ -508,10 +509,10 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                           return Container(
                             width: 60,
                             height: 60,
-                            color: Colors.grey.shade200,
-                            child: const Icon(
+                            color: cs.surfaceContainerHighest,
+                            child: Icon(
                               Icons.fastfood,
-                              color: Colors.grey,
+                              color: cs.outline,
                             ),
                           );
                         },
@@ -519,8 +520,8 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                     : Container(
                         width: 60,
                         height: 60,
-                        color: Colors.grey.shade200,
-                        child: const Icon(Icons.fastfood, color: Colors.grey),
+                        color: cs.surfaceContainerHighest,
+                        child: Icon(Icons.fastfood, color: cs.outline),
                       ),
               ),
               const SizedBox(width: 5),
@@ -538,7 +539,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                     const SizedBox(height: 4),
                     Text(
                       widget.item.variant.label,
-                      style: const TextStyle(color: Colors.black, fontSize: 12),
+                      style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -550,7 +551,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                         'Sous-total: ${(widget.item.variant.prix * widget.item.quantite)} FCFA',
                         style: TextStyle(
                           fontSize: 11,
-                          color: Colors.grey.shade700,
+                          color: cs.onSurfaceVariant,
                         ),
                       ),
                   ],
@@ -610,20 +611,20 @@ class _EmptyCartWithSuggestions extends ConsumerWidget {
       child: Column(
         children: [
           const SizedBox(height: 60),
-          Icon(Iconsax.shopping_bag, size: 80, color: Colors.grey[300]),
+          Icon(Iconsax.shopping_bag, size: 80, color: theme.colorScheme.onSurfaceVariant),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Votre panier est vide',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Colors.black87,
+              color: theme.colorScheme.onSurface,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             'Ajoutez des plats pour commencer',
-            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 20),
           ElevatedButton.icon(
@@ -677,7 +678,7 @@ class _EmptyCartWithSuggestions extends ConsumerWidget {
             },
             loading: () => Padding(
               padding: const EdgeInsets.all(32),
-              child: CircularProgressIndicator(color: theme.primaryColor),
+              child: CircularProgressIndicator(color: theme.colorScheme.primary),
             ),
             error: (_, _) => const SizedBox.shrink(),
           ),
@@ -724,9 +725,9 @@ class _SuggestionTile extends ConsumerWidget {
                           width: 60,
                           height: 60,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => _buildPlaceholder(),
+                          errorBuilder: (ctx, _, _) => _buildPlaceholder(ctx),
                         )
-                      : _buildPlaceholder(),
+                      : _buildPlaceholder(context),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -748,7 +749,7 @@ class _SuggestionTile extends ConsumerWidget {
                           product.restaurantName!,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey[500],
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -760,7 +761,7 @@ class _SuggestionTile extends ConsumerWidget {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
-                          color: theme.primaryColor,
+                          color: theme.colorScheme.primary,
                         ),
                       ),
                     ],
@@ -773,7 +774,7 @@ class _SuggestionTile extends ConsumerWidget {
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        color: theme.primaryColor,
+                        color: theme.colorScheme.primary,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: const Icon(
@@ -810,12 +811,13 @@ class _SuggestionTile extends ConsumerWidget {
     );
   }
 
-  Widget _buildPlaceholder() {
+  Widget _buildPlaceholder(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       width: 60,
       height: 60,
-      color: Colors.grey[200],
-      child: const Icon(Icons.fastfood, size: 28, color: Colors.grey),
+      color: cs.surfaceContainerHighest,
+      child: Icon(Icons.fastfood, size: 28, color: cs.outline),
     );
   }
 
@@ -913,7 +915,9 @@ class _SuggestionTile extends ConsumerWidget {
                     ),
                     margin: const EdgeInsets.only(bottom: 6),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[200]!),
+                      border: Border.all(
+                        color: theme.colorScheme.outline.withValues(alpha: 0.2),
+                      ),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
@@ -928,7 +932,7 @@ class _SuggestionTile extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: theme.primaryColor,
+                            color: theme.colorScheme.primary,
                           ),
                         ),
                       ],

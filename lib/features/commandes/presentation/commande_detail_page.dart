@@ -9,6 +9,7 @@ import 'package:lilia_app/models/order.dart';
 import '../../../models/order_item.dart';
 import '../../cart/application/cart_controller.dart';
 import '../data/order_controller.dart';
+import 'widgets/driver_tracking_map.dart';
 
 class OrderDetailPage extends ConsumerWidget {
   final String orderId;
@@ -21,7 +22,6 @@ class OrderDetailPage extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
@@ -50,36 +50,42 @@ class OrderDetailPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Section Header avec statut
-                _buildHeaderCard(context, order, theme),
+                _buildHeaderCard(context, order),
 
                 const SizedBox(height: 16),
 
                 // Barre de progression pour les commandes en cours
                 if (order.status != OrderStatus.livrer &&
                     order.status != OrderStatus.annuler)
-                  _buildProgressCard(order),
+                  _buildProgressCard(context, order),
 
                 if (order.status != OrderStatus.livrer &&
                     order.status != OrderStatus.annuler)
                   const SizedBox(height: 16),
 
+                // Bouton de tracking temps réel quand la commande est en route
+                if (order.status == OrderStatus.enRoute) ...[
+                  _buildTrackingButton(context, order.id),
+                  const SizedBox(height: 16),
+                ],
+
                 // Section Restaurant
-                _buildRestaurantCard(order),
+                _buildRestaurantCard(context, order),
 
                 const SizedBox(height: 16),
 
                 // Section Articles
-                _buildItemsCard(order),
+                _buildItemsCard(context, order),
 
                 const SizedBox(height: 16),
 
                 // Section Livraison
-                _buildDeliveryCard(order),
+                _buildDeliveryCard(context, order),
 
                 const SizedBox(height: 16),
 
                 // Section Sommaire
-                _buildSummaryCard(context, order, theme),
+                _buildSummaryCard(context, order),
 
                 const SizedBox(height: 24),
 
@@ -108,7 +114,73 @@ class OrderDetailPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeaderCard(BuildContext context, Order order, ThemeData theme) {
+  Widget _buildTrackingButton(BuildContext context, String orderId) {
+    final cs = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => _FullscreenTrackingScreen(orderId: orderId)),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.indigo.shade600, Colors.indigo.shade400],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.indigo.withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.delivery_dining, color: Colors.white, size: 26),
+            ),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Suivre le livreur en direct', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                  SizedBox(height: 2),
+                  Text('Position mise à jour en temps réel', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle)),
+                  const SizedBox(width: 4),
+                  const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderCard(BuildContext context, Order order) {
+    final cs = Theme.of(context).colorScheme;
     final formattedDate = DateFormat(
       'dd MMM yyyy',
       'fr_FR',
@@ -120,15 +192,9 @@ class OrderDetailPage extends ConsumerWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -141,7 +207,7 @@ class OrderDetailPage extends ConsumerWidget {
                 children: [
                   Text(
                     'Commande',
-                    style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+                    style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -195,18 +261,18 @@ class OrderDetailPage extends ConsumerWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              Icon(Iconsax.calendar, size: 16, color: Colors.grey[500]),
+              Icon(Iconsax.calendar, size: 16, color: cs.onSurfaceVariant),
               const SizedBox(width: 8),
               Text(
                 formattedDate,
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
               ),
               const SizedBox(width: 16),
-              Icon(Iconsax.clock, size: 16, color: Colors.grey[500]),
+              Icon(Iconsax.clock, size: 16, color: cs.onSurfaceVariant),
               const SizedBox(width: 8),
               Text(
                 formattedTime,
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
               ),
             ],
           ),
@@ -243,26 +309,21 @@ class OrderDetailPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildProgressCard(Order order) {
+  Widget _buildProgressCard(BuildContext context, Order order) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Iconsax.routing, size: 20, color: Colors.grey[700]),
+              Icon(Iconsax.routing, size: 20, color: cs.onSurfaceVariant),
               const SizedBox(width: 8),
               const Text(
                 'Suivi de commande',
@@ -277,26 +338,21 @@ class OrderDetailPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildRestaurantCard(Order order) {
+  Widget _buildRestaurantCard(BuildContext context, Order order) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Iconsax.shop, size: 20, color: Colors.grey[700]),
+              Icon(Iconsax.shop, size: 20, color: cs.onSurfaceVariant),
               const SizedBox(width: 8),
               const Text(
                 'Restaurant',
@@ -316,10 +372,10 @@ class OrderDetailPage extends ConsumerWidget {
                       ? Image.network(
                           order.restaurant.imageUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              _buildPlaceholderImage(),
+                          errorBuilder: (ctx, error, stackTrace) =>
+                              _buildPlaceholderImage(ctx),
                         )
-                      : _buildPlaceholderImage(),
+                      : _buildPlaceholderImage(context),
                 ),
               ),
               const SizedBox(width: 14),
@@ -340,7 +396,7 @@ class OrderDetailPage extends ConsumerWidget {
                         Icon(
                           Iconsax.location,
                           size: 14,
-                          color: Colors.grey[500],
+                          color: cs.onSurfaceVariant,
                         ),
                         const SizedBox(width: 4),
                         Expanded(
@@ -348,7 +404,7 @@ class OrderDetailPage extends ConsumerWidget {
                             order.restaurant.adresse ??
                                 'Adresse non disponible',
                             style: TextStyle(
-                              color: Colors.grey[600],
+                              color: cs.onSurfaceVariant,
                               fontSize: 13,
                             ),
                             maxLines: 2,
@@ -360,7 +416,7 @@ class OrderDetailPage extends ConsumerWidget {
                   ],
                 ),
               ),
-              Icon(Iconsax.arrow_right_3, color: Colors.grey[400], size: 20),
+              Icon(Iconsax.arrow_right_3, color: cs.outline, size: 20),
             ],
           ),
         ],
@@ -368,7 +424,8 @@ class OrderDetailPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildItemsCard(Order order) {
+  Widget _buildItemsCard(BuildContext context, Order order) {
+    final cs = Theme.of(context).colorScheme;
     final itemCount = order.items.fold<int>(
       0,
       (sum, item) => sum + item.quantite,
@@ -377,15 +434,9 @@ class OrderDetailPage extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,7 +446,7 @@ class OrderDetailPage extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  Icon(Iconsax.bag_2, size: 20, color: Colors.grey[700]),
+                  Icon(Iconsax.bag_2, size: 20, color: cs.onSurfaceVariant),
                   const SizedBox(width: 8),
                   const Text(
                     'Articles commandés',
@@ -409,7 +460,7 @@ class OrderDetailPage extends ConsumerWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.grey[100],
+                  color: cs.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -417,7 +468,7 @@ class OrderDetailPage extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[600],
+                    color: cs.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -431,7 +482,7 @@ class OrderDetailPage extends ConsumerWidget {
               children: [
                 _OrderItemCard(item: item),
                 if (index < order.items.length - 1)
-                  Divider(height: 24, color: Colors.grey[200]),
+                  Divider(height: 24, color: cs.outline.withValues(alpha: 0.3)),
               ],
             );
           }),
@@ -440,19 +491,14 @@ class OrderDetailPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildDeliveryCard(Order order) {
+  Widget _buildDeliveryCard(BuildContext context, Order order) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -462,7 +508,7 @@ class OrderDetailPage extends ConsumerWidget {
               Icon(
                 order.isDelivery ? Iconsax.truck_fast : Iconsax.shop,
                 size: 20,
-                color: Colors.grey[700],
+                color: cs.onSurfaceVariant,
               ),
               const SizedBox(width: 8),
               Text(
@@ -503,7 +549,7 @@ class OrderDetailPage extends ConsumerWidget {
                       order.isDelivery
                           ? (order.deliveryAddress ?? 'Adresse non spécifiée')
                           : (order.restaurant.adresse ?? 'Adresse non disponible'),
-                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                      style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
                     ),
                   ],
                 ),
@@ -515,26 +561,21 @@ class OrderDetailPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildSummaryCard(BuildContext context, Order order, ThemeData theme) {
+  Widget _buildSummaryCard(BuildContext context, Order order) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Iconsax.receipt_1, size: 20, color: Colors.grey[700]),
+              Icon(Iconsax.receipt_1, size: 20, color: cs.onSurfaceVariant),
               const SizedBox(width: 8),
               const Text(
                 'Récapitulatif',
@@ -543,26 +584,26 @@ class OrderDetailPage extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 16),
-          _buildSummaryRow('Sous-total', order.subTotal),
+          _buildSummaryRow(context, 'Sous-total', order.subTotal),
           const SizedBox(height: 8),
-          _buildSummaryRow('Frais de livraison', order.deliveryFee),
+          _buildSummaryRow(context, 'Frais de livraison', order.deliveryFee),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Divider(color: Colors.grey[200]),
+            child: Divider(color: cs.outline.withValues(alpha: 0.3)),
           ),
-          _buildSummaryRow('Total', order.total, isTotal: true, theme: theme),
+          _buildSummaryRow(context, 'Total', order.total, isTotal: true),
           const SizedBox(height: 16),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.grey[50],
+              color: cs.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
                 Icon(
                   _getPaymentIcon(order.paymentMethod),
-                  color: theme.colorScheme.primary,
+                  color: cs.primary,
                   size: 22,
                 ),
                 const SizedBox(width: 12),
@@ -571,14 +612,14 @@ class OrderDetailPage extends ConsumerWidget {
                   children: [
                     Text(
                       'Méthode de paiement',
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       _getDisplayStatusPaiement(order.paymentMethod),
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: theme.colorScheme.primary,
+                        color: cs.primary,
                       ),
                     ),
                   ],
@@ -592,11 +633,12 @@ class OrderDetailPage extends ConsumerWidget {
   }
 
   Widget _buildSummaryRow(
+    BuildContext context,
     String label,
     double value, {
     bool isTotal = false,
-    ThemeData? theme,
   }) {
+    final cs = Theme.of(context).colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -605,7 +647,7 @@ class OrderDetailPage extends ConsumerWidget {
           style: TextStyle(
             fontSize: isTotal ? 16 : 14,
             fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-            color: isTotal ? Colors.black : Colors.grey[600],
+            color: isTotal ? cs.onSurface : cs.onSurfaceVariant,
           ),
         ),
         Text(
@@ -613,7 +655,7 @@ class OrderDetailPage extends ConsumerWidget {
           style: TextStyle(
             fontSize: isTotal ? 18 : 14,
             fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
-            color: isTotal ? theme?.colorScheme.primary : Colors.black87,
+            color: isTotal ? cs.primary : cs.onSurface,
           ),
         ),
       ],
@@ -640,7 +682,7 @@ class OrderDetailPage extends ConsumerWidget {
       child: ElevatedButton(
         onPressed: () => _showCancelConfirmationDialog(context, ref, orderId),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           foregroundColor: Colors.red,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
@@ -816,11 +858,12 @@ class OrderDetailPage extends ConsumerWidget {
     }
   }
 
-  Widget _buildPlaceholderImage() {
+  Widget _buildPlaceholderImage(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
-      color: Colors.grey[200],
+      color: cs.surfaceContainerHighest,
       child: Center(
-        child: Icon(Iconsax.shop, size: 30, color: Colors.grey[400]),
+        child: Icon(Iconsax.shop, size: 30, color: cs.outline),
       ),
     );
   }
@@ -931,6 +974,13 @@ class OrderDetailPage extends ConsumerWidget {
           color: Colors.green,
           icon: Iconsax.tick_circle,
         );
+      case OrderStatus.enRoute:
+        return _StatusInfo(
+          label: 'En route',
+          description: 'Votre livreur est en chemin vers vous',
+          color: Colors.indigo,
+          icon: Iconsax.truck_fast,
+        );
       case OrderStatus.livrer:
         return _StatusInfo(
           label: 'Livrée',
@@ -955,19 +1005,21 @@ class OrderDetailPage extends ConsumerWidget {
     }
   }
 
-  String _getDisplayStatusPaiement(String status) {
-    switch (status) {
-      case 'CASH_ON_DELIVERY':
-        return 'Paiement en espèces';
-      default:
+  String _getDisplayStatusPaiement(String paymentMethod) {
+    switch (paymentMethod) {
+      case 'MTN_MOMO':
         return 'MTN Mobile Money';
+      case 'AIRTEL_MONEY':
+        return 'Airtel Money';
+      default:
+        return paymentMethod;
     }
   }
 
-  IconData _getPaymentIcon(String status) {
-    switch (status) {
-      case 'CASH_ON_DELIVERY':
-        return Iconsax.money;
+  IconData _getPaymentIcon(String paymentMethod) {
+    switch (paymentMethod) {
+      case 'AIRTEL_MONEY':
+        return Iconsax.mobile;
       default:
         return Iconsax.mobile;
     }
@@ -981,6 +1033,7 @@ class _OrderItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final String itemImageUrl = item.product.imageUrl ?? '';
 
     return Row(
@@ -994,10 +1047,10 @@ class _OrderItemCard extends StatelessWidget {
                 ? Image.network(
                     itemImageUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        _buildPlaceholderImage(),
+                    errorBuilder: (ctx, error, stackTrace) =>
+                        _buildPlaceholderImage(ctx),
                   )
-                : _buildPlaceholderImage(),
+                : _buildPlaceholderImage(context),
           ),
         ),
         const SizedBox(width: 14),
@@ -1015,13 +1068,13 @@ class _OrderItemCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 item.variant,
-                style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
               ),
               const SizedBox(height: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.grey[100],
+                  color: cs.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -1029,7 +1082,7 @@ class _OrderItemCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey[700],
+                    color: cs.onSurfaceVariant,
                   ),
                 ),
               ),
@@ -1044,11 +1097,12 @@ class _OrderItemCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPlaceholderImage() {
+  Widget _buildPlaceholderImage(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
-      color: Colors.grey[200],
+      color: cs.surfaceContainerHighest,
       child: Center(
-        child: Icon(Iconsax.gallery, size: 28, color: Colors.grey[400]),
+        child: Icon(Iconsax.gallery, size: 28, color: cs.outline),
       ),
     );
   }
@@ -1061,6 +1115,7 @@ class _OrderProgressStepper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final steps = [
       _ProgressStep(
         icon: Iconsax.tick_circle,
@@ -1071,14 +1126,22 @@ class _OrderProgressStepper extends StatelessWidget {
       _ProgressStep(
         icon: Iconsax.cake,
         label: 'En préparation',
-        isCompleted: status == OrderStatus.pret,
+        isCompleted: status == OrderStatus.pret ||
+            status == OrderStatus.enRoute ||
+            status == OrderStatus.livrer,
         isCurrent: status == OrderStatus.enPreparation,
       ),
       _ProgressStep(
         icon: Iconsax.box_tick,
         label: 'Prête',
-        isCompleted: false,
+        isCompleted: status == OrderStatus.enRoute || status == OrderStatus.livrer,
         isCurrent: status == OrderStatus.pret,
+      ),
+      _ProgressStep(
+        icon: Iconsax.truck_fast,
+        label: 'En route',
+        isCompleted: status == OrderStatus.livrer,
+        isCurrent: status == OrderStatus.enRoute,
       ),
     ];
 
@@ -1093,23 +1156,24 @@ class _OrderProgressStepper extends StatelessWidget {
               height: 3,
               margin: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
-                color: isCompleted ? Colors.green : Colors.grey[300],
+                color: isCompleted ? Colors.green : cs.outline.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           );
         } else {
           final step = steps[index ~/ 2];
-          return _buildStepItem(step);
+          return _buildStepItem(context, step);
         }
       }),
     );
   }
 
-  Widget _buildStepItem(_ProgressStep step) {
+  Widget _buildStepItem(BuildContext context, _ProgressStep step) {
+    final cs = Theme.of(context).colorScheme;
     final color = step.isCompleted || step.isCurrent
         ? Colors.green
-        : Colors.grey[400]!;
+        : cs.outline;
 
     return Column(
       children: [
@@ -1119,7 +1183,7 @@ class _OrderProgressStepper extends StatelessWidget {
           decoration: BoxDecoration(
             color: step.isCompleted || step.isCurrent
                 ? Colors.green.withValues(alpha: 0.1)
-                : Colors.grey[100],
+                : cs.surfaceContainerHighest,
             shape: BoxShape.circle,
             border: step.isCurrent
                 ? Border.all(color: Colors.green, width: 2)
@@ -1168,4 +1232,54 @@ class _StatusInfo {
     required this.color,
     required this.icon,
   });
+}
+
+/// Écran plein écran de suivi du livreur (client side)
+class _FullscreenTrackingScreen extends ConsumerWidget {
+  final String orderId;
+  const _FullscreenTrackingScreen({required this.orderId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      extendBodyBehindAppBar: true,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 12),
+          child: GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
+              ),
+              child: const Icon(Icons.arrow_back, color: Colors.black87, size: 20),
+            ),
+          ),
+        ),
+        title: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
+              const SizedBox(width: 6),
+              const Text('Livreur en route', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600, fontSize: 14)),
+            ],
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: DriverTrackingMap(orderId: orderId, fullscreen: true),
+    );
+  }
 }

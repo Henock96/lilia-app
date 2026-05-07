@@ -4,7 +4,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Lilia App is a Flutter e-commerce mobile application for restaurant ordering. The app uses Firebase Authentication for user management and communicates with a backend API at `https://lilia-backend.onrender.com`. The architecture follows a feature-first organization with Riverpod for state management and go_router for navigation.
+Lilia App est l'**app client** Flutter de la plateforme Lilia Food (Brazzaville, Congo).
+Les 4 composants de l'écosystème :
+- **Backend** : `lilia-backend/` (NestJS + Prisma)
+- **Client** : `lilia-app/` ← ce dossier (Flutter, rôle CLIENT)
+- **Admin** : `lilia-food-admin/` (Flutter, rôle RESTAURATEUR/ADMIN)
+- **Livreur** : `lilia_food_delivery/` (Flutter, rôle LIVREUR, org: com.dreesis)
+
+Backend URL : `https://lilia-backend.onrender.com`
+
+## Tracking livreur (mai 2026)
+
+Quand une commande est `EN_ROUTE`, `commande_detail_page.dart` affiche `DriverTrackingMap` (widget Google Maps).
+- **Polling HTTP** : `driverLocationControllerProvider(orderId)` toutes les 10s via `GET /deliveries/by-order/:orderId`
+- **Note** : le backend expose un WebSocket Socket.io (`/tracking`) mais l'app Flutter utilise encore le polling HTTP — la migration WS est à faire.
+- **Config Google Maps** : `android/app/src/main/AndroidManifest.xml` + `ios/Runner/AppDelegate.swift` → remplacer `YOUR_GOOGLE_MAPS_API_KEY`
+- Fichiers clés :
+  - `lib/features/commandes/data/delivery_tracking_repository.dart` — fetch + modèle `DriverLocation`
+  - `lib/features/commandes/presentation/widgets/driver_tracking_map.dart` — widget Google Maps
+  - Polling via `driverLocationControllerProvider(orderId)` dans `delivery_tracking_repository.g.dart`
+
+## Avis clients — Reviews (mai 2026)
+
+Feature complète dans `lib/features/reviews/`.
+
+**Fichiers** :
+- `data/review_repository.dart` : calls API (`GET /reviews/restaurant/:id`, `POST /reviews`, `GET /reviews/can-review/:id`, `GET /reviews/restaurant/:id/stats`)
+- `data/review_controller.dart` : providers `restaurantReviewsProvider(restaurantId)`, `restaurantStatsProvider`, `canReviewProvider`, `submitReviewProvider`
+- `presentation/screens/reviews_screen.dart` : stats + liste avis + bouton "Laisser un avis" conditionnel
+- `presentation/screens/write_review_screen.dart` : formulaire (note 1-5 + commentaire optionnel)
+- `presentation/widgets/review_card.dart` : carte avis avec note et date
+- `presentation/widgets/star_rating.dart` : widget étoiles réutilisable
+
+**Règles** : seul un client ayant une commande LIVRER pour ce restaurant peut laisser un avis. 1 avis max par user par restaurant.
 
 ## Development Commands
 
@@ -71,21 +103,25 @@ The app uses **Riverpod** with code generation (`riverpod_annotation`) for state
 ### Feature-Based Structure
 ```
 lib/
-â”œâ”€â”€ features/           # Feature modules
-â”‚   â”œâ”€â”€ auth/          # Authentication (Firebase Auth + backend sync)
-â”‚   â”œâ”€â”€ cart/          # Shopping cart functionality
-â”‚   â”œâ”€â”€ commandes/     # Order management
-â”‚   â”œâ”€â”€ favoris/       # Favorites/wishlist
-â”‚   â”œâ”€â”€ home/          # Restaurant browsing
-â”‚   â”œâ”€â”€ notifications/ # Push notifications (FCM)
-â”‚   â”œâ”€â”€ payments/      # Payment processing
-â”‚   â””â”€â”€ user/          # User profile and settings
-â”œâ”€â”€ models/            # Shared data models
-â”œâ”€â”€ routing/           # Go router configuration
-â”œâ”€â”€ services/          # App-wide services (notifications)
-â”œâ”€â”€ common_widgets/    # Reusable UI components
-â”œâ”€â”€ utilities/         # Themes, colors, styles
-â””â”€â”€ main.dart
+├── features/
+│   ├── auth/          # Firebase Auth + sync backend
+│   ├── address/       # Adresses livraison (séparé de user/)
+│   ├── cart/          # Panier + clear + broadcast stream
+│   ├── commandes/     # Commandes + checkout + tracking GPS livreur
+│   ├── favoris/       # Favoris restaurants
+│   ├── home/          # Browsing restaurants + produits
+│   ├── notifications/ # FCM push notifications
+│   ├── onboarding/    # Écran accueil animé
+│   ├── payments/      # MTN MoMo + Airtel
+│   ├── quartiers/     # Zones livraison (public)
+│   ├── reviews/       # Avis clients (reviews_screen, write_review_screen)
+│   └── user/          # Profil + parrainage + fidélité + brouillons
+├── models/            # Modèles partagés
+├── routing/           # go_router
+├── services/          # analytics_service.dart
+├── common_widgets/    # Composants réutilisables
+├── utilities/         # Thème, couleurs
+└── main.dart
 ```
 
 ### Authentication Flow

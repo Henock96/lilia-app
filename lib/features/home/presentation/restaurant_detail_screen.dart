@@ -80,7 +80,7 @@ class _RestaurantDetailScreenState
                   ),
                   Text(
                     ' (${restaurantAsyncValue.value!.totalReviews} avis)',
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -172,7 +172,7 @@ class _RestaurantDetailScreenState
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor: Colors.grey[100],
+                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 12,
@@ -225,11 +225,11 @@ class _RestaurantDetailScreenState
               child: Center(
                 child: Column(
                   children: [
-                    Icon(Icons.search_off, size: 48, color: Colors.grey),
+                    Icon(Icons.search_off, size: 48),
                     SizedBox(height: 16),
                     Text(
                       'Aucun produit trouvé',
-                      style: TextStyle(color: Colors.grey, fontSize: 16),
+                      style: TextStyle(fontSize: 16),
                     ),
                   ],
                 ),
@@ -340,19 +340,14 @@ class _RestaurantInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cs.surface,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: cs.outline.withValues(alpha: 0.12)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -377,9 +372,9 @@ class _RestaurantInfoCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Adresse',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                      style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
                     ),
                     Text(
                       restaurant.address,
@@ -449,16 +444,14 @@ class _RestaurantInfoCard extends StatelessWidget {
                     vertical: 5,
                   ),
                   decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).primaryColor.withValues(alpha: 0.1),
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
                     specialty.name,
                     style: TextStyle(
                       fontSize: 12,
-                      color: Theme.of(context).primaryColor,
+                      color: Theme.of(context).colorScheme.primary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -550,7 +543,7 @@ class _InfoItem extends StatelessWidget {
             child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(height: 4),
-          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          Text(label, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
           Text(
             value,
             style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
@@ -588,10 +581,8 @@ class _CategoryTabs extends StatelessWidget {
               label: const Text('Tous'),
               selected: selectedCategory == null,
               onSelected: (_) => onCategorySelected(null),
-              selectedColor: Theme.of(
-                context,
-              ).primaryColor.withValues(alpha: 0.2),
-              checkmarkColor: Theme.of(context).primaryColor,
+              selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+              checkmarkColor: Theme.of(context).colorScheme.primary,
             ),
           ),
           // Boutons de catégories
@@ -604,10 +595,8 @@ class _CategoryTabs extends StatelessWidget {
                 onSelected: (_) => onCategorySelected(
                   selectedCategory == category ? null : category,
                 ),
-                selectedColor: Theme.of(
-                  context,
-                ).primaryColor.withValues(alpha: 0.2),
-                checkmarkColor: Theme.of(context).primaryColor,
+                selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+                checkmarkColor: Theme.of(context).colorScheme.primary,
               ),
             );
           }),
@@ -644,12 +633,12 @@ class _CategorySection extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.grey[200],
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   '${products.length}',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ),
             ],
@@ -706,7 +695,7 @@ class _ProductCard extends ConsumerWidget {
                     height: 85,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
-                      color: Colors.grey[200],
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       image: product.imageUrl != null
                           ? DecorationImage(
                               image: NetworkImage(product.imageUrl!),
@@ -715,11 +704,11 @@ class _ProductCard extends ConsumerWidget {
                           : null,
                     ),
                     child: product.imageUrl == null
-                        ? const Center(
+                        ? Center(
                             child: Icon(
                               Icons.fastfood,
                               size: 40,
-                              color: Colors.grey,
+                              color: Theme.of(context).colorScheme.outline,
                             ),
                           )
                         : null,
@@ -791,7 +780,7 @@ class _ProductCard extends ConsumerWidget {
                       product.description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 8),
                     Row(
@@ -800,7 +789,7 @@ class _ProductCard extends ConsumerWidget {
                         Text(
                           '${getDisplayPrice().toStringAsFixed(0)} FCFA',
                           style: TextStyle(
-                            color: available ? Theme.of(context).primaryColor : Colors.grey,
+                            color: available ? Theme.of(context).colorScheme.primary : Colors.grey,
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
@@ -813,7 +802,7 @@ class _ProductCard extends ConsumerWidget {
                             child: Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: Theme.of(context).primaryColor,
+                                color: Theme.of(context).colorScheme.primary,
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: const Icon(
@@ -876,7 +865,7 @@ class _ProductCard extends ConsumerWidget {
                   Expanded(child: Text('${product.name} ajouté au panier')),
                 ],
               ),
-              backgroundColor: Theme.of(context).primaryColor,
+              backgroundColor: Theme.of(context).colorScheme.primary,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -969,11 +958,11 @@ class _OperatingHoursSectionState extends State<_OperatingHoursSection> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Horaires',
                         style: TextStyle(
                           fontSize: 12,
-                          color: Colors.grey,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                       Text(
@@ -992,7 +981,7 @@ class _OperatingHoursSectionState extends State<_OperatingHoursSection> {
                 ),
                 Icon(
                   _expanded ? Icons.expand_less : Icons.expand_more,
-                  color: Colors.grey,
+                  color: Theme.of(context).colorScheme.outline,
                   size: 20,
                 ),
               ],
@@ -1006,10 +995,10 @@ class _OperatingHoursSectionState extends State<_OperatingHoursSection> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Colors.grey.withValues(alpha: 0.05),
+              color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: Colors.grey.withValues(alpha: 0.15),
+                color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.15),
               ),
             ),
             child: Column(
@@ -1027,8 +1016,8 @@ class _OperatingHoursSectionState extends State<_OperatingHoursSection> {
                             fontSize: 12,
                             fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
                             color: isToday
-                                ? Theme.of(context).primaryColor
-                                : Colors.grey[700],
+                                ? Theme.of(context).colorScheme.primary
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),
@@ -1038,7 +1027,7 @@ class _OperatingHoursSectionState extends State<_OperatingHoursSection> {
                           height: 5,
                           margin: const EdgeInsets.only(right: 6),
                           decoration: BoxDecoration(
-                            color: Theme.of(context).primaryColor,
+                            color: Theme.of(context).colorScheme.primary,
                             shape: BoxShape.circle,
                           ),
                         )
@@ -1053,10 +1042,10 @@ class _OperatingHoursSectionState extends State<_OperatingHoursSection> {
                             fontSize: 12,
                             fontWeight: isToday ? FontWeight.w600 : FontWeight.normal,
                             color: hours.isClosed
-                                ? Colors.red[400]
+                                ? Theme.of(context).colorScheme.error
                                 : isToday
-                                    ? Colors.black87
-                                    : Colors.grey[600],
+                                    ? Theme.of(context).colorScheme.onSurface
+                                    : Theme.of(context).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ),

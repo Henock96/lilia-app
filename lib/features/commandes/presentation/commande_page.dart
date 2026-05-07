@@ -59,12 +59,8 @@ class _CommandePageState extends ConsumerState<CommandePage>
     });
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text(
-          'Mes Commandes',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Mes Commandes'),
         centerTitle: true,
         elevation: 0,
         bottom: TabBar(
@@ -92,7 +88,8 @@ class _CommandePageState extends ConsumerState<CommandePage>
                     o.status == OrderStatus.enAttente ||
                     o.status == OrderStatus.payer ||
                     o.status == OrderStatus.enPreparation ||
-                    o.status == OrderStatus.pret,
+                    o.status == OrderStatus.pret ||
+                    o.status == OrderStatus.enRoute,
               )
               .toList();
           final completedOrders = orders
@@ -160,20 +157,27 @@ class _OrderListView extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(emptyIcon, size: 80, color: Colors.grey[300]),
+            Icon(
+              emptyIcon,
+              size: 80,
+              color: Theme.of(context).colorScheme.outline,
+            ),
             const SizedBox(height: 16),
             Text(
               emptyMessage,
               style: TextStyle(
                 fontSize: 18,
-                color: Colors.grey[500],
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               'Vos commandes apparaîtront ici',
-              style: TextStyle(fontSize: 14, color: Colors.grey[400]),
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).colorScheme.outline,
+              ),
             ),
           ],
         ),
@@ -275,7 +279,7 @@ class _OrderListView extends ConsumerWidget {
               background: Container(
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: Colors.red,
+                  color: Theme.of(context).colorScheme.error,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 alignment: Alignment.centerRight,
@@ -334,13 +338,18 @@ class _OrderCard extends ConsumerWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: Theme.of(
+              context,
+            ).colorScheme.outline.withValues(alpha: 0.12),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -389,7 +398,7 @@ class _OrderCard extends ConsumerWidget {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: Colors.grey[500],
+                                color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
                             _StatusBadge(status: order.status),
@@ -414,11 +423,11 @@ class _OrderCard extends ConsumerWidget {
                         // Produits
                         Text(
                           firstItem != null
-                              ? '$itemCount article${itemCount > 1 ? 's' : ''} â€¢ ${firstItem.product.nom}${order.items.length > 1 ? ' +${order.items.length - 1}' : ''}'
+                              ? '$itemCount article${itemCount > 1 ? 's' : ''} • ${firstItem.product.nom}${order.items.length > 1 ? ' +${order.items.length - 1}' : ''}'
                               : 'Aucun article',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey[600],
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -435,14 +444,14 @@ class _OrderCard extends ConsumerWidget {
                                 Icon(
                                   Icons.access_time,
                                   size: 14,
-                                  color: Colors.grey[400],
+                                  color: theme.colorScheme.outline,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
                                   _formatDate(order.createdAt),
                                   style: TextStyle(
                                     fontSize: 12,
-                                    color: Colors.grey[500],
+                                    color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],
@@ -478,7 +487,9 @@ class _OrderCard extends ConsumerWidget {
                   vertical: 8,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.grey[50],
+                  color: theme.colorScheme.surfaceContainerHighest.withValues(
+                    alpha: 0.5,
+                  ),
                   borderRadius: const BorderRadius.only(
                     bottomLeft: Radius.circular(16),
                     bottomRight: Radius.circular(16),
@@ -491,7 +502,7 @@ class _OrderCard extends ConsumerWidget {
                       'En attente de paiement',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey[600],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -520,17 +531,22 @@ class _OrderCard extends ConsumerWidget {
   }
 
   Widget _buildPlaceholderImage({bool isLoading = false}) {
-    return Container(
-      color: Colors.grey[200],
-      child: Center(
-        child: isLoading
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : Icon(Icons.fastfood, size: 40, color: Colors.grey[400]),
-      ),
+    return Builder(
+      builder: (context) {
+        final cs = Theme.of(context).colorScheme;
+        return Container(
+          color: cs.surfaceContainerHighest,
+          child: Center(
+            child: isLoading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(Icons.fastfood, size: 40, color: cs.outline),
+          ),
+        );
+      },
     );
   }
 
@@ -574,6 +590,12 @@ class _OrderCard extends ConsumerWidget {
           label: 'Prête',
           color: Colors.green,
           icon: Icons.check_circle,
+        );
+      case OrderStatus.enRoute:
+        return _StatusInfo(
+          label: 'En route',
+          color: Colors.indigo,
+          icon: Icons.delivery_dining,
         );
       case OrderStatus.livrer:
         return _StatusInfo(
@@ -738,6 +760,12 @@ class _StatusBadge extends StatelessWidget {
           color: Colors.green,
           icon: Icons.check_circle,
         );
+      case OrderStatus.enRoute:
+        return _StatusInfo(
+          label: 'En route',
+          color: Colors.indigo,
+          icon: Icons.delivery_dining,
+        );
       case OrderStatus.livrer:
         return _StatusInfo(
           label: 'Livrée',
@@ -780,31 +808,37 @@ class _OrderProgressBar extends StatelessWidget {
       case OrderStatus.pret:
         currentStep = 2;
         break;
+      case OrderStatus.enRoute:
+        currentStep = 3;
+        break;
       default:
         currentStep = 0;
     }
 
+    final cs = Theme.of(context).colorScheme;
+    final activeColor = cs.tertiary;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.grey[50],
-        border: Border(top: BorderSide(color: Colors.grey[200]!)),
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
+        border: Border(
+          top: BorderSide(color: cs.outline.withValues(alpha: 0.15)),
+        ),
       ),
       child: Row(
         children: List.generate(steps.length * 2 - 1, (index) {
           if (index.isOdd) {
-            // Ligne entre les étapes
             final stepIndex = index ~/ 2;
             return Expanded(
               child: Container(
                 height: 2,
                 color: stepIndex < currentStep
-                    ? Colors.green
-                    : Colors.grey[300],
+                    ? activeColor
+                    : cs.outline.withValues(alpha: 0.3),
               ),
             );
           } else {
-            // Point d'étape
             final stepIndex = index ~/ 2;
             final isCompleted = stepIndex <= currentStep;
             final isCurrent = stepIndex == currentStep;
@@ -815,10 +849,12 @@ class _OrderProgressBar extends StatelessWidget {
                   width: isCurrent ? 16 : 12,
                   height: isCurrent ? 16 : 12,
                   decoration: BoxDecoration(
-                    color: isCompleted ? Colors.green : Colors.grey[300],
+                    color: isCompleted
+                        ? activeColor
+                        : cs.outline.withValues(alpha: 0.3),
                     shape: BoxShape.circle,
                     border: isCurrent
-                        ? Border.all(color: Colors.green, width: 2)
+                        ? Border.all(color: activeColor, width: 2)
                         : null,
                   ),
                   child: isCompleted && !isCurrent
@@ -831,7 +867,7 @@ class _OrderProgressBar extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 9,
                     fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                    color: isCompleted ? Colors.green : Colors.grey[500],
+                    color: isCompleted ? activeColor : cs.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -850,4 +886,3 @@ class _StatusInfo {
 
   _StatusInfo({required this.label, required this.color, required this.icon});
 }
-

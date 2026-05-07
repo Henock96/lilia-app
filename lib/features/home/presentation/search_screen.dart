@@ -40,25 +40,23 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    //final theme = Theme.of(context);
+    final cs = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         titleSpacing: 0,
         title: TextField(
           controller: _searchController,
           autofocus: true,
           onChanged: _onSearchChanged,
+          style: TextStyle(fontSize: 15, color: cs.onSurface),
           decoration: InputDecoration(
             hintText: 'Rechercher un plat ou restaurant...',
-            hintStyle: TextStyle(color: Colors.grey[400], fontSize: 15),
+            hintStyle: TextStyle(color: cs.onSurfaceVariant, fontSize: 15),
             border: InputBorder.none,
             filled: false,
           ),
-          style: const TextStyle(fontSize: 15),
         ),
         actions: [
           if (_searchController.text.isNotEmpty)
@@ -67,31 +65,31 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 _searchController.clear();
                 setState(() => _query = '');
               },
-              icon: const Icon(Icons.close, color: Colors.grey),
+              icon: Icon(Icons.close, color: cs.onSurfaceVariant),
             ),
         ],
       ),
-      body: _query.isEmpty ? _buildEmptyState() : _buildSearchResults(),
+      body: _query.isEmpty ? _buildEmptyState(cs) : _buildSearchResults(cs),
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(ColorScheme cs) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.search, size: 64, color: Colors.grey[300]),
+          Icon(Icons.search, size: 64, color: cs.onSurfaceVariant),
           const SizedBox(height: 16),
           Text(
             'Recherchez un plat ou un restaurant',
-            style: TextStyle(fontSize: 16, color: Colors.grey[500]),
+            style: TextStyle(fontSize: 16, color: cs.onSurfaceVariant),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSearchResults() {
+  Widget _buildSearchResults(ColorScheme cs) {
     final resultsAsync = ref.watch(searchResultsProvider(_query));
 
     return resultsAsync.when(
@@ -105,11 +103,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.search_off, size: 64, color: Colors.grey[300]),
+                Icon(Icons.search_off, size: 64, color: cs.onSurfaceVariant),
                 const SizedBox(height: 16),
                 Text(
                   'Aucun resultat pour "$_query"',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[500]),
+                  style: TextStyle(fontSize: 16, color: cs.onSurfaceVariant),
                 ),
               ],
             ),
@@ -119,13 +117,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Section Restaurants
             if (results.restaurants.isNotEmpty) ...[
               Text(
                 'Restaurants',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
+                  color: cs.onSurface,
                 ),
               ),
               const SizedBox(height: 8),
@@ -134,13 +132,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
               const SizedBox(height: 20),
             ],
-            // Section Plats
             if (results.products.isNotEmpty) ...[
               Text(
                 'Plats',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
+                  color: cs.onSurface,
                 ),
               ),
               const SizedBox(height: 8),
@@ -151,7 +149,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (err, _) => Center(
-        child: Text('Erreur: $err', style: TextStyle(color: Colors.grey[500])),
+        child: Text(
+          'Erreur: $err',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
     );
   }
@@ -164,10 +167,12 @@ class _SearchRestaurantTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      elevation: 1,
+      elevation: 0,
       child: ListTile(
         onTap: () {
           context.goNamed(
@@ -184,23 +189,20 @@ class _SearchRestaurantTile extends StatelessWidget {
                   width: 50,
                   height: 50,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(
-                    width: 50,
-                    height: 50,
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.restaurant, size: 24),
+                  errorBuilder: (_, _, _) => _placeholderBox(
+                    cs,
+                    const Icon(Icons.restaurant, size: 24),
                   ),
                 )
-              : Container(
-                  width: 50,
-                  height: 50,
-                  color: Colors.grey[200],
-                  child: const Icon(Icons.restaurant, size: 24),
-                ),
+              : _placeholderBox(cs, const Icon(Icons.restaurant, size: 24)),
         ),
         title: Text(
           restaurant.name,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            color: cs.onSurface,
+          ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,7 +210,7 @@ class _SearchRestaurantTile extends StatelessWidget {
             if (restaurant.specialties.isNotEmpty)
               Text(
                 restaurant.specialtiesFormatted,
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -225,20 +227,32 @@ class _SearchRestaurantTile extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   restaurant.isOpen ? 'Ouvert' : 'Ferme',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
                 ),
                 const SizedBox(width: 8),
-                Icon(Icons.access_time, size: 12, color: Colors.grey[500]),
+                Icon(Icons.access_time, size: 12, color: cs.onSurfaceVariant),
                 const SizedBox(width: 2),
                 Text(
                   restaurant.deliveryTimeFormatted,
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
                 ),
               ],
             ),
           ],
         ),
-        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+        trailing: Icon(Icons.chevron_right, color: cs.onSurfaceVariant),
+      ),
+    );
+  }
+
+  Widget _placeholderBox(ColorScheme cs, Widget icon) {
+    return Container(
+      width: 50,
+      height: 50,
+      color: cs.surfaceContainerHighest,
+      child: IconTheme(
+        data: IconThemeData(color: cs.onSurfaceVariant, size: 24),
+        child: icon,
       ),
     );
   }
@@ -251,12 +265,12 @@ class _SearchProductTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
+    final cs = Theme.of(context).colorScheme;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      elevation: 1,
+      elevation: 0,
       child: ListTile(
         onTap: () {
           context.pushNamed(AppRoutes.productDetail.routeName, extra: product);
@@ -269,23 +283,17 @@ class _SearchProductTile extends ConsumerWidget {
                   width: 50,
                   height: 50,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(
-                    width: 50,
-                    height: 50,
-                    color: Colors.grey[200],
-                    child: const Icon(Icons.fastfood, size: 24),
-                  ),
+                  errorBuilder: (_, _, _) => _placeholderBox(cs),
                 )
-              : Container(
-                  width: 50,
-                  height: 50,
-                  color: Colors.grey[200],
-                  child: const Icon(Icons.fastfood, size: 24),
-                ),
+              : _placeholderBox(cs),
         ),
         title: Text(
           product.name,
-          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 14,
+            color: cs.onSurface,
+          ),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -293,14 +301,14 @@ class _SearchProductTile extends ConsumerWidget {
             if (product.restaurantName != null)
               Text(
                 product.restaurantName!,
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
               ),
             Text(
               '${product.displayPrice.toStringAsFixed(0)} FCFA',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: theme.primaryColor,
+                color: cs.primary,
               ),
             ),
           ],
@@ -328,7 +336,7 @@ class _SearchProductTile extends ConsumerWidget {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: theme.primaryColor,
+                    color: cs.primary,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.add, color: Colors.white, size: 20),
@@ -350,6 +358,15 @@ class _SearchProductTile extends ConsumerWidget {
                 ),
               ),
       ),
+    );
+  }
+
+  Widget _placeholderBox(ColorScheme cs) {
+    return Container(
+      width: 50,
+      height: 50,
+      color: cs.surfaceContainerHighest,
+      child: Icon(Icons.fastfood, size: 24, color: cs.onSurfaceVariant),
     );
   }
 
@@ -377,13 +394,13 @@ class _SearchProductTile extends ConsumerWidget {
   }
 
   void _showVariantBottomSheet(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
+        final sheetCs = Theme.of(ctx).colorScheme;
         return Padding(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -417,7 +434,9 @@ class _SearchProductTile extends ConsumerWidget {
                     ),
                     margin: const EdgeInsets.only(bottom: 6),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[200]!),
+                      border: Border.all(
+                        color: sheetCs.outline.withValues(alpha: 0.3),
+                      ),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
@@ -425,14 +444,17 @@ class _SearchProductTile extends ConsumerWidget {
                       children: [
                         Text(
                           variant.label,
-                          style: const TextStyle(fontSize: 14),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: sheetCs.onSurface,
+                          ),
                         ),
                         Text(
                           '${variant.prix.toStringAsFixed(0)} FCFA',
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: theme.primaryColor,
+                            color: sheetCs.primary,
                           ),
                         ),
                       ],

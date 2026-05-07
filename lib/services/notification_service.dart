@@ -19,7 +19,7 @@ part 'notification_service.g.dart';
 // --- Background Message Handler ---
 // Doit être une fonction de haut niveau (en dehors d'une classe)
 @pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // 1. Initialiser Firebase pour l'isolate d'arrière-plan
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
@@ -145,8 +145,6 @@ class NotificationService {
       }
     });
 
-    // Gère les messages en arrière-plan/terminé
-    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   }
 
   // Améliorations pour votre NotificationService
@@ -321,7 +319,17 @@ class NotificationService {
 
       await _requestPermission();
 
-      fcmToken = await _fcm.getToken();
+      try {
+        fcmToken = await _fcm.getToken();
+      } on FirebaseException catch (e) {
+        if (e.code == 'apns-token-not-set') {
+          // iOS simulator: APNS unavailable, push notifications won't work
+          debugPrint('⚠️ APNS not available (simulator?), skipping FCM token');
+        } else {
+          rethrow;
+        }
+      }
+
       if (fcmToken != null) {
         debugPrint('----------- FCM Token -----------');
         debugPrint(fcmToken);
@@ -330,7 +338,7 @@ class NotificationService {
         // Enregistrer le token immédiatement
         await registerTokenOnServer();
       } else {
-        debugPrint('Failed to get FCM token');
+        debugPrint('FCM token unavailable (simulator or APNS not ready)');
       }
 
       _setupMessageHandlers();
@@ -357,7 +365,14 @@ class NotificationService {
   // 8. Amélioration de registerTokenOnServer avec retry
   Future<void> registerTokenOnServer({int maxRetries = 3}) async {
     // Essayer d'obtenir le token si pas encore disponible (ex: init() appelé avant connexion)
-    fcmToken ??= await _fcm.getToken();
+    if (fcmToken == null) {
+      try {
+        fcmToken = await _fcm.getToken();
+      } on FirebaseException catch (e) {
+        if (e.code == 'apns-token-not-set') return;
+        rethrow;
+      }
+    }
     if (fcmToken == null) {
       debugPrint('FCM Token is null, cannot register on server.');
       return;
@@ -386,7 +401,7 @@ class NotificationService {
               },
               body: jsonEncode({'token': fcmToken}),
             )
-            .timeout(const Duration(seconds: 10));
+            .timeout(const Duration(seconds: 35));
 
         if (response.statusCode == 200 || response.statusCode == 201) {
           debugPrint('FCM Token registered successfully on the server.');
@@ -405,8 +420,7 @@ class NotificationService {
         if (attempt == maxRetries) {
           debugPrint('Max retries reached. Failed to register FCM token.');
         } else {
-          // Attendre avant de réessayer
-          await Future.delayed(Duration(seconds: attempt * 2));
+          await Future.delayed(Duration(seconds: attempt * 15));
         }
       }
     }

@@ -106,7 +106,8 @@ class _CategoryItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),
       child: GestureDetector(
@@ -119,17 +120,23 @@ class _CategoryItem extends StatelessWidget {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: theme.primaryColor.withValues(alpha: 0.1),
+                color: isDark
+                    ? cs.primary.withValues(alpha: 0.2)
+                    : cs.primary.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: theme.primaryColor, size: 26),
+              child: Icon(icon, color: cs.primary, size: 26),
             ),
             const SizedBox(height: 6),
             SizedBox(
               width: 64,
               child: Text(
                 category.name,
-                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: cs.onSurface,
+                ),
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

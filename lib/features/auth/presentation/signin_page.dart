@@ -170,10 +170,7 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
         children: [
           TextFormField(
             controller: _emailController,
-            decoration: InputDecoration(
-              errorStyle: TextStyle(
-                color: Theme.of(context).textTheme.titleLarge!.color,
-              ),
+            decoration: const InputDecoration(
               labelText: 'Email',
               prefixIcon: Icon(Icons.email_outlined),
             ),
@@ -261,6 +258,7 @@ class _SocialLogins extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
     return OutlinedButton.icon(
       onPressed: () async {
         await ref.read(authControllerProvider.notifier).signInWithGoogle();
@@ -268,14 +266,14 @@ class _SocialLogins extends ConsumerWidget {
       icon: Image.asset(
         'assets/images/google_logo.png',
         height: 24.0,
-      ), // Assurez-vous d'avoir ce logo
-      label: const Text(
+      ),
+      label: Text(
         'Se connecter avec Google',
-        style: TextStyle(color: Colors.black87),
+        style: TextStyle(color: cs.onSurface),
       ),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 12.0),
-        side: BorderSide(color: Colors.grey.shade300),
+        side: BorderSide(color: cs.outline.withValues(alpha: 0.4)),
       ),
     );
   }
@@ -286,19 +284,19 @@ class _SignUpNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Theme.of(context);
+    final cs = Theme.of(context).colorScheme;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
           "Vous n'avez pas de compte ?",
-          style: TextStyle(color: Colors.black87, fontSize: 14),
+          style: TextStyle(color: cs.onSurface, fontSize: 14),
         ),
         TextButton(
           onPressed: () => context.goNamed(AppRoutes.signUp.routeName),
-          child: const Text(
+          child: Text(
             "S'inscrire",
-            style: TextStyle(color: Colors.black87, fontSize: 14),
+            style: TextStyle(color: cs.primary, fontSize: 14, fontWeight: FontWeight.w600),
           ),
         ),
       ],
