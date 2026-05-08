@@ -144,7 +144,6 @@ class NotificationService {
         }
       }
     });
-
   }
 
   // Améliorations pour votre NotificationService
@@ -331,9 +330,7 @@ class NotificationService {
       }
 
       if (fcmToken != null) {
-        debugPrint('----------- FCM Token -----------');
-        debugPrint(fcmToken);
-        debugPrint('---------------------------------');
+        debugPrint('FCM token obtained.');
 
         // Enregistrer le token immédiatement
         await registerTokenOnServer();
@@ -345,7 +342,7 @@ class NotificationService {
       _onTokenRefreshSubscription?.cancel();
       _onTokenRefreshSubscription = _fcm.onTokenRefresh.listen((newToken) {
         if (!_isDisposed) {
-          debugPrint('FCM Token refreshed: $newToken');
+          debugPrint('FCM token refreshed.');
           fcmToken = newToken;
           registerTokenOnServer();
         }
@@ -363,7 +360,7 @@ class NotificationService {
   }
 
   // 8. Amélioration de registerTokenOnServer avec retry
-  Future<void> registerTokenOnServer({int maxRetries = 3}) async {
+  Future<void> registerTokenOnServer({int maxRetries = 5}) async {
     // Essayer d'obtenir le token si pas encore disponible (ex: init() appelé avant connexion)
     if (fcmToken == null) {
       try {
@@ -440,9 +437,7 @@ class NotificationService {
         return;
       }
 
-      final url = Uri.parse(
-        '${AppConstants.baseUrl}/notifications/token',
-      );
+      final url = Uri.parse('${AppConstants.baseUrl}/notifications/token');
 
       final response = await _httpClient
           .delete(

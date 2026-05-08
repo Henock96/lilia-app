@@ -1,5 +1,20 @@
 import 'package:lilia_app/models/order_item.dart';
 
+Map<String, dynamic> _asMap(Object? value) =>
+    value is Map<String, dynamic> ? value : <String, dynamic>{};
+
+List<dynamic> _asList(Object? value) => value is List ? value : <dynamic>[];
+
+String _asString(Object? value, [String fallback = '']) =>
+    value is String ? value : fallback;
+
+double _asDouble(Object? value, [double fallback = 0]) =>
+    value is num ? value.toDouble() : fallback;
+
+DateTime _asDate(Object? value) =>
+    DateTime.tryParse(value?.toString() ?? '') ??
+    DateTime.fromMillisecondsSinceEpoch(0);
+
 // Enum pour les statuts de commande, doit correspondre au backend
 enum OrderStatus {
   enAttente,
@@ -12,7 +27,7 @@ enum OrderStatus {
   unknow,
 }
 
-OrderStatus _parseStatus(String status) {
+OrderStatus _parseStatus(String? status) {
   switch (status) {
     case 'EN_ATTENTE':
       return OrderStatus.enAttente;
@@ -71,29 +86,31 @@ class Order {
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
-    var itemsList = json['items'] as List;
-    List<OrderItem> items = itemsList
-        .map((i) => OrderItem.fromJson(i))
-        .toList();
+    final items = _asList(
+      json['items'],
+    ).whereType<Map<String, dynamic>>().map(OrderItem.fromJson).toList();
 
     return Order(
-      id: json['id'],
-      restaurantId: json['restaurantId'],
-      userId: json['userId'],
-      subTotal: (json['subTotal'] as num).toDouble(),
-      deliveryFee: (json['deliveryFee'] as num).toDouble(),
+      id: _asString(json['id']),
+      restaurantId: _asString(json['restaurantId']),
+      userId: _asString(json['userId']),
+      subTotal: _asDouble(json['subTotal']),
+      deliveryFee: _asDouble(json['deliveryFee']),
       serviceFee: (json['serviceFee'] as num?)?.toDouble() ?? 0,
       discountAmount: (json['discountAmount'] as num?)?.toDouble() ?? 0,
-      total: (json['total'] as num).toDouble(),
-      deliveryAddress:
-          json['deliveryAddress'], // Peut être null en mode retrait
-      paymentMethod: json['paymentMethod'],
-      status: _parseStatus(json['status']), // Utilise la fonction de parsing
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
-      restaurant: OrderRestaurant.fromJson(json['restaurant']),
+      total: _asDouble(json['total']),
+      deliveryAddress: json['deliveryAddress'] is String
+          ? json['deliveryAddress'] as String
+          : null,
+      paymentMethod: _asString(json['paymentMethod']),
+      status: _parseStatus(json['status'] as String?),
+      createdAt: _asDate(json['createdAt']),
+      updatedAt: _asDate(json['updatedAt']),
+      restaurant: OrderRestaurant.fromJson(_asMap(json['restaurant'])),
       items: items,
-      isDelivery: json['isDelivery'] ?? true,
+      isDelivery: json['isDelivery'] is bool
+          ? json['isDelivery'] as bool
+          : true,
     );
   }
 }
@@ -107,9 +124,9 @@ class OrderRestaurant {
 
   factory OrderRestaurant.fromJson(Map<String, dynamic> json) {
     return OrderRestaurant(
-      nom: json['nom'],
-      adresse: json['adresse'],
-      imageUrl: json['imageUrl'],
+      nom: _asString(json['nom'], 'Restaurant'),
+      adresse: json['adresse'] is String ? json['adresse'] as String : null,
+      imageUrl: json['imageUrl'] is String ? json['imageUrl'] as String : null,
     );
   }
 }

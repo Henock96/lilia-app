@@ -105,12 +105,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           final double subTotal = cart.totalPrice;
           final double deliveryFee =
               _promoResult?.newDeliveryFee ?? options.deliveryFee;
-          final double serviceFee = (subTotal * 0.08).roundToDouble();
+          final double serviceFee = (subTotal * AppConstants.serviceFeeRate)
+              .roundToDouble();
           final double discountAmount = _promoResult?.discountAmount ?? 0;
           final int userPoints = userProfileAsync.value?.loyaltyPoints ?? 0;
           final double loyaltyDiscount = userPoints * 5.0;
           final double total =
-              subTotal + deliveryFee + serviceFee - discountAmount - (_useLoyaltyPoints ? loyaltyDiscount : 0);
+              subTotal +
+              deliveryFee +
+              serviceFee -
+              discountAmount -
+              (_useLoyaltyPoints ? loyaltyDiscount : 0);
           final String restaurantId = cart.items.first.product.restaurantId;
 
           // Analytics: début du checkout (une seule fois)
@@ -447,8 +452,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     final bgColor = isSelected
         ? (isDark
-            ? color.withValues(alpha: 0.18)
-            : color.withValues(alpha: 0.08))
+              ? color.withValues(alpha: 0.18)
+              : color.withValues(alpha: 0.08))
         : cs.surfaceContainerHighest;
     final borderColor = isSelected
         ? displayColor.withValues(alpha: isDark ? 0.6 : 0.4)
@@ -461,10 +466,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: bgColor,
-          border: Border.all(
-            color: borderColor,
-            width: isSelected ? 2 : 1,
-          ),
+          border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -1298,9 +1300,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   _showOrderError(context, e);
                 }
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: methodColor,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: methodColor),
               child: const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: Text(

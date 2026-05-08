@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -30,7 +29,9 @@ class DriverLocation {
     return DriverLocation(
       latitude: (json['lastLatitude'] as num).toDouble(),
       longitude: (json['lastLongitude'] as num).toDouble(),
-      updatedAt: json['lastPositionAt'] != null ? DateTime.parse(json['lastPositionAt'] as String) : null,
+      updatedAt: json['lastPositionAt'] != null
+          ? DateTime.parse(json['lastPositionAt'] as String)
+          : null,
       driverNom: deliverer?['nom'] as String?,
       driverPhone: deliverer?['phone'] as String?,
     );
@@ -39,7 +40,10 @@ class DriverLocation {
 
 /// Récupère la position du livreur pour une commande.
 /// Retourne null si la livraison n'a pas encore de position GPS.
-Future<DriverLocation?> fetchDriverLocation(String orderId, String token) async {
+Future<DriverLocation?> fetchDriverLocation(
+  String orderId,
+  String token,
+) async {
   final response = await http.get(
     Uri.parse('${AppConstants.baseUrl}/deliveries/by-order/$orderId'),
     headers: {'Authorization': 'Bearer $token'},

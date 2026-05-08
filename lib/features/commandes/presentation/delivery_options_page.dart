@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
+import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/quartiers/application/quartiers_controller.dart';
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
@@ -130,8 +131,9 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                       onPressed: _canContinue() ? _continueToCheckout : null,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).colorScheme.primary,
-                        disabledBackgroundColor:
-                            Theme.of(context).colorScheme.surfaceContainerHighest,
+                        disabledBackgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -315,28 +317,30 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
 
         // Message si aucune adresse enregistrée
         if (addresses.isEmpty && !_useNewAddress) ...[
-          Builder(builder: (context) {
-            final cs = Theme.of(context).colorScheme;
-            return Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, color: cs.onSurfaceVariant),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Aucune adresse enregistrée. Ajoutez une nouvelle adresse.',
-                      style: TextStyle(color: cs.onSurfaceVariant),
+          Builder(
+            builder: (context) {
+              final cs = Theme.of(context).colorScheme;
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: cs.onSurfaceVariant),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Aucune adresse enregistrée. Ajoutez une nouvelle adresse.',
+                        style: TextStyle(color: cs.onSurfaceVariant),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          }),
+                  ],
+                ),
+              );
+            },
+          ),
         ],
 
         const SizedBox(height: 12),
@@ -406,9 +410,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(12),
-          color: isSelected
-              ? cs.primary.withValues(alpha: 0.05)
-              : cs.surface,
+          color: isSelected ? cs.primary.withValues(alpha: 0.05) : cs.surface,
         ),
         child: Row(
           children: [
@@ -472,11 +474,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                           ),
                         ],
                       ] else ...[
-                        Icon(
-                          Icons.location_off,
-                          size: 14,
-                          color: cs.outline,
-                        ),
+                        Icon(Icons.location_off, size: 14, color: cs.outline),
                         const SizedBox(width: 4),
                         Text(
                           'Quartier non défini',
@@ -502,7 +500,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
   Widget _buildDeliveryFeeSummary(double subTotal) {
     final cs = Theme.of(context).colorScheme;
     final deliveryFee = _isDelivery ? (_calculatedDeliveryFee ?? 0) : 0.0;
-    final serviceFee = (subTotal * 0.10).roundToDouble();
+    final serviceFee = (subTotal * AppConstants.serviceFeeRate).roundToDouble();
     final total = subTotal + deliveryFee + serviceFee;
 
     return Container(

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
+import 'package:lilia_app/features/commandes/presentation/order_progress_bar.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
 import 'package:lilia_app/models/order.dart';
 import 'package:intl/intl.dart';
@@ -476,7 +477,7 @@ class _OrderCard extends ConsumerWidget {
             // Barre de progression pour les commandes en cours
             if (order.status != OrderStatus.livrer &&
                 order.status != OrderStatus.annuler)
-              _OrderProgressBar(status: order.status),
+              OrderProgressBar(status: order.status),
 
             // Bouton annuler pour les commandes en attente
             if (order.status == OrderStatus.enAttente)
@@ -562,59 +563,6 @@ class _OrderCard extends ConsumerWidget {
       return DateFormat('EEEE HH:mm', 'fr_FR').format(date);
     } else {
       return DateFormat('dd/MM/yyyy').format(date);
-    }
-  }
-
-  _StatusInfo _getStatusInfo(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.enAttente:
-        return _StatusInfo(
-          label: 'En attente de paiement',
-          color: Colors.orange,
-          icon: Icons.hourglass_empty,
-        );
-      case OrderStatus.payer:
-        return _StatusInfo(
-          label: 'Payée',
-          color: Colors.purple,
-          icon: Icons.payment,
-        );
-      case OrderStatus.enPreparation:
-        return _StatusInfo(
-          label: 'En préparation',
-          color: Colors.blue,
-          icon: Icons.restaurant,
-        );
-      case OrderStatus.pret:
-        return _StatusInfo(
-          label: 'Prête',
-          color: Colors.green,
-          icon: Icons.check_circle,
-        );
-      case OrderStatus.enRoute:
-        return _StatusInfo(
-          label: 'En route',
-          color: Colors.indigo,
-          icon: Icons.delivery_dining,
-        );
-      case OrderStatus.livrer:
-        return _StatusInfo(
-          label: 'Livrée',
-          color: Colors.teal,
-          icon: Icons.local_shipping,
-        );
-      case OrderStatus.annuler:
-        return _StatusInfo(
-          label: 'Annulée',
-          color: Colors.red,
-          icon: Icons.cancel,
-        );
-      default:
-        return _StatusInfo(
-          label: 'Inconnu',
-          color: Colors.grey,
-          icon: Icons.help_outline,
-        );
     }
   }
 
@@ -707,7 +655,7 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final info = _getStatusInfo(status);
+    final info = getStatusInfo(status);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -734,7 +682,7 @@ class _StatusBadge extends StatelessWidget {
     );
   }
 
-  _StatusInfo _getStatusInfo(OrderStatus status) {
+  _StatusInfo getStatusInfo(OrderStatus status) {
     switch (status) {
       case OrderStatus.enAttente:
         return _StatusInfo(
@@ -785,97 +733,6 @@ class _StatusBadge extends StatelessWidget {
           icon: Icons.help_outline,
         );
     }
-  }
-}
-
-class _OrderProgressBar extends StatelessWidget {
-  final OrderStatus status;
-
-  const _OrderProgressBar({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    final steps = ['Confirmée', 'En préparation', 'Prête', 'En route'];
-    int currentStep = 0;
-
-    switch (status) {
-      case OrderStatus.enAttente:
-        currentStep = 0;
-        break;
-      case OrderStatus.enPreparation:
-        currentStep = 1;
-        break;
-      case OrderStatus.pret:
-        currentStep = 2;
-        break;
-      case OrderStatus.enRoute:
-        currentStep = 3;
-        break;
-      default:
-        currentStep = 0;
-    }
-
-    final cs = Theme.of(context).colorScheme;
-    final activeColor = cs.tertiary;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
-        border: Border(
-          top: BorderSide(color: cs.outline.withValues(alpha: 0.15)),
-        ),
-      ),
-      child: Row(
-        children: List.generate(steps.length * 2 - 1, (index) {
-          if (index.isOdd) {
-            final stepIndex = index ~/ 2;
-            return Expanded(
-              child: Container(
-                height: 2,
-                color: stepIndex < currentStep
-                    ? activeColor
-                    : cs.outline.withValues(alpha: 0.3),
-              ),
-            );
-          } else {
-            final stepIndex = index ~/ 2;
-            final isCompleted = stepIndex <= currentStep;
-            final isCurrent = stepIndex == currentStep;
-
-            return Column(
-              children: [
-                Container(
-                  width: isCurrent ? 16 : 12,
-                  height: isCurrent ? 16 : 12,
-                  decoration: BoxDecoration(
-                    color: isCompleted
-                        ? activeColor
-                        : cs.outline.withValues(alpha: 0.3),
-                    shape: BoxShape.circle,
-                    border: isCurrent
-                        ? Border.all(color: activeColor, width: 2)
-                        : null,
-                  ),
-                  child: isCompleted && !isCurrent
-                      ? const Icon(Icons.check, size: 8, color: Colors.white)
-                      : null,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  steps[stepIndex],
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                    color: isCompleted ? activeColor : cs.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            );
-          }
-        }),
-      ),
-    );
   }
 }
 

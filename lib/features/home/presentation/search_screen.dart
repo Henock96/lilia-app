@@ -46,16 +46,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       appBar: AppBar(
         elevation: 0,
         titleSpacing: 0,
-        title: TextField(
-          controller: _searchController,
-          autofocus: true,
-          onChanged: _onSearchChanged,
-          style: TextStyle(fontSize: 15, color: cs.onSurface),
-          decoration: InputDecoration(
-            hintText: 'Rechercher un plat ou restaurant...',
-            hintStyle: TextStyle(color: cs.onSurfaceVariant, fontSize: 15),
-            border: InputBorder.none,
-            filled: false,
+        title: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: TextField(
+            controller: _searchController,
+            autofocus: true,
+            onChanged: _onSearchChanged,
+            style: TextStyle(fontSize: 15, color: cs.onSurface),
+            decoration: InputDecoration(
+              hintText: 'Rechercher un plat ou restaurant...',
+              hintStyle: TextStyle(color: cs.onSurfaceVariant, fontSize: 15),
+              border: InputBorder.none,
+              filled: false,
+            ),
           ),
         ),
         actions: [

@@ -95,7 +95,7 @@ class PaymentService {
     try {
       debugPrint('💳 Creating payment for order: $orderId');
       debugPrint('💳 Amount: $amount $currency');
-      debugPrint('💳 Phone: $phoneNumber');
+      debugPrint('💳 Payment phone provided.');
 
       final idToken = await _authRepository.getIdToken();
       if (idToken == null) {
@@ -122,7 +122,6 @@ class PaymentService {
           .timeout(const Duration(seconds: 30));
 
       debugPrint('💳 Payment response status: ${response.statusCode}');
-      debugPrint('💳 Payment response body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);

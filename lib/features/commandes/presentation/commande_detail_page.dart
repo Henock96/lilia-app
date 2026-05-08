@@ -4,12 +4,14 @@ import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
+import 'package:lilia_app/features/commandes/presentation/fullscreen_tracking_screen.dart';
+import 'package:lilia_app/features/commandes/presentation/progress_step.dart';
+import 'package:lilia_app/features/commandes/presentation/status_info.dart';
 import 'package:lilia_app/models/order.dart';
 
 import '../../../models/order_item.dart';
 import '../../cart/application/cart_controller.dart';
 import '../data/order_controller.dart';
-import 'widgets/driver_tracking_map.dart';
 
 class OrderDetailPage extends ConsumerWidget {
   final String orderId;
@@ -118,7 +120,9 @@ class OrderDetailPage extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => _FullscreenTrackingScreen(orderId: orderId)),
+        MaterialPageRoute(
+          builder: (_) => FullscreenTrackingScreen(orderId: orderId),
+        ),
       ),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -145,16 +149,30 @@ class OrderDetailPage extends ConsumerWidget {
                 color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.delivery_dining, color: Colors.white, size: 26),
+              child: const Icon(
+                Icons.delivery_dining,
+                color: Colors.white,
+                size: 26,
+              ),
             ),
             const SizedBox(width: 14),
             const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Suivre le livreur en direct', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                  Text(
+                    'Suivre le livreur en direct',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                    ),
+                  ),
                   SizedBox(height: 2),
-                  Text('Position mise à jour en temps réel', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  Text(
+                    'Position mise à jour en temps réel',
+                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
                 ],
               ),
             ),
@@ -167,9 +185,23 @@ class OrderDetailPage extends ConsumerWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.greenAccent, shape: BoxShape.circle)),
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: Colors.greenAccent,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
                   const SizedBox(width: 4),
-                  const Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'LIVE',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -513,7 +545,10 @@ class OrderDetailPage extends ConsumerWidget {
               const SizedBox(width: 8),
               Text(
                 order.isDelivery ? 'Livraison' : 'Retrait en magasin',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -528,7 +563,9 @@ class OrderDetailPage extends ConsumerWidget {
                 ),
                 child: Icon(
                   order.isDelivery ? Iconsax.location : Iconsax.shop,
-                  color: order.isDelivery ? Colors.blue[400] : Colors.orange[400],
+                  color: order.isDelivery
+                      ? Colors.blue[400]
+                      : Colors.orange[400],
                   size: 22,
                 ),
               ),
@@ -538,7 +575,9 @@ class OrderDetailPage extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      order.isDelivery ? 'Adresse de livraison' : 'Adresse du restaurant',
+                      order.isDelivery
+                          ? 'Adresse de livraison'
+                          : 'Adresse du restaurant',
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
@@ -548,8 +587,12 @@ class OrderDetailPage extends ConsumerWidget {
                     Text(
                       order.isDelivery
                           ? (order.deliveryAddress ?? 'Adresse non spécifiée')
-                          : (order.restaurant.adresse ?? 'Adresse non disponible'),
-                      style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
+                          : (order.restaurant.adresse ??
+                                'Adresse non disponible'),
+                      style: TextStyle(
+                        color: cs.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
                     ),
                   ],
                 ),
@@ -612,7 +655,10 @@ class OrderDetailPage extends ConsumerWidget {
                   children: [
                     Text(
                       'Méthode de paiement',
-                      style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: cs.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -720,7 +766,9 @@ class OrderDetailPage extends ConsumerWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+            color: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.15),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -744,10 +792,7 @@ class OrderDetailPage extends ConsumerWidget {
             SizedBox(width: 10),
             Text(
               'Commander à nouveau',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -764,9 +809,7 @@ class OrderDetailPage extends ConsumerWidget {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: CircularProgressIndicator(),
-      ),
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
     try {
@@ -779,12 +822,15 @@ class OrderDetailPage extends ConsumerWidget {
 
       final summary = result['summary'] as Map<String, dynamic>? ?? {};
       final totalAdded = summary['totalAdded'] ?? result['totalAdded'] ?? 0;
-      final totalUnavailable = summary['totalUnavailable'] ?? result['totalUnavailable'] ?? 0;
+      final totalUnavailable =
+          summary['totalUnavailable'] ?? result['totalUnavailable'] ?? 0;
 
       if (totalAdded > 0) {
-        String message = '$totalAdded article${totalAdded > 1 ? 's' : ''} ajouté${totalAdded > 1 ? 's' : ''} au panier';
+        String message =
+            '$totalAdded article${totalAdded > 1 ? 's' : ''} ajouté${totalAdded > 1 ? 's' : ''} au panier';
         if (totalUnavailable > 0) {
-          message += '\n$totalUnavailable article${totalUnavailable > 1 ? 's' : ''} indisponible${totalUnavailable > 1 ? 's' : ''}';
+          message +=
+              '\n$totalUnavailable article${totalUnavailable > 1 ? 's' : ''} indisponible${totalUnavailable > 1 ? 's' : ''}';
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -836,7 +882,8 @@ class OrderDetailPage extends ConsumerWidget {
 
       String errorMessage = 'Erreur lors de la recommande';
       if (e.toString().contains('autre restaurant')) {
-        errorMessage = 'Votre panier contient des articles d\'un autre restaurant. Videz-le d\'abord.';
+        errorMessage =
+            'Votre panier contient des articles d\'un autre restaurant. Videz-le d\'abord.';
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -862,9 +909,7 @@ class OrderDetailPage extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
     return Container(
       color: cs.surfaceContainerHighest,
-      child: Center(
-        child: Icon(Iconsax.shop, size: 30, color: cs.outline),
-      ),
+      child: Center(child: Icon(Iconsax.shop, size: 30, color: cs.outline)),
     );
   }
 
@@ -944,59 +989,59 @@ class OrderDetailPage extends ConsumerWidget {
     );
   }
 
-  _StatusInfo _getStatusInfo(OrderStatus status) {
+  StatusInfo _getStatusInfo(OrderStatus status) {
     switch (status) {
       case OrderStatus.enAttente:
-        return _StatusInfo(
+        return StatusInfo(
           label: 'En attente',
           description: 'Votre commande est en attente de confirmation',
           color: Colors.orange,
           icon: Iconsax.timer_1,
         );
       case OrderStatus.payer:
-        return _StatusInfo(
+        return StatusInfo(
           label: 'Payée',
           description: 'Votre paiement a été confirmé',
           color: Colors.purple,
           icon: Iconsax.card_tick,
         );
       case OrderStatus.enPreparation:
-        return _StatusInfo(
+        return StatusInfo(
           label: 'En préparation',
           description: 'Le restaurant prépare votre commande',
           color: Colors.blue,
           icon: Iconsax.cake,
         );
       case OrderStatus.pret:
-        return _StatusInfo(
+        return StatusInfo(
           label: 'Prête',
           description: 'Votre commande est prête pour la livraison',
           color: Colors.green,
           icon: Iconsax.tick_circle,
         );
       case OrderStatus.enRoute:
-        return _StatusInfo(
+        return StatusInfo(
           label: 'En route',
           description: 'Votre livreur est en chemin vers vous',
           color: Colors.indigo,
           icon: Iconsax.truck_fast,
         );
       case OrderStatus.livrer:
-        return _StatusInfo(
+        return StatusInfo(
           label: 'Livrée',
           description: 'Votre commande a été livrée',
           color: Colors.teal,
           icon: Iconsax.verify,
         );
       case OrderStatus.annuler:
-        return _StatusInfo(
+        return StatusInfo(
           label: 'Annulée',
           description: 'Cette commande a été annulée',
           color: Colors.red,
           icon: Iconsax.close_circle,
         );
       default:
-        return _StatusInfo(
+        return StatusInfo(
           label: 'Inconnu',
           description: 'Statut inconnu',
           color: Colors.grey,
@@ -1101,9 +1146,7 @@ class _OrderItemCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return Container(
       color: cs.surfaceContainerHighest,
-      child: Center(
-        child: Icon(Iconsax.gallery, size: 28, color: cs.outline),
-      ),
+      child: Center(child: Icon(Iconsax.gallery, size: 28, color: cs.outline)),
     );
   }
 }
@@ -1117,27 +1160,29 @@ class _OrderProgressStepper extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final steps = [
-      _ProgressStep(
+      ProgressStep(
         icon: Iconsax.tick_circle,
         label: 'Confirmée',
         isCompleted: status != OrderStatus.enAttente,
         isCurrent: status == OrderStatus.enAttente,
       ),
-      _ProgressStep(
+      ProgressStep(
         icon: Iconsax.cake,
         label: 'En préparation',
-        isCompleted: status == OrderStatus.pret ||
+        isCompleted:
+            status == OrderStatus.pret ||
             status == OrderStatus.enRoute ||
             status == OrderStatus.livrer,
         isCurrent: status == OrderStatus.enPreparation,
       ),
-      _ProgressStep(
+      ProgressStep(
         icon: Iconsax.box_tick,
         label: 'Prête',
-        isCompleted: status == OrderStatus.enRoute || status == OrderStatus.livrer,
+        isCompleted:
+            status == OrderStatus.enRoute || status == OrderStatus.livrer,
         isCurrent: status == OrderStatus.pret,
       ),
-      _ProgressStep(
+      ProgressStep(
         icon: Iconsax.truck_fast,
         label: 'En route',
         isCompleted: status == OrderStatus.livrer,
@@ -1156,7 +1201,9 @@ class _OrderProgressStepper extends StatelessWidget {
               height: 3,
               margin: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
-                color: isCompleted ? Colors.green : cs.outline.withValues(alpha: 0.4),
+                color: isCompleted
+                    ? Colors.green
+                    : cs.outline.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -1169,7 +1216,7 @@ class _OrderProgressStepper extends StatelessWidget {
     );
   }
 
-  Widget _buildStepItem(BuildContext context, _ProgressStep step) {
+  Widget _buildStepItem(BuildContext context, ProgressStep step) {
     final cs = Theme.of(context).colorScheme;
     final color = step.isCompleted || step.isCurrent
         ? Colors.green
@@ -1202,84 +1249,6 @@ class _OrderProgressStepper extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
       ],
-    );
-  }
-}
-
-class _ProgressStep {
-  final IconData icon;
-  final String label;
-  final bool isCompleted;
-  final bool isCurrent;
-
-  _ProgressStep({
-    required this.icon,
-    required this.label,
-    required this.isCompleted,
-    required this.isCurrent,
-  });
-}
-
-class _StatusInfo {
-  final String label;
-  final String description;
-  final Color color;
-  final IconData icon;
-
-  _StatusInfo({
-    required this.label,
-    required this.description,
-    required this.color,
-    required this.icon,
-  });
-}
-
-/// Écran plein écran de suivi du livreur (client side)
-class _FullscreenTrackingScreen extends ConsumerWidget {
-  final String orderId;
-  const _FullscreenTrackingScreen({required this.orderId});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 12),
-          child: GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(10),
-                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
-              ),
-              child: const Icon(Icons.arrow_back, color: Colors.black87, size: 20),
-            ),
-          ),
-        ),
-        title: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(width: 8, height: 8, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
-              const SizedBox(width: 6),
-              const Text('Livreur en route', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600, fontSize: 14)),
-            ],
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: DriverTrackingMap(orderId: orderId, fullscreen: true),
     );
   }
 }
