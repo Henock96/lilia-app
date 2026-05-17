@@ -1,473 +1,370 @@
-﻿# CLAUDE.md
+# CLAUDE.md — Lilia App (Client)
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+App **client** Flutter de la plateforme Lilia Food (Brazzaville, Congo). Rôle `CLIENT`.
 
-## Project Overview
+**Backend URL** : `https://lilia-backend.onrender.com`
 
-Lilia App est l'**app client** Flutter de la plateforme Lilia Food (Brazzaville, Congo).
-Les 4 composants de l'écosystème :
-- **Backend** : `lilia-backend/` (NestJS + Prisma)
-- **Client** : `lilia-app/` ← ce dossier (Flutter, rôle CLIENT)
-- **Admin** : `lilia-food-admin/` (Flutter, rôle RESTAURATEUR/ADMIN)
-- **Livreur** : `lilia_food_delivery/` (Flutter, rôle LIVREUR, org: com.dreesis)
+## Écosystème
 
-Backend URL : `https://lilia-backend.onrender.com`
+| Composant | Stack | Dossier |
+|-----------|-------|---------|
+| Backend API | NestJS + Prisma | `lilia-backend/` |
+| **Client mobile** | **Flutter + Riverpod** | **`lilia-app/`** |
+| Admin dashboard | Flutter + Riverpod | `lilia-food-admin/` |
+| App livreur | Flutter + Riverpod | `lilia_food_delivery/` (com.dreesis) |
 
-## Tracking livreur (mai 2026)
+---
 
-Quand une commande est `EN_ROUTE`, `commande_detail_page.dart` affiche `DriverTrackingMap` (widget Google Maps).
-- **Polling HTTP** : `driverLocationControllerProvider(orderId)` toutes les 10s via `GET /deliveries/by-order/:orderId`
-- **Note** : le backend expose un WebSocket Socket.io (`/tracking`) mais l'app Flutter utilise encore le polling HTTP — la migration WS est à faire.
-- **Config Google Maps** : `android/app/src/main/AndroidManifest.xml` + `ios/Runner/AppDelegate.swift` → remplacer `YOUR_GOOGLE_MAPS_API_KEY`
-- Fichiers clés :
-  - `lib/features/commandes/data/delivery_tracking_repository.dart` — fetch + modèle `DriverLocation`
-  - `lib/features/commandes/presentation/widgets/driver_tracking_map.dart` — widget Google Maps
-  - Polling via `driverLocationControllerProvider(orderId)` dans `delivery_tracking_repository.g.dart`
+## Commandes essentielles
 
-## Avis clients — Reviews (mai 2026)
-
-Feature complète dans `lib/features/reviews/`.
-
-**Fichiers** :
-- `data/review_repository.dart` : calls API (`GET /reviews/restaurant/:id`, `POST /reviews`, `GET /reviews/can-review/:id`, `GET /reviews/restaurant/:id/stats`)
-- `data/review_controller.dart` : providers `restaurantReviewsProvider(restaurantId)`, `restaurantStatsProvider`, `canReviewProvider`, `submitReviewProvider`
-- `presentation/screens/reviews_screen.dart` : stats + liste avis + bouton "Laisser un avis" conditionnel
-- `presentation/screens/write_review_screen.dart` : formulaire (note 1-5 + commentaire optionnel)
-- `presentation/widgets/review_card.dart` : carte avis avec note et date
-- `presentation/widgets/star_rating.dart` : widget étoiles réutilisable
-
-**Règles** : seul un client ayant une commande LIVRER pour ce restaurant peut laisser un avis. 1 avis max par user par restaurant.
-
-## Development Commands
-
-### Setup and Dependencies
 ```bash
-# Install dependencies
 flutter pub get
-
-# Generate code (for Riverpod providers and routing)
-dart run build_runner build --delete-conflicting-outputs
-
-# Watch mode for continuous code generation during development
-dart run build_runner watch --delete-conflicting-outputs
-```
-
-### Running the Application
-```bash
-# Run on default device
+dart run build_runner build --delete-conflicting-outputs   # après modif @riverpod
+dart run build_runner watch --delete-conflicting-outputs   # dev
 flutter run
-
-# Run on specific device
-flutter devices  # List available devices
-flutter run -d <device-id>
-
-# Run in release mode
-flutter run --release
-```
-
-### Code Analysis and Testing
-```bash
-# Analyze code for issues
 flutter analyze
-
-# Run tests
-flutter test
-
-# Run specific test file
-flutter test test/widget_test.dart
+flutter build apk / appbundle / ios
+dart run flutter_launcher_icons    # après changement logo
 ```
 
-### Building
-```bash
-# Build APK (Android)
-flutter build apk
+---
 
-# Build App Bundle (Android)
-flutter build appbundle
+## Architecture
 
-# Build iOS app
-flutter build ios
-
-# Update app icons (after modifying logo1.jpg)
-dart run flutter_launcher_icons
-```
-
-## Architecture Overview
-
-### State Management Pattern
-The app uses **Riverpod** with code generation (`riverpod_annotation`) for state management:
-- Controllers expose streams or state using `@riverpod` annotation
-- Repositories are provided via Riverpod providers
-- All generated files end with `.g.dart` and are created by `build_runner`
-
-### Feature-Based Structure
 ```
 lib/
 ├── features/
-│   ├── auth/          # Firebase Auth + sync backend
-│   ├── address/       # Adresses livraison (séparé de user/)
-│   ├── cart/          # Panier + clear + broadcast stream
-│   ├── commandes/     # Commandes + checkout + tracking GPS livreur
-│   ├── favoris/       # Favoris restaurants
-│   ├── home/          # Browsing restaurants + produits
-│   ├── notifications/ # FCM push notifications
-│   ├── onboarding/    # Écran accueil animé
-│   ├── payments/      # MTN MoMo + Airtel
-│   ├── quartiers/     # Zones livraison (public)
-│   ├── reviews/       # Avis clients (reviews_screen, write_review_screen)
-│   └── user/          # Profil + parrainage + fidélité + brouillons
-├── models/            # Modèles partagés
-├── routing/           # go_router
-├── services/          # analytics_service.dart
-├── common_widgets/    # Composants réutilisables
-├── utilities/         # Thème, couleurs
+│   ├── auth/              Firebase Auth + sync backend (/users/sync)
+│   ├── address/           Adresses livraison
+│   ├── cart/              Panier + draft orders (SharedPreferences)
+│   ├── commandes/         Commandes + checkout + tracking GPS livreur
+│   │   ├── data/
+│   │   │   ├── checkout_controller.dart
+│   │   │   ├── order_controller.dart / order_repository.dart
+│   │   │   ├── promo_repository.dart
+│   │   │   ├── tracking_socket_service.dart        # Socket.io /tracking (WS)
+│   │   │   └── delivery_tracking_repository.dart   # WS + fallback HTTP 30s
+│   │   └── presentation/
+│   │       ├── checkout_page.dart
+│   │       ├── commande_page.dart / commande_detail_page.dart
+│   │       ├── fullscreen_tracking_screen.dart
+│   │       └── widgets/driver_tracking_map.dart    # Google Maps + Geolocator
+│   ├── favoris/           Restaurants favoris
+│   ├── home/              Browsing restaurants + produits + bannières
+│   ├── notifications/     Historique FCM + providers
+│   ├── onboarding/        Écran accueil animé
+│   ├── payments/          MTN MoMo + Airtel Money
+│   ├── quartiers/         Zones livraison (public endpoint)
+│   ├── reviews/           Avis clients (laisser/voir)
+│   └── user/              Profil + parrainage + fidélité + brouillons
+├── models/                Order, Product, Restaurant, AppUser, Checkout, PromoValidationResult, LoyaltyTransaction…
+├── routing/               go_router (StatefulShellRoute 4 tabs)
+├── services/
+│   ├── analytics_service.dart      Firebase Analytics centralisé
+│   ├── notification_service.dart   FCM + flutter_local_notifications
+│   ├── connectivity_service.dart
+│   └── location_service.dart
+├── common_widgets/        BuildErrorState, etc.
+├── constants/             AppConstants (baseUrl)
+├── utilities/             Thème, AppColors
 └── main.dart
 ```
 
-### Authentication Flow
-1. Firebase Authentication is the source of truth for auth state
-2. On successful Firebase auth, user data is synced to backend at `/auth/register`
-3. All API calls use Firebase ID token in `Authorization: Bearer <token>` header
-4. The `authStateChangeProvider` drives navigation redirects via go_router
-5. On sign out, all user-related providers are invalidated (cart, orders, favorites, profile)
-
-### Navigation Structure
-- Uses `go_router` with `StatefulShellRoute` for bottom navigation
-- 4 main tabs: Home, Cart, Orders (Commandes), Profile
-- Routes defined in `AppRoutes` enum (lib/routing/app_route_enum.dart)
-- Auth state changes trigger automatic redirects to signin or home
-- Product detail pages receive Product objects via `state.extra`
-
-### Data Layer Pattern
-Each feature follows a consistent pattern:
-- **Repository**: Handles HTTP requests, uses Firebase ID token for auth
-- **Controller**: Riverpod notifier that manages state and exposes operations
-- **Provider**: Generated Riverpod provider (`.g.dart` files)
-
-Example: Cart feature
-- `CartRepository`: Manages cart API calls and streams cart state
-- `CartController`: Exposes cart stream and operations (add, remove, update)
-- `cartControllerProvider`: Auto-generated provider for the controller
-
-### API Communication
-- Base URL: `https://lilia-backend.onrender.com`
-- All authenticated endpoints require `Authorization: Bearer <firebase-token>`
-- Responses are JSON-encoded
-- Cart, orders, and user operations refresh their respective streams after mutations
-
-### Code Generation Requirements
-After modifying files with `@riverpod` annotations or adding new routes:
-1. Run `dart run build_runner build --delete-conflicting-outputs`
-2. Generated files include `*.g.dart` (controllers, providers, repositories)
-3. Router is also code-generated: `app_router.g.dart`
-
-### Push Notifications
-- Firebase Cloud Messaging (FCM) integration via `NotificationService`
-- Background handler: `_firebaseMessagingBackgroundHandler` (top-level function)
-- Tokens registered to backend at `/notifications/register-token`
-- Handles foreground, background, and terminated app states
-- Order updates via notifications trigger `latestUpdatedOrderIdProvider` and refresh orders
-
-### Stock Management (Client-Side)
-Products and menus support stock tracking. Key fields and behavior:
-- `Product` model (`lib/models/produit.dart`): `int? stockRestant` + `bool get isAvailable`
-- `stockRestant == null` means unlimited stock; `stockRestant == 0` means out of stock
-- `restaurant_detail_screen.dart`: Unavailable products are displayed with:
-  - 50% opacity (`Opacity` widget)
-  - Red "Epuise" badge on the product image
-  - Add-to-cart button replaced by a red "Epuise" text badge
-  - Price text greyed out
-- Backend rejects orders containing out-of-stock products with `BadRequestException`
-- Stock is reset daily by a backend cron job (5h UTC+1)
-
-### Common Gotchas
-- Firebase must be initialized before creating ProviderScope in main.dart
-- Google Sign In requires initialization: `await GoogleSignIn.instance.initialize()`
-- Cart repository uses broadcast stream controller - must check `_isClosed` before adding events
-- When user signs out, invalidate all user-specific providers to clear cached data
-- Product navigation passes objects via `extra` - handle null case for direct URL access
-- Out-of-stock products (`stockRestant == 0`) must not be added to cart - check `product.isAvailable` before allowing add-to-cart actions
-
-### Theme and Styling
-- Custom theme defined in `lib/theme/app_theme.dart`
-- Colors centralized in `lib/utilities/colors.dart`
-- Uses Google Fonts (`google_fonts` package)
-- Custom Lora font family loaded from assets
-
-### Assets
-- Images: `assets/images/`
-- Fonts: `assets/fonts/lora/`
-- App icon: `assets/images/logo1.jpg` (configured in pubspec.yaml for launcher icons)
-
-## Key Dependencies
-- `flutter_riverpod`: State management
-- `riverpod_annotation` + `riverpod_generator`: Code generation for providers
-- `go_router`: Declarative routing with deep linking
-- `firebase_auth`, `firebase_core`, `firebase_messaging`: Firebase integration
-- `firebase_analytics`: Event tracking et suivi utilisateur
-- `http`: HTTP client for backend API calls
-- `flutter_local_notifications`: Local notification display
-- `google_sign_in`: Google authentication
-- `shared_preferences`: Local key-value storage
-- `cloudinary_public`: Image upload service
-- `build_runner`: Code generation tool
+### Navigation
+4 tabs (StatefulShellRoute) : **Home, Cart, Commandes, Profile**. `app_route_enum.dart` définit toutes les routes. Redirects auth via `authStateChangeProvider` + `GoRouterRefreshStream`.
 
 ---
 
-## Modifications - FÃ©vrier 2026
+## State Management — Riverpod
 
-### 1. Messages d'erreur backend propres
-**Fichiers modifiÃ©s:**
-- `lib/features/commandes/data/order_repository.dart` - Ajout de `_extractErrorMessage()` pour parser les rÃ©ponses JSON du backend NestJS et extraire le champ `message`. Les erreurs affichÃ©es sont maintenant en franÃ§ais clair au lieu de JSON brut.
-- `lib/features/commandes/presentation/checkout_page.dart` - Remplacement du SnackBar rouge par `_showOrderError()` qui affiche un AlertDialog avec icÃ´ne contextuelle selon le type d'erreur (restaurant fermÃ©, stock Ã©puisÃ©, montant minimum, session expirÃ©e, etc.)
-- `lib/common_widgets/build_error_state.dart` - AmÃ©lioration de `_formatError()` pour extraire les messages JSON et nettoyer les prÃ©fixes techniques
-- `lib/features/user/data/adresse_repository.dart` - Messages d'erreur en franÃ§ais clair
+- `@riverpod` / `@Riverpod(keepAlive: true)` (auth, cart, notifications)
+- **`build_runner` OBLIGATOIRE** après modif fichier `@riverpod` → `.g.dart`
+- Pattern : Controller (state + opérations) + Repository (HTTP) avec `Ref`
 
-**Messages d'erreur backend reconnus:**
-| Erreur backend | IcÃ´ne | Titre affichÃ© |
-|---|---|---|
-| "fermÃ©" | store | Restaurant fermÃ© |
-| "rupture/stock" | remove_shopping_cart | Produit indisponible |
-| "minimum/montant" | monetization_on | Montant insuffisant |
-| "panier vide" | shopping_cart | Panier vide |
-| "adresse" | location_off | ProblÃ¨me d'adresse |
-| "reconnecter" | lock | Session expirÃ©e |
+```dart
+@Riverpod(keepAlive: true)
+NotificationService notificationService(Ref ref) { ... }
 
-### 2. Firebase Analytics intÃ©grÃ©
-**Fichier crÃ©Ã©:**
-- `lib/services/analytics_service.dart` - Service centralisÃ© pour tous les Ã©vÃ©nements analytics
-
-**Fichiers modifiÃ©s:**
-- `lib/main.dart` - Initialisation des propriÃ©tÃ©s utilisateur (country: CG, currency: XAF)
-- `lib/routing/app_router.dart` - Ajout de `AnalyticsService.observer` au GoRouter pour le tracking automatique des Ã©crans
-- `lib/features/auth/controller/auth_controller.dart` - logLogin/logSignUp (email, google)
-- `lib/features/commandes/presentation/checkout_page.dart` - logBeginCheckout, logOrderCreated, logOrderFailed
-- `lib/features/commandes/data/order_controller.dart` - logOrderCancelled
-- `lib/features/home/presentation/home.dart` - logFavoriteToggle
-- `lib/features/home/presentation/restaurant_detail_screen.dart` - logRestaurantViewed, logAddToCart
-- `lib/features/home/presentation/product_detail_page.dart` - logProductViewed, logAddToCart
-
-**Ã‰vÃ©nements trackÃ©s:**
-| Ã‰vÃ©nement | ParamÃ¨tres |
-|---|---|
-| `order_created` + `purchase` | order_id, total, payment_method, is_delivery, restaurant_id, item_count |
-| `order_failed` | error_message, payment_method, is_delivery |
-| `order_cancelled` | order_id |
-| `begin_checkout` | total, is_delivery |
-| `restaurant_viewed` | restaurant_id, restaurant_name |
-| `add_to_cart` (standard GA) | product_id, product_name, price, quantity, restaurant_id |
-| `view_item` (standard GA) | product_id, product_name, price |
-| `login` / `sign_up` | method (email/google) |
-| `add_favorite` / `remove_favorite` | restaurant_id, restaurant_name |
-| Tracking automatique des Ã©crans via GoRouter observer |
-
-### 3. Shimmer loading pour les banniÃ¨res
-**Fichier modifiÃ©:**
-- `lib/features/home/presentation/home.dart` - Remplacement des images par dÃ©faut pendant le chargement par un effet shimmer animÃ© (`_ShimmerBannerPlaceholder`) avec gradient animÃ© et placeholders de texte
+@riverpod
+class OrderController extends _$OrderController {
+  @override
+  FutureOr<List<Order>> build() async => ...;
+}
+```
 
 ---
 
-## Modifications - Mars 2026
+## Authentication
 
-### 1. NumÃ©ro de tÃ©lÃ©phone dans les commandes (contactPhone)
-Le tÃ©lÃ©phone saisi au checkout est maintenant stockÃ© directement dans la commande au lieu d'utiliser le tÃ©lÃ©phone du profil.
+1. Firebase Auth (email/password + Google Sign-In `^7.2.0`)
+2. À la connexion → `POST /users/sync` (firebaseUid + email + telephone? + referralCode?)
+3. Toutes les requêtes API → header `Authorization: Bearer <firebase-id-token>`
+4. `authStateChangeProvider` watch Firebase → redirects auto
+5. Logout → invalidate cart, orders, favorites, profile, notificationHistory
 
-**Backend:** Champ `contactPhone String?` ajoutÃ© au modÃ¨le Order (Prisma), au `CreateOrderDto`, et Ã  `createOrderFromCart` dans `orders.service.ts`.
-**Client:** ParamÃ¨tre `contactPhone` ajoutÃ© Ã  `order_repository.dart`, `checkout_controller.dart`, passÃ© depuis `checkout_page.dart`.
-**Admin:** `order.dart` parse `contactPhone` avec fallback sur `user.phone`.
-
-### 2. Onboarding UI amÃ©liorÃ©
-**Fichier:** `lib/features/onboarding/presentation/onboarding_screen.dart` (rÃ©Ã©crit)
-- Gradient backgrounds animÃ©s par page
-- Cartes flottantes avec animation (FloatingCard + AnimationController)
-- FadeTransition entre pages, bouton gradient, dot indicators animÃ©s
-
-### 3. Bouton "Tout supprimer" dans le panier
-**Fichiers modifiÃ©s:**
-- `lib/features/cart/data/cart_repository.dart` : mÃ©thode `clearAllItems()` (appelle `DELETE /cart/clear`)
-- `lib/features/cart/application/cart_controller.dart` : `clearCart()` appelle `clearAllItems()`
-- `lib/features/cart/presentation/cart_screen.dart` : bouton `Icons.delete_sweep` dans l'AppBar avec dialog de confirmation
-
-### 4. Note restaurant dans l'AppBar
-**Fichiers modifiÃ©s:**
-- Backend `restaurants.service.ts` : `findOne` inclut reviews et calcule `averageRating`/`totalReviews`
-- `lib/models/restaurant.dart` : champs `averageRating`, `totalReviews` ajoutÃ©s
-- `lib/features/home/presentation/restaurant_detail_screen.dart` : AppBar affiche nom + Ã©toile + note
-
-### 5. Barre de recherche amÃ©liorÃ©e
-**Fichier:** `lib/features/home/presentation/widgets/search_bar_widget.dart`
-- Design blanc avec ombre, icÃ´ne search colorÃ©e, icÃ´ne filtre `Icons.tune_rounded`
-
-### 6. Commandes en brouillon (draft orders)
-Permet Ã  l'utilisateur d'enregistrer sa commande depuis le checkout pour la valider plus tard.
-
-**Fichiers crÃ©Ã©s:**
-- `lib/models/draft_order.dart` : modÃ¨le DraftOrder avec sÃ©rialisation JSON
-- `lib/features/cart/application/draft_orders_provider.dart` : `DraftOrdersNotifier` (@Riverpod keepAlive) avec saveDraft/restoreDraft/deleteDraft via SharedPreferences
-- `lib/features/cart/presentation/draft_orders_screen.dart` : liste des brouillons avec restore/delete
-
-**Fichiers modifiÃ©s:**
-- `lib/features/commandes/presentation/checkout_page.dart` : bouton "Enregistrer pour plus tard" + `_saveDraft()` qui sauvegarde, vide le panier, dÃ©pile checkout/delivery, navigue vers brouillons
-- `lib/features/user/user_page.dart` : menu item "Commandes en attente" entre Favoris et Adresses
-- `lib/routing/app_route_enum.dart` : route `draftOrders` (path: `draft-orders`)
-- `lib/routing/app_router.dart` : GoRoute sous profile
+iOS spécifique :
+- `GIDClientID` + `CFBundleURLSchemes` (REVERSED_CLIENT_ID) dans `Info.plist`
+- `GoogleSignIn.instance.initialize()` avant `authenticate()`
 
 ---
 
-## Modifications - Avril 2026
+## API Communication
 
-### 1. Adaptation au backend refactorisÃ© (monorepo + global guards)
-Le backend a Ã©tÃ© refactorisÃ© en architecture monorepo NestJS avec des guards globaux (`FirebaseAuthGuard` + `RolesGuard` en `APP_GUARD`). Les rÃ©ponses API sont maintenant wrappÃ©es dans `{ data: ... }`. Plusieurs corrections frontend pour s'adapter.
+Base URL : `https://lilia-backend.onrender.com`
 
-**ProblÃ¨me principal:** Le backend wrape dÃ©sormais toutes les rÃ©ponses dans `{ data: ... }` mais le frontend parsait le body brut.
+```dart
+final idToken = await ref.read(firebaseIdTokenProvider.future);
+final response = await client.get(uri, headers: {
+  'Authorization': 'Bearer $idToken',
+  'Content-Type': 'application/json',
+});
+final data = json.decode(response.body)['data'];
+```
 
-**Fichiers modifiÃ©s:**
-
-- `lib/features/user/data/adresse_repository.dart` :
-  - `getUserAdresses()` : accÃ¨s via `json.decode(response.body)['data']` au lieu du body brut
-  - `createAdresse()` : accÃ¨s via `json.decode(response.body)['data']` au lieu du body brut
-
-- `lib/features/home/data/remote/restaurant_repo.dart` :
-  - `getRestaurant()` : accÃ¨s via `json.decode(response.body)["data"]` â€” le backend `findOne()` retourne `{ data: { ...restaurant } }`
-
-- `lib/models/restaurant.dart` :
-  - `Restaurant.fromJson()` ligne 223 : parsing products null-safe `(json['products'] as List?) ?? []` au lieu de `json['products'] as List` qui crashait quand products Ã©tait null
-
-- `lib/features/quartiers/data/quartiers_repository.dart` :
-  - `getAllQuartiers()` : ajout du token Firebase en header (`Authorization: Bearer $token`) comme mesure dÃ©fensive, mÃªme si l'endpoint est `@Public()`
-
-### 2. Frais de service (serviceFee 10%)
-Le backend calcule dÃ©sormais des frais de service de 10% sur le sous-total (`OrderCalculatorService`). Le frontend a Ã©tÃ© mis Ã  jour pour calculer et afficher ces frais.
-
-**Fichiers modifiÃ©s:**
-
-- `lib/models/checkout.dart` :
-  - Ajout du champ `int serviceFee` avec valeur par dÃ©faut 0
-  - Parsing : `serviceFee: (json["serviceFee"] as num?)?.toInt() ?? 0`
-  - AjoutÃ© dans `constructor`, `copyWith`, `fromMap`, `toMap`
-
-- `lib/features/commandes/presentation/checkout_page.dart` :
-  - Calcul : `final double serviceFee = (subTotal * 0.10).roundToDouble();`
-  - Total mis Ã  jour : `total = subTotal + deliveryFee + serviceFee`
-  - Nouvelle ligne "Frais de service (10%)" dans `_buildOrderSummary`
-  - Ajout d'un SnackBar rouge quand la validation du formulaire Ã©choue (tÃ©lÃ©phone vide)
-
-- `lib/features/commandes/presentation/delivery_options_page.dart` :
-  - Calcul : `final serviceFee = (subTotal * 0.10).roundToDouble();`
-  - Total mis Ã  jour : `total = subTotal + deliveryFee + serviceFee`
-  - Nouvelle ligne "Frais de service (10%)" dans `_buildDeliveryFeeSummary`
-
-### 3. Codes promo (promoCode) sur le checkout
-Le backend supporte un systÃ¨me de codes promo avec 3 types de rÃ©duction : FIXED, PERCENT, FREE_DELIVERY.
-
-**Fichiers crÃ©Ã©s:**
-- `lib/models/promo_validation_result.dart` : ModÃ¨le immutable `PromoValidationResult` + enum `DiscountType` (fixed, percent, freeDelivery). Contient un getter `discountLabel` pour l'affichage formatÃ© (`-500 FCFA`, `Livraison gratuite`).
-- `lib/features/commandes/data/promo_repository.dart` : `PromoRepository` (@riverpod) avec mÃ©thode `validateCode()` qui appelle `POST /promo/validate`. Parse les erreurs backend (code expirÃ©, dÃ©jÃ  utilisÃ©, montant minimum, etc.).
-
-**Fichiers modifiÃ©s:**
-
-- `lib/models/checkout.dart` :
-  - Ajout champs `int discountAmount` (dÃ©faut 0) et `String? promoCode`
-  - Parsing : `discountAmount: (json["discountAmount"] as num?)?.toInt() ?? 0`
-  - Parsing : `promoCode: json["promoCode"]?["code"] as String?`
-
-- `lib/models/order.dart` :
-  - Ajout champ `double discountAmount` (dÃ©faut 0)
-  - Parsing : `discountAmount: (json['discountAmount'] as num?)?.toDouble() ?? 0`
-
-- `lib/features/commandes/data/order_repository.dart` :
-  - ParamÃ¨tre `String? promoCode` ajoutÃ© Ã  `createOrders()`
-  - AjoutÃ© dans le body : `bodyMap['promoCode'] = promoCode`
-
-- `lib/features/commandes/data/checkout_controller.dart` :
-  - ParamÃ¨tre `String? promoCode` ajoutÃ© Ã  `placeOrder()`, propagÃ© Ã  `createOrders()`
-
-- `lib/features/commandes/presentation/checkout_page.dart` :
-  - Nouveau state : `_promoResult`, `_promoLoading`, `_promoError`, `_promoController`
-  - Section "Code promo" entre Instructions et RÃ©sumÃ© : champ texte + bouton "Appliquer"
-  - Quand un code est validÃ© : affiche badge vert avec code, description et rÃ©duction
-  - Bouton X pour retirer le code promo
-  - `_buildOrderSummary` : ligne rÃ©duction verte avec icÃ´ne `local_offer` si promo appliquÃ©e
-  - `_buildDeliveryFeeLabel` : prix barrÃ© + "Gratuit" si FREE_DELIVERY
-  - Total recalculÃ© : `subTotal + deliveryFee + serviceFee - discountAmount`
-  - Code promo passÃ© Ã  `placeOrder(promoCode: _promoResult?.code)`
-  - Gestion erreur promo ajoutÃ©e dans `_showOrderError` (icÃ´ne `local_offer` violet)
-
-**Flux utilisateur:**
-1. Saisir un code dans le champ â†’ "Appliquer"
-2. Appel `POST /promo/validate` avec `{ code, restaurantId, subTotal, deliveryFee }`
-3. Si valide : badge vert + rÃ©duction affichÃ©e dans le rÃ©sumÃ© + total recalculÃ©
-4. Si invalide : message d'erreur sous le champ (expirÃ©, dÃ©jÃ  utilisÃ©, montant min, etc.)
-5. Au checkout : code envoyÃ© dans `POST /orders/checkout` body `{ promoCode: "CODE" }`
-6. Backend consomme le code de maniÃ¨re atomique dans la transaction de crÃ©ation de commande
-
-**Types de rÃ©duction:**
-| Type | Effet cÃ´tÃ© client |
+### Format des réponses backend
+| Endpoint | Format |
 |---|---|
-| `FIXED` | Montant dÃ©duit du sous-total (ex: -500 FCFA) |
-| `PERCENT` | Pourcentage dÃ©duit, plafonnÃ© par `maxDiscount` |
-| `FREE_DELIVERY` | `deliveryFee` â†’ 0, affichage prix barrÃ© + "Gratuit" |
+| `GET /restaurants` | `{ data: [...], count }` |
+| `GET /restaurants/:id` | `{ data: {...} }` |
+| `GET /adresses` | `{ data: [...], count }` |
+| `POST /adresses` | `{ data: {...}, message }` |
+| `GET /quartiers` | `{ data: [...], count }` (Public) |
+| `GET /users/me` | `{ user: {...} }` |
+| `POST /orders/checkout` | `{ message, data: {...} }` |
+| `POST /promo/validate` | objet plat |
 
-### 4. RÃ©sumÃ© des patterns API importants
+### Parsing erreurs
+`_extractErrorMessage(body)` → lit `json['message']` (String ou List). Helper dans `order_repository.dart`.
 
-**Format des rÃ©ponses backend (aprÃ¨s refactoring monorepo) :**
-| Endpoint | Format rÃ©ponse |
-|---|---|
-| `GET /restaurants` | `{ data: [...], count: N }` |
-| `GET /restaurants/:id` | `{ data: { ...restaurant } }` |
-| `GET /adresses` | `{ data: [...], count: N }` |
-| `POST /adresses` | `{ data: { ...adresse }, message: "..." }` |
-| `GET /quartiers` | `{ data: [...], count: N }` (public) |
-| `GET /users/me` | `{ user: { ... } }` (via @CurrentUser) |
-| `POST /orders/checkout` | `{ message: "...", data: { ...order } }` |
-| `POST /promo/validate` | `{ valid, promoCodeId, code, discountType, discountAmount, description, newTotal, newDeliveryFee }` |
+### Idempotency checkout
+`POST /orders/checkout` accepte header `idempotency-key` (UUID v4 généré côté client) — évite les doublons sur double-tap / retry.
 
-**Guards backend :**
-- `@Public()` â†’ bypass auth (GET /quartiers, GET /restaurants, GET /restaurants/:id)
-- `@Roles('RESTAURATEUR', 'ADMIN')` â†’ nÃ©cessite rÃ´le spÃ©cifique
-- Sans dÃ©corateur â†’ authentifiÃ© suffit (token Firebase requis)
-- `@CurrentUser()` fonctionne sur toute route authentifiÃ©e (le RolesGuard peuple `request.user` automatiquement)
+---
 
-### 5. Reorder 1-clic
-- `OrderRepository.reorder(orderId)` → POST /orders/:id/reorder (recopie articles dans le panier)
-- Bouton "Recommander" ajouté dans `commande_page.dart` pour les commandes LIVRER et ANNULER
-- Non bloquant : redirige vers /cart après succès
+## Order Flow — Côté client
 
-### 6. Parrainage (referral system)
-**Modèles :**
-- `AppUser` : ajout `referralCode String?` + `loyaltyPoints int`
-- `lib/models/loyalty_transaction.dart` : nouveaux modèles `LoyaltyTransaction` + `ReferralStats`
+1. Browsing restaurants → produit → add to cart
+2. Checkout (`checkout_page.dart`) :
+   - Validation adresse / téléphone / mode (livraison/retrait)
+   - Application code promo via `POST /promo/validate`
+   - Toggle points fidélité (visible si ≥ 100 pts, 1 pt = 5 FCFA, tous consommés d'un coup)
+   - `POST /orders/checkout` avec idempotency-key
+3. **Order status** affiché en temps réel via FCM push :
+   - `EN_ATTENTE → PAYER → EN_PREPARATION → PRET → EN_ROUTE → LIVRER`
+   - + `ANNULER` à tout moment EN_ATTENTE/PAYER
+4. À chaque notif FCM avec `data.orderId` :
+   - `latestUpdatedOrderIdProvider` est setté
+   - `userOrdersProvider` est invalidé → refresh auto
+5. Quand `status == EN_ROUTE` → bouton "Suivre le livreur en direct" → ouvre `FullscreenTrackingScreen` ou affiche `DriverTrackingMap` inline
 
-**Backend calls :**
-- `UserRepository.getReferralStats()` → GET /users/me/referral-stats
-- `UserRepository.getLoyaltyTransactions()` → GET /users/me/loyalty
+---
 
-**Providers :**
-- `referralStatsProvider` + `loyaltyTransactionsProvider` dans `profile_controller.dart`
+## Tracking GPS livreur (mai 2026 — WebSocket)
 
-**UI :**
-- `signup_page.dart` : champ "Code de parrainage (optionnel)" avec badge +200 pts
-- Passe `referralCode` à `createUserWithEmailAndPassword` → firebase_auth_repository → body sync
-- `user_page.dart` : carte Parrainage (code à copier + stats parrainés/récompensés)
+**WebSocket Socket.io `/tracking`** : push temps réel (<1s) + fallback HTTP 30s.
 
-**Récompenses (backend) :** +500 pts parrain, +200 pts filleul à la 1ère commande
+### Architecture
 
-### 7. Points de fidélité
-**UI :**
-- `user_page.dart` : carte orange gradient avec balance + historique toggle (10 dernières transactions)
-- `checkout_page.dart` : toggle SwitchListTile visible si >= 100 pts (1 pt = 5 FCFA de réduction)
-- Ligne réduction "Points fidélité" dans `_buildOrderSummary` si toggle activé
+```
+TrackingSocketService (@Riverpod keepAlive)
+  ├─ Socket.io io.io('${wsUrl}/tracking', { auth: { token } })
+  ├─ Transports: ['websocket', 'polling']  (polling = fallback Congo)
+  ├─ Reconnexion auto (10 tentatives, backoff 2s → 10s max)
+  ├─ Streams broadcast multi-orderId :
+  │    watch(orderId) → { position: Stream<DriverPositionEvent>,
+  │                       status:   Stream<String> }
+  │    unwatch(orderId) → close streams + dispose room
+  ├─ Re-watch automatique de toutes les commandes après reconnexion
+  └─ reconnect() après refresh Firebase token
 
-**Backend calls :**
-- `OrderRepository.createOrders(useLoyaltyPoints: bool)` → passe `useLoyaltyPoints: true` dans body
-- `CheckoutController.placeOrder(useLoyaltyPoints: bool)` → invalide aussi `userProfileProvider` après commande
+DriverLocationController(orderId) (@riverpod)
+  ├─ Init : fetchDriverLocation HTTP → infos livreur (nom, phone) + dernière position DB
+  ├─ Abonnement WS : streams.position → update state instantané (lag <1s)
+  ├─ Fallback HTTP toutes les 30s (n'écrase pas une position WS plus récente)
+  └─ ref.onDispose() → unwatch(orderId) + cancel subscriptions
+```
 
-**Règles :** 1 pt par 100 FCFA, points gagnés à LIVRER, min 100 pts pour utiliser, tous les pts consommés d'un coup
+### Events WebSocket
 
-### 8. Frais de service corrigés à 8%
-- `checkout_page.dart` : `serviceFee = subTotal * 0.08` (était 0.10)
+| Direction | Event | Payload | Effet UI |
+|---|---|---|---|
+| Client → Server | `order:watch` | `{ orderId }` | Rejoint room + reçoit dernière position |
+| Server → Client | `driver:position` | `{ lat, lng, eta, timestamp }` | Update marker + badge "Arrive dans X min" |
+| Server → Client | `order:status` | `{ status }` | Hook prêt (debug log pour l'instant) |
 
-### 9. Fix lastLogin null sur mobile
-**Cause :** `signInWithEmailAndPassword` n'appelait que Firebase, sans sync backend → `lastLogin` jamais mis à jour  
-**Fix :** `firebase_auth_repository.dart` — après connexion Firebase réussie, appel POST /users/sync (non bloquant, timeout 8s, try/catch silencieux)  
-Seuls `firebaseUid` et `email` sont envoyés (pas besoin du reste pour un simple lastLogin update)
+### Fichiers clés
+- `lib/features/commandes/data/tracking_socket_service.dart` — service WS centralisé
+- `lib/features/commandes/data/delivery_tracking_repository.dart` — `DriverLocation` (avec `etaMinutes`) + `DriverLocationController` réécrit WS+HTTP
+- `lib/features/commandes/presentation/widgets/driver_tracking_map.dart` — Google Maps 2 markers (livreur orange + client bleu) + polyline pointillée + badge ETA
+- `lib/features/commandes/presentation/fullscreen_tracking_screen.dart` — version plein écran avec stream Geolocator pour la position client
+
+### Config Google Maps requise
+- Android : `android/app/src/main/AndroidManifest.xml` → remplacer `YOUR_GOOGLE_MAPS_API_KEY`
+- iOS : `ios/Runner/AppDelegate.swift` → remplacer `YOUR_GOOGLE_MAPS_API_KEY`
+- Activer Maps SDK Android + iOS sur Google Cloud Console
+- Geolocator → permission `LOCATION_WHEN_IN_USE` (fallback Brazzaville `-4.2634, 15.2429` si refus)
+
+### Constantes (`AppConstants`)
+- `baseUrl` : `https://lilia-backend.onrender.com`
+- `wsUrl` : `https://lilia-backend.onrender.com` (même host, Socket.io handle l'upgrade)
+- `trackingNamespace` : `/tracking`
+
+---
+
+## Push Notifications FCM
+
+`lib/services/notification_service.dart` (`@Riverpod(keepAlive: true)`)
+
+- `Firebase.initializeApp()` AVANT `ProviderScope` (main.dart)
+- Top-level `firebaseMessagingBackgroundHandler` (avec `@pragma('vm:entry-point')`)
+- Handlers : `onMessage` (foreground), `onMessageOpenedApp` (clic background), `getInitialMessage` (terminated)
+- Canal Android : `high_importance_channel`
+- Support iOS : `DarwinInitializationSettings`
+- Token registré via `POST /notifications/register-token` (5 retries backoff 15s)
+- Token supprimé au logout via `DELETE /notifications/token`
+- Skip gracieux si APNs indisponible (simulateur iOS — code `apns-token-not-set`)
+- `onTokenRefresh` → re-register
+- Quand `data.orderId` reçu → `latestUpdatedOrderIdProvider` + invalidate `userOrdersProvider`
+
+---
+
+## Pricing & Calculs
+
+```dart
+serviceFee = (subTotal * 0.08).roundToDouble();      // 8%
+total = subTotal + deliveryFee + serviceFee - discountAmount;
+// discountAmount = promo + (loyaltyPoints * 5 FCFA si useLoyaltyPoints)
+```
+
+Affichage côté checkout : ligne sous-total, frais livraison (avec "Gratuit" barré si FREE_DELIVERY), frais service 8%, réduction promo (verte), réduction points fidélité, total.
+
+✅ **commande_detail_page** affiche maintenant subTotal, deliveryFee (si `isDelivery`), serviceFee, discountAmount (verte avec icône `local_offer`, si > 0), total — aligné checkout (mai 2026).
+
+---
+
+## Promo Codes
+
+- `lib/models/promo_validation_result.dart` — `PromoValidationResult` + enum `DiscountType` (fixed, percent, freeDelivery) + getter `discountLabel`
+- `lib/features/commandes/data/promo_repository.dart` — `POST /promo/validate`
+- UI : `checkout_page.dart` champ "Code promo" + "Appliquer" → badge vert validé
+- Code envoyé dans body `POST /orders/checkout` `{ promoCode: "BIENVENUE500" }`
+
+---
+
+## Points de fidélité + Parrainage
+
+- `AppUser` : `referralCode String?`, `loyaltyPoints int`
+- `lib/models/loyalty_transaction.dart` : `LoyaltyTransaction` + `ReferralStats`
+- `UserRepository.getReferralStats()` → `GET /users/me/referral-stats`
+- `UserRepository.getLoyaltyTransactions()` → `GET /users/me/loyalty`
+- Providers : `referralStatsProvider`, `loyaltyTransactionsProvider` (dans `profile_controller.dart`)
+- UI : carte orange dans `user_page.dart` (balance + historique) + toggle dans `checkout_page.dart`
+- Signup : champ "Code de parrainage (optionnel)" → passé au sync
+- Règles : 1 pt = 5 FCFA, min 100 pts, gagne 1 pt par 100 FCFA à LIVRER, +500 parrain / +200 filleul à la 1ère commande
+
+---
+
+## Stock côté UI
+
+Dans `restaurant_detail_screen.dart` / `product_detail_page.dart` :
+- `product.isAvailable = stockRestant == null || stockRestant! > 0`
+- `null` = illimité, `0` = épuisé
+- Si épuisé : `Opacity(0.5)`, badge rouge "Épuisé", bouton add-to-cart désactivé
+- Le backend rejette aussi côté serveur (`BadRequestException` en checkout)
+
+---
+
+## Reviews
+
+`lib/features/reviews/` (mai 2026)
+- `review_repository.dart` : `GET /reviews/restaurant/:id`, `POST /reviews`, `GET /reviews/can-review/:id`, stats
+- Providers : `restaurantReviewsProvider`, `restaurantStatsProvider`, `canReviewProvider`, `submitReviewProvider`
+- Screens : `reviews_screen.dart` (stats + liste + bouton), `write_review_screen.dart` (note 1-5 + commentaire)
+- Règle : seul un client avec commande LIVRER pour ce restaurant peut laisser un avis. 1 avis max par user/resto.
+
+---
+
+## Reorder 1-clic
+
+- `OrderRepository.reorder(orderId)` → `POST /orders/:id/reorder` (recopie items dans le panier)
+- Bouton "Recommander" dans `commande_page.dart` + `commande_detail_page.dart` (statuts LIVRER ou ANNULER)
+- Redirect vers `/cart`
+
+---
+
+## Draft orders
+
+- `lib/models/draft_order.dart` + `lib/features/cart/application/draft_orders_provider.dart`
+- Persistance via `SharedPreferences` (`@Riverpod(keepAlive: true) DraftOrdersNotifier`)
+- Bouton "Enregistrer pour plus tard" dans `checkout_page.dart` → vide panier + dépile checkout + navigue vers liste brouillons
+- Écran `draft_orders_screen.dart` (route `draft-orders` sous profile)
+- Restore : recharge items dans le panier
+
+---
+
+## Firebase Analytics
+
+`lib/services/analytics_service.dart` — service centralisé. `AnalyticsService.observer` ajouté au GoRouter (tracking automatique des écrans).
+
+Événements trackés : `purchase`, `order_created`, `order_failed`, `order_cancelled`, `begin_checkout`, `add_to_cart`, `view_item`, `restaurant_viewed`, `login`/`sign_up`, `add_favorite`/`remove_favorite`.
+
+---
+
+## Gotchas
+
+- `Firebase.initializeApp()` avant `ProviderScope`
+- `GoogleSignIn.instance.initialize()` avant `authenticate()`
+- Cart broadcast stream → check `_isClosed` avant `add()`
+- Invalidate TOUS les providers user au logout
+- `build_runner` après modif `@riverpod`
+- Product navigation via `extra` — gérer null (URL directe)
+- Out-of-stock products (`stockRestant == 0`) — bloquer côté UI
+- iOS push : APNs cert requis dans Firebase Console (compte Developer)
+- Rebuild natif après modif `Info.plist` / `Podfile`
+- Connexion par mot de passe : sync backend non-bloquant en background (8s timeout) pour mettre à jour `lastLogin`
+
+---
+
+## Dépendances clés
+
+```yaml
+flutter_riverpod: ^3.3.1
+riverpod_annotation: ^4.0.0
+riverpod_generator: ^4.0.0+1
+go_router: ^17.2.3
+firebase_auth: ^6.4.0
+firebase_core: ^4.7.0
+firebase_messaging: ^16.2.0
+firebase_analytics: ^12.3.0
+google_sign_in: ^7.2.0
+http: ^1.6.0
+socket_io_client: ^3.1.2    # WebSocket tracking
+flutter_local_notifications: ^21.0.0
+google_maps_flutter: ^2.10.0
+geolocator: ^13.0.4
+shared_preferences: ^2.5.5
+cloudinary_public: ^0.23.1
+intl: ^0.20.2
+iconsax: ^0.0.8
+url_launcher: ^6.3.1
+connectivity_plus: ^7.1.1
+carousel_slider: ^5.1.2
+share_plus: ^12.0.1
+google_fonts: ^8.1.0
+```
+
+---
+
+## Corrections appliquées (mai 2026)
+
+1. ✅ **WebSocket Socket.io** : migration complète tracking (polling 10s → WS <1s). `TrackingSocketService` + `DriverLocationController` réécrit
+2. ✅ **ETA temps réel** affichée dans `_DriverInfo` (badge `Arrive dans X min`)
+3. ✅ **`commande_detail_page._buildSummaryCard`** : affiche maintenant serviceFee + discountAmount (cohérence avec checkout)
+4. ✅ **Constantes** `wsUrl` + `trackingNamespace` ajoutées dans `AppConstants`
+
+## Dettes techniques restantes
+
+1. **`NotificationService._handleNotificationData`** : switch sur `data['type']` avec cases vides (`'order_update'`, `'message'`) — code mort à supprimer ou implémenter.
+2. **`fullscreen_tracking_screen`** duplique une grande partie de `driver_tracking_map.dart` (`_FullscreenMapView` vs `_MapView`). Factoriser.
+3. Les onglets `Favoris` et `commandes_page` rafraîchissent leurs providers manuellement après notification FCM — pas un bug, mais à surveiller (potentiellement double-load).
+4. **Event `order:status`** reçu via WS mais juste loggué (debug). Pourrait invalider `userOrdersProvider` directement (actuellement géré via FCM).

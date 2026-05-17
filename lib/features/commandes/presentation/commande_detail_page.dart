@@ -117,7 +117,7 @@ class OrderDetailPage extends ConsumerWidget {
   }
 
   Widget _buildTrackingButton(BuildContext context, String orderId) {
-    final cs = Theme.of(context).colorScheme;
+    //final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute(
@@ -629,7 +629,24 @@ class OrderDetailPage extends ConsumerWidget {
           const SizedBox(height: 16),
           _buildSummaryRow(context, 'Sous-total', order.subTotal),
           const SizedBox(height: 8),
-          _buildSummaryRow(context, 'Frais de livraison', order.deliveryFee),
+          if (order.isDelivery) ...[
+            _buildSummaryRow(
+              context,
+              'Frais de livraison',
+              order.deliveryFee,
+            ),
+            const SizedBox(height: 8),
+          ],
+          _buildSummaryRow(context, 'Frais de service (8%)', order.serviceFee),
+          if (order.discountAmount > 0) ...[
+            const SizedBox(height: 8),
+            _buildSummaryRow(
+              context,
+              'Réduction',
+              -order.discountAmount,
+              isDiscount: true,
+            ),
+          ],
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Divider(color: cs.outline.withValues(alpha: 0.3)),
@@ -683,25 +700,46 @@ class OrderDetailPage extends ConsumerWidget {
     String label,
     double value, {
     bool isTotal = false,
+    bool isDiscount = false,
   }) {
     final cs = Theme.of(context).colorScheme;
+    final valueColor = isTotal
+        ? cs.primary
+        : isDiscount
+            ? Colors.green.shade700
+            : cs.onSurface;
+    final formatted = isDiscount
+        ? '${value.toStringAsFixed(0)} FCFA'
+        : '${value.toStringAsFixed(0)} FCFA';
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: isTotal ? 16 : 14,
-            fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-            color: isTotal ? cs.onSurface : cs.onSurfaceVariant,
-          ),
+        Row(
+          children: [
+            if (isDiscount) ...[
+              Icon(Icons.local_offer, size: 14, color: Colors.green.shade700),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: isTotal ? 16 : 14,
+                fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
+                color: isTotal
+                    ? cs.onSurface
+                    : isDiscount
+                        ? Colors.green.shade700
+                        : cs.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
         Text(
-          '${value.toStringAsFixed(0)} FCFA',
+          formatted,
           style: TextStyle(
             fontSize: isTotal ? 18 : 14,
             fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
-            color: isTotal ? cs.primary : cs.onSurface,
+            color: valueColor,
           ),
         ),
       ],

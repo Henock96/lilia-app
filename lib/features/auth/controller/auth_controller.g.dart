@@ -33,7 +33,7 @@ final class AuthControllerProvider
   AuthController create() => AuthController();
 }
 
-String _$authControllerHash() => r'262bf11e77ced1d9780f7813e8865e97da3c1990';
+String _$authControllerHash() => r'586599b369ed6007771f41a560e1b3ba1128f724';
 
 abstract class _$AuthController extends $StreamNotifier<AppUser?> {
   Stream<AppUser?> build();

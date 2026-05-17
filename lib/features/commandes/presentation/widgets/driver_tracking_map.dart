@@ -10,7 +10,11 @@ import '../../data/delivery_tracking_repository.dart';
 class DriverTrackingMap extends ConsumerWidget {
   final String orderId;
   final bool fullscreen;
-  const DriverTrackingMap({super.key, required this.orderId, this.fullscreen = false});
+  const DriverTrackingMap({
+    super.key,
+    required this.orderId,
+    this.fullscreen = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,16 +24,21 @@ class DriverTrackingMap extends ConsumerWidget {
     if (fullscreen) {
       return locationAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => Center(
+        error: (_, _) => Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.location_off, size: 48, color: Colors.grey),
               const SizedBox(height: 12),
-              const Text('Impossible de récupérer la position', style: TextStyle(color: Colors.grey)),
+              const Text(
+                'Impossible de récupérer la position',
+                style: TextStyle(color: Colors.grey),
+              ),
               const SizedBox(height: 12),
               ElevatedButton(
-                onPressed: () => ref.read(driverLocationControllerProvider(orderId).notifier).refresh(),
+                onPressed: () => ref
+                    .read(driverLocationControllerProvider(orderId).notifier)
+                    .refresh(),
                 child: const Text('Réessayer'),
               ),
             ],
@@ -40,9 +49,16 @@ class DriverTrackingMap extends ConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.location_searching, size: 48, color: Colors.grey),
+                    Icon(
+                      Icons.location_searching,
+                      size: 48,
+                      color: Colors.grey,
+                    ),
                     SizedBox(height: 12),
-                    Text('Position GPS en cours d\'acquisition...', style: TextStyle(color: Colors.grey)),
+                    Text(
+                      'Position GPS en cours d\'acquisition...',
+                      style: TextStyle(color: Colors.grey),
+                    ),
                   ],
                 ),
               )
@@ -70,15 +86,28 @@ class DriverTrackingMap extends ConsumerWidget {
                     color: Colors.indigo.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.delivery_dining, color: Colors.indigo, size: 20),
+                  child: const Icon(
+                    Icons.delivery_dining,
+                    color: Colors.indigo,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Livreur en route', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                      Text('Position mise à jour en temps réel', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      Text(
+                        'Livreur en route',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                      Text(
+                        'Position mise à jour en temps réel',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
                     ],
                   ),
                 ),
@@ -93,12 +122,16 @@ class DriverTrackingMap extends ConsumerWidget {
               height: 220,
               child: Center(child: CircularProgressIndicator()),
             ),
-            error: (_, __) => _NoPositionPlaceholder(
+            error: (_, _) => _NoPositionPlaceholder(
               message: 'Impossible de récupérer la position',
-              onRetry: () => ref.read(driverLocationControllerProvider(orderId).notifier).refresh(),
+              onRetry: () => ref
+                  .read(driverLocationControllerProvider(orderId).notifier)
+                  .refresh(),
             ),
             data: (location) => location == null
-                ? const _NoPositionPlaceholder(message: 'Position GPS en cours d\'acquisition...')
+                ? const _NoPositionPlaceholder(
+                    message: 'Position GPS en cours d\'acquisition...',
+                  )
                 : _MapView(location: location),
           ),
 
@@ -115,20 +148,34 @@ class DriverTrackingMap extends ConsumerWidget {
 class _LiveBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: Colors.green.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: Colors.green.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          decoration: const BoxDecoration(
+            color: Colors.green,
+            shape: BoxShape.circle,
+          ),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
-            const SizedBox(width: 5),
-            const Text('LIVE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.green)),
-          ],
+        const SizedBox(width: 5),
+        const Text(
+          'LIVE',
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: Colors.green,
+          ),
         ),
-      );
+      ],
+    ),
+  );
 }
 
 class _FullscreenMapView extends StatefulWidget {
@@ -156,8 +203,10 @@ class _FullscreenMapViewState extends State<_FullscreenMapView> {
       if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
       }
-      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-        if (mounted) setState(() => _clientPos = const LatLng(-4.2634, 15.2429));
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        if (mounted)
+          setState(() => _clientPos = const LatLng(-4.2634, 15.2429));
         return;
       }
 
@@ -166,12 +215,16 @@ class _FullscreenMapViewState extends State<_FullscreenMapView> {
       setState(() => _clientPos = LatLng(pos.latitude, pos.longitude));
       _fitBounds();
 
-      _posSub = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 15),
-      ).listen((p) {
-        if (!mounted) return;
-        setState(() => _clientPos = LatLng(p.latitude, p.longitude));
-      });
+      _posSub =
+          Geolocator.getPositionStream(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              distanceFilter: 15,
+            ),
+          ).listen((p) {
+            if (!mounted) return;
+            setState(() => _clientPos = LatLng(p.latitude, p.longitude));
+          });
     } catch (_) {
       if (mounted) setState(() => _clientPos = const LatLng(-4.2634, 15.2429));
     }
@@ -182,19 +235,37 @@ class _FullscreenMapViewState extends State<_FullscreenMapView> {
     final driver = LatLng(widget.location.latitude, widget.location.longitude);
     final client = _clientPos!;
     Future.delayed(const Duration(milliseconds: 300), () {
-      _ctrl?.animateCamera(CameraUpdate.newLatLngBounds(
-        LatLngBounds(
-          southwest: LatLng(
-            [driver.latitude, client.latitude].reduce((a, b) => a < b ? a : b) - 0.005,
-            [driver.longitude, client.longitude].reduce((a, b) => a < b ? a : b) - 0.005,
+      _ctrl?.animateCamera(
+        CameraUpdate.newLatLngBounds(
+          LatLngBounds(
+            southwest: LatLng(
+              [
+                    driver.latitude,
+                    client.latitude,
+                  ].reduce((a, b) => a < b ? a : b) -
+                  0.005,
+              [
+                    driver.longitude,
+                    client.longitude,
+                  ].reduce((a, b) => a < b ? a : b) -
+                  0.005,
+            ),
+            northeast: LatLng(
+              [
+                    driver.latitude,
+                    client.latitude,
+                  ].reduce((a, b) => a > b ? a : b) +
+                  0.005,
+              [
+                    driver.longitude,
+                    client.longitude,
+                  ].reduce((a, b) => a > b ? a : b) +
+                  0.005,
+            ),
           ),
-          northeast: LatLng(
-            [driver.latitude, client.latitude].reduce((a, b) => a > b ? a : b) + 0.005,
-            [driver.longitude, client.longitude].reduce((a, b) => a > b ? a : b) + 0.005,
-          ),
+          80,
         ),
-        80,
-      ));
+      );
     });
   }
 
@@ -207,20 +278,29 @@ class _FullscreenMapViewState extends State<_FullscreenMapView> {
 
   @override
   Widget build(BuildContext context) {
-    final driverPos = LatLng(widget.location.latitude, widget.location.longitude);
+    final driverPos = LatLng(
+      widget.location.latitude,
+      widget.location.longitude,
+    );
     final markers = <Marker>{
       Marker(
         markerId: const MarkerId('driver'),
         position: driverPos,
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-        infoWindow: InfoWindow(title: widget.location.driverNom ?? 'Livreur', snippet: 'Votre livreur'),
+        infoWindow: InfoWindow(
+          title: widget.location.driverNom ?? 'Livreur',
+          snippet: 'Votre livreur',
+        ),
       ),
       if (_clientPos != null)
         Marker(
           markerId: const MarkerId('client'),
           position: _clientPos!,
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-          infoWindow: const InfoWindow(title: 'Vous', snippet: 'Votre position'),
+          infoWindow: const InfoWindow(
+            title: 'Vous',
+            snippet: 'Votre position',
+          ),
         ),
     };
     final polylines = _clientPos != null
@@ -273,15 +353,21 @@ class _MapViewState extends State<_MapView> {
   Future<void> _fetchClientPos() async {
     try {
       var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) perm = await Geolocator.requestPermission();
-      if (perm == LocationPermission.denied || perm == LocationPermission.deniedForever) {
-        if (mounted) setState(() => _clientPos = const LatLng(-4.2634, 15.2429));
+      if (perm == LocationPermission.denied)
+        perm = await Geolocator.requestPermission();
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        if (mounted)
+          setState(() => _clientPos = const LatLng(-4.2634, 15.2429));
         return;
       }
       final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.low,
+        ),
       );
-      if (mounted) setState(() => _clientPos = LatLng(pos.latitude, pos.longitude));
+      if (mounted)
+        setState(() => _clientPos = LatLng(pos.latitude, pos.longitude));
     } catch (_) {
       if (mounted) setState(() => _clientPos = const LatLng(-4.2634, 15.2429));
     }
@@ -289,13 +375,19 @@ class _MapViewState extends State<_MapView> {
 
   @override
   Widget build(BuildContext context) {
-    final driverPos = LatLng(widget.location.latitude, widget.location.longitude);
+    final driverPos = LatLng(
+      widget.location.latitude,
+      widget.location.longitude,
+    );
     final markers = <Marker>{
       Marker(
         markerId: const MarkerId('driver'),
         position: driverPos,
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-        infoWindow: InfoWindow(title: widget.location.driverNom ?? 'Livreur', snippet: 'Votre livreur'),
+        infoWindow: InfoWindow(
+          title: widget.location.driverNom ?? 'Livreur',
+          snippet: 'Votre livreur',
+        ),
       ),
       if (_clientPos != null)
         Marker(
@@ -339,7 +431,8 @@ class _DriverInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    if (location.driverNom == null && location.driverPhone == null) return const SizedBox.shrink();
+    if (location.driverNom == null && location.driverPhone == null)
+      return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -356,18 +449,39 @@ class _DriverInfo extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (location.driverNom != null)
-                  Text(location.driverNom!, style: const TextStyle(fontWeight: FontWeight.w600)),
-                if (location.updatedAt != null)
                   Text(
-                    'Mis à jour il y a ${_minutesAgo(location.updatedAt!)}',
-                    style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                    location.driverNom!,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
+                Row(
+                  children: [
+                    if (location.etaMinutes != null && location.etaMinutes! > 0) ...[
+                      Icon(Icons.schedule, size: 12, color: cs.primary),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Arrive dans ${location.etaMinutes} min',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    if (location.updatedAt != null)
+                      Text(
+                        'il y a ${_minutesAgo(location.updatedAt!)}',
+                        style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                      ),
+                  ],
+                ),
               ],
             ),
           ),
           if (location.driverPhone != null)
             IconButton(
-              onPressed: () => launchUrl(Uri.parse('tel:${location.driverPhone}')),
+              onPressed: () =>
+                  launchUrl(Uri.parse('tel:${location.driverPhone}')),
               icon: const Icon(Icons.call),
               style: IconButton.styleFrom(
                 backgroundColor: Colors.green.withValues(alpha: 0.1),
@@ -393,22 +507,24 @@ class _NoPositionPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        height: 140,
-        color: const Color(0xFFF5F5F5),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.location_searching, size: 36, color: Colors.grey),
-              const SizedBox(height: 8),
-              Text(message, style: const TextStyle(color: Colors.grey, fontSize: 13)),
-              if (onRetry != null) ...[
-                const SizedBox(height: 8),
-                TextButton(onPressed: onRetry, child: const Text('Réessayer')),
-              ],
-            ],
+    height: 140,
+    color: const Color(0xFFF5F5F5),
+    child: Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.location_searching, size: 36, color: Colors.grey),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
           ),
-        ),
-      );
+          if (onRetry != null) ...[
+            const SizedBox(height: 8),
+            TextButton(onPressed: onRetry, child: const Text('Réessayer')),
+          ],
+        ],
+      ),
+    ),
+  );
 }
-

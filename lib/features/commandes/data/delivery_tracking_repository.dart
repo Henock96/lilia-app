@@ -1,20 +1,26 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../constants/app_constants.dart';
 import '../../../features/auth/repository/firebase_auth_repository.dart';
+import 'tracking_socket_service.dart';
 
 part 'delivery_tracking_repository.g.dart';
 
+/// Position du livreur affichée à l'utilisateur (côté UI).
+/// Construite soit depuis le WebSocket (`DriverPositionEvent`) soit depuis
+/// l'endpoint HTTP `GET /deliveries/by-order/:orderId` (fallback initial).
 class DriverLocation {
   final double latitude;
   final double longitude;
   final DateTime? updatedAt;
   final String? driverNom;
   final String? driverPhone;
+  final int? etaMinutes;
 
   const DriverLocation({
     required this.latitude,
@@ -22,9 +28,10 @@ class DriverLocation {
     this.updatedAt,
     this.driverNom,
     this.driverPhone,
+    this.etaMinutes,
   });
 
-  factory DriverLocation.fromJson(Map<String, dynamic> json) {
+  factory DriverLocation.fromHttpJson(Map<String, dynamic> json) {
     final deliverer = json['deliverer'] as Map<String, dynamic>?;
     return DriverLocation(
       latitude: (json['lastLatitude'] as num).toDouble(),
@@ -36,14 +43,21 @@ class DriverLocation {
       driverPhone: deliverer?['phone'] as String?,
     );
   }
+
+  DriverLocation copyWithWsPosition(DriverPositionEvent event) {
+    return DriverLocation(
+      latitude: event.lat,
+      longitude: event.lng,
+      updatedAt: event.timestamp,
+      driverNom: driverNom,
+      driverPhone: driverPhone,
+      etaMinutes: event.eta,
+    );
+  }
 }
 
-/// Récupère la position du livreur pour une commande.
-/// Retourne null si la livraison n'a pas encore de position GPS.
-Future<DriverLocation?> fetchDriverLocation(
-  String orderId,
-  String token,
-) async {
+/// Charge la position initiale via HTTP (et récupère les infos du livreur).
+Future<DriverLocation?> fetchDriverLocation(String orderId, String token) async {
   final response = await http.get(
     Uri.parse('${AppConstants.baseUrl}/deliveries/by-order/$orderId'),
     headers: {'Authorization': 'Bearer $token'},
@@ -52,42 +66,99 @@ Future<DriverLocation?> fetchDriverLocation(
     final body = jsonDecode(utf8.decode(response.bodyBytes));
     final data = body['data'] as Map<String, dynamic>;
     if (data['lastLatitude'] == null) return null;
-    return DriverLocation.fromJson(data);
+    return DriverLocation.fromHttpJson(data);
   }
   return null;
 }
 
-/// Provider qui poll la position du livreur toutes les 10 secondes.
-/// Utilisé côté client sur la page détail commande (status EN_ROUTE).
+/// Controller qui combine WebSocket temps réel + HTTP initial.
+///
+/// Stratégie :
+///   1. Au build : fetch HTTP pour avoir la dernière position + infos livreur
+///   2. S'abonne au WebSocket `/tracking` → reçoit `driver:position` en temps réel
+///   3. Chaque event WS met à jour l'état immédiatement (lag <1s vs 10s avant)
+///   4. Fallback HTTP toutes les 30s en cas de coupure WS (vs 10s avant)
 @riverpod
 class DriverLocationController extends _$DriverLocationController {
-  Timer? _timer;
+  Timer? _httpFallbackTimer;
+  StreamSubscription<DriverPositionEvent>? _wsPositionSub;
+  StreamSubscription<String>? _wsStatusSub;
+  String? _orderId;
 
   @override
   FutureOr<DriverLocation?> build(String orderId) async {
-    ref.onDispose(() => _timer?.cancel());
-    _startPolling(orderId);
-    return _fetch(orderId);
+    _orderId = orderId;
+    ref.onDispose(_cleanup);
+
+    final initial = await _fetchHttp(orderId);
+
+    // Abonnement WebSocket
+    final socket = ref.read(trackingSocketServiceProvider);
+    final streams = socket.watch(orderId);
+
+    DriverLocation? current = initial;
+
+    _wsPositionSub = streams.position.listen((event) {
+      if (!ref.mounted) return;
+      current = current?.copyWithWsPosition(event) ??
+          DriverLocation(
+            latitude: event.lat,
+            longitude: event.lng,
+            updatedAt: event.timestamp,
+            etaMinutes: event.eta,
+          );
+      state = AsyncValue.data(current);
+    });
+
+    _wsStatusSub = streams.status.listen((status) {
+      debugPrint('[Tracking] order:status → $status');
+      // L'UI listen aussi via FCM ; ici on pourrait refresh userOrdersProvider.
+    });
+
+    // Fallback HTTP plus rare — la WS prend le relai en temps normal
+    _startHttpFallback(orderId);
+
+    return initial;
   }
 
-  Future<DriverLocation?> _fetch(String orderId) async {
+  Future<DriverLocation?> _fetchHttp(String orderId) async {
     final token = await ref.read(firebaseIdTokenProvider.future);
     if (token == null) return null;
     return fetchDriverLocation(orderId, token);
   }
 
-  void _startPolling(String orderId) {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 10), (_) async {
+  void _startHttpFallback(String orderId) {
+    _httpFallbackTimer?.cancel();
+    _httpFallbackTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
       if (!ref.mounted) return;
-      final result = await AsyncValue.guard(() => _fetch(orderId));
-      if (!ref.mounted) return;
-      state = result;
+      try {
+        final fresh = await _fetchHttp(orderId);
+        if (!ref.mounted || fresh == null) return;
+        final previous = state.value;
+        // N'écrase pas la position WS plus récente
+        if (previous == null ||
+            (fresh.updatedAt != null &&
+                (previous.updatedAt == null ||
+                    fresh.updatedAt!.isAfter(previous.updatedAt!)))) {
+          state = AsyncValue.data(fresh);
+        }
+      } catch (_) {}
     });
   }
 
   Future<void> refresh() async {
+    if (_orderId == null) return;
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _fetch(orderId));
+    state = await AsyncValue.guard(() => _fetchHttp(_orderId!));
+  }
+
+  void _cleanup() {
+    _httpFallbackTimer?.cancel();
+    _wsPositionSub?.cancel();
+    _wsStatusSub?.cancel();
+    final id = _orderId;
+    if (id != null) {
+      ref.read(trackingSocketServiceProvider).unwatch(id);
+    }
   }
 }

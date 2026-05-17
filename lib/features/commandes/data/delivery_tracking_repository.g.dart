@@ -8,18 +8,33 @@ part of 'delivery_tracking_repository.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Provider qui poll la position du livreur toutes les 10 secondes.
-/// Utilisé côté client sur la page détail commande (status EN_ROUTE).
+/// Controller qui combine WebSocket temps réel + HTTP initial.
+///
+/// Stratégie :
+///   1. Au build : fetch HTTP pour avoir la dernière position + infos livreur
+///   2. S'abonne au WebSocket `/tracking` → reçoit `driver:position` en temps réel
+///   3. Chaque event WS met à jour l'état immédiatement (lag <1s vs 10s avant)
+///   4. Fallback HTTP toutes les 30s en cas de coupure WS (vs 10s avant)
 
 @ProviderFor(DriverLocationController)
 final driverLocationControllerProvider = DriverLocationControllerFamily._();
 
-/// Provider qui poll la position du livreur toutes les 10 secondes.
-/// Utilisé côté client sur la page détail commande (status EN_ROUTE).
+/// Controller qui combine WebSocket temps réel + HTTP initial.
+///
+/// Stratégie :
+///   1. Au build : fetch HTTP pour avoir la dernière position + infos livreur
+///   2. S'abonne au WebSocket `/tracking` → reçoit `driver:position` en temps réel
+///   3. Chaque event WS met à jour l'état immédiatement (lag <1s vs 10s avant)
+///   4. Fallback HTTP toutes les 30s en cas de coupure WS (vs 10s avant)
 final class DriverLocationControllerProvider
     extends $AsyncNotifierProvider<DriverLocationController, DriverLocation?> {
-  /// Provider qui poll la position du livreur toutes les 10 secondes.
-  /// Utilisé côté client sur la page détail commande (status EN_ROUTE).
+  /// Controller qui combine WebSocket temps réel + HTTP initial.
+  ///
+  /// Stratégie :
+  ///   1. Au build : fetch HTTP pour avoir la dernière position + infos livreur
+  ///   2. S'abonne au WebSocket `/tracking` → reçoit `driver:position` en temps réel
+  ///   3. Chaque event WS met à jour l'état immédiatement (lag <1s vs 10s avant)
+  ///   4. Fallback HTTP toutes les 30s en cas de coupure WS (vs 10s avant)
   DriverLocationControllerProvider._({
     required DriverLocationControllerFamily super.from,
     required String super.argument,
@@ -58,10 +73,15 @@ final class DriverLocationControllerProvider
 }
 
 String _$driverLocationControllerHash() =>
-    r'fbfa3fe1647bebbb0f8766df6a2a067a49a81088';
+    r'984dc194f3f3ede9ab43d405674da957ec73a921';
 
-/// Provider qui poll la position du livreur toutes les 10 secondes.
-/// Utilisé côté client sur la page détail commande (status EN_ROUTE).
+/// Controller qui combine WebSocket temps réel + HTTP initial.
+///
+/// Stratégie :
+///   1. Au build : fetch HTTP pour avoir la dernière position + infos livreur
+///   2. S'abonne au WebSocket `/tracking` → reçoit `driver:position` en temps réel
+///   3. Chaque event WS met à jour l'état immédiatement (lag <1s vs 10s avant)
+///   4. Fallback HTTP toutes les 30s en cas de coupure WS (vs 10s avant)
 
 final class DriverLocationControllerFamily extends $Family
     with
@@ -81,8 +101,13 @@ final class DriverLocationControllerFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// Provider qui poll la position du livreur toutes les 10 secondes.
-  /// Utilisé côté client sur la page détail commande (status EN_ROUTE).
+  /// Controller qui combine WebSocket temps réel + HTTP initial.
+  ///
+  /// Stratégie :
+  ///   1. Au build : fetch HTTP pour avoir la dernière position + infos livreur
+  ///   2. S'abonne au WebSocket `/tracking` → reçoit `driver:position` en temps réel
+  ///   3. Chaque event WS met à jour l'état immédiatement (lag <1s vs 10s avant)
+  ///   4. Fallback HTTP toutes les 30s en cas de coupure WS (vs 10s avant)
 
   DriverLocationControllerProvider call(String orderId) =>
       DriverLocationControllerProvider._(argument: orderId, from: this);
@@ -91,8 +116,13 @@ final class DriverLocationControllerFamily extends $Family
   String toString() => r'driverLocationControllerProvider';
 }
 
-/// Provider qui poll la position du livreur toutes les 10 secondes.
-/// Utilisé côté client sur la page détail commande (status EN_ROUTE).
+/// Controller qui combine WebSocket temps réel + HTTP initial.
+///
+/// Stratégie :
+///   1. Au build : fetch HTTP pour avoir la dernière position + infos livreur
+///   2. S'abonne au WebSocket `/tracking` → reçoit `driver:position` en temps réel
+///   3. Chaque event WS met à jour l'état immédiatement (lag <1s vs 10s avant)
+///   4. Fallback HTTP toutes les 30s en cas de coupure WS (vs 10s avant)
 
 abstract class _$DriverLocationController
     extends $AsyncNotifier<DriverLocation?> {

@@ -1,5 +1,7 @@
 class AppConstants {
   static final baseUrl = 'https://lilia-backend.onrender.com';
+  static const String wsUrl = 'https://lilia-backend.onrender.com';
+  static const String trackingNamespace = '/tracking';
 
   // Numéros de paiement Lilia (à configurer avec les vrais numéros)
   static const String mtnMomoPaymentNumber = '06 745 46 10';
