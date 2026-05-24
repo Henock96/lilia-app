@@ -45,6 +45,6 @@ app.*.map.json
 /android/app/release
 
 
-/ios/Flutter/Maps.xcconfig.example
-/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
-/ios/Runner.xcworkspace/xcshareddata/swiftpm
+ios/Flutter/Maps.xcconfig.example
+ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/
+ios/Runner.xcworkspace/xcshareddata/swiftpm
