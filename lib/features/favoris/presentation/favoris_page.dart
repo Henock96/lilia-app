@@ -13,7 +13,7 @@ class FavorisPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
+    //final theme = Theme.of(context);
 
     return DefaultTabController(
       length: 2,
@@ -22,21 +22,15 @@ class FavorisPage extends ConsumerWidget {
           title: const Text('Mes Favoris'),
           centerTitle: true,
           elevation: 0,
-          bottom: TabBar(
-            labelColor: theme.primaryColor,
-            unselectedLabelColor: Colors.grey,
-            indicatorColor: theme.primaryColor,
-            tabs: const [
+          bottom: const TabBar(
+            tabs: [
               Tab(icon: Icon(Icons.fastfood, size: 20), text: 'Plats'),
               Tab(icon: Icon(Icons.restaurant, size: 20), text: 'Restaurants'),
             ],
           ),
         ),
         body: const TabBarView(
-          children: [
-            _ProductFavoritesTab(),
-            _RestaurantFavoritesTab(),
-          ],
+          children: [_ProductFavoritesTab(), _RestaurantFavoritesTab()],
         ),
       ),
     );
@@ -65,7 +59,10 @@ class _ProductFavoritesTab extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 18.0),
                   child: Text(
                     'Aucun plat en favoris pour le moment !',
-                    style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -99,6 +96,7 @@ class ProductCardFavoris extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
     final isFavorite = ref
         .watch(favoritesProvider)
         .maybeWhen(
@@ -130,8 +128,12 @@ class ProductCardFavoris extends ConsumerWidget {
                           errorBuilder: (_, _, _) => Container(
                             width: 80,
                             height: 80,
-                            color: Colors.grey[200],
-                            child: const Icon(Icons.fastfood, size: 36, color: Colors.grey),
+                            color: cs.surfaceContainerHighest,
+                            child: Icon(
+                              Icons.fastfood,
+                              size: 36,
+                              color: cs.outline,
+                            ),
                           ),
                         )
                       : Container(
@@ -139,10 +141,14 @@ class ProductCardFavoris extends ConsumerWidget {
                           height: 80,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(10),
-                            color: Colors.grey[200],
+                            color: cs.surfaceContainerHighest,
                           ),
-                          child: const Center(
-                            child: Icon(Icons.fastfood, size: 36, color: Colors.grey),
+                          child: Center(
+                            child: Icon(
+                              Icons.fastfood,
+                              size: 36,
+                              color: cs.outline,
+                            ),
                           ),
                         ),
                 ),
@@ -165,7 +171,10 @@ class ProductCardFavoris extends ConsumerWidget {
                     if (product.restaurantName != null)
                       Text(
                         product.restaurantName!,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurfaceVariant,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -175,14 +184,17 @@ class ProductCardFavoris extends ConsumerWidget {
                         product.description,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
                     ],
                     const SizedBox(height: 4),
                     Text(
                       '${getDisplayPrice().toStringAsFixed(0)} FCFA',
                       style: TextStyle(
-                        color: Theme.of(context).primaryColor,
+                        color: cs.primary,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -193,7 +205,7 @@ class ProductCardFavoris extends ConsumerWidget {
               IconButton(
                 icon: Icon(
                   isFavorite ? Icons.favorite : Icons.favorite_border,
-                  color: isFavorite ? Colors.red : Colors.grey,
+                  color: isFavorite ? Colors.red : cs.outline,
                 ),
                 onPressed: () {
                   final notifier = ref.read(favoritesProvider.notifier);
@@ -228,16 +240,26 @@ class _RestaurantFavoritesTab extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.restaurant, size: 64, color: Colors.grey[300]),
+                Icon(
+                  Icons.restaurant,
+                  size: 64,
+                  color: Theme.of(context).colorScheme.outline,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'Aucun restaurant en favoris',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Explorez et ajoutez vos restaurants preferes',
-                  style: TextStyle(fontSize: 13, color: Colors.grey[400]),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -264,7 +286,7 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
+    final cs = Theme.of(context).colorScheme;
 
     return GestureDetector(
       onTap: () {
@@ -298,17 +320,25 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                             fit: BoxFit.cover,
                             errorBuilder: (_, _, _) => Container(
                               height: 120,
-                              color: Colors.grey[200],
-                              child: const Center(
-                                child: Icon(Icons.restaurant, size: 40, color: Colors.grey),
+                              color: cs.surfaceContainerHighest,
+                              child: Center(
+                                child: Icon(
+                                  Icons.restaurant,
+                                  size: 40,
+                                  color: cs.outline,
+                                ),
                               ),
                             ),
                           )
                         : Container(
                             height: 120,
-                            color: Colors.grey[200],
-                            child: const Center(
-                              child: Icon(Icons.restaurant, size: 40, color: Colors.grey),
+                            color: cs.surfaceContainerHighest,
+                            child: Center(
+                              child: Icon(
+                                Icons.restaurant,
+                                size: 40,
+                                color: cs.outline,
+                              ),
                             ),
                           ),
                   ),
@@ -317,7 +347,10 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                     top: 8,
                     left: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: restaurant.isOpen ? Colors.green : Colors.red,
                         borderRadius: BorderRadius.circular(12),
@@ -343,7 +376,9 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                             .remove(restaurant);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('${restaurant.name} retire des favoris'),
+                            content: Text(
+                              '${restaurant.name} retire des favoris',
+                            ),
                             behavior: SnackBarBehavior.floating,
                             duration: const Duration(seconds: 2),
                           ),
@@ -351,11 +386,15 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                       },
                       child: Container(
                         padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
+                        decoration: BoxDecoration(
+                          color: cs.surface,
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.favorite, color: Colors.red, size: 20),
+                        child: const Icon(
+                          Icons.favorite,
+                          color: Colors.red,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ),
@@ -386,11 +425,18 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                             restaurant.totalReviews! > 0)
                           Row(
                             children: [
-                              Icon(Icons.star, size: 16, color: Colors.amber[700]),
+                              Icon(
+                                Icons.star,
+                                size: 16,
+                                color: Colors.amber[700],
+                              ),
                               const SizedBox(width: 2),
                               Text(
                                 '${restaurant.averageRating!.toStringAsFixed(1)} (${restaurant.totalReviews})',
-                                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ],
                           ),
@@ -402,16 +448,19 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                         spacing: 6,
                         children: restaurant.specialties.take(3).map((s) {
                           return Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
                             decoration: BoxDecoration(
-                              color: theme.primaryColor.withValues(alpha: 0.1),
+                              color: cs.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               s.name,
                               style: TextStyle(
                                 fontSize: 11,
-                                color: theme.primaryColor,
+                                color: cs.primary,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -422,18 +471,32 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.access_time, size: 14, color: Colors.grey[500]),
+                        Icon(
+                          Icons.access_time,
+                          size: 14,
+                          color: cs.onSurfaceVariant,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           restaurant.deliveryTimeFormatted,
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: cs.onSurfaceVariant,
+                          ),
                         ),
                         const SizedBox(width: 12),
-                        Icon(Icons.delivery_dining_outlined, size: 14, color: Colors.grey[500]),
+                        Icon(
+                          Icons.delivery_dining_outlined,
+                          size: 14,
+                          color: cs.onSurfaceVariant,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '${restaurant.fixedDeliveryFee.toStringAsFixed(0)} FCFA',
-                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: cs.onSurfaceVariant,
+                          ),
                         ),
                       ],
                     ),

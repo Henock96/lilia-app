@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
+import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/quartiers/application/quartiers_controller.dart';
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
@@ -58,12 +59,12 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => context.goNamed(AppRoutes.cart.routeName),
         ),
         title: const Text(
           'Mode de livraison',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
@@ -129,8 +130,10 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                     child: ElevatedButton(
                       onPressed: _canContinue() ? _continueToCheckout : null,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).primaryColor,
-                        disabledBackgroundColor: Colors.grey[300],
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        disabledBackgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -162,18 +165,15 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-        color: Colors.black87,
-      ),
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
     );
   }
 
   Widget _buildDeliveryModeSection() {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: cs.outline),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -200,21 +200,19 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: _isDelivery
-                    ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
-                    : Colors.grey.shade100,
+                    ? cs.primary.withValues(alpha: 0.1)
+                    : cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 Icons.delivery_dining,
-                color: _isDelivery
-                    ? Theme.of(context).primaryColor
-                    : Colors.grey,
+                color: _isDelivery ? cs.primary : cs.outline,
                 size: 28,
               ),
             ),
-            activeColor: Theme.of(context).primaryColor,
+            activeColor: cs.primary,
           ),
-          Divider(height: 1, color: Colors.grey.shade300),
+          Divider(height: 1, color: cs.outline),
           // Option Retrait
           RadioListTile<bool>(
             value: false,
@@ -238,16 +236,16 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
               decoration: BoxDecoration(
                 color: !_isDelivery
                     ? Colors.green.withValues(alpha: 0.1)
-                    : Colors.grey.shade100,
+                    : cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 Icons.store,
-                color: !_isDelivery ? Colors.green : Colors.grey,
+                color: !_isDelivery ? Colors.green : cs.outline,
                 size: 28,
               ),
             ),
-            activeColor: Theme.of(context).primaryColor,
+            activeColor: cs.primary,
           ),
         ],
       ),
@@ -255,14 +253,14 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
   }
 
   Widget _buildQuartierSection(List<Quartier> quartiers) {
-    // Trouver le quartier correspondant dans la liste (par ID) pour éviter les problèmes d'égalité d'objet
+    final cs = Theme.of(context).colorScheme;
     final selectedQuartierFromList = _selectedQuartier != null
         ? quartiers.where((q) => q.id == _selectedQuartier!.id).firstOrNull
         : null;
 
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: cs.outline),
         borderRadius: BorderRadius.circular(12),
       ),
       child: DropdownButtonFormField<Quartier>(
@@ -319,24 +317,29 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
 
         // Message si aucune adresse enregistrée
         if (addresses.isEmpty && !_useNewAddress) ...[
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, color: Colors.grey.shade600),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Aucune adresse enregistrée. Ajoutez une nouvelle adresse.',
-                    style: TextStyle(color: Colors.grey.shade700),
-                  ),
+          Builder(
+            builder: (context) {
+              final cs = Theme.of(context).colorScheme;
+              return Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: cs.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ],
-            ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: cs.onSurfaceVariant),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Aucune adresse enregistrée. Ajoutez une nouvelle adresse.',
+                        style: TextStyle(color: cs.onSurfaceVariant),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ],
 
@@ -380,6 +383,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
   }
 
   Widget _buildAddressCard(Adresse adresse) {
+    final cs = Theme.of(context).colorScheme;
     final isSelected = _selectedAddress?.id == adresse.id;
     final matchesQuartier =
         _selectedQuartier != null &&
@@ -402,15 +406,11 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           border: Border.all(
-            color: isSelected
-                ? Theme.of(context).primaryColor
-                : Colors.grey.shade300,
+            color: isSelected ? cs.primary : cs.outline,
             width: isSelected ? 2 : 1,
           ),
           borderRadius: BorderRadius.circular(12),
-          color: isSelected
-              ? Theme.of(context).primaryColor.withValues(alpha: 0.05)
-              : Colors.white,
+          color: isSelected ? cs.primary.withValues(alpha: 0.05) : cs.surface,
         ),
         child: Row(
           children: [
@@ -418,15 +418,13 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
-                    : Colors.grey.shade100,
+                    ? cs.primary.withValues(alpha: 0.1)
+                    : cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 Icons.home_outlined,
-                color: isSelected
-                    ? Theme.of(context).primaryColor
-                    : Colors.grey.shade600,
+                color: isSelected ? cs.primary : cs.onSurfaceVariant,
                 size: 24,
               ),
             ),
@@ -470,23 +468,19 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                             '(autre quartier)',
                             style: TextStyle(
                               fontSize: 11,
-                              color: Colors.grey.shade500,
+                              color: cs.onSurfaceVariant,
                               fontStyle: FontStyle.italic,
                             ),
                           ),
                         ],
                       ] else ...[
-                        Icon(
-                          Icons.location_off,
-                          size: 14,
-                          color: Colors.grey.shade400,
-                        ),
+                        Icon(Icons.location_off, size: 14, color: cs.outline),
                         const SizedBox(width: 4),
                         Text(
                           'Quartier non défini',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey.shade500,
+                            color: cs.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -496,11 +490,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
               ),
             ),
             if (isSelected)
-              Icon(
-                Icons.check_circle,
-                color: Theme.of(context).primaryColor,
-                size: 24,
-              ),
+              Icon(Icons.check_circle, color: cs.primary, size: 24),
           ],
         ),
       ),
@@ -508,16 +498,17 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
   }
 
   Widget _buildDeliveryFeeSummary(double subTotal) {
+    final cs = Theme.of(context).colorScheme;
     final deliveryFee = _isDelivery ? (_calculatedDeliveryFee ?? 0) : 0.0;
-    final serviceFee = (subTotal * 0.10).roundToDouble();
+    final serviceFee = (subTotal * AppConstants.serviceFeeRate).roundToDouble();
     final total = subTotal + deliveryFee + serviceFee;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: cs.outline.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [
@@ -596,7 +587,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor,
+                  color: cs.primary,
                 ),
               ),
             ],

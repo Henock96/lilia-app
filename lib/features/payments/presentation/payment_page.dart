@@ -46,7 +46,7 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
         _phoneController.text,
       );
 
-      debugPrint('📱 Processing payment with phone: $formattedPhone');
+      debugPrint('📱 Processing payment.');
 
       // 1. Créer le paiement
       final paymentResponse = await paymentService.createPayment(

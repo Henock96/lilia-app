@@ -108,15 +108,9 @@ class _DishCard extends ConsumerWidget {
         width: 160,
         margin: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.12)),
         ),
         child: Opacity(
           opacity: isAvailable ? 1.0 : 0.5,
@@ -223,7 +217,7 @@ class _DishCard extends ConsumerWidget {
                           product.restaurantName!,
                           style: TextStyle(
                             fontSize: 11,
-                            color: Colors.grey[500],
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -237,7 +231,7 @@ class _DishCard extends ConsumerWidget {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
-                              color: theme.primaryColor,
+                              color: theme.colorScheme.primary,
                             ),
                           ),
                           if (isAvailable)
@@ -247,7 +241,7 @@ class _DishCard extends ConsumerWidget {
                                 width: 28,
                                 height: 28,
                                 decoration: BoxDecoration(
-                                  color: theme.primaryColor,
+                                  color: theme.colorScheme.primary,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                                 child: const Icon(
@@ -271,13 +265,16 @@ class _DishCard extends ConsumerWidget {
   }
 
   Widget _buildPlaceholder() {
-    return Container(
-      height: 110,
-      width: double.infinity,
-      color: Colors.grey[200],
-      child: const Center(
-        child: Icon(Icons.fastfood, size: 36, color: Colors.grey),
-      ),
+    return Builder(
+      builder: (context) {
+        final cs = Theme.of(context).colorScheme;
+        return Container(
+          height: 110,
+          width: double.infinity,
+          color: cs.surfaceContainerHighest,
+          child: Icon(Icons.fastfood, size: 36, color: cs.outline),
+        );
+      },
     );
   }
 
@@ -364,8 +361,8 @@ class _DishCard extends ConsumerWidget {
                         errorBuilder: (_, _, _) => Container(
                           width: 50,
                           height: 50,
-                          color: Colors.grey[200],
-                          child: const Icon(Icons.fastfood, size: 24),
+                          color: Theme.of(ctx).colorScheme.surfaceContainerHighest,
+                          child: Icon(Icons.fastfood, size: 24, color: Theme.of(ctx).colorScheme.outline),
                         ),
                       ),
                     ),
@@ -386,7 +383,7 @@ class _DishCard extends ConsumerWidget {
                             product.restaurantName!,
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey[600],
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
                       ],
@@ -415,7 +412,7 @@ class _DishCard extends ConsumerWidget {
                     ),
                     margin: const EdgeInsets.only(bottom: 6),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.grey[200]!),
+                      border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.2)),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
@@ -430,7 +427,7 @@ class _DishCard extends ConsumerWidget {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
-                            color: theme.primaryColor,
+                            color: theme.colorScheme.primary,
                           ),
                         ),
                       ],

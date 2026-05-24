@@ -7,6 +7,7 @@ import 'package:lilia_app/features/auth/controller/auth_controller.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/features/user/edit_profile_page.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
+import 'package:lilia_app/theme/theme_mode_provider.dart';
 
 import '../../common_widgets/build_error_state.dart';
 import 'presentation/pages/about_page.dart';
@@ -20,12 +21,8 @@ class UserPage extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text(
-          'Mon Profil',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Mon Profil'),
         centerTitle: true,
         elevation: 0,
       ),
@@ -45,15 +42,13 @@ class UserPage extends ConsumerWidget {
                         width: double.infinity,
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.surface,
                           borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withValues(alpha: 0.12),
+                          ),
                         ),
                         child: Column(
                           children: [
@@ -77,7 +72,7 @@ class UserPage extends ConsumerWidget {
                                     ),
                                     child: CircleAvatar(
                                       radius: 55,
-                                      backgroundColor: Colors.grey[200],
+                                      backgroundColor: theme.colorScheme.surfaceContainerHighest,
                                       backgroundImage: user.imageUrl != null
                                           ? NetworkImage(user.imageUrl!)
                                           : null,
@@ -85,7 +80,7 @@ class UserPage extends ConsumerWidget {
                                           ? Icon(
                                               Iconsax.user,
                                               size: 50,
-                                              color: Colors.grey[400],
+                                              color: theme.colorScheme.onSurfaceVariant,
                                             )
                                           : null,
                                     ),
@@ -96,7 +91,7 @@ class UserPage extends ConsumerWidget {
                                       color: theme.colorScheme.primary,
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: Colors.white,
+                                        color: theme.colorScheme.surface,
                                         width: 3,
                                       ),
                                     ),
@@ -124,14 +119,14 @@ class UserPage extends ConsumerWidget {
                                 Icon(
                                   Iconsax.sms,
                                   size: 16,
-                                  color: Colors.grey[500],
+                                  color: theme.colorScheme.onSurfaceVariant,
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
                                   user.email ?? 'Email non disponible',
                                   style: TextStyle(
                                     fontSize: 14,
-                                    color: Colors.grey[600],
+                                    color: theme.colorScheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],
@@ -155,15 +150,13 @@ class UserPage extends ConsumerWidget {
                       // Section Menu Principal
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.surface,
                           borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withValues(alpha: 0.12),
+                          ),
                         ),
                         child: Column(
                           children: [
@@ -216,8 +209,8 @@ class UserPage extends ConsumerWidget {
                               onTap: () => context.goNamed(
                                 AppRoutes.changePassword.routeName,
                               ),
-                              showBottomBorder: false,
                             ),
+                            _DarkModeToggle(),
                           ],
                         ),
                       ),
@@ -227,15 +220,13 @@ class UserPage extends ConsumerWidget {
                       // Section Informations
                       Container(
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.surface,
                           borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.outline.withValues(alpha: 0.12),
+                          ),
                         ),
                         child: _ProfileMenuItem(
                           icon: Iconsax.info_circle,
@@ -258,49 +249,36 @@ class UserPage extends ConsumerWidget {
                       const SizedBox(height: 24),
 
                       // Bouton Déconnexion
-                      Container(
+                      SizedBox(
                         width: double.infinity,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.red.withValues(alpha: 0.2),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: ElevatedButton(
+                        child: OutlinedButton(
                           onPressed: () async {
                             _showLogoutConfirmationDialog(context, ref);
                           },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
+                          style: OutlinedButton.styleFrom(
                             foregroundColor: Theme.of(
                               context,
-                            ).colorScheme.primary,
+                            ).colorScheme.error,
+                            side: BorderSide(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.error.withValues(alpha: 0.5),
+                            ),
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            elevation: 0,
                           ),
-                          child: Row(
+                          child: const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                Iconsax.logout,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                              const SizedBox(width: 10),
+                              Icon(Iconsax.logout),
+                              SizedBox(width: 10),
                               Text(
                                 'Se déconnecter',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.primary.withValues(alpha: 0.4),
                                 ),
                               ),
                             ],
@@ -397,7 +375,13 @@ class _ProfileMenuItem extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
           border: showBottomBorder
-              ? Border(bottom: BorderSide(color: Colors.grey[200]!))
+              ? Border(
+                  bottom: BorderSide(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.outline.withValues(alpha: 0.2),
+                  ),
+                )
               : null,
         ),
         child: Row(
@@ -425,12 +409,19 @@ class _ProfileMenuItem extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),
             ),
-            Icon(Iconsax.arrow_right_3, color: Colors.grey[400], size: 20),
+            Icon(
+              Iconsax.arrow_right_3,
+              color: Theme.of(context).colorScheme.outline,
+              size: 20,
+            ),
           ],
         ),
       ),
@@ -608,50 +599,49 @@ class _ReferralCard extends ConsumerWidget {
     final statsAsync = ref.watch(referralStatsProvider);
 
     return statsAsync.when(
-      data: (stats) => Container(
+      data: (stats) {
+        final cs = Theme.of(context).colorScheme;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
+        const purpleLight = Color(0xFF7B2FBE);
+        final purpleDisplay = isDark ? const Color(0xFFCB93F5) : purpleLight;
+
+        return Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: cs.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.purple.withValues(alpha: 0.2)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          border: Border.all(color: purpleDisplay.withValues(alpha: 0.25)),
         ),
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.card_giftcard, color: Colors.purple, size: 22),
-                SizedBox(width: 8),
+                Icon(Icons.card_giftcard, color: purpleDisplay, size: 22),
+                const SizedBox(width: 8),
                 Text(
                   'Parrainage',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
-                    color: Colors.purple,
+                    color: purpleDisplay,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Mon code de parrainage',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
             ),
             const SizedBox(height: 6),
             GestureDetector(
               onTap: () {
                 Clipboard.setData(ClipboardData(text: stats.referralCode));
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Code copie !'),
-                    backgroundColor: Colors.purple,
+                  SnackBar(
+                    content: const Text('Code copie !'),
+                    backgroundColor: purpleDisplay,
                   ),
                 );
               },
@@ -661,10 +651,10 @@ class _ReferralCard extends ConsumerWidget {
                   vertical: 12,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.purple.withValues(alpha: 0.08),
+                  color: purpleDisplay.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: Colors.purple.withValues(alpha: 0.3),
+                    color: purpleDisplay.withValues(alpha: 0.35),
                   ),
                 ),
                 child: Row(
@@ -672,14 +662,14 @@ class _ReferralCard extends ConsumerWidget {
                   children: [
                     Text(
                       stats.referralCode,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 4,
-                        color: Colors.purple,
+                        color: purpleDisplay,
                       ),
                     ),
-                    const Icon(Icons.copy, color: Colors.purple, size: 20),
+                    Icon(Icons.copy, color: purpleDisplay, size: 20),
                   ],
                 ),
               ),
@@ -690,11 +680,15 @@ class _ReferralCard extends ConsumerWidget {
                 _StatBadge(
                   label: 'Parraines',
                   value: '${stats.totalReferrals}',
+                  accentColor: purpleDisplay,
+                  cs: cs,
                 ),
                 const SizedBox(width: 12),
                 _StatBadge(
                   label: 'Recompenses',
                   value: '${stats.rewardedReferrals}',
+                  accentColor: purpleDisplay,
+                  cs: cs,
                 ),
               ],
             ),
@@ -702,17 +696,18 @@ class _ReferralCard extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.purple.withValues(alpha: 0.05),
+                color: purpleDisplay.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Text(
+              child: Text(
                 'Parrainez un ami: +500 pts pour vous, +200 pts pour lui a sa 1ere commande',
-                style: TextStyle(fontSize: 11, color: Colors.purple),
+                style: TextStyle(fontSize: 11, color: purpleDisplay),
               ),
             ),
           ],
         ),
-      ),
+        );
+      },
       loading: () => const SizedBox.shrink(),
       error: (_, _) => const SizedBox.shrink(),
     );
@@ -722,28 +717,100 @@ class _ReferralCard extends ConsumerWidget {
 class _StatBadge extends StatelessWidget {
   final String label;
   final String value;
-  const _StatBadge({required this.label, required this.value});
+  final Color accentColor;
+  final ColorScheme cs;
+
+  const _StatBadge({
+    required this.label,
+    required this.value,
+    required this.accentColor,
+    required this.cs,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.purple.withValues(alpha: 0.08),
+        color: accentColor.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
         children: [
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 18,
-              color: Colors.purple,
+              color: accentColor,
             ),
           ),
-          Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          Text(
+            label,
+            style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _DarkModeToggle extends ConsumerWidget {
+  const _DarkModeToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+    final isDark =
+        themeMode == ThemeMode.dark ||
+        (themeMode == ThemeMode.system &&
+            MediaQuery.platformBrightnessOf(context) == Brightness.dark);
+
+    return InkWell(
+      onTap: () => ref.read(themeModeProvider.notifier).toggle(),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.indigo.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                isDark ? Iconsax.moon : Iconsax.sun_1,
+                color: Colors.indigo,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Mode sombre',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isDark ? 'Activé' : 'Désactivé',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Switch(
+              value: isDark,
+              onChanged: (_) => ref.read(themeModeProvider.notifier).toggle(),
+            ),
+          ],
+        ),
       ),
     );
   }

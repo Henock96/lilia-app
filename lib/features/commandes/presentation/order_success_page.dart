@@ -24,6 +24,7 @@ class _OrderSuccessPageState extends ConsumerState<OrderSuccessPage> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -35,7 +36,7 @@ class _OrderSuccessPageState extends ConsumerState<OrderSuccessPage> {
               children: [
                 Icon(
                   Icons.check_circle_outline,
-                  color: Theme.of(context).primaryColor,
+                  color: cs.primary,
                   size: 100,
                 ),
                 const SizedBox(height: 24),
@@ -45,9 +46,9 @@ class _OrderSuccessPageState extends ConsumerState<OrderSuccessPage> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Merci pour votre confiance. Vous pouvez suivre l\'état de votre commande dans la section "Mes Commandes".',
-                  style: TextStyle(fontSize: 16, color: Colors.black54),
+                  style: TextStyle(fontSize: 16, color: cs.onSurfaceVariant),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 48),
@@ -56,7 +57,7 @@ class _OrderSuccessPageState extends ConsumerState<OrderSuccessPage> {
                     context.goNamed(AppRoutes.commandes.routeName);
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
+                    backgroundColor: cs.primary,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 40,
                       vertical: 16,
@@ -77,10 +78,7 @@ class _OrderSuccessPageState extends ConsumerState<OrderSuccessPage> {
                   },
                   child: Text(
                     'Retour à l\'écran d\'accueil',
-                    style: TextStyle(
-                      color: Theme.of(context).primaryColor,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(color: cs.primary, fontSize: 16),
                   ),
                 ),
               ],

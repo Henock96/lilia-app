@@ -3,6 +3,7 @@ import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/commandes/data/order_repository.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/models/checkout.dart';
+import 'package:lilia_app/services/location_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'checkout_controller.g.dart';
@@ -20,10 +21,12 @@ class CheckoutController extends _$CheckoutController {
     String? contactPhone,
     String? promoCode,
     bool useLoyaltyPoints = false,
+    String? idempotencyKey,
   }) async {
     state = const AsyncLoading();
 
     try {
+      final pos = ref.read(locationServiceProvider).lastPosition;
       final orderRepository = ref.read(orderRepositoryProvider.notifier);
       final order = await orderRepository.createOrders(
         adresseId: adresseId,
@@ -33,6 +36,9 @@ class CheckoutController extends _$CheckoutController {
         contactPhone: contactPhone,
         promoCode: promoCode,
         useLoyaltyPoints: useLoyaltyPoints,
+        idempotencyKey: idempotencyKey,
+        deliveryLatitude: pos?.latitude,
+        deliveryLongitude: pos?.longitude,
       );
 
       ref.invalidate(cartControllerProvider);

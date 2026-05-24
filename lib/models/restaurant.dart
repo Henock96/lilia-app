@@ -1,4 +1,3 @@
-
 import 'package:lilia_app/models/produit.dart';
 
 /// Enum des jours de la semaine
@@ -13,25 +12,39 @@ enum DayOfWeek {
 
   String get label {
     switch (this) {
-      case DayOfWeek.LUNDI: return 'Lundi';
-      case DayOfWeek.MARDI: return 'Mardi';
-      case DayOfWeek.MERCREDI: return 'Mercredi';
-      case DayOfWeek.JEUDI: return 'Jeudi';
-      case DayOfWeek.VENDREDI: return 'Vendredi';
-      case DayOfWeek.SAMEDI: return 'Samedi';
-      case DayOfWeek.DIMANCHE: return 'Dimanche';
+      case DayOfWeek.LUNDI:
+        return 'Lundi';
+      case DayOfWeek.MARDI:
+        return 'Mardi';
+      case DayOfWeek.MERCREDI:
+        return 'Mercredi';
+      case DayOfWeek.JEUDI:
+        return 'Jeudi';
+      case DayOfWeek.VENDREDI:
+        return 'Vendredi';
+      case DayOfWeek.SAMEDI:
+        return 'Samedi';
+      case DayOfWeek.DIMANCHE:
+        return 'Dimanche';
     }
   }
 
   String get shortLabel {
     switch (this) {
-      case DayOfWeek.LUNDI: return 'Lun';
-      case DayOfWeek.MARDI: return 'Mar';
-      case DayOfWeek.MERCREDI: return 'Mer';
-      case DayOfWeek.JEUDI: return 'Jeu';
-      case DayOfWeek.VENDREDI: return 'Ven';
-      case DayOfWeek.SAMEDI: return 'Sam';
-      case DayOfWeek.DIMANCHE: return 'Dim';
+      case DayOfWeek.LUNDI:
+        return 'Lun';
+      case DayOfWeek.MARDI:
+        return 'Mar';
+      case DayOfWeek.MERCREDI:
+        return 'Mer';
+      case DayOfWeek.JEUDI:
+        return 'Jeu';
+      case DayOfWeek.VENDREDI:
+        return 'Ven';
+      case DayOfWeek.SAMEDI:
+        return 'Sam';
+      case DayOfWeek.DIMANCHE:
+        return 'Dim';
     }
   }
 
@@ -95,10 +108,7 @@ class Specialty {
   Specialty({required this.id, required this.name});
 
   factory Specialty.fromJson(Map<String, dynamic> json) {
-    return Specialty(
-      id: json['id'],
-      name: json['name'],
-    );
+    return Specialty(id: json['id'], name: json['name']);
   }
 }
 
@@ -143,8 +153,7 @@ class RestaurantSummary {
       '$estimatedDeliveryTimeMin-$estimatedDeliveryTimeMax min';
 
   /// Retourne les spécialités formatées (ex: "Pizza, Burger, Sushi")
-  String get specialtiesFormatted =>
-      specialties.map((s) => s.name).join(', ');
+  String get specialtiesFormatted => specialties.map((s) => s.name).join(', ');
 
   factory RestaurantSummary.fromJson(Map<String, dynamic> json) {
     // Parser les spécialités
@@ -221,12 +230,15 @@ class Restaurant {
 
   factory Restaurant.fromJson(Map<String, dynamic> json) {
     var productsList = (json['products'] as List?) ?? [];
-    List<Product> products = productsList.map((i) => Product.fromJson(i)).toList();
+    List<Product> products = productsList
+        .map((i) => Product.fromJson(i))
+        .toList();
 
     // Construire une map de catégories à partir des produits
     Map<String, Category> categoriesMap = {};
     for (var product in products) {
-      if (product.category != null && !categoriesMap.containsKey(product.category!.id)) {
+      if (product.category != null &&
+          !categoriesMap.containsKey(product.category!.id)) {
         categoriesMap[product.category!.id] = product.category!;
       }
     }
@@ -274,10 +286,7 @@ class Category {
   final String id;
   final String name;
 
-  Category({
-    required this.id,
-    required this.name,
-  });
+  Category({required this.id, required this.name});
 
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(

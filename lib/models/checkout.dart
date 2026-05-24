@@ -4,7 +4,28 @@
 
 import 'dart:convert';
 
-Checkout checkoutFromMap(String str) => Checkout.fromMap(json.decode(str)["data"]);
+Map<String, dynamic> _asMap(Object? value) =>
+    value is Map<String, dynamic> ? value : <String, dynamic>{};
+
+List<dynamic> _asList(Object? value) => value is List ? value : <dynamic>[];
+
+String _asString(Object? value, [String fallback = '']) =>
+    value is String ? value : fallback;
+
+int _asInt(Object? value, [int fallback = 0]) =>
+    value is num ? value.toInt() : fallback;
+
+DateTime _asDate(Object? value) =>
+    DateTime.tryParse(value?.toString() ?? '') ??
+    DateTime.fromMillisecondsSinceEpoch(0);
+
+Checkout checkoutFromMap(String str) {
+  final decoded = json.decode(str);
+  final data = decoded is Map<String, dynamic> && decoded['data'] != null
+      ? decoded['data']
+      : decoded;
+  return Checkout.fromMap(_asMap(data));
+}
 
 String checkoutToMap(Checkout data) => json.encode(data.toMap());
 
@@ -65,45 +86,54 @@ class Checkout {
     DateTime? updatedAt,
     List<Item>? items,
     bool? isDelivery,
-  }) =>
-      Checkout(
-        id: id ?? this.id,
-        restaurantId: restaurantId ?? this.restaurantId,
-        userId: userId ?? this.userId,
-        subTotal: subTotal ?? this.subTotal,
-        deliveryFee: deliveryFee ?? this.deliveryFee,
-        serviceFee: serviceFee ?? this.serviceFee,
-        discountAmount: discountAmount ?? this.discountAmount,
-        total: total ?? this.total,
-        promoCode: promoCode ?? this.promoCode,
-        notes: notes ?? this.notes,
-        deliveryAddress: deliveryAddress ?? this.deliveryAddress,
-        paymentMethod: paymentMethod ?? this.paymentMethod,
-        status: status ?? this.status,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        items: items ?? this.items,
-        isDelivery: isDelivery ?? this.isDelivery,
-      );
+  }) => Checkout(
+    id: id ?? this.id,
+    restaurantId: restaurantId ?? this.restaurantId,
+    userId: userId ?? this.userId,
+    subTotal: subTotal ?? this.subTotal,
+    deliveryFee: deliveryFee ?? this.deliveryFee,
+    serviceFee: serviceFee ?? this.serviceFee,
+    discountAmount: discountAmount ?? this.discountAmount,
+    total: total ?? this.total,
+    promoCode: promoCode ?? this.promoCode,
+    notes: notes ?? this.notes,
+    deliveryAddress: deliveryAddress ?? this.deliveryAddress,
+    paymentMethod: paymentMethod ?? this.paymentMethod,
+    status: status ?? this.status,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    items: items ?? this.items,
+    isDelivery: isDelivery ?? this.isDelivery,
+  );
 
   factory Checkout.fromMap(Map<String, dynamic> json) => Checkout(
-    id: json["id"],
-    restaurantId: json["restaurantId"],
-    userId: json["userId"],
-    subTotal: json["subTotal"],
-    deliveryFee: json["deliveryFee"],
+    id: _asString(json["id"]),
+    restaurantId: _asString(json["restaurantId"]),
+    userId: _asString(json["userId"]),
+    subTotal: _asInt(json["subTotal"]),
+    deliveryFee: _asInt(json["deliveryFee"]),
     serviceFee: (json["serviceFee"] as num?)?.toInt() ?? 0,
     discountAmount: (json["discountAmount"] as num?)?.toInt() ?? 0,
-    total: json["total"],
-    promoCode: json["promoCode"]?["code"] as String?,
-    notes: json["notes"],
-    deliveryAddress: json["deliveryAddress"], // Peut être null en mode retrait
-    paymentMethod: json["paymentMethod"],
-    status: json["status"],
-    createdAt: DateTime.parse(json["createdAt"]),
-    updatedAt: DateTime.parse(json["updatedAt"]),
-    items: List<Item>.from(json["items"].map((x) => Item.fromMap(x))),
-    isDelivery: json["isDelivery"] ?? true,
+    total: _asInt(json["total"]),
+    promoCode: json["promoCode"] is Map<String, dynamic>
+        ? (_asMap(json["promoCode"])["code"] is String
+              ? _asMap(json["promoCode"])["code"] as String
+              : null)
+        : json["promoCode"] is String
+        ? json["promoCode"] as String
+        : null,
+    notes: json["notes"] is String ? json["notes"] as String : null,
+    deliveryAddress: json["deliveryAddress"] is String
+        ? json["deliveryAddress"] as String
+        : null,
+    paymentMethod: _asString(json["paymentMethod"]),
+    status: _asString(json["status"]),
+    createdAt: _asDate(json["createdAt"]),
+    updatedAt: _asDate(json["updatedAt"]),
+    items: _asList(
+      json["items"],
+    ).whereType<Map<String, dynamic>>().map(Item.fromMap).toList(),
+    isDelivery: json["isDelivery"] is bool ? json["isDelivery"] as bool : true,
   );
 
   Map<String, dynamic> toMap() => {
@@ -157,27 +187,26 @@ class Item {
     int? quantite,
     int? prix,
     DateTime? createdAt,
-  }) =>
-      Item(
-        id: id ?? this.id,
-        orderId: orderId ?? this.orderId,
-        productId: productId ?? this.productId,
-        menuId: menuId ?? this.menuId,
-        variant: variant ?? this.variant,
-        quantite: quantite ?? this.quantite,
-        prix: prix ?? this.prix,
-        createdAt: createdAt ?? this.createdAt,
-      );
+  }) => Item(
+    id: id ?? this.id,
+    orderId: orderId ?? this.orderId,
+    productId: productId ?? this.productId,
+    menuId: menuId ?? this.menuId,
+    variant: variant ?? this.variant,
+    quantite: quantite ?? this.quantite,
+    prix: prix ?? this.prix,
+    createdAt: createdAt ?? this.createdAt,
+  );
 
   factory Item.fromMap(Map<String, dynamic> json) => Item(
-    id: json["id"],
-    orderId: json["orderId"],
-    productId: json["productId"],
-    menuId: json["menuId"],
-    variant: json["variant"],
-    quantite: json["quantite"],
-    prix: json["prix"],
-    createdAt: DateTime.parse(json["createdAt"]),
+    id: _asString(json["id"]),
+    orderId: _asString(json["orderId"]),
+    productId: _asString(json["productId"]),
+    menuId: json["menuId"] is String ? json["menuId"] as String : null,
+    variant: _asString(json["variant"], 'Standard'),
+    quantite: _asInt(json["quantite"]),
+    prix: _asInt(json["prix"]),
+    createdAt: _asDate(json["createdAt"]),
   );
 
   Map<String, dynamic> toMap() => {

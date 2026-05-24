@@ -49,11 +49,16 @@ class FirebaseAuthenticationRepository {
     if (user != null) {
       try {
         final idToken = await user.getIdToken();
-        await _client.post(
-          Uri.parse('${AppConstants.baseUrl}/users/sync'),
-          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $idToken'},
-          body: jsonEncode({'firebaseUid': user.uid, 'email': user.email}),
-        ).timeout(const Duration(seconds: 8));
+        await _client
+            .post(
+              Uri.parse('${AppConstants.baseUrl}/users/sync'),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $idToken',
+              },
+              body: jsonEncode({'firebaseUid': user.uid, 'email': user.email}),
+            )
+            .timeout(const Duration(seconds: 8));
       } catch (_) {}
     }
   }
@@ -63,7 +68,7 @@ class FirebaseAuthenticationRepository {
     required String password,
     required String name,
     required String phone,
-  String? referralCode,
+    String? referralCode,
   }) async {
     // Étape 1: Créer l'utilisateur dans Firebase Auth
     final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
@@ -90,7 +95,8 @@ class FirebaseAuthenticationRepository {
         'email': email,
         'nom': name,
         'telephone': phone,
-      if (referralCode != null && referralCode.isNotEmpty) 'referralCode': referralCode,
+        if (referralCode != null && referralCode.isNotEmpty)
+          'referralCode': referralCode,
       }),
     );
 
@@ -144,9 +150,7 @@ class FirebaseAuthenticationRepository {
       final url = Uri.parse('${AppConstants.baseUrl}/users/sync');
 
       if (kDebugMode) {
-        print('ðŸ”„ Synchronizing user with backend...');
-        print('ðŸ“§ Email: ${user.email}');
-        print('ðŸ†” Firebase UID: ${user.uid}');
+        debugPrint('Synchronizing Google user with backend...');
       }
 
       final response = await _client
@@ -166,14 +170,13 @@ class FirebaseAuthenticationRepository {
           .timeout(const Duration(seconds: 10));
 
       if (kDebugMode) {
-        print('ðŸ“¡ Backend response status: ${response.statusCode}');
-        print('ðŸ“¡ Backend response body: ${response.body}');
+        debugPrint('Backend sync response status: ${response.statusCode}');
       }
 
       // Accepter 200 (utilisateur existant/mis à jour) et 201 (nouvel utilisateur créé)
       if (response.statusCode != 201 && response.statusCode != 200) {
         if (kDebugMode) {
-          print('âŒ Backend sync failed with status ${response.statusCode}');
+          debugPrint('Backend sync failed with status ${response.statusCode}');
         }
         // Supprimer l'utilisateur Firebase seulement si le backend échoue
         await user.delete();
@@ -183,26 +186,26 @@ class FirebaseAuthenticationRepository {
       }
 
       if (kDebugMode) {
-        print('âœ… User successfully synchronized with backend');
+        debugPrint('User successfully synchronized with backend');
       }
     } on http.ClientException catch (e) {
       // Erreur réseau
       if (kDebugMode) {
-        print('âŒ Network error during backend sync: $e');
+        debugPrint('Network error during backend sync: $e');
       }
       await user.delete();
       throw Exception('Erreur réseau: Impossible de se connecter au serveur');
     } on TimeoutException catch (e) {
       // Timeout
       if (kDebugMode) {
-        print('âŒ Timeout during backend sync: $e');
+        debugPrint('Timeout during backend sync: $e');
       }
       await user.delete();
       throw Exception('Le serveur ne répond pas. Veuillez réessayer.');
     } catch (e) {
       // Autre erreur
       if (kDebugMode) {
-        print('âŒ Unexpected error during backend sync: $e');
+        debugPrint('Unexpected error during backend sync: $e');
       }
       await user.delete();
       rethrow;
@@ -301,5 +304,3 @@ Stream<String?> firebaseIdToken(Ref ref) {
     return await user.getIdToken();
   });
 }
-
-

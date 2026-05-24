@@ -33,7 +33,7 @@ final class OrderRepositoryProvider
   OrderRepository create() => OrderRepository();
 }
 
-String _$orderRepositoryHash() => r'a55d1c0e91064d5470eb96b03d253d133a63fcd2';
+String _$orderRepositoryHash() => r'3671b3c2371c691b59b9fad45599ee4235f74cdd';
 
 abstract class _$OrderRepository extends $AsyncNotifier<void> {
   FutureOr<void> build();

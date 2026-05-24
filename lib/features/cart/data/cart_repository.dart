@@ -25,6 +25,38 @@ class CartRepository {
 
   CartRepository();
 
+  dynamic _decodeBody(http.Response response) {
+    if (response.bodyBytes.isEmpty) return null;
+    return jsonDecode(utf8.decode(response.bodyBytes));
+  }
+
+  Map<String, dynamic>? _asMap(dynamic value) {
+    return value is Map<String, dynamic> ? value : null;
+  }
+
+  Map<String, dynamic>? _unwrapDataMap(dynamic value) {
+    final map = _asMap(value);
+    if (map == null) return null;
+    final data = map['data'];
+    if (data is Map<String, dynamic>) return data;
+    return map;
+  }
+
+  Cart? _cartFromResponse(http.Response response) {
+    final data = _unwrapDataMap(_decodeBody(response));
+    return data == null ? null : Cart.fromJson(data);
+  }
+
+  String _messageFromResponse(http.Response response, String fallback) {
+    try {
+      final body = _asMap(_decodeBody(response));
+      final message = body?['message'];
+      if (message is List) return message.join('. ');
+      if (message is String && message.isNotEmpty) return message;
+    } catch (_) {}
+    return fallback;
+  }
+
   Future<String?> _getIdToken() async {
     final user = _firebaseAuth.currentUser;
     return await user?.getIdToken();
@@ -70,9 +102,7 @@ class CartRepository {
           .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final cart = data != null ? Cart.fromJson(data) : null;
-        _safeAdd(cart);
+        _safeAdd(_cartFromResponse(response));
       } else {
         _safeAdd(null);
       }
@@ -118,16 +148,15 @@ class CartRepository {
         debugPrint('✅ Item added to cart successfully');
         await getCart();
       } else if (response.statusCode == 400) {
-        final errorData = jsonDecode(response.body);
         throw CartException(
-          errorData['message'] ?? 'Données invalides. Veuillez réessayer.',
+          _messageFromResponse(
+            response,
+            'Données invalides. Veuillez réessayer.',
+          ),
           code: 'INVALID_DATA',
         );
       } else if (response.statusCode == 404) {
-        throw CartException(
-          'Produit non trouvé.',
-          code: 'NOT_FOUND',
-        );
+        throw CartException('Produit non trouvé.', code: 'NOT_FOUND');
       } else if (response.statusCode >= 500) {
         throw CartException(
           'Erreur du serveur. Veuillez réessayer plus tard.',
@@ -201,15 +230,9 @@ class CartRepository {
         );
       }
     } on SocketException {
-      throw CartException(
-        'Pas de connexion internet.',
-        code: 'NO_INTERNET',
-      );
+      throw CartException('Pas de connexion internet.', code: 'NO_INTERNET');
     } on TimeoutException {
-      throw CartException(
-        'La requête a pris trop de temps.',
-        code: 'TIMEOUT',
-      );
+      throw CartException('La requête a pris trop de temps.', code: 'TIMEOUT');
     } catch (e) {
       if (e is CartException) rethrow;
       throw CartException(
@@ -245,15 +268,9 @@ class CartRepository {
         );
       }
     } on SocketException {
-      throw CartException(
-        'Pas de connexion internet.',
-        code: 'NO_INTERNET',
-      );
+      throw CartException('Pas de connexion internet.', code: 'NO_INTERNET');
     } on TimeoutException {
-      throw CartException(
-        'La requête a pris trop de temps.',
-        code: 'TIMEOUT',
-      );
+      throw CartException('La requête a pris trop de temps.', code: 'TIMEOUT');
     } catch (e) {
       if (e is CartException) rethrow;
       throw CartException(
@@ -289,20 +306,14 @@ class CartRepository {
           .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        final cart = data != null ? Cart.fromJson(data) : null;
-        _safeAdd(cart);
+        _safeAdd(_cartFromResponse(response));
       } else if (response.statusCode == 400) {
-        final errorData = jsonDecode(response.body);
         throw CartException(
-          errorData['message'] ?? 'Impossible d\'ajouter le menu.',
+          _messageFromResponse(response, 'Impossible d\'ajouter le menu.'),
           code: 'INVALID_DATA',
         );
       } else if (response.statusCode == 404) {
-        throw CartException(
-          'Menu non trouvé.',
-          code: 'NOT_FOUND',
-        );
+        throw CartException('Menu non trouvé.', code: 'NOT_FOUND');
       } else if (response.statusCode >= 500) {
         throw CartException(
           'Erreur du serveur. Veuillez réessayer plus tard.',
@@ -364,9 +375,7 @@ class CartRepository {
           .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final cart = data != null ? Cart.fromJson(data) : null;
-        _safeAdd(cart);
+        _safeAdd(_cartFromResponse(response));
       } else {
         throw CartException(
           'Impossible de mettre à jour la quantité du menu.',
@@ -374,15 +383,9 @@ class CartRepository {
         );
       }
     } on SocketException {
-      throw CartException(
-        'Pas de connexion internet.',
-        code: 'NO_INTERNET',
-      );
+      throw CartException('Pas de connexion internet.', code: 'NO_INTERNET');
     } on TimeoutException {
-      throw CartException(
-        'La requête a pris trop de temps.',
-        code: 'TIMEOUT',
-      );
+      throw CartException('La requête a pris trop de temps.', code: 'TIMEOUT');
     } catch (e) {
       if (e is CartException) rethrow;
       throw CartException(
@@ -411,9 +414,7 @@ class CartRepository {
           .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final cart = data != null ? Cart.fromJson(data) : null;
-        _safeAdd(cart);
+        _safeAdd(_cartFromResponse(response));
       } else {
         throw CartException(
           'Impossible de supprimer le menu.',
@@ -421,15 +422,9 @@ class CartRepository {
         );
       }
     } on SocketException {
-      throw CartException(
-        'Pas de connexion internet.',
-        code: 'NO_INTERNET',
-      );
+      throw CartException('Pas de connexion internet.', code: 'NO_INTERNET');
     } on TimeoutException {
-      throw CartException(
-        'La requête a pris trop de temps.',
-        code: 'TIMEOUT',
-      );
+      throw CartException('La requête a pris trop de temps.', code: 'TIMEOUT');
     } catch (e) {
       if (e is CartException) rethrow;
       throw CartException(
@@ -466,15 +461,9 @@ class CartRepository {
         );
       }
     } on SocketException {
-      throw CartException(
-        'Pas de connexion internet.',
-        code: 'NO_INTERNET',
-      );
+      throw CartException('Pas de connexion internet.', code: 'NO_INTERNET');
     } on TimeoutException {
-      throw CartException(
-        'La requête a pris trop de temps.',
-        code: 'TIMEOUT',
-      );
+      throw CartException('La requête a pris trop de temps.', code: 'TIMEOUT');
     } catch (e) {
       if (e is CartException) rethrow;
       throw CartException(
@@ -501,9 +490,7 @@ class CartRepository {
       final response = await http
           .post(
             Uri.parse('${AppConstants.baseUrl}/orders/$orderId/reorder'),
-            headers: {
-              'Authorization': 'Bearer $token',
-            },
+            headers: {'Authorization': 'Bearer $token'},
           )
           .timeout(
             const Duration(seconds: 30),
@@ -515,17 +502,18 @@ class CartRepository {
           );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        debugPrint('✅ Order reordered: summary=${data['summary']}');
+        final decoded = _decodeBody(response);
+        final data = _asMap(decoded) ?? <String, dynamic>{};
+        final result = _asMap(data['data']) ?? data;
+        debugPrint('Order reordered successfully');
 
         // Rafraîchir le panier
         await getCart();
 
-        return data;
+        return result;
       } else if (response.statusCode == 400) {
-        final errorData = jsonDecode(response.body);
         throw CartException(
-          errorData['message'] ?? 'Erreur lors de la recommande.',
+          _messageFromResponse(response, 'Erreur lors de la recommande.'),
           code: 'INVALID_DATA',
         );
       } else if (response.statusCode == 403) {
@@ -534,10 +522,7 @@ class CartRepository {
           code: 'FORBIDDEN',
         );
       } else if (response.statusCode == 404) {
-        throw CartException(
-          'Commande non trouvée.',
-          code: 'NOT_FOUND',
-        );
+        throw CartException('Commande non trouvée.', code: 'NOT_FOUND');
       } else if (response.statusCode >= 500) {
         throw CartException(
           'Erreur du serveur. Veuillez réessayer plus tard.',

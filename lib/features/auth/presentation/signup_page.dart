@@ -266,15 +266,16 @@ class _SocialLogins extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
     return OutlinedButton.icon(
       onPressed: () async {
         await ref.read(authControllerProvider.notifier).signInWithGoogle();
       },
       icon: Image.asset('assets/images/google_logo.png', height: 24.0),
-      label: const Text("S'inscrire avec Google", style: TextStyle(color: Colors.black87)),
+      label: Text("S'inscrire avec Google", style: TextStyle(color: cs.onSurface)),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 12.0),
-        side: BorderSide(color: Colors.grey.shade300),
+        side: BorderSide(color: cs.outline.withValues(alpha: 0.4)),
       ),
     );
   }
@@ -288,10 +289,10 @@ class _SignInNavigation extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Text('Vous avez deja un compte ?', style: TextStyle(color: Colors.black87, fontSize: 14)),
+        Text('Vous avez deja un compte ?', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14)),
         TextButton(
           onPressed: () => context.goNamed(AppRoutes.signIn.routeName),
-          child: const Text("Se connecter", style: TextStyle(color: Colors.black87, fontSize: 12)),
+          child: Text("Se connecter", style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 12, fontWeight: FontWeight.w600)),
         ),
       ],
     );

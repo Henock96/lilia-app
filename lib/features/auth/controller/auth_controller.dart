@@ -57,8 +57,7 @@ class AuthController extends _$AuthController {
       state = AsyncValue.error(errorMessage, st);
     } catch (e, st) {
       if (kDebugMode) {
-        print('Caught error: $e');
-        print('Runtime type: ${e.runtimeType}');
+        debugPrint('Email sign-in failed: ${e.runtimeType}');
       }
       state = AsyncValue.error(
         "Une erreur inconnue est survenue. Veuillez réessayer.",
@@ -67,7 +66,13 @@ class AuthController extends _$AuthController {
     }
   }
 
-  Future<void> createUserWithEmailAndPassword(String email, String password, String name, String phone, {String? referralCode}) async {
+  Future<void> createUserWithEmailAndPassword(
+    String email,
+    String password,
+    String name,
+    String phone, {
+    String? referralCode,
+  }) async {
     state = const AsyncValue.loading();
     try {
       await ref
@@ -86,8 +91,7 @@ class AuthController extends _$AuthController {
       state = AsyncValue.error(errorMessage, st);
     } catch (e, st) {
       if (kDebugMode) {
-        print('Caught error: $e');
-        print('Runtime type: ${e.runtimeType}');
+        debugPrint('Email sign-up failed: ${e.runtimeType}');
       }
       state = AsyncValue.error(
         "Une erreur inconnue est survenue. Veuillez réessayer.",
@@ -172,5 +176,3 @@ class AuthController extends _$AuthController {
     }
   }
 }
-
-

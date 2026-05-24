@@ -1,5 +1,21 @@
 // lib/models/order_item.dart
 
+Map<String, dynamic> _asMap(Object? value) =>
+    value is Map<String, dynamic> ? value : <String, dynamic>{};
+
+String _asString(Object? value, [String fallback = '']) =>
+    value is String ? value : fallback;
+
+int _asInt(Object? value, [int fallback = 0]) =>
+    value is num ? value.toInt() : fallback;
+
+double _asDouble(Object? value, [double fallback = 0]) =>
+    value is num ? value.toDouble() : fallback;
+
+DateTime _asDate(Object? value) =>
+    DateTime.tryParse(value?.toString() ?? '') ??
+    DateTime.fromMillisecondsSinceEpoch(0);
+
 class OrderItem {
   final String id;
   final String orderId;
@@ -8,7 +24,8 @@ class OrderItem {
   final int quantite;
   final double prix;
   final DateTime createdAt;
-  final OrderItemProduct product; // Contient maintenant plus de détails sur le produit
+  final OrderItemProduct
+  product; // Contient maintenant plus de détails sur le produit
 
   OrderItem({
     required this.id,
@@ -23,14 +40,14 @@ class OrderItem {
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
     return OrderItem(
-      id: json['id'],
-      orderId: json['orderId'],
-      productId: json['productId'],
-      variant: json['variant'],
-      quantite: json['quantite'],
-      prix: (json['prix'] as num).toDouble(),
-      createdAt: DateTime.parse(json['createdAt']),
-      product: OrderItemProduct.fromJson(json['product']),
+      id: _asString(json['id']),
+      orderId: _asString(json['orderId']),
+      productId: _asString(json['productId']),
+      variant: _asString(json['variant'], 'Standard'),
+      quantite: _asInt(json['quantite']),
+      prix: _asDouble(json['prix']),
+      createdAt: _asDate(json['createdAt']),
+      product: OrderItemProduct.fromJson(_asMap(json['product'])),
     );
   }
 }
@@ -38,7 +55,7 @@ class OrderItem {
 class OrderItemProduct {
   final String nom;
   final String description; // Nouvelle propriété
-  final String? imageUrl;   // Nouvelle propriété (peut être null)
+  final String? imageUrl; // Nouvelle propriété (peut être null)
 
   OrderItemProduct({
     required this.nom,
@@ -48,9 +65,9 @@ class OrderItemProduct {
 
   factory OrderItemProduct.fromJson(Map<String, dynamic> json) {
     return OrderItemProduct(
-      nom: json['nom'],
-      description: json['description'],
-      imageUrl: json['imageUrl'], // Parsez la nouvelle propriété
+      nom: _asString(json['nom'], 'Produit'),
+      description: _asString(json['description']),
+      imageUrl: json['imageUrl'] is String ? json['imageUrl'] as String : null,
     );
   }
 }

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:lilia_app/constants/app_constants.dart';
@@ -22,6 +22,11 @@ String _extractErrorMessage(http.Response response, String fallback) {
   return fallback;
 }
 
+Map<String, dynamic>? _asMap(Object? value) =>
+    value is Map<String, dynamic> ? value : null;
+
+List<dynamic> _asList(Object? value) => value is List ? value : <dynamic>[];
+
 @Riverpod(keepAlive: true)
 class OrderRepository extends _$OrderRepository {
   @override
@@ -35,10 +40,16 @@ class OrderRepository extends _$OrderRepository {
       headers: {'Authorization': 'Bearer $token'},
     );
     if (response.statusCode == 200) {
-      List<dynamic> ordersJson = json.decode(utf8.decode(response.bodyBytes))["data"];
-      return ordersJson.map((json) => Order.fromJson(json)).toList();
+      final body = _asMap(json.decode(utf8.decode(response.bodyBytes)));
+      final ordersJson = _asList(body?["data"]);
+      return ordersJson
+          .whereType<Map<String, dynamic>>()
+          .map(Order.fromJson)
+          .toList();
     } else {
-      throw Exception(_extractErrorMessage(response, 'Impossible de charger vos commandes.'));
+      throw Exception(
+        _extractErrorMessage(response, 'Impossible de charger vos commandes.'),
+      );
     }
   }
 
@@ -50,6 +61,9 @@ class OrderRepository extends _$OrderRepository {
     String? contactPhone,
     String? promoCode,
     bool useLoyaltyPoints = false,
+    String? idempotencyKey,
+    double? deliveryLatitude,
+    double? deliveryLongitude,
   }) async {
     final token = await ref.read(firebaseIdTokenProvider.future);
     if (token == null) throw Exception('Veuillez vous reconnecter.');
@@ -59,20 +73,29 @@ class OrderRepository extends _$OrderRepository {
       'isDelivery': isDelivery,
       if (isDelivery && adresseId != null) 'adresseId': adresseId,
       if (note != null && note.isNotEmpty) 'notes': note,
-      if (contactPhone != null && contactPhone.isNotEmpty) 'contactPhone': contactPhone,
+      if (contactPhone != null && contactPhone.isNotEmpty)
+        'contactPhone': contactPhone,
       if (promoCode != null && promoCode.isNotEmpty) 'promoCode': promoCode,
       if (useLoyaltyPoints) 'useLoyaltyPoints': true,
+      if (deliveryLatitude != null) 'deliveryLatitude': deliveryLatitude,
+      if (deliveryLongitude != null) 'deliveryLongitude': deliveryLongitude,
     };
 
     final response = await http.post(
       Uri.parse('${AppConstants.baseUrl}/orders/checkout'),
-      headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $token'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+        if (idempotencyKey != null) 'Idempotency-Key': idempotencyKey,
+      },
       body: json.encode(bodyMap),
     );
     if (response.statusCode == 201) {
       return checkoutFromMap(response.body);
     } else {
-      throw Exception(_extractErrorMessage(response, 'Impossible de passer la commande.'));
+      throw Exception(
+        _extractErrorMessage(response, 'Impossible de passer la commande.'),
+      );
     }
   }
 
@@ -84,7 +107,9 @@ class OrderRepository extends _$OrderRepository {
       headers: {'Authorization': 'Bearer $token'},
     );
     if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception(_extractErrorMessage(response, 'Impossible de recommander.'));
+      throw Exception(
+        _extractErrorMessage(response, 'Impossible de recommander.'),
+      );
     }
   }
 
@@ -96,7 +121,9 @@ class OrderRepository extends _$OrderRepository {
       headers: {'Authorization': 'Bearer $token'},
     );
     if (response.statusCode != 200) {
-      throw Exception(_extractErrorMessage(response, 'Impossible de supprimer la commande.'));
+      throw Exception(
+        _extractErrorMessage(response, 'Impossible de supprimer la commande.'),
+      );
     }
   }
 
@@ -108,7 +135,9 @@ class OrderRepository extends _$OrderRepository {
       headers: {'Authorization': 'Bearer $token'},
     );
     if (response.statusCode != 200) {
-      throw Exception(_extractErrorMessage(response, 'Impossible d\'annuler la commande.'));
+      throw Exception(
+        _extractErrorMessage(response, 'Impossible d\'annuler la commande.'),
+      );
     }
   }
 }

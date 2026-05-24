@@ -136,8 +136,10 @@ GoRouter router(Ref ref) {
         path: AppRoutes.reviews.path,
         name: AppRoutes.reviews.routeName,
         pageBuilder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
-          if (extra == null) {
+          final extra = state.extra;
+          if (extra is! Map<String, dynamic> ||
+              extra['restaurantId'] is! String ||
+              extra['restaurantName'] is! String) {
             return const MaterialPage(child: NotFoundScreen());
           }
           return MaterialPage(
@@ -152,8 +154,10 @@ GoRouter router(Ref ref) {
             path: AppRoutes.writeReview.path,
             name: AppRoutes.writeReview.routeName,
             pageBuilder: (context, state) {
-              final extra = state.extra as Map<String, dynamic>?;
-              if (extra == null) {
+              final extra = state.extra;
+              if (extra is! Map<String, dynamic> ||
+                  extra['restaurantId'] is! String ||
+                  extra['restaurantName'] is! String) {
                 return const MaterialPage(child: NotFoundScreen());
               }
               return MaterialPage(
@@ -314,8 +318,11 @@ GoRouter router(Ref ref) {
                         name: AppRoutes.favoriteDetail.routeName,
                         pageBuilder: (context, state) {
                           final Product? product = state.extra as Product?;
+                          if (product == null) {
+                            return const MaterialPage(child: NotFoundScreen());
+                          }
                           return MaterialPage(
-                            child: FavorisDetailPage(product: product!),
+                            child: FavorisDetailPage(product: product),
                           );
                         },
                       ),
