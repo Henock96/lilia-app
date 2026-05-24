@@ -11,39 +11,99 @@ import 'tracking_socket_service.dart';
 
 part 'delivery_tracking_repository.g.dart';
 
-/// Position du livreur affichée à l'utilisateur (côté UI).
-/// Construite soit depuis le WebSocket (`DriverPositionEvent`) soit depuis
-/// l'endpoint HTTP `GET /deliveries/by-order/:orderId` (fallback initial).
+/// État de tracking d'une commande côté UI.
+///
+/// Construit depuis l'endpoint HTTP `GET /deliveries/by-order/:orderId`
+/// (fallback initial + sync 30s) et mis à jour via WebSocket `/tracking`
+/// (`DriverPositionEvent` toutes les ~5s).
+///
+/// Le backend renvoie (`findByOrderId`) :
+/// ```
+/// {
+///   id, status, lastLatitude, lastLongitude, lastPositionAt,
+///   estimatedArrival, pickedUpAt, deliveredAt, createdAt,
+///   deliverer: { id, nom, phone, imageUrl },
+///   order: {
+///     id,
+///     deliveryLatitude, deliveryLongitude,
+///     restaurant: { id, nom, latitude, longitude },
+///   },
+/// }
+/// ```
 class DriverLocation {
-  final double latitude;
-  final double longitude;
+  /// Dernière position connue du livreur. `null` si le livreur n'a pas
+  /// encore émis (mission acceptée mais pas encore en route, GPS pas prêt).
+  final double? latitude;
+  final double? longitude;
   final DateTime? updatedAt;
+
+  // Infos livreur (depuis `deliverer` imbriqué).
   final String? driverNom;
   final String? driverPhone;
+  final String? driverImageUrl;
+
+  // ETA en minutes (event WS ou calcul backend).
   final int? etaMinutes;
 
+  // Destination = adresse client (depuis `order.deliveryLatitude/Longitude`).
+  final double? destinationLatitude;
+  final double? destinationLongitude;
+
+  // Restaurant (point de départ logique de la livraison).
+  final String? restaurantNom;
+  final double? restaurantLatitude;
+  final double? restaurantLongitude;
+
   const DriverLocation({
-    required this.latitude,
-    required this.longitude,
+    this.latitude,
+    this.longitude,
     this.updatedAt,
     this.driverNom,
     this.driverPhone,
+    this.driverImageUrl,
     this.etaMinutes,
+    this.destinationLatitude,
+    this.destinationLongitude,
+    this.restaurantNom,
+    this.restaurantLatitude,
+    this.restaurantLongitude,
   });
+
+  /// `true` ssi on a une position GPS exploitable du livreur.
+  bool get hasDriverPosition => latitude != null && longitude != null;
+
+  /// `true` ssi le backend a renvoyé l'adresse client géocodée.
+  bool get hasDestination =>
+      destinationLatitude != null && destinationLongitude != null;
+
+  /// `true` ssi le backend a renvoyé les coords du restaurant.
+  bool get hasRestaurant =>
+      restaurantLatitude != null && restaurantLongitude != null;
 
   factory DriverLocation.fromHttpJson(Map<String, dynamic> json) {
     final deliverer = json['deliverer'] as Map<String, dynamic>?;
+    final order = json['order'] as Map<String, dynamic>?;
+    final restaurant = order?['restaurant'] as Map<String, dynamic>?;
+
     return DriverLocation(
-      latitude: (json['lastLatitude'] as num).toDouble(),
-      longitude: (json['lastLongitude'] as num).toDouble(),
+      latitude: (json['lastLatitude'] as num?)?.toDouble(),
+      longitude: (json['lastLongitude'] as num?)?.toDouble(),
       updatedAt: json['lastPositionAt'] != null
-          ? DateTime.parse(json['lastPositionAt'] as String)
+          ? DateTime.tryParse(json['lastPositionAt'] as String)
           : null,
       driverNom: deliverer?['nom'] as String?,
       driverPhone: deliverer?['phone'] as String?,
+      driverImageUrl: deliverer?['imageUrl'] as String?,
+      destinationLatitude: (order?['deliveryLatitude'] as num?)?.toDouble(),
+      destinationLongitude: (order?['deliveryLongitude'] as num?)?.toDouble(),
+      restaurantNom: restaurant?['nom'] as String?,
+      restaurantLatitude: (restaurant?['latitude'] as num?)?.toDouble(),
+      restaurantLongitude: (restaurant?['longitude'] as num?)?.toDouble(),
     );
   }
 
+  /// Met à jour la position depuis un event WebSocket en gardant le contexte
+  /// commande (livreur, resto, destination) déjà chargé via HTTP.
   DriverLocation copyWithWsPosition(DriverPositionEvent event) {
     return DriverLocation(
       latitude: event.lat,
@@ -51,12 +111,23 @@ class DriverLocation {
       updatedAt: event.timestamp,
       driverNom: driverNom,
       driverPhone: driverPhone,
+      driverImageUrl: driverImageUrl,
       etaMinutes: event.eta,
+      destinationLatitude: destinationLatitude,
+      destinationLongitude: destinationLongitude,
+      restaurantNom: restaurantNom,
+      restaurantLatitude: restaurantLatitude,
+      restaurantLongitude: restaurantLongitude,
     );
   }
 }
 
-/// Charge la position initiale via HTTP (et récupère les infos du livreur).
+/// Charge l'état tracking initial via HTTP.
+///
+/// Renvoie toujours un [DriverLocation] dès que le backend trouve la
+/// livraison, même si le livreur n'a pas encore émis sa position GPS —
+/// l'UI peut alors afficher déjà le marker resto + destination et
+/// l'avatar livreur. `null` uniquement si le backend renvoie une erreur.
 Future<DriverLocation?> fetchDriverLocation(String orderId, String token) async {
   final response = await http.get(
     Uri.parse('${AppConstants.baseUrl}/deliveries/by-order/$orderId'),
@@ -64,8 +135,8 @@ Future<DriverLocation?> fetchDriverLocation(String orderId, String token) async 
   );
   if (response.statusCode == 200) {
     final body = jsonDecode(utf8.decode(response.bodyBytes));
-    final data = body['data'] as Map<String, dynamic>;
-    if (data['lastLatitude'] == null) return null;
+    final data = body['data'] as Map<String, dynamic>?;
+    if (data == null) return null;
     return DriverLocation.fromHttpJson(data);
   }
   return null;

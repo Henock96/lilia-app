@@ -7,6 +7,40 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/delivery_tracking_repository.dart';
 
+const LatLng _kBrazzavilleCenter = LatLng(-4.2634, 15.2429);
+
+/// Résout les coords de destination pour la carte :
+/// - en priorité l'adresse client renvoyée par le backend (`order.deliveryLat/Lng`)
+/// - sinon le GPS actuel du client (avec permission)
+/// - sinon le centre de Brazzaville (fallback safe).
+Future<LatLng> _resolveClientDestination(DriverLocation location) async {
+  if (location.destinationLatitude != null &&
+      location.destinationLongitude != null) {
+    return LatLng(
+      location.destinationLatitude!,
+      location.destinationLongitude!,
+    );
+  }
+  try {
+    var perm = await Geolocator.checkPermission();
+    if (perm == LocationPermission.denied) {
+      perm = await Geolocator.requestPermission();
+    }
+    if (perm == LocationPermission.denied ||
+        perm == LocationPermission.deniedForever) {
+      return _kBrazzavilleCenter;
+    }
+    final pos = await Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.low,
+      ),
+    );
+    return LatLng(pos.latitude, pos.longitude);
+  } catch (_) {
+    return _kBrazzavilleCenter;
+  }
+}
+
 class DriverTrackingMap extends ConsumerWidget {
   final String orderId;
   final bool fullscreen;
@@ -44,25 +78,24 @@ class DriverTrackingMap extends ConsumerWidget {
             ],
           ),
         ),
-        data: (location) => location == null
-            ? const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.location_searching,
-                      size: 48,
-                      color: Colors.grey,
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      'Position GPS en cours d\'acquisition...',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
-              )
-            : _FullscreenMapView(location: location),
+        data: (location) {
+          if (location == null) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.location_searching, size: 48, color: Colors.grey),
+                  SizedBox(height: 12),
+                  Text(
+                    'En attente d\'attribution d\'un livreur…',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ],
+              ),
+            );
+          }
+          return _FullscreenMapView(location: location);
+        },
       );
     }
 
@@ -128,11 +161,14 @@ class DriverTrackingMap extends ConsumerWidget {
                   .read(driverLocationControllerProvider(orderId).notifier)
                   .refresh(),
             ),
-            data: (location) => location == null
-                ? const _NoPositionPlaceholder(
-                    message: 'Position GPS en cours d\'acquisition...',
-                  )
-                : _MapView(location: location),
+            data: (location) {
+              if (location == null) {
+                return const _NoPositionPlaceholder(
+                  message: 'En attente d\'attribution d\'un livreur…',
+                );
+              }
+              return _MapView(location: location);
+            },
           ),
 
           // Infos livreur
@@ -188,80 +224,60 @@ class _FullscreenMapView extends StatefulWidget {
 
 class _FullscreenMapViewState extends State<_FullscreenMapView> {
   GoogleMapController? _ctrl;
-  LatLng? _clientPos;
+  LatLng? _destination;
   StreamSubscription<Position>? _posSub;
 
   @override
   void initState() {
     super.initState();
-    _initClientPosition();
+    _initDestination();
   }
 
-  Future<void> _initClientPosition() async {
-    try {
-      var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied) {
-        perm = await Geolocator.requestPermission();
-      }
-      if (perm == LocationPermission.denied ||
-          perm == LocationPermission.deniedForever) {
-        if (mounted)
-          setState(() => _clientPos = const LatLng(-4.2634, 15.2429));
-        return;
-      }
+  Future<void> _initDestination() async {
+    final dest = await _resolveClientDestination(widget.location);
+    if (!mounted) return;
+    setState(() => _destination = dest);
+    _fitBounds();
 
-      final pos = await Geolocator.getCurrentPosition();
-      if (!mounted) return;
-      setState(() => _clientPos = LatLng(pos.latitude, pos.longitude));
-      _fitBounds();
-
-      _posSub =
-          Geolocator.getPositionStream(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.high,
-              distanceFilter: 15,
-            ),
-          ).listen((p) {
-            if (!mounted) return;
-            setState(() => _clientPos = LatLng(p.latitude, p.longitude));
-          });
-    } catch (_) {
-      if (mounted) setState(() => _clientPos = const LatLng(-4.2634, 15.2429));
+    // Stream du GPS client uniquement si on n'a PAS de coords backend
+    // (sinon la destination est fixe = adresse de la commande).
+    if (widget.location.destinationLatitude == null) {
+      _posSub = Geolocator.getPositionStream(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 15,
+        ),
+      ).listen((p) {
+        if (!mounted) return;
+        setState(() => _destination = LatLng(p.latitude, p.longitude));
+      });
     }
   }
 
   void _fitBounds() {
-    if (_ctrl == null || _clientPos == null) return;
-    final driver = LatLng(widget.location.latitude, widget.location.longitude);
-    final client = _clientPos!;
+    if (_ctrl == null || _destination == null) return;
+    final dest = _destination!;
+    final points = <LatLng>[
+      dest,
+      if (widget.location.hasDriverPosition)
+        LatLng(widget.location.latitude!, widget.location.longitude!),
+      if (widget.location.hasRestaurant)
+        LatLng(
+          widget.location.restaurantLatitude!,
+          widget.location.restaurantLongitude!,
+        ),
+    ];
+    if (points.length < 2) return;
+    final lats = points.map((p) => p.latitude);
+    final lngs = points.map((p) => p.longitude);
     Future.delayed(const Duration(milliseconds: 300), () {
       _ctrl?.animateCamera(
         CameraUpdate.newLatLngBounds(
           LatLngBounds(
-            southwest: LatLng(
-              [
-                    driver.latitude,
-                    client.latitude,
-                  ].reduce((a, b) => a < b ? a : b) -
-                  0.005,
-              [
-                    driver.longitude,
-                    client.longitude,
-                  ].reduce((a, b) => a < b ? a : b) -
-                  0.005,
-            ),
-            northeast: LatLng(
-              [
-                    driver.latitude,
-                    client.latitude,
-                  ].reduce((a, b) => a > b ? a : b) +
-                  0.005,
-              [
-                    driver.longitude,
-                    client.longitude,
-                  ].reduce((a, b) => a > b ? a : b) +
-                  0.005,
-            ),
+            southwest: LatLng(lats.reduce((a, b) => a < b ? a : b) - 0.005,
+                lngs.reduce((a, b) => a < b ? a : b) - 0.005),
+            northeast: LatLng(lats.reduce((a, b) => a > b ? a : b) + 0.005,
+                lngs.reduce((a, b) => a > b ? a : b) + 0.005),
           ),
           80,
         ),
@@ -278,57 +294,113 @@ class _FullscreenMapViewState extends State<_FullscreenMapView> {
 
   @override
   Widget build(BuildContext context) {
-    final driverPos = LatLng(
-      widget.location.latitude,
-      widget.location.longitude,
-    );
-    final markers = <Marker>{
-      Marker(
+    final loc = widget.location;
+    final markers = <Marker>{};
+
+    if (loc.hasDriverPosition) {
+      markers.add(Marker(
         markerId: const MarkerId('driver'),
-        position: driverPos,
+        position: LatLng(loc.latitude!, loc.longitude!),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
         infoWindow: InfoWindow(
-          title: widget.location.driverNom ?? 'Livreur',
-          snippet: 'Votre livreur',
+          title: loc.driverNom ?? 'Livreur',
+          snippet: loc.etaMinutes != null
+              ? 'Arrive dans ${loc.etaMinutes} min'
+              : 'Votre livreur',
         ),
-      ),
-      if (_clientPos != null)
-        Marker(
-          markerId: const MarkerId('client'),
-          position: _clientPos!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-          infoWindow: const InfoWindow(
-            title: 'Vous',
-            snippet: 'Votre position',
-          ),
-        ),
-    };
-    final polylines = _clientPos != null
-        ? {
-            Polyline(
-              polylineId: const PolylineId('route'),
-              points: [driverPos, _clientPos!],
-              color: const Color(0xFF1565C0),
-              width: 5,
-              patterns: [PatternItem.dash(20), PatternItem.gap(10)],
-            ),
-          }
-        : <Polyline>{};
+      ));
+    }
 
-    return GoogleMap(
-      initialCameraPosition: CameraPosition(target: driverPos, zoom: 15),
-      onMapCreated: (c) {
-        _ctrl = c;
-        _fitBounds();
-      },
-      markers: markers,
-      polylines: polylines,
-      myLocationEnabled: false,
-      myLocationButtonEnabled: false,
-      zoomControlsEnabled: true,
-      mapToolbarEnabled: false,
-      scrollGesturesEnabled: true,
-      tiltGesturesEnabled: false,
+    if (loc.hasRestaurant) {
+      markers.add(Marker(
+        markerId: const MarkerId('restaurant'),
+        position: LatLng(loc.restaurantLatitude!, loc.restaurantLongitude!),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
+        infoWindow: InfoWindow(
+          title: loc.restaurantNom ?? 'Restaurant',
+          snippet: 'Point de retrait',
+        ),
+      ));
+    }
+
+    if (_destination != null) {
+      markers.add(Marker(
+        markerId: const MarkerId('destination'),
+        position: _destination!,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        infoWindow: const InfoWindow(
+          title: 'Adresse de livraison',
+          snippet: 'Vous',
+        ),
+      ));
+    }
+
+    final polylines = <Polyline>{};
+    if (loc.hasDriverPosition && _destination != null) {
+      polylines.add(Polyline(
+        polylineId: const PolylineId('route'),
+        points: [LatLng(loc.latitude!, loc.longitude!), _destination!],
+        color: const Color(0xFF1565C0),
+        width: 5,
+        patterns: [PatternItem.dash(20), PatternItem.gap(10)],
+      ));
+    }
+
+    final initialCenter = loc.hasDriverPosition
+        ? LatLng(loc.latitude!, loc.longitude!)
+        : (_destination ??
+            (loc.hasRestaurant
+                ? LatLng(loc.restaurantLatitude!, loc.restaurantLongitude!)
+                : _kBrazzavilleCenter));
+
+    return Stack(
+      children: [
+        GoogleMap(
+          initialCameraPosition: CameraPosition(target: initialCenter, zoom: 15),
+          onMapCreated: (c) {
+            _ctrl = c;
+            _fitBounds();
+          },
+          markers: markers,
+          polylines: polylines,
+          myLocationEnabled: false,
+          myLocationButtonEnabled: false,
+          zoomControlsEnabled: true,
+          mapToolbarEnabled: false,
+          scrollGesturesEnabled: true,
+          tiltGesturesEnabled: false,
+        ),
+        if (!loc.hasDriverPosition)
+          Positioned(
+            top: 16,
+            left: 16,
+            right: 16,
+            child: Material(
+              elevation: 4,
+              borderRadius: BorderRadius.circular(12),
+              color: Colors.white.withValues(alpha: 0.95),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'En attente de la position du livreur…',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -342,77 +414,80 @@ class _MapView extends StatefulWidget {
 }
 
 class _MapViewState extends State<_MapView> {
-  LatLng? _clientPos;
+  LatLng? _destination;
 
   @override
   void initState() {
     super.initState();
-    _fetchClientPos();
+    _initDestination();
   }
 
-  Future<void> _fetchClientPos() async {
-    try {
-      var perm = await Geolocator.checkPermission();
-      if (perm == LocationPermission.denied)
-        perm = await Geolocator.requestPermission();
-      if (perm == LocationPermission.denied ||
-          perm == LocationPermission.deniedForever) {
-        if (mounted)
-          setState(() => _clientPos = const LatLng(-4.2634, 15.2429));
-        return;
-      }
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.low,
-        ),
-      );
-      if (mounted)
-        setState(() => _clientPos = LatLng(pos.latitude, pos.longitude));
-    } catch (_) {
-      if (mounted) setState(() => _clientPos = const LatLng(-4.2634, 15.2429));
-    }
+  Future<void> _initDestination() async {
+    final dest = await _resolveClientDestination(widget.location);
+    if (mounted) setState(() => _destination = dest);
   }
 
   @override
   Widget build(BuildContext context) {
-    final driverPos = LatLng(
-      widget.location.latitude,
-      widget.location.longitude,
-    );
-    final markers = <Marker>{
-      Marker(
+    final loc = widget.location;
+    final markers = <Marker>{};
+
+    if (loc.hasDriverPosition) {
+      markers.add(Marker(
         markerId: const MarkerId('driver'),
-        position: driverPos,
+        position: LatLng(loc.latitude!, loc.longitude!),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
         infoWindow: InfoWindow(
-          title: widget.location.driverNom ?? 'Livreur',
-          snippet: 'Votre livreur',
+          title: loc.driverNom ?? 'Livreur',
+          snippet: loc.etaMinutes != null
+              ? 'Arrive dans ${loc.etaMinutes} min'
+              : 'Votre livreur',
         ),
-      ),
-      if (_clientPos != null)
-        Marker(
-          markerId: const MarkerId('client'),
-          position: _clientPos!,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-          infoWindow: const InfoWindow(title: 'Vous'),
+      ));
+    }
+
+    if (loc.hasRestaurant) {
+      markers.add(Marker(
+        markerId: const MarkerId('restaurant'),
+        position: LatLng(loc.restaurantLatitude!, loc.restaurantLongitude!),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
+        infoWindow: InfoWindow(
+          title: loc.restaurantNom ?? 'Restaurant',
         ),
-    };
-    final polylines = _clientPos != null
-        ? {
-            Polyline(
-              polylineId: const PolylineId('route'),
-              points: [driverPos, _clientPos!],
-              color: const Color(0xFF1565C0),
-              width: 4,
-              patterns: [PatternItem.dash(16), PatternItem.gap(8)],
-            ),
-          }
-        : <Polyline>{};
+      ));
+    }
+
+    if (_destination != null) {
+      markers.add(Marker(
+        markerId: const MarkerId('destination'),
+        position: _destination!,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        infoWindow: const InfoWindow(title: 'Adresse de livraison'),
+      ));
+    }
+
+    final polylines = <Polyline>{};
+    if (loc.hasDriverPosition && _destination != null) {
+      polylines.add(Polyline(
+        polylineId: const PolylineId('route'),
+        points: [LatLng(loc.latitude!, loc.longitude!), _destination!],
+        color: const Color(0xFF1565C0),
+        width: 4,
+        patterns: [PatternItem.dash(16), PatternItem.gap(8)],
+      ));
+    }
+
+    final initialCenter = loc.hasDriverPosition
+        ? LatLng(loc.latitude!, loc.longitude!)
+        : (_destination ??
+            (loc.hasRestaurant
+                ? LatLng(loc.restaurantLatitude!, loc.restaurantLongitude!)
+                : _kBrazzavilleCenter));
 
     return SizedBox(
       height: 220,
       child: GoogleMap(
-        initialCameraPosition: CameraPosition(target: driverPos, zoom: 15),
+        initialCameraPosition: CameraPosition(target: initialCenter, zoom: 15),
         markers: markers,
         polylines: polylines,
         myLocationButtonEnabled: false,
@@ -431,8 +506,11 @@ class _DriverInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    if (location.driverNom == null && location.driverPhone == null)
+    if (location.driverNom == null &&
+        location.driverPhone == null &&
+        location.driverImageUrl == null) {
       return const SizedBox.shrink();
+    }
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -441,7 +519,12 @@ class _DriverInfo extends StatelessWidget {
           CircleAvatar(
             radius: 22,
             backgroundColor: cs.surfaceContainerHighest,
-            child: const Icon(Icons.person, size: 22),
+            backgroundImage: location.driverImageUrl != null
+                ? NetworkImage(location.driverImageUrl!)
+                : null,
+            child: location.driverImageUrl == null
+                ? const Icon(Icons.person, size: 22)
+                : null,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -455,7 +538,8 @@ class _DriverInfo extends StatelessWidget {
                   ),
                 Row(
                   children: [
-                    if (location.etaMinutes != null && location.etaMinutes! > 0) ...[
+                    if (location.etaMinutes != null &&
+                        location.etaMinutes! > 0) ...[
                       Icon(Icons.schedule, size: 12, color: cs.primary),
                       const SizedBox(width: 4),
                       Text(
@@ -471,7 +555,10 @@ class _DriverInfo extends StatelessWidget {
                     if (location.updatedAt != null)
                       Text(
                         'il y a ${_minutesAgo(location.updatedAt!)}',
-                        style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
                   ],
                 ),
