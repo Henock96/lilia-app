@@ -10,6 +10,7 @@ import 'package:lilia_app/services/location_service.dart';
 import 'package:lilia_app/services/notification_service.dart';
 import 'package:lilia_app/theme/app_theme.dart';
 import 'package:lilia_app/theme/theme_mode_provider.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'features/auth/user_sync_provider.dart';
 import 'firebase_options.dart';
@@ -32,7 +33,25 @@ void main() async {
   final container = ProviderContainer();
   await container.read(themeModeProvider.notifier).init();
 
-  runApp(UncontrolledProviderScope(container: container, child: const MyApp()));
+  // DSN injecté au build via --dart-define=SENTRY_DSN=... (jamais en dur).
+  // DSN vide => Sentry se désactive tout seul, l'appRunner s'exécute quand même.
+  await SentryFlutter.init(
+    (options) {
+      options.dsn = const String.fromEnvironment('SENTRY_DSN');
+      options.environment = const String.fromEnvironment(
+        'SENTRY_ENV',
+        defaultValue: 'production',
+      );
+      options.tracesSampleRate = 0.1;
+      // ignore: experimental_member_use
+      options.profilesSampleRate = 0.1;
+      // Le contexte user (id/email/role) est attaché explicitement après login.
+      options.sendDefaultPii = false;
+    },
+    appRunner: () => runApp(
+      UncontrolledProviderScope(container: container, child: const MyApp()),
+    ),
+  );
 }
 
 class MyApp extends ConsumerWidget {
