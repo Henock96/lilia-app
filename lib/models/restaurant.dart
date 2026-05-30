@@ -1,4 +1,5 @@
 import 'package:lilia_app/models/produit.dart';
+import 'package:lilia_app/models/vendor_type.dart';
 
 /// Enum des jours de la semaine
 enum DayOfWeek {
@@ -131,6 +132,11 @@ class RestaurantSummary {
   final double minimumOrderAmount;
   final double fixedDeliveryFee;
 
+  // Multi-vendeurs (LIL-117)
+  final VendorType vendorType;
+  final bool acceptsPreorders;
+  final int? preorderLeadHours;
+
   RestaurantSummary({
     required this.id,
     required this.name,
@@ -146,6 +152,9 @@ class RestaurantSummary {
     this.estimatedDeliveryTimeMax = 30,
     this.minimumOrderAmount = 0,
     this.fixedDeliveryFee = 500,
+    this.vendorType = VendorType.RESTAURANT,
+    this.acceptsPreorders = false,
+    this.preorderLeadHours,
   });
 
   /// Retourne le temps de livraison formaté (ex: "15-30 min")
@@ -181,6 +190,9 @@ class RestaurantSummary {
       estimatedDeliveryTimeMax: json['estimatedDeliveryTimeMax'] ?? 30,
       minimumOrderAmount: (json['minimumOrderAmount'] as num?)?.toDouble() ?? 0,
       fixedDeliveryFee: (json['fixedDeliveryFee'] as num?)?.toDouble() ?? 500,
+      vendorType: VendorType.fromString(json['vendorType'] as String?),
+      acceptsPreorders: json['acceptsPreorders'] ?? false,
+      preorderLeadHours: json['preorderLeadHours'] as int?,
     );
   }
 }
@@ -205,6 +217,11 @@ class Restaurant {
   final double? averageRating;
   final int? totalReviews;
 
+  // Multi-vendeurs (LIL-117)
+  final VendorType vendorType;
+  final bool acceptsPreorders;
+  final int? preorderLeadHours;
+
   Restaurant({
     required this.id,
     required this.name,
@@ -222,6 +239,9 @@ class Restaurant {
     this.fixedDeliveryFee = 500,
     this.averageRating,
     this.totalReviews,
+    this.vendorType = VendorType.RESTAURANT,
+    this.acceptsPreorders = false,
+    this.preorderLeadHours,
   });
 
   /// Retourne le temps de livraison formaté
@@ -278,6 +298,9 @@ class Restaurant {
           ? (json['averageRating'] as num).toDouble()
           : null,
       totalReviews: json['totalReviews'] as int?,
+      vendorType: VendorType.fromString(json['vendorType'] as String?),
+      acceptsPreorders: json['acceptsPreorders'] ?? false,
+      preorderLeadHours: json['preorderLeadHours'] as int?,
     );
   }
 }
