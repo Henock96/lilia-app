@@ -7,6 +7,7 @@ import '../../../../routing/app_route_enum.dart';
 import '../../../../services/analytics_service.dart';
 import '../../data/remote/home_controller.dart';
 import 'shimmer_box.dart';
+import 'vendor_type_badge.dart';
 
 class PopularRestaurantsSection extends ConsumerWidget {
   const PopularRestaurantsSection({super.key});
@@ -157,6 +158,15 @@ class _PopularRestaurantCard extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+                    ),
+                  ),
+                  // Badge vendor type (LIL-117) — masqué pour RESTAURANT
+                  Positioned(
+                    top: 6,
+                    right: 6,
+                    child: VendorTypeBadge(
+                      vendorType: restaurant.vendorType,
+                      compact: true,
                     ),
                   ),
                 ],
