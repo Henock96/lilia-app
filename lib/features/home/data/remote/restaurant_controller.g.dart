@@ -142,3 +142,117 @@ final class RestaurantControllerFamily extends $Family
   @override
   String toString() => r'restaurantControllerProvider';
 }
+
+/// Filtre vendor type courant pour le marketplace (LIL-117).
+/// `null` = "Tous" (pas de filtre). Watched par [vendorsList].
+
+@ProviderFor(MarketplaceFilter)
+final marketplaceFilterProvider = MarketplaceFilterProvider._();
+
+/// Filtre vendor type courant pour le marketplace (LIL-117).
+/// `null` = "Tous" (pas de filtre). Watched par [vendorsList].
+final class MarketplaceFilterProvider
+    extends $NotifierProvider<MarketplaceFilter, VendorType?> {
+  /// Filtre vendor type courant pour le marketplace (LIL-117).
+  /// `null` = "Tous" (pas de filtre). Watched par [vendorsList].
+  MarketplaceFilterProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'marketplaceFilterProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$marketplaceFilterHash();
+
+  @$internal
+  @override
+  MarketplaceFilter create() => MarketplaceFilter();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(VendorType? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<VendorType?>(value),
+    );
+  }
+}
+
+String _$marketplaceFilterHash() => r'9de4b216d1b685124fca3e14dc2d727b34f1c92c';
+
+/// Filtre vendor type courant pour le marketplace (LIL-117).
+/// `null` = "Tous" (pas de filtre). Watched par [vendorsList].
+
+abstract class _$MarketplaceFilter extends $Notifier<VendorType?> {
+  VendorType? build();
+  @$mustCallSuper
+  @override
+  void runBuild() {
+    final ref = this.ref as $Ref<VendorType?, VendorType?>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<VendorType?, VendorType?>,
+              VendorType?,
+              Object?,
+              Object?
+            >;
+    element.handleCreate(ref, build);
+  }
+}
+
+/// Liste paginée des vendeurs marketplace, filtrée par [marketplaceFilterProvider].
+/// Hit `/vendors?vendorType=...` (Sprint B backend). Quand le filtre change,
+/// Riverpod rebuilde et refetch automatiquement.
+
+@ProviderFor(vendorsList)
+final vendorsListProvider = VendorsListProvider._();
+
+/// Liste paginée des vendeurs marketplace, filtrée par [marketplaceFilterProvider].
+/// Hit `/vendors?vendorType=...` (Sprint B backend). Quand le filtre change,
+/// Riverpod rebuilde et refetch automatiquement.
+
+final class VendorsListProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<List<RestaurantSummary>>,
+          List<RestaurantSummary>,
+          FutureOr<List<RestaurantSummary>>
+        >
+    with
+        $FutureModifier<List<RestaurantSummary>>,
+        $FutureProvider<List<RestaurantSummary>> {
+  /// Liste paginée des vendeurs marketplace, filtrée par [marketplaceFilterProvider].
+  /// Hit `/vendors?vendorType=...` (Sprint B backend). Quand le filtre change,
+  /// Riverpod rebuilde et refetch automatiquement.
+  VendorsListProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'vendorsListProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$vendorsListHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<List<RestaurantSummary>> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<List<RestaurantSummary>> create(Ref ref) {
+    return vendorsList(ref);
+  }
+}
+
+String _$vendorsListHash() => r'cb4a9ab64c802ace69bd921ee91b1c46fa998b01';
