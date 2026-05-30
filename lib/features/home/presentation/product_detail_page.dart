@@ -6,7 +6,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../../models/produit.dart';
 import '../../../models/vendor_type.dart';
-import '../../cart/application/cart_controller.dart';
+import '../../cart/presentation/cart_mode_conflict_dialog.dart';
 
 class ProductDetailPage extends ConsumerStatefulWidget {
   final Product product;
@@ -107,9 +107,15 @@ Téléchargez l'app Lilia Food pour commander !
 
     final variantId = _selectedVariant!.id;
     try {
-      await ref
-          .read(cartControllerProvider.notifier)
-          .addItem(variantId: variantId, quantity: _quantity);
+      final added = await addToCartSafely(
+        context: context,
+        ref: ref,
+        variantId: variantId,
+        productMadeToOrder: widget.product.madeToOrder,
+        productName: widget.product.name,
+        quantity: _quantity,
+      );
+      if (!added) return; // Le client a annulé sur la modal de conflit
       // Analytics: ajout au panier
       AnalyticsService.logAddToCart(
         productId: widget.product.id,
