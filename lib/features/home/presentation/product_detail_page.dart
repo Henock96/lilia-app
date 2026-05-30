@@ -5,6 +5,7 @@ import 'package:lilia_app/services/analytics_service.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../models/produit.dart';
+import '../../../models/vendor_type.dart';
 import '../../cart/application/cart_controller.dart';
 
 class ProductDetailPage extends ConsumerStatefulWidget {
@@ -199,6 +200,10 @@ Téléchargez l'app Lilia Food pour commander !
 
                   // Description
                   _buildDescription(),
+
+                  // Détails produit (ingrédients, conservation, dispo horaire…)
+                  // Affiché uniquement si au moins un champ pertinent.
+                  if (_hasProductDetails()) _buildProductDetails(theme),
 
                   // Variantes
                   if (widget.product.variants.isNotEmpty)
@@ -478,6 +483,128 @@ Téléchargez l'app Lilia Food pour commander !
           ),
           const SizedBox(height: 24),
         ],
+      ),
+    );
+  }
+
+  /// Vrai si on a au moins une info à afficher dans la section "Détails".
+  bool _hasProductDetails() {
+    final p = widget.product;
+    return (p.ingredients != null && p.ingredients!.trim().isNotEmpty) ||
+        p.shelfLifeDays != null ||
+        p.madeToOrder ||
+        (p.availableFrom != null && p.availableUntil != null) ||
+        // ProductType non-FOOD est intéressant à afficher (pâtisserie, etc.)
+        p.productType != ProductType.FOOD;
+  }
+
+  Widget _buildProductDetails(ThemeData theme) {
+    final p = widget.product;
+    final scheme = theme.colorScheme;
+    final inWindow = p.isWithinAvailabilityWindow;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: scheme.primary.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: scheme.primary.withValues(alpha: 0.15)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.menu_book_outlined,
+                  size: 18,
+                  color: scheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'Détails produit',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: scheme.primary,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Type de produit (PASTRY, BEVERAGE, GROCERY…)
+            if (p.productType != ProductType.FOOD)
+              _DetailRow(
+                icon: Icons.category_outlined,
+                label: 'Type',
+                value: p.productType.label,
+                accent: scheme.primary,
+              ),
+
+            // Ingrédients (allergènes)
+            if (p.ingredients != null && p.ingredients!.trim().isNotEmpty)
+              _DetailRow(
+                icon: Icons.restaurant_menu,
+                label: 'Ingrédients',
+                value: p.ingredients!,
+                accent: Colors.deepOrange,
+              ),
+
+            // Durée de conservation
+            if (p.shelfLifeDays != null)
+              _DetailRow(
+                icon: Icons.access_time,
+                label: 'Conservation',
+                value: '${p.shelfLifeDays} jour${p.shelfLifeDays! > 1 ? 's' : ''}',
+                accent: Colors.teal,
+              ),
+
+            // Préparé sur commande
+            if (p.madeToOrder)
+              _DetailRow(
+                icon: Icons.bakery_dining,
+                label: 'Préparation',
+                value: 'Préparé sur commande',
+                accent: Colors.purple,
+              ),
+
+            // Fenêtre de disponibilité (BAKERY surtout)
+            if (p.availableFrom != null && p.availableUntil != null)
+              _DetailRow(
+                icon: Icons.schedule,
+                label: 'Disponible',
+                value: '${p.availableFrom} → ${p.availableUntil}',
+                accent: inWindow ? Colors.green : Colors.red,
+                trailing: !inWindow
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: Colors.red.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: const Text(
+                          'Hors créneau',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      )
+                    : null,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -795,6 +922,76 @@ Téléchargez l'app Lilia Food pour commander !
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Ligne d'information utilisée dans la carte "Détails produit" (LIL-117).
+/// Icône colorée + label + valeur, avec un trailing widget optionnel
+/// (utilisé pour le badge "Hors créneau" sur la fenêtre horaire).
+class _DetailRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color accent;
+  final Widget? trailing;
+
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.accent,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(icon, color: accent, size: 16),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (trailing != null) ...[
+            const SizedBox(width: 8),
+            trailing!,
+          ],
+        ],
       ),
     );
   }
