@@ -565,7 +565,7 @@ Téléchargez l'app Lilia Food pour commander !
                     // Label
                     Expanded(
                       child: Text(
-                        variant.label,
+                        variant.displayLabel,
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: isSelected

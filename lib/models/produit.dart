@@ -9,7 +9,9 @@ class Product {
   final double prixOriginal;
   final String? imageUrl;
   final String restaurantId;
-  final String categoryId;
+  // categoryId est nullable côté Prisma (String?) — vrai pour les nouveaux
+  // produits HOME_COOK/BAKERY créés sans catégorie via admin web (LIL-117).
+  final String? categoryId;
   final Category? category;
   final List<ProductVariant> variants;
   final int? stockRestant;
@@ -35,7 +37,7 @@ class Product {
     required this.prixOriginal,
     this.imageUrl,
     required this.restaurantId,
-    required this.categoryId,
+    this.categoryId,
     this.category,
     required this.variants,
     this.stockRestant,
@@ -73,9 +75,11 @@ class Product {
   }
 
   factory Product.fromJson(Map<String, dynamic> json) {
-    var variantsList = json['variants'] as List;
-    List<ProductVariant> variants =
-    variantsList.map((i) => ProductVariant.fromJson(i)).toList();
+    // variants peut être absent ou null pour certains produits — fallback []
+    final variantsList = (json['variants'] as List?) ?? const [];
+    final variants = variantsList
+        .map((i) => ProductVariant.fromJson(i as Map<String, dynamic>))
+        .toList();
 
     return Product(
       id: json['id'],
@@ -84,7 +88,7 @@ class Product {
       prixOriginal: (json['prixOriginal'] as num).toDouble(),
       imageUrl: json['imageUrl'],
       restaurantId: json['restaurantId'],
-      categoryId: json['categoryId'],
+      categoryId: json['categoryId'] as String?,
       category: json['category'] != null ? Category.fromJson(json['category']) : null,
       variants: variants,
       stockRestant: json['stockRestant'] as int?,
@@ -108,19 +112,23 @@ class Product {
 
 class ProductVariant {
   final String id;
-  final String label;
-  final double prix; // Correspond à 'prix' du variant
+  // label est nullable côté Prisma — fallback "Standard" pour l'affichage.
+  final String? label;
+  final double prix;
 
   ProductVariant({
     required this.id,
-    required this.label,
+    this.label,
     required this.prix,
   });
+
+  /// Label affichable — jamais null, fallback "Standard".
+  String get displayLabel => label ?? 'Standard';
 
   factory ProductVariant.fromJson(Map<String, dynamic> json) {
     return ProductVariant(
       id: json['id'],
-      label: json['label'],
+      label: json['label'] as String?,
       prix: (json['prix'] as num).toDouble(),
     );
   }
