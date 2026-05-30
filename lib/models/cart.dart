@@ -79,6 +79,17 @@ class Cart {
     return '${totalPrice.toStringAsFixed(0)} FCFA';
   }
 
+  /// Multi-vendeurs (LIL-122) : vrai si AU MOINS un item du panier est
+  /// `madeToOrder=true`. Drive le flux checkout (date picker requis,
+  /// disclaimer paiement, etc.). Backend rejette les paniers mixtes,
+  /// donc en pratique tout ou rien — mais ce getter reste tolérant.
+  bool get hasMadeToOrderItems =>
+      items.any((item) => item.product.madeToOrder);
+
+  /// Vrai si le panier est 100% madeToOrder ET non vide (= preorder pur).
+  bool get isPreorderCart =>
+      items.isNotEmpty && items.every((item) => item.product.madeToOrder);
+
   factory Cart.fromJson(Map<String, dynamic> json) {
     return Cart(
       id: _asString(json['id']),
@@ -202,26 +213,41 @@ class ProductItem {
   String nom;
   String? imageUrl;
   String restaurantId;
+  // Multi-vendeurs (LIL-122) — drive le flux preorder côté UI.
+  bool madeToOrder;
 
-  ProductItem({required this.nom, this.imageUrl, required this.restaurantId});
+  ProductItem({
+    required this.nom,
+    this.imageUrl,
+    required this.restaurantId,
+    this.madeToOrder = false,
+  });
 
-  ProductItem copyWith({String? nom, String? imageUrl, String? restaurantId}) =>
+  ProductItem copyWith({
+    String? nom,
+    String? imageUrl,
+    String? restaurantId,
+    bool? madeToOrder,
+  }) =>
       ProductItem(
         nom: nom ?? this.nom,
         imageUrl: imageUrl ?? this.imageUrl,
         restaurantId: restaurantId ?? this.restaurantId,
+        madeToOrder: madeToOrder ?? this.madeToOrder,
       );
 
   factory ProductItem.fromMap(Map<String, dynamic> json) => ProductItem(
     nom: _asString(json["nom"], 'Produit'),
     imageUrl: json["imageUrl"] is String ? json["imageUrl"] as String : null,
     restaurantId: _asString(json["restaurantId"]),
+    madeToOrder: json["madeToOrder"] == true,
   );
 
   Map<String, dynamic> toMap() => {
     "nom": nom,
     "imageUrl": imageUrl,
     "restaurantId": restaurantId,
+    "madeToOrder": madeToOrder,
   };
 }
 
