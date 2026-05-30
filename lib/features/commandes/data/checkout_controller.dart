@@ -22,6 +22,7 @@ class CheckoutController extends _$CheckoutController {
     String? promoCode,
     bool useLoyaltyPoints = false,
     String? idempotencyKey,
+    DateTime? scheduledFor,
   }) async {
     state = const AsyncLoading();
 
@@ -39,6 +40,7 @@ class CheckoutController extends _$CheckoutController {
         idempotencyKey: idempotencyKey,
         deliveryLatitude: pos?.latitude,
         deliveryLongitude: pos?.longitude,
+        scheduledFor: scheduledFor,
       );
 
       ref.invalidate(cartControllerProvider);
