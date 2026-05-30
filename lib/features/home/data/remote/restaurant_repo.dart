@@ -52,17 +52,21 @@ class RestaurantRepository {
     }
   }
 
-  /// Récupérer un restaurant par son ID avec ses produits
+  /// Récupérer un vendeur par son ID avec ses produits (LIL-117).
+  /// Bascule de /restaurants/:id → /vendors/:id pour récupérer aussi
+  /// vendorProfile (story, certifications, specialties, productionNote)
+  /// utilisé par l'écran de détail vendeur (HOME_COOK / BAKERY surtout).
+  /// Backend filtre déjà isActive + adminApproved.
   Future<Restaurant> getRestaurant(String id) async {
     try {
       final response = await http.get(
-        Uri.parse('${AppConstants.baseUrl}/restaurants/$id'),
+        Uri.parse('${AppConstants.baseUrl}/vendors/$id'),
       );
 
       if (response.statusCode == 200) {
         return Restaurant.fromJson(json.decode(response.body)["data"]);
       } else {
-        throw Exception('Failed to load restaurant: ${response.statusCode}');
+        throw Exception('Failed to load vendor: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Failed to connect to the server: $e');
