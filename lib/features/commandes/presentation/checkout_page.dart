@@ -19,6 +19,8 @@ import 'package:lilia_app/services/analytics_service.dart';
 import '../../../constants/app_constants.dart';
 import '../../../models/cart.dart';
 import '../../../models/promo_validation_result.dart';
+import '../../../models/restaurant.dart';
+import '../../../models/vendor_type.dart';
 import '../data/promo_repository.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
@@ -127,6 +129,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             );
           }
 
+          // LIL-131 : on watch le restaurant pour le bandeau vendor + adapter
+          // les libellés (ex: "Préparée par boulangerie X").
+          final restaurantAsync =
+              ref.watch(restaurantControllerProvider(restaurantId));
+          final restaurant = restaurantAsync.value;
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Form(
@@ -134,6 +142,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Bandeau vendor (non-RESTAURANT uniquement)
+                  if (restaurant != null &&
+                      restaurant.vendorType != VendorType.RESTAURANT) ...[
+                    _CheckoutVendorBanner(restaurant: restaurant),
+                    const SizedBox(height: 16),
+                  ],
                   // === RÉCAPITULATIF MODE DE LIVRAISON ===
                   _buildDeliveryRecap(options),
                   const SizedBox(height: 24),
@@ -1377,6 +1391,66 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Compris'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// LIL-131 : bandeau "type de vendeur" en tête du checkout. Permet au client
+/// de vérifier d'un coup d'œil le type de commerçant (boulangerie, fait
+/// maison…) avant de valider.
+class _CheckoutVendorBanner extends StatelessWidget {
+  final Restaurant restaurant;
+  const _CheckoutVendorBanner({required this.restaurant});
+
+  @override
+  Widget build(BuildContext context) {
+    final v = restaurant.vendorType;
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            cs.primary.withValues(alpha: 0.12),
+            cs.primary.withValues(alpha: 0.04),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Text(v.emoji, style: const TextStyle(fontSize: 32)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  v.label.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: cs.primary,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  restaurant.name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

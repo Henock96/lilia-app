@@ -5,10 +5,13 @@ import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
+import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:lilia_app/features/quartiers/application/quartiers_controller.dart';
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/models/adresse.dart';
 import 'package:lilia_app/models/quartier.dart';
+import 'package:lilia_app/models/restaurant.dart';
+import 'package:lilia_app/models/vendor_type.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 
 class DeliveryOptionsPage extends ConsumerStatefulWidget {
@@ -76,6 +79,24 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
 
           // Récupérer le restaurantId du premier item
           _restaurantId = cart.items.first.product.restaurantId;
+          // LIL-131 : on charge le restaurant pour adapter l'UI au vendorType
+          // (HOME_COOK n'a pas d'adresse physique → retrait masqué ; BAKERY,
+          // HOME_COOK et BEVERAGE_SHOP affichent un badge en tête).
+          final restaurantAsync =
+              ref.watch(restaurantControllerProvider(_restaurantId!));
+          final restaurant = restaurantAsync.value;
+          // Si HOME_COOK, on force le mode livraison (le retrait n'a pas de sens).
+          if (restaurant?.vendorType == VendorType.HOME_COOK &&
+              !_isDelivery) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                setState(() {
+                  _isDelivery = true;
+                  _calculatedDeliveryFee = null;
+                });
+              }
+            });
+          }
 
           final double subTotal = cart.items.fold(0.0, (sum, item) {
             return sum + (item.variant.prix * item.quantite);
@@ -87,12 +108,18 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Bannière vendor type (visible pour non-RESTAURANT)
+                  if (restaurant != null &&
+                      restaurant.vendorType != VendorType.RESTAURANT) ...[
+                    _VendorBanner(restaurant: restaurant),
+                    const SizedBox(height: 16),
+                  ],
                   // === SECTION MODE DE LIVRAISON ===
                   _buildSectionTitle(
                     'Comment souhaitez-vous recevoir votre commande ?',
                   ),
                   const SizedBox(height: 12),
-                  _buildDeliveryModeSection(),
+                  _buildDeliveryModeSection(restaurant),
                   const SizedBox(height: 24),
 
                   // === SECTION QUARTIER (seulement si livraison) ===
@@ -169,8 +196,16 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
     );
   }
 
-  Widget _buildDeliveryModeSection() {
+  Widget _buildDeliveryModeSection(Restaurant? restaurant) {
     final cs = Theme.of(context).colorScheme;
+    // LIL-131 : HOME_COOK n'a pas d'adresse physique pour le retrait ;
+    // l'option n'a pas de sens — on la masque entièrement.
+    final hidePickup = restaurant?.vendorType == VendorType.HOME_COOK;
+    // Libellé adapté au type de vendeur (boulangerie, vendeur maison…).
+    final pickupTitle = restaurant != null
+        ? 'Retrait ${restaurant.vendorType.pickupLocationLabel}'
+        : 'Retrait sur place';
+
     return Container(
       decoration: BoxDecoration(
         border: Border.all(color: cs.outline),
@@ -212,41 +247,43 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
             ),
             activeColor: cs.primary,
           ),
-          Divider(height: 1, color: cs.outline),
-          // Option Retrait
-          RadioListTile<bool>(
-            value: false,
-            groupValue: _isDelivery,
-            onChanged: (value) {
-              setState(() {
-                _isDelivery = value!;
-                _calculatedDeliveryFee = 0;
-              });
-            },
-            title: const Text(
-              'Retrait au restaurant',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text(
-              'Pas de frais supplementaires',
-              style: TextStyle(fontSize: 13, color: Colors.green[600]),
-            ),
-            secondary: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: !_isDelivery
-                    ? Colors.green.withValues(alpha: 0.1)
-                    : cs.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(10),
+          if (!hidePickup) ...[
+            Divider(height: 1, color: cs.outline),
+            // Option Retrait
+            RadioListTile<bool>(
+              value: false,
+              groupValue: _isDelivery,
+              onChanged: (value) {
+                setState(() {
+                  _isDelivery = value!;
+                  _calculatedDeliveryFee = 0;
+                });
+              },
+              title: Text(
+                pickupTitle,
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
-              child: Icon(
-                Icons.store,
-                color: !_isDelivery ? Colors.green : cs.outline,
-                size: 28,
+              subtitle: Text(
+                'Pas de frais supplementaires',
+                style: TextStyle(fontSize: 13, color: Colors.green[600]),
               ),
+              secondary: Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: !_isDelivery
+                      ? Colors.green.withValues(alpha: 0.1)
+                      : cs.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.store,
+                  color: !_isDelivery ? Colors.green : cs.outline,
+                  size: 28,
+                ),
+              ),
+              activeColor: cs.primary,
             ),
-            activeColor: cs.primary,
-          ),
+          ],
         ],
       ),
     );
@@ -648,6 +685,66 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
             ? _newAddressController.text.trim()
             : null,
         deliveryFee: _isDelivery ? (_calculatedDeliveryFee ?? 500) : 0,
+      ),
+    );
+  }
+}
+
+/// LIL-131 : bandeau "type de vendeur" affiché en tête du checkout pour les
+/// vendeurs non-RESTAURANT (boulangerie, fait maison, boissons…). Donne au
+/// client une attente claire sur ce qu'il va recevoir.
+class _VendorBanner extends StatelessWidget {
+  final Restaurant restaurant;
+  const _VendorBanner({required this.restaurant});
+
+  @override
+  Widget build(BuildContext context) {
+    final v = restaurant.vendorType;
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            cs.primary.withValues(alpha: 0.12),
+            cs.primary.withValues(alpha: 0.04),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Text(v.emoji, style: const TextStyle(fontSize: 32)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  v.label.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: cs.primary,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  restaurant.name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

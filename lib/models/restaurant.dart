@@ -1,4 +1,5 @@
 import 'package:lilia_app/models/produit.dart';
+import 'package:lilia_app/models/vendor_type.dart';
 
 /// Enum des jours de la semaine
 enum DayOfWeek {
@@ -205,6 +206,9 @@ class Restaurant {
   final double? averageRating;
   final int? totalReviews;
 
+  // LIL-131 : marketplace — drive l'UI (badge, options retrait, etc.)
+  final VendorType vendorType;
+
   Restaurant({
     required this.id,
     required this.name,
@@ -222,6 +226,7 @@ class Restaurant {
     this.fixedDeliveryFee = 500,
     this.averageRating,
     this.totalReviews,
+    this.vendorType = VendorType.RESTAURANT,
   });
 
   /// Retourne le temps de livraison formaté
@@ -278,6 +283,7 @@ class Restaurant {
           ? (json['averageRating'] as num).toDouble()
           : null,
       totalReviews: json['totalReviews'] as int?,
+      vendorType: VendorType.fromString(json['vendorType'] as String?),
     );
   }
 }
