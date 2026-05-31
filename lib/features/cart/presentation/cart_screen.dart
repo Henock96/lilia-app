@@ -924,7 +924,7 @@ class _SuggestionTile extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          variant.label,
+                          variant.displayLabel,
                           style: const TextStyle(fontSize: 14),
                         ),
                         Text(

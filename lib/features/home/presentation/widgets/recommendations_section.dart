@@ -353,7 +353,7 @@ class _RecommendationCard extends ConsumerWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(variant.label, style: const TextStyle(fontSize: 14)),
+                        Text(variant.displayLabel, style: const TextStyle(fontSize: 14)),
                         Text(
                           '${variant.prix.toStringAsFixed(0)} FCFA',
                           style: TextStyle(
