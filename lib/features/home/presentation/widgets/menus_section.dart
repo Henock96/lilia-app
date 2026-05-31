@@ -17,7 +17,7 @@ class MenusSection extends ConsumerWidget {
     return menusAsyncValue.when(
       data: (menus) {
         if (menus.isEmpty) {
-          return const SizedBox.shrink(); // Pas de menus, ne rien afficher
+          return _EmptyMenusState();
         }
 
         return Column(
@@ -75,6 +75,77 @@ class MenusSection extends ConsumerWidget {
           'Erreur lors du chargement des menus',
           style: TextStyle(color: Colors.red[400]),
         ),
+      ),
+    );
+  }
+}
+
+class _EmptyMenusState extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Menus du Jour',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+            decoration: BoxDecoration(
+              color: cs.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: cs.outline.withValues(alpha: 0.12)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: cs.primary.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    Icons.restaurant_menu,
+                    color: cs.primary,
+                    size: 22,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Pas de menu du jour pour l\'instant',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: cs.onSurface,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Les menus proposés par le restaurant apparaîtront ici dès qu\'ils seront disponibles.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
