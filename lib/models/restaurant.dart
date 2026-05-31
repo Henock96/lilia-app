@@ -1,4 +1,5 @@
 import 'package:lilia_app/models/produit.dart';
+import 'package:lilia_app/models/vendor_type.dart';
 
 /// Enum des jours de la semaine
 enum DayOfWeek {
@@ -112,6 +113,44 @@ class Specialty {
   }
 }
 
+/// Profil enrichi d'un vendeur (LIL-112) — story, certifications,
+/// specialties, productionNote. Rempli pour les HOME_COOK/BAKERY surtout ;
+/// les RESTAURANTs classiques peuvent l'avoir vide.
+class VendorProfile {
+  final String? story;
+  final List<String> certifications;
+  final List<String> specialties;
+  final String? productionNote;
+
+  VendorProfile({
+    this.story,
+    this.certifications = const [],
+    this.specialties = const [],
+    this.productionNote,
+  });
+
+  bool get isEmpty =>
+      (story == null || story!.isEmpty) &&
+      certifications.isEmpty &&
+      specialties.isEmpty &&
+      (productionNote == null || productionNote!.isEmpty);
+
+  factory VendorProfile.fromJson(Map<String, dynamic> json) {
+    return VendorProfile(
+      story: json['story'] as String?,
+      certifications: (json['certifications'] as List?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
+      specialties: (json['specialties'] as List?)
+              ?.map((e) => e as String)
+              .toList() ??
+          const [],
+      productionNote: json['productionNote'] as String?,
+    );
+  }
+}
+
 /// Modèle simplifié pour la liste des restaurants (sans les produits)
 class RestaurantSummary {
   final String id;
@@ -131,6 +170,11 @@ class RestaurantSummary {
   final double minimumOrderAmount;
   final double fixedDeliveryFee;
 
+  // Multi-vendeurs (LIL-117)
+  final VendorType vendorType;
+  final bool acceptsPreorders;
+  final int? preorderLeadHours;
+
   RestaurantSummary({
     required this.id,
     required this.name,
@@ -146,6 +190,9 @@ class RestaurantSummary {
     this.estimatedDeliveryTimeMax = 30,
     this.minimumOrderAmount = 0,
     this.fixedDeliveryFee = 500,
+    this.vendorType = VendorType.RESTAURANT,
+    this.acceptsPreorders = false,
+    this.preorderLeadHours,
   });
 
   /// Retourne le temps de livraison formaté (ex: "15-30 min")
@@ -181,6 +228,9 @@ class RestaurantSummary {
       estimatedDeliveryTimeMax: json['estimatedDeliveryTimeMax'] ?? 30,
       minimumOrderAmount: (json['minimumOrderAmount'] as num?)?.toDouble() ?? 0,
       fixedDeliveryFee: (json['fixedDeliveryFee'] as num?)?.toDouble() ?? 500,
+      vendorType: VendorType.fromString(json['vendorType'] as String?),
+      acceptsPreorders: json['acceptsPreorders'] ?? false,
+      preorderLeadHours: json['preorderLeadHours'] as int?,
     );
   }
 }
@@ -205,6 +255,12 @@ class Restaurant {
   final double? averageRating;
   final int? totalReviews;
 
+  // Multi-vendeurs (LIL-117) — drive l'UI (badge, options retrait, profil enrichi, etc.)
+  final VendorType vendorType;
+  final bool acceptsPreorders;
+  final int? preorderLeadHours;
+  final VendorProfile? vendorProfile;
+
   Restaurant({
     required this.id,
     required this.name,
@@ -222,6 +278,10 @@ class Restaurant {
     this.fixedDeliveryFee = 500,
     this.averageRating,
     this.totalReviews,
+    this.vendorType = VendorType.RESTAURANT,
+    this.acceptsPreorders = false,
+    this.preorderLeadHours,
+    this.vendorProfile,
   });
 
   /// Retourne le temps de livraison formaté
@@ -278,6 +338,12 @@ class Restaurant {
           ? (json['averageRating'] as num).toDouble()
           : null,
       totalReviews: json['totalReviews'] as int?,
+      vendorType: VendorType.fromString(json['vendorType'] as String?),
+      acceptsPreorders: json['acceptsPreorders'] ?? false,
+      preorderLeadHours: json['preorderLeadHours'] as int?,
+      vendorProfile: json['vendorProfile'] != null
+          ? VendorProfile.fromJson(json['vendorProfile'] as Map<String, dynamic>)
+          : null,
     );
   }
 }

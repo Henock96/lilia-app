@@ -1,5 +1,6 @@
 
 import 'package:lilia_app/models/restaurant.dart';
+import 'package:lilia_app/models/vendor_type.dart';
 
 class Product {
   final String id;
@@ -8,7 +9,9 @@ class Product {
   final double prixOriginal;
   final String? imageUrl;
   final String restaurantId;
-  final String categoryId;
+  // categoryId est nullable côté Prisma (String?) — vrai pour les nouveaux
+  // produits HOME_COOK/BAKERY créés sans catégorie via admin web (LIL-117).
+  final String? categoryId;
   final Category? category;
   final List<ProductVariant> variants;
   final int? stockRestant;
@@ -16,6 +19,16 @@ class Product {
   final String? restaurantName;
   final String? restaurantImageUrl;
   final bool? restaurantIsOpen;
+  final VendorType? restaurantVendorType;
+
+  // Multi-vendeurs (LIL-117)
+  final ProductType productType;
+  final StockMode stockMode;
+  final String? ingredients;
+  final int? shelfLifeDays;
+  final bool madeToOrder;
+  final String? availableFrom; // HH:mm
+  final String? availableUntil; // HH:mm
 
   Product({
     required this.id,
@@ -24,7 +37,7 @@ class Product {
     required this.prixOriginal,
     this.imageUrl,
     required this.restaurantId,
-    required this.categoryId,
+    this.categoryId,
     this.category,
     required this.variants,
     this.stockRestant,
@@ -32,9 +45,28 @@ class Product {
     this.restaurantName,
     this.restaurantImageUrl,
     this.restaurantIsOpen,
+    this.restaurantVendorType,
+    this.productType = ProductType.FOOD,
+    this.stockMode = StockMode.DAILY,
+    this.ingredients,
+    this.shelfLifeDays,
+    this.madeToOrder = false,
+    this.availableFrom,
+    this.availableUntil,
   });
 
   bool get isAvailable => stockRestant == null || stockRestant! > 0;
+
+  /// Vrai si le produit a une fenêtre horaire et que l'heure actuelle est
+  /// dans cette fenêtre. Si pas de fenêtre, toujours vrai (pas de contrainte).
+  bool get isWithinAvailabilityWindow {
+    if (availableFrom == null || availableUntil == null) return true;
+    final now = DateTime.now();
+    final current = '${now.hour.toString().padLeft(2, '0')}:'
+        '${now.minute.toString().padLeft(2, '0')}';
+    return current.compareTo(availableFrom!) >= 0 &&
+        current.compareTo(availableUntil!) <= 0;
+  }
 
   /// Prix d'affichage (premier variant ou prix original)
   double get displayPrice {
@@ -43,9 +75,11 @@ class Product {
   }
 
   factory Product.fromJson(Map<String, dynamic> json) {
-    var variantsList = json['variants'] as List;
-    List<ProductVariant> variants =
-    variantsList.map((i) => ProductVariant.fromJson(i)).toList();
+    // variants peut être absent ou null pour certains produits — fallback []
+    final variantsList = (json['variants'] as List?) ?? const [];
+    final variants = variantsList
+        .map((i) => ProductVariant.fromJson(i as Map<String, dynamic>))
+        .toList();
 
     return Product(
       id: json['id'],
@@ -54,7 +88,7 @@ class Product {
       prixOriginal: (json['prixOriginal'] as num).toDouble(),
       imageUrl: json['imageUrl'],
       restaurantId: json['restaurantId'],
-      categoryId: json['categoryId'],
+      categoryId: json['categoryId'] as String?,
       category: json['category'] != null ? Category.fromJson(json['category']) : null,
       variants: variants,
       stockRestant: json['stockRestant'] as int?,
@@ -62,25 +96,39 @@ class Product {
       restaurantName: json['restaurant']?['nom'] as String?,
       restaurantImageUrl: json['restaurant']?['imageUrl'] as String?,
       restaurantIsOpen: json['restaurant']?['isOpen'] as bool?,
+      restaurantVendorType: json['restaurant']?['vendorType'] != null
+          ? VendorType.fromString(json['restaurant']['vendorType'] as String?)
+          : null,
+      productType: ProductType.fromString(json['productType'] as String?),
+      stockMode: StockMode.fromString(json['stockMode'] as String?),
+      ingredients: json['ingredients'] as String?,
+      shelfLifeDays: json['shelfLifeDays'] as int?,
+      madeToOrder: json['madeToOrder'] ?? false,
+      availableFrom: json['availableFrom'] as String?,
+      availableUntil: json['availableUntil'] as String?,
     );
   }
 }
 
 class ProductVariant {
   final String id;
-  final String label;
-  final double prix; // Correspond à 'prix' du variant
+  // label est nullable côté Prisma — fallback "Standard" pour l'affichage.
+  final String? label;
+  final double prix;
 
   ProductVariant({
     required this.id,
-    required this.label,
+    this.label,
     required this.prix,
   });
+
+  /// Label affichable — jamais null, fallback "Standard".
+  String get displayLabel => label ?? 'Standard';
 
   factory ProductVariant.fromJson(Map<String, dynamic> json) {
     return ProductVariant(
       id: json['id'],
-      label: json['label'],
+      label: json['label'] as String?,
       prix: (json['prix'] as num).toDouble(),
     );
   }

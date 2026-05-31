@@ -6,6 +6,7 @@ import 'package:lilia_app/features/reviews/presentation/widgets/star_rating.dart
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/services/analytics_service.dart';
+import '../vendor_type_badge.dart';
 
 class RestaurantCard extends ConsumerWidget {
   final RestaurantSummary restaurant;
@@ -84,27 +85,34 @@ class RestaurantCard extends ConsumerWidget {
                               ),
                             ),
                     ),
-                    // Badge Ouvert/FermÃƒÆ’Ã‚Â©
+                    // Badges en haut à gauche : ouvert/fermé + vendor type
                     Positioned(
                       top: 10,
                       left: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: restaurant.isOpen ? Colors.green : Colors.red,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          restaurant.isOpen ? 'Ouvert' : 'Fermé',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: restaurant.isOpen ? Colors.green : Colors.red,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              restaurant.isOpen ? 'Ouvert' : 'Fermé',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 6),
+                          // Vendor type (LIL-117) — masqué pour RESTAURANT
+                          VendorTypeBadge(vendorType: restaurant.vendorType),
+                        ],
                       ),
                     ),
                     // Bouton favori

@@ -17,6 +17,7 @@ import 'widgets/category_list_widget.dart';
 import 'widgets/popular_dishes_section.dart';
 import 'widgets/search_bar_widget.dart';
 import 'widgets/section_header.dart';
+import 'widgets/vendor_type_filter_bar.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -44,7 +45,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    final restaurantsAsync = ref.watch(restaurantsListProvider);
+    // LIL-117 : on consomme désormais le marketplace /vendors avec filtre
+    // par VendorType (chips au-dessus). vendorsList rebuild auto quand le
+    // filtre change. /restaurants reste compatible mais on a tout en
+    // marketplace approuvé-actif via /vendors.
+    final restaurantsAsync = ref.watch(vendorsListProvider);
+    final currentFilter = ref.watch(marketplaceFilterProvider);
     final notificationHistory = ref.watch(notificationHistoryProvider);
     final bannersAsync = ref.watch(bannersListProvider);
 
@@ -61,6 +67,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
+            ref.invalidate(vendorsListProvider);
             ref.invalidate(restaurantsListProvider);
             ref.invalidate(bannersListProvider);
             ref.invalidate(popularProductsProvider);
@@ -95,15 +102,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
                 const SizedBox(height: 20),
 
-                // 7. Tous les restaurants (existant)
+                // 7. Marketplace (LIL-117) : filtre vendor type + liste
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Restaurants près de vous',
-                        style: TextStyle(
+                      Text(
+                        currentFilter == null
+                            ? 'Tous les vendeurs'
+                            : currentFilter.label,
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
@@ -119,9 +128,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                   ),
                 ),
 
+                const SizedBox(height: 8),
+
+                // Chips de filtre vendor type
+                const VendorTypeFilterBar(),
+
                 const SizedBox(height: 12),
 
-                // Liste des restaurants
+                // Liste des restaurants/vendeurs filtrés
                 _buildRestaurantsList(restaurantsAsync),
 
                 const SizedBox(height: 20),
