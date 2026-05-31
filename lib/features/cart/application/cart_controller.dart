@@ -41,6 +41,18 @@ class CartController extends _$CartController {
     }
   }
 
+  /// LIL-122 décision 2a : détecte un conflit de mode entre un produit qu'on
+  /// veut ajouter (newMadeToOrder) et le contenu actuel du panier. Renvoie
+  /// `true` si l'ajout ferait un panier mixte → le caller doit afficher la
+  /// modal "Vider le panier ?" avant d'appeler addItem. Backend bloque aussi
+  /// défensivement (CartService.assertSameMadeToOrderMode).
+  bool wouldConflictWithCart(bool newMadeToOrder) {
+    final cart = state.value;
+    if (cart == null || cart.items.isEmpty) return false;
+    final existingMode = cart.items.first.product.madeToOrder;
+    return existingMode != newMadeToOrder;
+  }
+
   Future<void> updateItemQuantity({
     required String cartItemId,
     required int quantity,

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
-import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/services/analytics_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -12,6 +11,7 @@ import '../../../models/produit.dart';
 import '../../../models/restaurant.dart';
 import '../../../models/vendor_type.dart';
 import '../../../routing/app_route_enum.dart';
+import '../../cart/presentation/cart_mode_conflict_dialog.dart';
 import '../data/remote/restaurant_controller.dart';
 import 'widgets/menus_section.dart';
 import 'widgets/vendor_type_badge.dart';
@@ -1232,9 +1232,14 @@ class _ProductCard extends ConsumerWidget {
     }
     final variantId = product.variants.first.id;
     try {
-      await ref
-          .read(cartControllerProvider.notifier)
-          .addItem(variantId: variantId);
+      final added = await addToCartSafely(
+        context: context,
+        ref: ref,
+        variantId: variantId,
+        productMadeToOrder: product.madeToOrder,
+        productName: product.name,
+      );
+      if (!added) return;
       AnalyticsService.logAddToCart(
         productId: product.id,
         productName: product.name,
