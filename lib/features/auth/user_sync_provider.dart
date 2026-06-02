@@ -1,5 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/foundation.dart';
 import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -18,7 +18,9 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
       if (token != null) {
         // Un token est disponible, l'utilisateur est probablement connecté.
         // On lance la synchronisation.
-        debugPrint('Jeton détecté. Synchronisation du profil utilisateur...');
+        if (kDebugMode) {
+          debugPrint('Token detected. Syncing user profile...');
+        }
 
         // Contexte Sentry : rattacher les erreurs à l'utilisateur connecté.
         // Rôle constant CLIENT pour cette app.
@@ -44,21 +46,23 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
             },
           );
 
-          if (response.statusCode == 200) {
-            debugPrint('Synchronisation du backend réussie.');
-          } else {
-            debugPrint(
-              'Erreur lors de lappel de synchronisation du backend (status ${response.statusCode}).',
-            );
+          if (kDebugMode) {
+            // Status only — never log the token nor the response body
+            // (contains user PII).
+            debugPrint('Backend /users/me sync status: ${response.statusCode}');
           }
         } catch (e) {
-          debugPrint('Error during backend synchronization call: $e');
+          if (kDebugMode) {
+            debugPrint('Backend sync error: ${e.runtimeType}');
+          }
         }
       } else {
         // Pas de token, l'utilisateur est déconnecté.
         // Purger le contexte Sentry au logout.
         await Sentry.configureScope((scope) => scope.setUser(null));
-        debugPrint("L'utilisateur est déconnecté, aucun jeton disponible.");
+        if (kDebugMode) {
+          debugPrint('User signed out, no token available.');
+        }
       }
     });
   }

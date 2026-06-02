@@ -4,6 +4,8 @@
 
 import 'dart:convert';
 
+import 'package:lilia_app/utils/api_response.dart';
+
 Map<String, dynamic> _asMap(Object? value) =>
     value is Map<String, dynamic> ? value : <String, dynamic>{};
 
@@ -21,10 +23,7 @@ DateTime _asDate(Object? value) =>
 
 Checkout checkoutFromMap(String str) {
   final decoded = json.decode(str);
-  final data = decoded is Map<String, dynamic> && decoded['data'] != null
-      ? decoded['data']
-      : decoded;
-  return Checkout.fromMap(_asMap(data));
+  return Checkout.fromMap(ApiResponse.mapOf(decoded));
 }
 
 String checkoutToMap(Checkout data) => json.encode(data.toMap());
