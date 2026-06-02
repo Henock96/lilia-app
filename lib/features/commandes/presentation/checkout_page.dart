@@ -19,6 +19,8 @@ import 'package:lilia_app/services/analytics_service.dart';
 import '../../../constants/app_constants.dart';
 import '../../../models/cart.dart';
 import '../../../models/promo_validation_result.dart';
+import '../../../models/restaurant.dart';
+import '../../../models/vendor_type.dart';
 import '../data/promo_repository.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
@@ -43,6 +45,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   bool _useLoyaltyPoints = false;
   String _selectedPaymentMethod = 'MTN_MOMO';
   String? _idempotencyKey;
+  // LIL-122 : date/heure choisies pour les commandes preorder (madeToOrder).
+  // Null tant que le client n'a pas ouvert le picker.
+  DateTime? _scheduledFor;
 
   String _getOrCreateIdempotencyKey() {
     _idempotencyKey ??= _generateUuidV4();
@@ -127,6 +132,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             );
           }
 
+          // LIL-131 : on watch le restaurant pour le bandeau vendor + adapter
+          // les libellés (ex: "Préparée par boulangerie X").
+          final restaurantAsync =
+              ref.watch(restaurantControllerProvider(restaurantId));
+          final restaurant = restaurantAsync.value;
+
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
             child: Form(
@@ -134,6 +145,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Bandeau vendor (non-RESTAURANT uniquement)
+                  if (restaurant != null &&
+                      restaurant.vendorType != VendorType.RESTAURANT) ...[
+                    _CheckoutVendorBanner(restaurant: restaurant),
+                    const SizedBox(height: 16),
+                  ],
                   // === RÉCAPITULATIF MODE DE LIVRAISON ===
                   _buildDeliveryRecap(options),
                   const SizedBox(height: 24),
@@ -205,6 +222,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     ),
                     const SizedBox(height: 24),
                   ],
+
+                  // === SECTION PREORDER (LIL-122) ===
+                  // Visible uniquement si le panier contient des produits
+                  // madeToOrder=true. Force le client à choisir un slot.
+                  if (cart.isPreorderCart) ...[
+                    _buildSectionTitle('Quand voulez-vous récupérer ?'),
+                    const SizedBox(height: 8),
+                    _buildPreorderSlotPicker(),
+                    const SizedBox(height: 24),
+                  ],
+
                   // === SECTION RÉSUMÉ ===
                   _buildSectionTitle('Resume de la commande'),
                   const SizedBox(height: 12),
@@ -225,14 +253,24 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   _buildSectionTitle('Mode de paiement'),
                   const SizedBox(height: 8),
                   _buildPaymentSection(),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 16),
+
+                  // === DISCLAIMER PREORDER (LIL-122 décision 4b) ===
+                  // Avertit le client que le paiement upfront engage mais que
+                  // le vendeur peut annuler tard et que le remboursement met
+                  // jusqu'à 48h. Pas de blocage, juste de la transparence.
+                  if (cart.isPreorderCart) ...[
+                    _buildPreorderDisclaimer(),
+                    const SizedBox(height: 16),
+                  ],
 
                   // === BOUTON DE VALIDATION ===
                   SizedBox(
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: checkoutState.isLoading
+                      onPressed: checkoutState.isLoading ||
+                              (cart.isPreorderCart && _scheduledFor == null)
                           ? null
                           : () => _showPaymentInstructions(
                               context,
@@ -379,6 +417,194 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     return Text(
       title,
       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+    );
+  }
+
+  // ─── Preorder slot picker (LIL-122) ────────────────────────────────────
+  // Affiché si cart.isPreorderCart. Le client choisit date + heure ; on
+  // contraint à [now + 24h, now + 7 jours] localement. Le backend a la
+  // décision finale sur le lead time exact du vendeur (PreorderValidator).
+
+  Widget _buildPreorderSlotPicker() {
+    final scheme = Theme.of(context).colorScheme;
+    final hasSlot = _scheduledFor != null;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: scheme.primary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: hasSlot
+              ? scheme.primary
+              : scheme.primary.withValues(alpha: 0.3),
+          width: hasSlot ? 1.5 : 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.schedule, size: 18, color: scheme.primary),
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text(
+                  'Date et heure de retrait',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                ),
+              ),
+              if (!hasSlot)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Text(
+                    'Requis',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Minimum 24h à l\'avance, maximum 7 jours.',
+            style: TextStyle(
+              fontSize: 11,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: _pickPreorderSlot,
+            icon: Icon(hasSlot ? Icons.event_available : Icons.event, size: 18),
+            label: Text(
+              hasSlot
+                  ? _formatScheduledFor(_scheduledFor!)
+                  : 'Choisir la date et l\'heure',
+            ),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: hasSlot ? scheme.primary : scheme.onSurface,
+              minimumSize: const Size.fromHeight(44),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickPreorderSlot() async {
+    final now = DateTime.now();
+    final initialDate = _scheduledFor ?? now.add(const Duration(hours: 24));
+    final pickedDate = await showDatePicker(
+      context: context,
+      initialDate: initialDate,
+      firstDate: now.add(const Duration(hours: 24)),
+      lastDate: now.add(const Duration(days: 7)),
+      helpText: 'Date de retrait',
+    );
+    if (pickedDate == null || !mounted) return;
+    final pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(initialDate),
+      helpText: 'Heure de retrait',
+    );
+    if (pickedTime == null) return;
+    setState(() {
+      _scheduledFor = DateTime(
+        pickedDate.year,
+        pickedDate.month,
+        pickedDate.day,
+        pickedTime.hour,
+        pickedTime.minute,
+      );
+    });
+  }
+
+  String _formatScheduledFor(DateTime dt) {
+    const days = [
+      'Lundi',
+      'Mardi',
+      'Mercredi',
+      'Jeudi',
+      'Vendredi',
+      'Samedi',
+      'Dimanche',
+    ];
+    const months = [
+      'janvier',
+      'février',
+      'mars',
+      'avril',
+      'mai',
+      'juin',
+      'juillet',
+      'août',
+      'septembre',
+      'octobre',
+      'novembre',
+      'décembre',
+    ];
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final mm = dt.minute.toString().padLeft(2, '0');
+    return '${days[dt.weekday - 1]} ${dt.day} ${months[dt.month - 1]} à $hh:$mm';
+  }
+
+  // ─── Disclaimer preorder (LIL-122 décision 4b) ─────────────────────────
+
+  Widget _buildPreorderDisclaimer() {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.warning_amber_rounded,
+            color: Colors.orange,
+            size: 20,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Commande sur commande',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Le vendeur peut annuler jusqu\'à la veille (J-1). En cas d\'annulation, le remboursement se fait sous 48 heures.',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    height: 1.35,
+                    color: Colors.orange[900],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1268,6 +1494,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         promoCode: _promoResult?.code,
                         idempotencyKey: _getOrCreateIdempotencyKey(),
                         useLoyaltyPoints: _useLoyaltyPoints,
+                        scheduledFor: _scheduledFor,
                       );
 
                   // Reset key so a new order gets a new key
@@ -1377,6 +1604,66 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Compris'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// LIL-131 : bandeau "type de vendeur" en tête du checkout. Permet au client
+/// de vérifier d'un coup d'œil le type de commerçant (boulangerie, fait
+/// maison…) avant de valider.
+class _CheckoutVendorBanner extends StatelessWidget {
+  final Restaurant restaurant;
+  const _CheckoutVendorBanner({required this.restaurant});
+
+  @override
+  Widget build(BuildContext context) {
+    final v = restaurant.vendorType;
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            cs.primary.withValues(alpha: 0.12),
+            cs.primary.withValues(alpha: 0.04),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cs.primary.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Text(v.emoji, style: const TextStyle(fontSize: 32)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  v.label.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: cs.primary,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  restaurant.name,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),

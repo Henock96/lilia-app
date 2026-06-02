@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 
 enum PaymentStatus { pending, success, failed, cancelled }
@@ -82,7 +83,7 @@ class PaymentService {
     String? baseUrl,
   }) : _httpClient = httpClient,
        _authRepository = authRepository,
-       baseUrl = baseUrl ?? 'https://lilia-backend.onrender.com';
+       baseUrl = baseUrl ?? AppConstants.baseUrl;
 
   // Créer un paiement
   Future<PaymentResponse> createPayment({

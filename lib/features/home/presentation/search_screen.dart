@@ -446,7 +446,7 @@ class _SearchProductTile extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          variant.label,
+                          variant.displayLabel,
                           style: TextStyle(
                             fontSize: 14,
                             color: sheetCs.onSurface,

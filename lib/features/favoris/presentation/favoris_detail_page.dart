@@ -144,7 +144,7 @@ class _FavorisDetailPageState extends ConsumerState<FavorisDetailPage> {
                         final isSelected = _selectedVariant?.id == variant.id;
                         return ChoiceChip(
                           label: Text(
-                            '${variant.label} (${variant.prix.toStringAsFixed(1)} FCFA)',
+                            '${variant.displayLabel} (${variant.prix.toStringAsFixed(1)} FCFA)',
                             style: TextStyle(
                               color: isSelected ? Colors.white : Colors.black87,
                             ),

@@ -64,6 +64,8 @@ class OrderRepository extends _$OrderRepository {
     String? idempotencyKey,
     double? deliveryLatitude,
     double? deliveryLongitude,
+    // LIL-122 : commande programmée (panier 100% madeToOrder)
+    DateTime? scheduledFor,
   }) async {
     final token = await ref.read(firebaseIdTokenProvider.future);
     if (token == null) throw Exception('Veuillez vous reconnecter.');
@@ -79,6 +81,10 @@ class OrderRepository extends _$OrderRepository {
       if (useLoyaltyPoints) 'useLoyaltyPoints': true,
       if (deliveryLatitude != null) 'deliveryLatitude': deliveryLatitude,
       if (deliveryLongitude != null) 'deliveryLongitude': deliveryLongitude,
+      if (scheduledFor != null) ...{
+        'isPreorder': true,
+        'scheduledFor': scheduledFor.toUtc().toIso8601String(),
+      },
     };
 
     final response = await http.post(

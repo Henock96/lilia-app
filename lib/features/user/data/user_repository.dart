@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
 import 'package:lilia_app/models/loyalty_transaction.dart';
+import 'package:lilia_app/utils/api_response.dart';
 
 class UserRepository {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -74,9 +75,10 @@ class UserRepository {
     );
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(utf8.decode(response.bodyBytes));
-      final List list = data is List ? data : (data['data'] as List? ?? []);
-      return list.map((e) => LoyaltyTransaction.fromJson(e)).toList();
+      final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+      return ApiResponse.listOf(decoded)
+          .map((e) => LoyaltyTransaction.fromJson(e as Map<String, dynamic>))
+          .toList();
     } else {
       throw Exception('Echec chargement transactions');
     }
