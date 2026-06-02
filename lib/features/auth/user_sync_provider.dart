@@ -45,10 +45,10 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
           );
 
           if (response.statusCode == 200) {
-            debugPrint('Synchronisation du backend réussie. $token');
+            debugPrint('Synchronisation du backend réussie.');
           } else {
             debugPrint(
-              'Erreur lors de lappel de synchronisation du backend ${response.statusCode} - ${response.body}',
+              'Erreur lors de lappel de synchronisation du backend (status ${response.statusCode}).',
             );
           }
         } catch (e) {
