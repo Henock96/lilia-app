@@ -110,7 +110,9 @@ iOS spécifique :
 
 ## API Communication
 
-Base URL : `https://lilia-backend.onrender.com`
+Base URL : `AppConstants.baseUrl` — défaut `https://lilia-backend.onrender.com`,
+overridable au build via `--dart-define=API_URL=...` (staging, tunnel local).
+Idem pour `wsUrl` via `--dart-define=WS_URL=...`.
 
 ```dart
 final idToken = await ref.read(firebaseIdTokenProvider.future);
@@ -118,20 +120,34 @@ final response = await client.get(uri, headers: {
   'Authorization': 'Bearer $idToken',
   'Content-Type': 'application/json',
 });
-final data = json.decode(response.body)['data'];
+final decoded = json.decode(response.body);
+final data = ApiResponse.mapOf(decoded);   // tolérant raw OU { data: ... }
 ```
 
+### Helper `ApiResponse` (J2 — juin 2026)
+
+`lib/utils/api_response.dart` — accepte les deux formes pendant la
+migration backend vers `api-contract-v2` (interceptor global qui wrappe
+TOUT en `{ data, message?, meta? }`).
+
+- `ApiResponse.listOf(decoded)` → `List<dynamic>` (vide si payload inattendu)
+- `ApiResponse.mapOf(decoded)` → `Map<String, dynamic>` (throw `StateError` sinon)
+
 ### Format des réponses backend
-| Endpoint | Format |
+| Endpoint | Format actuel |
 |---|---|
 | `GET /restaurants` | `{ data: [...], count }` |
 | `GET /restaurants/:id` | `{ data: {...} }` |
 | `GET /adresses` | `{ data: [...], count }` |
 | `POST /adresses` | `{ data: {...}, message }` |
 | `GET /quartiers` | `{ data: [...], count }` (Public) |
-| `GET /users/me` | `{ user: {...} }` |
+| `GET /users/me` | `{ user: {...} }` → bientôt `{ data: { user: ... } }` (J2) |
 | `POST /orders/checkout` | `{ message, data: {...} }` |
-| `POST /promo/validate` | objet plat |
+| `POST /promo/validate` | objet plat → bientôt `{ data: {...} }` (J2) |
+
+⚠️ Une fois `api-contract-v2` mergé côté backend, TOUTES les réponses
+seront wrappées. Utiliser `ApiResponse.listOf` / `mapOf` au lieu de
+`decoded['data']` direct.
 
 ### Parsing erreurs
 `_extractErrorMessage(body)` → lit `json['message']` (String ou List). Helper dans `order_repository.dart`.
