@@ -23,6 +23,9 @@ class ReviewsScreen extends ConsumerWidget {
     final reviewsAsync = ref.watch(restaurantReviewsProvider(restaurantId));
     final statsAsync = ref.watch(restaurantStatsProvider(restaurantId));
     final canReviewAsync = ref.watch(canReviewProvider(restaurantId));
+    // Id de l'avis de l'utilisateur courant (s'il en a déjà laissé un) — sert
+    // à n'afficher modifier/supprimer que sur sa propre carte (C18).
+    final myReviewId = canReviewAsync.value?.existingReviewId;
 
     return Scaffold(
       appBar: AppBar(title: Text('Avis - $restaurantName')),
@@ -155,8 +158,7 @@ class ReviewsScreen extends ConsumerWidget {
                     final review = reviews[index];
                     return ReviewCard(
                       review: review,
-                      // TODO: Vérifier si c'est l'avis de l'utilisateur connecté
-                      isOwner: false,
+                      isOwner: myReviewId != null && review.id == myReviewId,
                       onEdit: () => _navigateToWriteReview(
                         context,
                         ref,

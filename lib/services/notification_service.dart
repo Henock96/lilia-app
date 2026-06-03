@@ -74,11 +74,25 @@ class NotificationService {
   StreamSubscription<RemoteMessage>? _onMessageSubscription;
   StreamSubscription<RemoteMessage>? _onMessageOpenedSubscription;
   StreamSubscription<String>? _onTokenRefreshSubscription;
+  // Debounce des invalidations de userOrdersProvider : plusieurs notifs FCM
+  // rapprochées (multi-statuts) ne déclenchent qu'un seul refetch (C13).
+  Timer? _ordersInvalidationDebounce;
   // Flag pour savoir si le service a été dispose
   bool _isDisposed = false;
   NotificationService(this._authRepository, this._httpClient, this._ref);
 
   String? fcmToken;
+
+  /// Invalide `userOrdersProvider` au plus une fois par fenêtre de 600 ms.
+  void _invalidateUserOrdersDebounced() {
+    _ordersInvalidationDebounce?.cancel();
+    _ordersInvalidationDebounce = Timer(
+      const Duration(milliseconds: 600),
+      () {
+        if (!_isDisposed) _ref.invalidate(userOrdersProvider);
+      },
+    );
+  }
 
   Future<void> _requestPermission() async {
     NotificationSettings settings = await _fcm.requestPermission(
@@ -112,7 +126,7 @@ class NotificationService {
         final orderId = message.data['orderId'] as String;
         // Mettre à jour l'état pour déclencher une navigation ou un rafraîchissement
         _ref.read(latestUpdatedOrderIdProvider.notifier).state = orderId;
-        _ref.invalidate(userOrdersProvider);
+        _invalidateUserOrdersDebounced();
       }
     });
     // Gère les messages lorsque l'application est au premier plan
@@ -140,7 +154,7 @@ class NotificationService {
         if (message.data.containsKey('orderId')) {
           final orderId = message.data['orderId'] as String;
           _ref.read(latestUpdatedOrderIdProvider.notifier).state = orderId;
-          _ref.invalidate(userOrdersProvider);
+          _invalidateUserOrdersDebounced();
         }
       }
     });
@@ -211,25 +225,12 @@ class NotificationService {
 
   // 4. Centraliser la logique de traitement des données
   void _handleNotificationData(Map<String, dynamic> data) {
-    if (data.containsKey('orderId')) {
-      final orderId = data['orderId'] as String;
+    // FCM transmet toujours les valeurs `data` sous forme de String.
+    // Cast null-safe pour ne pas crasher si la clé est absente / mal typée.
+    final orderId = data['orderId'];
+    if (orderId is String && orderId.isNotEmpty) {
       _ref.read(latestUpdatedOrderIdProvider.notifier).state = orderId;
-      _ref.invalidate(userOrdersProvider);
-    }
-
-    // Ajoutez d'autres types de données ici
-    if (data.containsKey('type')) {
-      switch (data['type']) {
-        case 'order_update':
-          // Navigation vers la page commandes
-          break;
-        case 'message':
-          // Navigation vers la messagerie
-          break;
-        default:
-          // Action par défaut
-          break;
-      }
+      _invalidateUserOrdersDebounced();
     }
   }
 
@@ -332,8 +333,9 @@ class NotificationService {
       if (fcmToken != null) {
         debugPrint('FCM token obtained.');
 
-        // Enregistrer le token immédiatement
-        await registerTokenOnServer();
+        // Enregistrement en tâche de fond : ne JAMAIS bloquer l'init (donc le
+        // démarrage de l'app) sur les retries réseau (C7).
+        unawaited(registerTokenOnServer());
       } else {
         debugPrint('FCM token unavailable (simulator or APNS not ready)');
       }
@@ -376,6 +378,8 @@ class NotificationService {
     }
 
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      // Stoppe les retries si le service a été disposé entre-temps (C23).
+      if (_isDisposed) return;
       try {
         final idToken = await _authRepository.getIdToken();
         if (idToken == null) {
@@ -398,7 +402,7 @@ class NotificationService {
               },
               body: jsonEncode({'token': fcmToken}),
             )
-            .timeout(const Duration(seconds: 35));
+            .timeout(const Duration(seconds: 15));
 
         if (response.statusCode == 200 || response.statusCode == 201) {
           debugPrint('FCM Token registered successfully on the server.');
@@ -417,7 +421,8 @@ class NotificationService {
         if (attempt == maxRetries) {
           debugPrint('Max retries reached. Failed to register FCM token.');
         } else {
-          await Future.delayed(Duration(seconds: attempt * 15));
+          // Backoff borné (5s, 10s, 15s, 20s) — évite le blocage ~4 min (C7).
+          await Future.delayed(Duration(seconds: attempt * 5));
         }
       }
     }
@@ -477,6 +482,7 @@ class NotificationService {
     _isDisposed = true;
 
     _cancelSubscriptions();
+    _ordersInvalidationDebounce?.cancel();
 
     // Reset des variables
     _onMessageSubscription = null;

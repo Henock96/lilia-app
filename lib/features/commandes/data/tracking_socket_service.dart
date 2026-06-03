@@ -152,8 +152,13 @@ class TrackingSocketService {
     _statusStreams.remove(orderId)?.close();
   }
 
+  /// Au moins une commande est actuellement suivie (socket utile).
+  bool get isWatching => _watchedOrders.isNotEmpty;
+
   /// Reconnecte avec un nouveau token (après refresh Firebase).
+  /// No-op s'il n'y a aucune commande suivie : inutile d'ouvrir un socket.
   Future<void> reconnect() async {
+    if (_watchedOrders.isEmpty) return;
     _socket?.dispose();
     _socket = null;
     await _ensureConnected();
@@ -178,6 +183,20 @@ class TrackingSocketService {
 TrackingSocketService trackingSocketService(Ref ref) {
   final auth = ref.watch(authRepositoryProvider);
   final service = TrackingSocketService(auth);
+
+  // C3 : le token Firebase est capturé une seule fois à l'ouverture du socket.
+  // Firebase le rafraîchit (~1h) via `idTokenChanges()` ; sans ré-injection, le
+  // backend finit par rejeter le socket sur token expiré. On reconnecte donc
+  // avec le nouveau token dès qu'il change — uniquement si une commande est
+  // suivie (le getter `isWatching` + le garde dans `reconnect()` évitent
+  // d'ouvrir un socket inutile au login/logout).
+  ref.listen(firebaseIdTokenProvider, (previous, next) {
+    final token = next.value;
+    if (token != null && service.isWatching) {
+      service.reconnect();
+    }
+  });
+
   ref.onDispose(() => service.dispose());
   return service;
 }

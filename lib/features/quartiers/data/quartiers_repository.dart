@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_app/models/quartier.dart';
+import 'package:lilia_app/utils/api_response.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'quartiers_repository.g.dart';
@@ -26,8 +27,10 @@ class QuartiersRepository extends _$QuartiersRepository {
     );
 
     if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      final List<dynamic> quartiersJson = data['data'];
+      final decoded = json.decode(utf8.decode(response.bodyBytes));
+      // /quartiers est double-enveloppé par l'interceptor backend
+      // (`{ data: { data: [...], count } }`). Déballe l'externe puis lit la liste.
+      final quartiersJson = ApiResponse.listOf(ApiResponse.mapOf(decoded));
       return quartiersJson.map((json) => Quartier.fromJson(json)).toList();
     } else {
       throw Exception('Erreur lors du chargement des quartiers: ${response.body}');
@@ -54,8 +57,9 @@ class QuartiersRepository extends _$QuartiersRepository {
     );
 
     if (response.statusCode == 200) {
-      final data = json.decode(utf8.decode(response.bodyBytes));
-      return DeliveryFeeResult.fromJson(data);
+      final decoded = json.decode(utf8.decode(response.bodyBytes));
+      // Objet plat côté service → enveloppé `{ data: {...} }` par l'interceptor.
+      return DeliveryFeeResult.fromJson(ApiResponse.mapOf(decoded));
     } else {
       throw Exception('Erreur lors du calcul des frais: ${response.body}');
     }

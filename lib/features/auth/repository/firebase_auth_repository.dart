@@ -59,7 +59,13 @@ class FirebaseAuthenticationRepository {
               body: jsonEncode({'firebaseUid': user.uid, 'email': user.email}),
             )
             .timeout(const Duration(seconds: 8));
-      } catch (_) {}
+      } catch (e) {
+        // Sync best-effort (met à jour lastLogin) : non bloquant pour la
+        // connexion, mais on trace l'échec en debug au lieu de l'avaler (C19).
+        if (kDebugMode) {
+          debugPrint('Background /users/sync failed: ${e.runtimeType}');
+        }
+      }
     }
   }
 

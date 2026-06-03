@@ -17,6 +17,16 @@ val keystoreProperties = Properties()
         keystoreProperties.load(FileInputStream(keystorePropertiesFile))
     }
 
+// Clé Google Maps lue depuis local.properties (gitignored) — jamais committée.
+// Fallback placeholder si absente : le build passe mais Maps ne s'affiche pas.
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
+}
+val mapsApiKey: String =
+    (localProperties["MAPS_API_KEY"] as String?) ?: "YOUR_GOOGLE_MAPS_API_KEY"
+
 android {
     namespace = "com.dreesis.lilia.lilia_app"
     compileSdk = flutter.compileSdkVersion
@@ -45,6 +55,8 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // Injecte la clé Maps dans AndroidManifest (${MAPS_API_KEY}).
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
     signingConfigs {
         create("release") {

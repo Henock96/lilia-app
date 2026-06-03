@@ -74,7 +74,7 @@ final class CartControllerProvider
   CartController create() => CartController();
 }
 
-String _$cartControllerHash() => r'2a49e7e118dc7422c555790f1cb80d916040879b';
+String _$cartControllerHash() => r'b71db248ae69d86684fee93e8053c00770d4b543';
 
 abstract class _$CartController extends $StreamNotifier<Cart?> {
   Stream<Cart?> build();

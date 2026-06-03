@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
+import 'package:lilia_app/utils/api_response.dart';
 
 enum PaymentStatus { pending, success, failed, cancelled }
 
@@ -90,7 +91,7 @@ class PaymentService {
     required String orderId,
     required double amount,
     required String phoneNumber,
-    String currency = 'FCFA',
+    String currency = 'XAF', // code ISO — cohérent avec le reste de l'app (C16)
     String? payerMessage,
   }) async {
     try {
@@ -126,7 +127,8 @@ class PaymentService {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        return PaymentResponse.fromJson(data);
+        // Réponse enveloppée `{ data: {...} }` par l'interceptor backend.
+        return PaymentResponse.fromJson(ApiResponse.mapOf(data));
       } else {
         final error = jsonDecode(response.body);
         throw Exception(error['message'] ?? 'Failed to create payment');
@@ -163,7 +165,8 @@ class PaymentService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        return PaymentStatusResponse.fromJson(data);
+        // Réponse enveloppée `{ data: {...} }` par l'interceptor backend.
+        return PaymentStatusResponse.fromJson(ApiResponse.mapOf(data));
       } else {
         throw Exception('Failed to check payment status');
       }
@@ -204,41 +207,32 @@ class PaymentService {
     throw Exception('Payment verification timeout');
   }
 
-  // Formater le numéro de téléphone
+  // Formater le numéro vers le format E.164 Congo-Brazzaville (242XXXXXXXX).
+  // App Congo-only : on ne garde que l'indicatif 242 (C17).
   String formatPhoneNumber(String phoneNumber, {String countryCode = '242'}) {
-    // Nettoyer le numéro
     String cleaned = phoneNumber.replaceAll(RegExp(r'[^\d]'), '');
 
-    // Retirer le + si présent
+    // Retirer le préfixe international 00 si présent
     if (cleaned.startsWith('00')) {
       cleaned = cleaned.substring(2);
     }
-
-    // Ajouter le code pays si absent
+    // Numéro local Congo : 0[456]XXXXXXX → retirer le 0 de trunk
+    if (!cleaned.startsWith(countryCode) && cleaned.startsWith('0')) {
+      cleaned = cleaned.substring(1);
+    }
+    // Ajouter l'indicatif pays si absent
     if (!cleaned.startsWith(countryCode)) {
-      // Si le numéro commence par 6 ou 7 (typique Cameroun)
-      if (cleaned.startsWith('6') || cleaned.startsWith('7')) {
-        cleaned = countryCode + cleaned;
-      }
+      cleaned = countryCode + cleaned;
     }
 
     return cleaned;
   }
 
-  // Valider le numéro de téléphone
+  // Valider un mobile Congo-Brazzaville : 242 + [456] + 7 chiffres (MTN/Airtel).
+  // Mirroir du backend B21 (`^(242)?0?[456][0-9]{7}$`).
   bool validatePhoneNumber(String phoneNumber, {String countryCode = '242'}) {
     final formatted = formatPhoneNumber(phoneNumber, countryCode: countryCode);
-
-    // Patterns pour différents pays
-    final patterns = {
-      '237': RegExp(r'^237[67]\d{8}$'), // Cameroun
-      '225': RegExp(r'^225\d{10}$'), // Côte d'Ivoire
-      '243': RegExp(r'^243[89]\d{8}$'), // RDC
-      '242': RegExp(r'^242\d{9}$'), // Congo-Brazzaville
-    };
-
-    final pattern = patterns[countryCode] ?? RegExp(r'^\d{9,15}$');
-    return pattern.hasMatch(formatted);
+    return RegExp(r'^242[456]\d{7}$').hasMatch(formatted);
   }
 }
 

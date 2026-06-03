@@ -3,9 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 
 class CloudinaryService {
-  // REMPLACEZ PAR VOS VRAIES INFORMATIONS CLOUDINARY
-  // Exemple:
-  // final _cloudinary = CloudinaryPublic('lilia-app-cloud', 'ml_default', cache: false);
+  // Upload NON signé : seuls le cloud name (public) et le preset unsigned
+  // `ml_default` sont utilisés côté client. Aucun API key/secret ici — la
+  // signature reste serveur-only. Ne jamais embarquer l'API secret Cloudinary.
   final _cloudinary = CloudinaryPublic('dun9ev7pw', 'ml_default', cache: false);
 
   Future<String?> uploadImage(XFile image) async {

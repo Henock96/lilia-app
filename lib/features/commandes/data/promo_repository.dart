@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_app/models/promo_validation_result.dart';
+import 'package:lilia_app/utils/api_response.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'promo_repository.g.dart';
@@ -45,7 +46,8 @@ class PromoRepository extends _$PromoRepository {
     final body = json.decode(utf8.decode(response.bodyBytes));
 
     if (response.statusCode == 200) {
-      return PromoValidationResult.fromJson(body as Map<String, dynamic>);
+      // Objet plat côté backend → enveloppé `{ data: {...} }` par l'interceptor.
+      return PromoValidationResult.fromJson(ApiResponse.mapOf(body));
     }
 
     // Extraire le message d'erreur du backend
