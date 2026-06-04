@@ -9,6 +9,7 @@ import '../../../../routing/app_route_enum.dart';
 import '../../../../services/analytics_service.dart';
 import '../../data/remote/home_controller.dart';
 import 'shimmer_box.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 class PopularDishesSection extends ConsumerWidget {
   const PopularDishesSection({super.key});
@@ -227,7 +228,7 @@ class _DishCard extends ConsumerWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            '${product.displayPrice.toStringAsFixed(0)} FCFA',
+                            formatPrice(product.displayPrice),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -423,7 +424,7 @@ class _DishCard extends ConsumerWidget {
                           style: const TextStyle(fontSize: 14),
                         ),
                         Text(
-                          '${variant.prix.toStringAsFixed(0)} FCFA',
+                          formatPrice(variant.prix),
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,

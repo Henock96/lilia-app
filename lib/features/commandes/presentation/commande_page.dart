@@ -8,6 +8,7 @@ import 'package:lilia_app/features/notifications/application/notification_provid
 import 'package:lilia_app/models/order.dart';
 import 'package:intl/intl.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 class CommandePage extends ConsumerStatefulWidget {
   const CommandePage({super.key});
@@ -458,7 +459,7 @@ class _OrderCard extends ConsumerWidget {
                               ],
                             ),
                             Text(
-                              '${order.total.toStringAsFixed(0)} FCFA',
+                              formatPrice(order.total),
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,

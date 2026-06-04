@@ -7,6 +7,7 @@ import 'package:lilia_app/features/favoris/application/restaurant_favorites_prov
 
 import '../../../models/produit.dart';
 import '../../../models/restaurant.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 class FavorisPage extends ConsumerWidget {
   const FavorisPage({super.key});
@@ -192,7 +193,7 @@ class ProductCardFavoris extends ConsumerWidget {
                     ],
                     const SizedBox(height: 4),
                     Text(
-                      '${getDisplayPrice().toStringAsFixed(0)} FCFA',
+                      formatPrice(getDisplayPrice()),
                       style: TextStyle(
                         color: cs.primary,
                         fontWeight: FontWeight.bold,
@@ -492,7 +493,7 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '${restaurant.fixedDeliveryFee.toStringAsFixed(0)} FCFA',
+                          formatPrice(restaurant.fixedDeliveryFee),
                           style: TextStyle(
                             fontSize: 12,
                             color: cs.onSurfaceVariant,

@@ -11,6 +11,7 @@ import '../../../models/restaurant.dart';
 import '../../../routing/app_route_enum.dart';
 import '../../../services/analytics_service.dart';
 import '../data/remote/home_controller.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -307,7 +308,7 @@ class _SearchProductTile extends ConsumerWidget {
                 style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
               ),
             Text(
-              '${product.displayPrice.toStringAsFixed(0)} FCFA',
+              formatPrice(product.displayPrice),
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -453,7 +454,7 @@ class _SearchProductTile extends ConsumerWidget {
                           ),
                         ),
                         Text(
-                          '${variant.prix.toStringAsFixed(0)} FCFA',
+                          formatPrice(variant.prix),
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,

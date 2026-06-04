@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../models/produit.dart';
 import '../../../models/vendor_type.dart';
 import '../../cart/presentation/cart_mode_conflict_dialog.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 class ProductDetailPage extends ConsumerStatefulWidget {
   final Product product;
@@ -409,7 +410,7 @@ Téléchargez l'app Lilia Food pour commander !
                   ],
                 ),
                 child: Text(
-                  '${_unitPrice.toStringAsFixed(0)} FCFA',
+                  formatPrice(_unitPrice),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -712,7 +713,7 @@ Téléchargez l'app Lilia Food pour commander !
                     ),
                     // Prix
                     Text(
-                      '${variant.prix.toStringAsFixed(0)} FCFA',
+                      formatPrice(variant.prix),
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
@@ -886,7 +887,7 @@ Téléchargez l'app Lilia Food pour commander !
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     child: Text(
-                      '${_currentPrice.toStringAsFixed(0)} FCFA',
+                      formatPrice(_currentPrice),
                       key: ValueKey<double>(_currentPrice),
                       style: TextStyle(
                         fontSize: 22,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lilia_app/models/menu.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 class MenuCard extends StatelessWidget {
   final MenuDuJour menu;
@@ -93,7 +94,7 @@ class MenuCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '${menu.prix.toStringAsFixed(0)} FCFA',
+                          formatPrice(menu.prix),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,

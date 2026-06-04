@@ -15,6 +15,7 @@ import '../../cart/presentation/cart_mode_conflict_dialog.dart';
 import '../data/remote/restaurant_controller.dart';
 import 'widgets/menus_section.dart';
 import 'widgets/vendor_type_badge.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 /// Écran de détail vendeur (LIL-117 — refonte UI).
 ///
@@ -822,7 +823,7 @@ class _DeliveryInfoCard extends StatelessWidget {
             label: 'Frais',
             value: restaurant.fixedDeliveryFee == 0
                 ? 'Gratuit'
-                : '${restaurant.fixedDeliveryFee.toStringAsFixed(0)} FCFA',
+                : formatPrice(restaurant.fixedDeliveryFee),
             color: Colors.green,
           ),
           const SizedBox(width: 10),
@@ -830,7 +831,7 @@ class _DeliveryInfoCard extends StatelessWidget {
             icon: Icons.shopping_bag_outlined,
             label: 'Minimum',
             value: restaurant.minimumOrderAmount > 0
-                ? '${restaurant.minimumOrderAmount.toStringAsFixed(0)} FCFA'
+                ? formatPrice(restaurant.minimumOrderAmount)
                 : 'Aucun',
             color: Colors.orange,
           ),
@@ -1165,7 +1166,7 @@ class _ProductCard extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '${getDisplayPrice().toStringAsFixed(0)} FCFA',
+                          formatPrice(getDisplayPrice()),
                           style: TextStyle(
                             color: available ? scheme.primary : Colors.grey,
                             fontWeight: FontWeight.bold,

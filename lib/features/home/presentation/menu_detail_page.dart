@@ -6,6 +6,7 @@ import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/models/menu.dart';
 import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 class MenuDetailPage extends ConsumerStatefulWidget {
   final MenuDuJour menu;
@@ -230,7 +231,7 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
                         ),
                       ),
                       Text(
-                        '${menu.prix.toStringAsFixed(0)} FCFA',
+                        formatPrice(menu.prix),
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,

@@ -22,6 +22,7 @@ import '../../../models/promo_validation_result.dart';
 import '../../../models/restaurant.dart';
 import '../../../models/vendor_type.dart';
 import '../data/promo_repository.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
   final DeliveryOptions? deliveryOptions;
@@ -960,7 +961,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         ),
                       ),
                       Text(
-                        '${((menuInfo?.prix ?? 0) * quantite).toStringAsFixed(0)} FCFA',
+                        formatPrice(((menuInfo?.prix ?? 0) * quantite)),
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -999,7 +1000,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     ),
                   ),
                   Text(
-                    '${(item.quantite * item.variant.prix).toStringAsFixed(0)} FCFA',
+                    formatPrice((item.quantite * item.variant.prix)),
                     style: const TextStyle(fontSize: 14),
                   ),
                 ],
@@ -1026,7 +1027,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             children: [
               const Text('Frais de service', style: TextStyle(fontSize: 15)),
               Text(
-                '${serviceFee.toStringAsFixed(0)} FCFA',
+                formatPrice(serviceFee),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
@@ -1109,7 +1110,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               Text(
-                '${total.toStringAsFixed(0)} FCFA',
+                formatPrice(total),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -1148,7 +1149,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            '${originalDeliveryFee.toStringAsFixed(0)} FCFA',
+            formatPrice(originalDeliveryFee),
             style: TextStyle(
               fontSize: 14,
               decoration: TextDecoration.lineThrough,
@@ -1169,7 +1170,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
 
     return Text(
-      '${deliveryFee.toStringAsFixed(0)} FCFA',
+      formatPrice(deliveryFee),
       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
     );
   }
@@ -1180,7 +1181,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       children: [
         Text(label, style: const TextStyle(fontSize: 15)),
         Text(
-          '${value.toStringAsFixed(0)} FCFA',
+          formatPrice(value),
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
         ),
       ],
@@ -1387,7 +1388,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     children: [
                       const Text('Montant: ', style: TextStyle(fontSize: 14)),
                       Text(
-                        '${total.toStringAsFixed(0)} FCFA',
+                        formatPrice(total),
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,

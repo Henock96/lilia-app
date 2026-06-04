@@ -9,6 +9,7 @@ import '../../../../routing/app_route_enum.dart';
 import '../../../../services/analytics_service.dart';
 import '../../data/remote/home_controller.dart';
 import 'section_header.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 class RecommendationsSection extends ConsumerWidget {
   const RecommendationsSection({super.key});
@@ -194,7 +195,7 @@ class _RecommendationCard extends ConsumerWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            '${product.displayPrice.toStringAsFixed(0)} FCFA',
+                            formatPrice(product.displayPrice),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -355,7 +356,7 @@ class _RecommendationCard extends ConsumerWidget {
                       children: [
                         Text(variant.displayLabel, style: const TextStyle(fontSize: 14)),
                         Text(
-                          '${variant.prix.toStringAsFixed(0)} FCFA',
+                          formatPrice(variant.prix),
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,

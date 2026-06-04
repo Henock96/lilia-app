@@ -1,6 +1,7 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/home/presentation/widgets/section/banner_shimmer.dart';
@@ -339,10 +340,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           itemCount: restaurants.length,
           itemBuilder: (context, index) {
             final restaurant = restaurants[index];
+            // Entrée en cascade pour les premières cartes (visibles d'emblée) ;
+            // au-delà, simple fondu/glissé au scroll (évite les longs délais).
             return RestaurantCard(
               restaurant: restaurant,
               restaurantId: restaurant.id,
-            );
+            ).staggeredIn(index < 6 ? index : 0);
           },
         );
       },

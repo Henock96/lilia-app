@@ -1,3 +1,4 @@
+import 'package:lilia_app/utils/currency.dart';
 Map<String, dynamic> _asMap(Object? value) =>
     value is Map<String, dynamic> ? value : <String, dynamic>{};
 
@@ -76,7 +77,7 @@ class Cart {
 
   // Prix total formaté
   String get formattedTotalPrice {
-    return '${totalPrice.toStringAsFixed(0)} FCFA';
+    return formatPrice(totalPrice);
   }
 
   /// Multi-vendeurs (LIL-122) : vrai si AU MOINS un item du panier est

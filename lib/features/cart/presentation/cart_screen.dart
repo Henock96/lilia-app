@@ -11,6 +11,7 @@ import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/services/analytics_service.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -757,7 +758,7 @@ class _SuggestionTile extends ConsumerWidget {
                       ],
                       const SizedBox(height: 4),
                       Text(
-                        '${product.displayPrice.toStringAsFixed(0)} FCFA',
+                        formatPrice(product.displayPrice),
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
@@ -928,7 +929,7 @@ class _SuggestionTile extends ConsumerWidget {
                           style: const TextStyle(fontSize: 14),
                         ),
                         Text(
-                          '${variant.prix.toStringAsFixed(0)} FCFA',
+                          formatPrice(variant.prix),
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,

@@ -13,6 +13,7 @@ import 'package:lilia_app/models/quartier.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/models/vendor_type.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 class DeliveryOptionsPage extends ConsumerStatefulWidget {
   const DeliveryOptionsPage({super.key});
@@ -554,7 +555,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
             children: [
               const Text('Sous-total', style: TextStyle(fontSize: 15)),
               Text(
-                '${subTotal.toStringAsFixed(0)} FCFA',
+                formatPrice(subTotal),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
@@ -586,7 +587,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
               Text(
                 _isDelivery
                     ? (_calculatedDeliveryFee != null
-                          ? '${_calculatedDeliveryFee!.toStringAsFixed(0)} FCFA'
+                          ? formatPrice(_calculatedDeliveryFee!)
                           : 'Selectionnez un quartier')
                     : 'Gratuit',
                 style: TextStyle(
@@ -603,7 +604,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
             children: [
               const Text('Frais de service', style: TextStyle(fontSize: 15)),
               Text(
-                '${serviceFee.toStringAsFixed(0)} FCFA',
+                formatPrice(serviceFee),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
@@ -620,7 +621,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               Text(
-                '${total.toStringAsFixed(0)} FCFA',
+                formatPrice(total),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,

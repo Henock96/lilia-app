@@ -7,6 +7,7 @@ import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/services/analytics_service.dart';
 import '../vendor_type_badge.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 class RestaurantCard extends ConsumerWidget {
   final RestaurantSummary restaurant;
@@ -296,7 +297,7 @@ class RestaurantCard extends ConsumerWidget {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            '${restaurant.fixedDeliveryFee.toStringAsFixed(0)} FCFA',
+                            formatPrice(restaurant.fixedDeliveryFee),
                             style: TextStyle(
                               fontSize: 12,
                               color: theme.colorScheme.onSurfaceVariant,

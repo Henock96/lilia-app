@@ -12,6 +12,7 @@ import 'package:lilia_app/models/order.dart';
 import '../../../models/order_item.dart';
 import '../../cart/application/cart_controller.dart';
 import '../data/order_controller.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 class OrderDetailPage extends ConsumerWidget {
   final String orderId;
@@ -737,8 +738,8 @@ class OrderDetailPage extends ConsumerWidget {
             ? Colors.green.shade700
             : cs.onSurface;
     final formatted = isDiscount
-        ? '${value.toStringAsFixed(0)} FCFA'
-        : '${value.toStringAsFixed(0)} FCFA';
+        ? formatPrice(value)
+        : formatPrice(value);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -1201,7 +1202,7 @@ class _OrderItemCard extends StatelessWidget {
           ),
         ),
         Text(
-          '${(item.prix * item.quantite).toStringAsFixed(0)} FCFA',
+          formatPrice((item.prix * item.quantite)),
           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
         ),
       ],

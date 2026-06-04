@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class BuildLoadingState extends StatelessWidget {
   const BuildLoadingState({super.key});
@@ -80,7 +81,12 @@ class BuildLoadingState extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
+            )
+                .animate(onPlay: (c) => c.repeat())
+                .shimmer(
+                  duration: const Duration(milliseconds: 1100),
+                  color: Colors.white.withValues(alpha: 0.45),
+                ),
           );
         },
       ),
