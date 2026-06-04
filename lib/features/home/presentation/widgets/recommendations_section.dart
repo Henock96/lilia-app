@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lilia_app/common_widgets/app_animations.dart';
 
 import '../../../../features/cart/application/cart_controller.dart';
 import '../../../../models/produit.dart';
@@ -38,7 +39,8 @@ class RecommendationsSection extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 itemCount: products.length,
                 itemBuilder: (context, index) {
-                  return _RecommendationCard(product: products[index]);
+                  return _RecommendationCard(product: products[index])
+                      .fadeScaleIn(delay: AppMotion.stagger * index.clamp(0, 5));
                 },
               ),
             ),

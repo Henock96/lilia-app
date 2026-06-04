@@ -394,10 +394,13 @@ class _VendorHeroAppBar extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (restaurant.imageUrl != null)
-              Image.network(
-                restaurant.imageUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => _placeholder(scheme),
+              Hero(
+                tag: 'resto-img-${restaurant.id}',
+                child: Image.network(
+                  restaurant.imageUrl!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => _placeholder(scheme),
+                ),
               )
             else
               _placeholder(scheme),

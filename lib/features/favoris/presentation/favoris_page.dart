@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
 import 'package:lilia_app/features/favoris/application/restaurant_favorites_provider.dart';
@@ -75,7 +76,8 @@ class _ProductFavoritesTab extends ConsumerWidget {
           padding: const EdgeInsets.all(12),
           itemCount: products.length,
           itemBuilder: (context, index) {
-            return ProductCardFavoris(product: products[index]);
+            return ProductCardFavoris(product: products[index])
+                .staggeredIn(index < 6 ? index : 0);
           },
         );
       },
@@ -270,7 +272,8 @@ class _RestaurantFavoritesTab extends ConsumerWidget {
           padding: const EdgeInsets.all(12),
           itemCount: restaurants.length,
           itemBuilder: (context, index) {
-            return _RestaurantFavoriteCard(restaurant: restaurants[index]);
+            return _RestaurantFavoriteCard(restaurant: restaurants[index])
+                .staggeredIn(index < 6 ? index : 0);
           },
         );
       },

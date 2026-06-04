@@ -57,7 +57,9 @@ class RestaurantCard extends ConsumerWidget {
                         top: Radius.circular(16),
                       ),
                       child: restaurant.imageUrl != null
-                          ? Image.network(
+                          ? Hero(
+                              tag: 'resto-img-${restaurant.id}',
+                              child: Image.network(
                               restaurant.imageUrl!,
                               height: 150,
                               width: double.infinity,
@@ -75,6 +77,7 @@ class RestaurantCard extends ConsumerWidget {
                                   ),
                                 );
                               },
+                            ),
                             )
                           : Container(
                               height: 150,
