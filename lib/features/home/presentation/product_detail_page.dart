@@ -8,6 +8,7 @@ import '../../../models/produit.dart';
 import '../../../models/vendor_type.dart';
 import '../../cart/presentation/cart_mode_conflict_dialog.dart';
 import 'package:lilia_app/utils/currency.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class ProductDetailPage extends ConsumerStatefulWidget {
   final Product product;
@@ -89,21 +90,9 @@ Téléchargez l'app Lilia Food pour commander !
 
   Future<void> _addToCart() async {
     if (_selectedVariant == null && widget.product.variants.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.white),
-              SizedBox(width: 8),
-              Text('Veuillez sélectionner une variante'),
-            ],
-          ),
-          backgroundColor: Colors.orange,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
+      context.showSnack(
+        'Veuillez sélectionner une variante',
+        type: SnackType.error,
       );
       return;
     }
@@ -128,48 +117,13 @@ Téléchargez l'app Lilia Food pour commander !
         restaurantId: widget.product.restaurantId,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            duration: const Duration(seconds: 1),
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '$_quantity x ${widget.product.name} ajouté au panier',
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
+        context.showSuccessSnack(
+          '$_quantity x ${widget.product.name} ajouté au panier',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text(e.toString())),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        context.showErrorSnack(e.toString());
       }
     }
   }
