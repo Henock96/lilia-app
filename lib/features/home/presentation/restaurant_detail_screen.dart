@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/services/analytics_service.dart';
@@ -1011,7 +1012,7 @@ class _CategorySection extends StatelessWidget {
                 extra: product,
               ),
               child: _ProductCard(product: product),
-            ),
+            ).fadeSlideIn(),
           ),
         ],
       ),

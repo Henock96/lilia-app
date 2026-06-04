@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
@@ -125,11 +126,12 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       ...menuGroups.entries.map((entry) {
                         final menuId = entry.key;
                         final groupItems = entry.value;
-                        return MenuCartCard(menuId: menuId, items: groupItems);
+                        return MenuCartCard(menuId: menuId, items: groupItems)
+                            .fadeSlideIn();
                       }),
                       // Items individuels
                       ...individualItems.map(
-                        (item) => CartItemCard(item: item),
+                        (item) => CartItemCard(item: item).fadeSlideIn(),
                       ),
                     ],
                   ),
