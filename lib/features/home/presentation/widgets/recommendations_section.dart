@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 import '../../../../features/cart/application/cart_controller.dart';
 import '../../../../models/produit.dart';
@@ -265,23 +266,11 @@ class _RecommendationCard extends ConsumerWidget {
         .addItem(variantId: variant.id)
         .then((_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${product.name} ajouté au panier'),
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        context.showSuccessSnack('${product.name} ajouté au panier');
       }
     }).catchError((e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        context.showErrorSnack('Erreur: $e');
       }
     });
   }
