@@ -85,6 +85,44 @@ class Order {
     this.isDelivery = true,
   });
 
+  Order copyWith({
+    String? id,
+    String? restaurantId,
+    String? userId,
+    double? subTotal,
+    double? deliveryFee,
+    double? serviceFee,
+    double? discountAmount,
+    double? total,
+    String? deliveryAddress,
+    String? paymentMethod,
+    OrderStatus? status,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    OrderRestaurant? restaurant,
+    List<OrderItem>? items,
+    bool? isDelivery,
+  }) {
+    return Order(
+      id: id ?? this.id,
+      restaurantId: restaurantId ?? this.restaurantId,
+      userId: userId ?? this.userId,
+      subTotal: subTotal ?? this.subTotal,
+      deliveryFee: deliveryFee ?? this.deliveryFee,
+      serviceFee: serviceFee ?? this.serviceFee,
+      discountAmount: discountAmount ?? this.discountAmount,
+      total: total ?? this.total,
+      deliveryAddress: deliveryAddress ?? this.deliveryAddress,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      restaurant: restaurant ?? this.restaurant,
+      items: items ?? this.items,
+      isDelivery: isDelivery ?? this.isDelivery,
+    );
+  }
+
   factory Order.fromJson(Map<String, dynamic> json) {
     final items = _asList(
       json['items'],

@@ -231,5 +231,6 @@ class DriverLocationController extends _$DriverLocationController {
     if (id != null) {
       ref.read(trackingSocketServiceProvider).unwatch(id);
     }
+    _orderId = null; // évite toute réutilisation d'un orderId obsolète (C14)
   }
 }

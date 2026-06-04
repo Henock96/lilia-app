@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:http/http.dart' as http;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -8,6 +9,7 @@ import '../../../../constants/app_constants.dart';
 import '../../../../models/produit.dart';
 import '../../../../models/restaurant.dart';
 import '../../../../models/search_result.dart';
+import '../../../../utils/api_response.dart';
 
 part 'home_repo.g.dart';
 
@@ -60,7 +62,8 @@ class HomeRepository {
         ),
       );
       if (response.statusCode == 200) {
-        return SearchResult.fromJson(json.decode(response.body));
+        // Tolère objet plat OU `{ data: {...} }` (api-contract-v2).
+        return SearchResult.fromJson(ApiResponse.mapOf(json.decode(response.body)));
       }
       throw Exception('Failed to search: ${response.statusCode}');
     } catch (e) {
@@ -82,8 +85,16 @@ class HomeRepository {
         final List<dynamic> data = json.decode(response.body)['data'];
         return data.map((j) => Product.fromJson(j)).toList();
       }
+      // Recommandations = feature non bloquante : on dégrade en liste vide,
+      // mais on trace l'erreur en debug au lieu de l'avaler totalement (C12).
+      if (kDebugMode) {
+        debugPrint('getRecommendations: HTTP ${response.statusCode}');
+      }
       return [];
-    } catch (_) {
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('getRecommendations failed: ${e.runtimeType}');
+      }
       return [];
     }
   }
@@ -95,8 +106,10 @@ class HomeRepository {
         Uri.parse('${AppConstants.baseUrl}/categories'),
       );
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body)['data'];
-        return data.map((j) => Category.fromJson(j)).toList();
+        // /categories double-enveloppé (`{ data: { data: [...], count } }`).
+        final decoded = json.decode(response.body);
+        final data = ApiResponse.listOf(ApiResponse.mapOf(decoded));
+        return data.map((j) => Category.fromJson(j as Map<String, dynamic>)).toList();
       }
       throw Exception('Failed to load categories: ${response.statusCode}');
     } catch (e) {

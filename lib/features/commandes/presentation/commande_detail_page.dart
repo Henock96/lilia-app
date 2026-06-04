@@ -41,10 +41,38 @@ class OrderDetailPage extends ConsumerWidget {
       ),
       body: orderAsyncValue.when(
         data: (orders) {
-          final order = orders.firstWhere(
-            (o) => o.id == orderId,
-            orElse: () => throw Exception('Commande non trouvée !'),
-          );
+          // Recherche null-safe : ne JAMAIS throw pendant build (sinon écran
+          // rouge). La commande peut être absente de la liste paginée si on
+          // arrive ici via notification / deep-link.
+          final matches = orders.where((o) => o.id == orderId);
+          if (matches.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Iconsax.receipt_search,
+                        size: 64, color: Colors.grey),
+                    const SizedBox(height: 16),
+                    Text('Commande introuvable',
+                        style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Cette commande n\'est plus disponible ou a été retirée de votre liste.',
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('Retour'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          final order = matches.first;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),

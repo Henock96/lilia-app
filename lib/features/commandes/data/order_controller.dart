@@ -19,8 +19,9 @@ class UserOrders extends _$UserOrders {
 
   // Méthode pour mettre à jour une commande dans l'état local ou l'ajouter.
   void updateOrAddOrder(Order order) {
-    // On récupère l'état actuel.
-    final currentState = state.value ?? [];
+    // Copie défensive : ne jamais muter la liste détenue par l'AsyncData
+    // courant (sinon on corrompt l'état précédent / les listeners) — C11.
+    final currentState = [...(state.value ?? <Order>[])];
     final index = currentState.indexWhere((o) => o.id == order.id);
 
     if (index != -1) {
@@ -32,26 +33,36 @@ class UserOrders extends _$UserOrders {
     }
 
     // On met à jour l'état avec la nouvelle liste, ce qui rafraîchira l'UI.
-    state = AsyncData([...currentState]);
+    state = AsyncData(currentState);
   }
 
   // Méthode pour supprimer une commande annulée (backend + local).
   Future<void> removeOrder(String orderId) async {
     final orderRepository = ref.read(orderRepositoryProvider.notifier);
     await orderRepository.deleteOrder(orderId);
-    final currentState = state.value ?? [];
+    // Copie défensive avant mutation (cf. updateOrAddOrder) — C11.
+    final currentState = [...(state.value ?? <Order>[])];
     currentState.removeWhere((o) => o.id == orderId);
-    state = AsyncData([...currentState]);
+    state = AsyncData(currentState);
   }
 
   // Méthode pour annuler une commande.
   Future<void> cancelOrder(String orderId) async {
     final orderRepository = ref.read(orderRepositoryProvider.notifier);
-    try {
-      await orderRepository.cancelOrder(orderId);
-      AnalyticsService.logOrderCancelled(orderId: orderId);
-    } catch (e) {
-      rethrow;
+    await orderRepository.cancelOrder(orderId);
+    AnalyticsService.logOrderCancelled(orderId: orderId);
+
+    // Reflète immédiatement l'annulation dans l'état local : sans ça, l'UI ne
+    // se rebuild qu'au prochain refresh manuel. On passe le statut à ANNULER
+    // (copie défensive) → la commande quitte l'onglet « en cours » pour
+    // « annulées ». Le backend a déjà confirmé la transition EN_ATTENTE/PAYER →
+    // ANNULER (sinon l'await aurait throw).
+    final current = state.value;
+    if (current != null) {
+      state = AsyncData([
+        for (final o in current)
+          o.id == orderId ? o.copyWith(status: OrderStatus.annuler) : o,
+      ]);
     }
   }
 }

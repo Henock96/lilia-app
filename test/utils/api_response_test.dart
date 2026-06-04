@@ -69,4 +69,67 @@ void main() {
       expect(() => ApiResponse.mapOf(42), throwsStateError);
     });
   });
+
+  // Régression : depuis api-contract-v2 (interceptor global backend), les
+  // endpoints dont le payload portait des clés hors { data, message, meta }
+  // (ex: `count`) sont DOUBLE-enveloppés : { data: { message, data: [...], count } }.
+  group('Backend api-contract-v2 wrapped shapes', () {
+    test('GET /menus/active double-wrappé → listOf∘mapOf rend la liste', () {
+      // Shape réel observé en prod (curl) :
+      final decoded = {
+        'data': {
+          'message': 'Menus actifs récupérés avec succès',
+          'data': [
+            {'id': 'm1'},
+            {'id': 'm2'},
+          ],
+          'count': 2,
+        },
+      };
+
+      // Reproduit le bug : l'ancien parsing `decoded['data'] as List` casse
+      // car decoded['data'] est un Map, pas une List.
+      expect(decoded['data'], isA<Map<String, dynamic>>());
+
+      // Le correctif : déballe l'enveloppe externe puis lit `data`.
+      final menus = ApiResponse.listOf(ApiResponse.mapOf(decoded));
+      expect(menus, hasLength(2));
+      expect((menus.first as Map)['id'], equals('m1'));
+    });
+
+    test('menus shape simple { data: [...] } reste géré', () {
+      final decoded = {
+        'data': [
+          {'id': 'm1'},
+        ],
+      };
+      expect(ApiResponse.listOf(ApiResponse.mapOf(decoded)), hasLength(1));
+    });
+
+    test('GET /users/me wrappé { data: { user } } → user via mapOf', () {
+      // Backend : `return { user }` → interceptor → { data: { user } }.
+      final decoded = {
+        'data': {
+          'user': {'id': 'u1', 'firebaseUid': 'fuid', 'email': 'a@b.cg'},
+        },
+      };
+
+      // Reproduit le bug : l'ancien `decoded['user']` est null.
+      expect(decoded['user'], isNull);
+
+      // Le correctif : déballe puis lit `user`.
+      final unwrapped = ApiResponse.mapOf(decoded);
+      final userMap = (unwrapped['user'] ?? unwrapped) as Map<String, dynamic>;
+      expect(userMap['firebaseUid'], equals('fuid'));
+    });
+
+    test('users/me legacy non-wrappé { user } reste géré', () {
+      final decoded = {
+        'user': {'id': 'u1', 'firebaseUid': 'fuid'},
+      };
+      final unwrapped = ApiResponse.mapOf(decoded);
+      final userMap = (unwrapped['user'] ?? unwrapped) as Map<String, dynamic>;
+      expect(userMap['firebaseUid'], equals('fuid'));
+    });
+  });
 }

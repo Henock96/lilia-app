@@ -60,7 +60,14 @@ class DraftOrdersNotifier extends _$DraftOrdersNotifier {
   /// Restaure un brouillon dans le panier (ajoute chaque item)
   Future<void> restoreDraft(String draftId) async {
     final drafts = await _loadDrafts();
-    final draft = drafts.firstWhere((d) => d.id == draftId);
+    // Recherche null-safe : le brouillon a pu être supprimé entre l'affichage
+    // et la restauration → ne pas crasher (StateError) sur un firstWhere sec.
+    final matches = drafts.where((d) => d.id == draftId);
+    if (matches.isEmpty) {
+      debugPrint('Brouillon $draftId introuvable — restauration ignorée');
+      return;
+    }
+    final draft = matches.first;
     final cartController = ref.read(cartControllerProvider.notifier);
 
     for (final item in draft.items) {

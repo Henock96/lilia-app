@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/models/review.dart';
+import 'package:lilia_app/utils/api_response.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'review_repository.g.dart';
@@ -24,8 +25,9 @@ class ReviewRepository {
       );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List<dynamic> reviewsJson = data['data'] as List;
+        final decoded = json.decode(response.body);
+        // Liste possiblement double-enveloppée (`{ data: { data: [...], ... } }`).
+        final reviewsJson = ApiResponse.listOf(ApiResponse.mapOf(decoded));
         return reviewsJson.map((json) => Review.fromJson(json)).toList();
       } else {
         throw Exception('Failed to load reviews: ${response.statusCode}');
@@ -47,7 +49,8 @@ class ReviewRepository {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        return ReviewStats.fromJson(data);
+        // Objet plat → enveloppé `{ data: {...} }` par l'interceptor.
+        return ReviewStats.fromJson(ApiResponse.mapOf(data));
       } else {
         throw Exception('Failed to load stats: ${response.statusCode}');
       }
@@ -77,7 +80,8 @@ class ReviewRepository {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        return CanReviewResponse.fromJson(data);
+        // Objet plat → enveloppé `{ data: {...} }` par l'interceptor.
+        return CanReviewResponse.fromJson(ApiResponse.mapOf(data));
       } else {
         return CanReviewResponse(
           canReview: false,

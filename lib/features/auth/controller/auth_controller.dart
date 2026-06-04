@@ -3,8 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_error_handler.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
+import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/commandes/data/order_repository.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
+import 'package:lilia_app/features/favoris/application/restaurant_favorites_provider.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/services/analytics_service.dart';
@@ -128,12 +130,18 @@ class AuthController extends _$AuthController {
       final authRepository = ref.read(authRepositoryProvider);
       await authRepository.signOut();
 
-      // Invalider les providers pour vider le cache utilisateur
+      // Invalider TOUS les providers user-scoped pour vider le cache (C10).
+      // ⚠️ restaurantFavoritesProvider est keepAlive : sans invalidation, les
+      // favoris du compte précédent restaient visibles après reconnexion.
       ref.invalidate(cartControllerProvider);
       ref.invalidate(notificationHistoryProvider);
       ref.invalidate(orderRepositoryProvider);
+      ref.invalidate(userOrdersProvider);
       ref.invalidate(favoritesProvider);
+      ref.invalidate(restaurantFavoritesProvider);
       ref.invalidate(userProfileProvider);
+      ref.invalidate(referralStatsProvider);
+      ref.invalidate(loyaltyTransactionsProvider);
 
       return true;
     } on Exception {

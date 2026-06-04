@@ -41,6 +41,88 @@ Future<LatLng> _resolveClientDestination(DriverLocation location) async {
   }
 }
 
+/// Construit les 3 markers de tracking (livreur / restaurant / destination
+/// client) partagés par la carte inline et la carte plein écran.
+/// [detailed] ajoute les snippets (mode plein écran).
+Set<Marker> _buildTrackingMarkers(
+  DriverLocation loc,
+  LatLng? destination, {
+  required bool detailed,
+}) {
+  final markers = <Marker>{};
+
+  if (loc.hasDriverPosition) {
+    markers.add(Marker(
+      markerId: const MarkerId('driver'),
+      position: LatLng(loc.latitude!, loc.longitude!),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+      infoWindow: InfoWindow(
+        title: loc.driverNom ?? 'Livreur',
+        snippet: loc.etaMinutes != null
+            ? 'Arrive dans ${loc.etaMinutes} min'
+            : 'Votre livreur',
+      ),
+    ));
+  }
+
+  if (loc.hasRestaurant) {
+    markers.add(Marker(
+      markerId: const MarkerId('restaurant'),
+      position: LatLng(loc.restaurantLatitude!, loc.restaurantLongitude!),
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
+      infoWindow: InfoWindow(
+        title: loc.restaurantNom ?? 'Restaurant',
+        snippet: detailed ? 'Point de retrait' : null,
+      ),
+    ));
+  }
+
+  if (destination != null) {
+    markers.add(Marker(
+      markerId: const MarkerId('destination'),
+      position: destination,
+      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+      infoWindow: InfoWindow(
+        title: 'Adresse de livraison',
+        snippet: detailed ? 'Vous' : null,
+      ),
+    ));
+  }
+
+  return markers;
+}
+
+/// Trace la route pointillée livreur → destination (si les deux sont connus).
+Set<Polyline> _buildRoutePolyline(
+  DriverLocation loc,
+  LatLng? destination, {
+  required int width,
+  required int dash,
+  required int gap,
+}) {
+  final polylines = <Polyline>{};
+  if (loc.hasDriverPosition && destination != null) {
+    polylines.add(Polyline(
+      polylineId: const PolylineId('route'),
+      points: [LatLng(loc.latitude!, loc.longitude!), destination],
+      color: const Color(0xFF1565C0),
+      width: width,
+      patterns: [PatternItem.dash(dash.toDouble()), PatternItem.gap(gap.toDouble())],
+    ));
+  }
+  return polylines;
+}
+
+/// Centre initial de la caméra : livreur > destination > restaurant > Brazzaville.
+LatLng _initialMapCenter(DriverLocation loc, LatLng? destination) {
+  return loc.hasDriverPosition
+      ? LatLng(loc.latitude!, loc.longitude!)
+      : (destination ??
+          (loc.hasRestaurant
+              ? LatLng(loc.restaurantLatitude!, loc.restaurantLongitude!)
+              : _kBrazzavilleCenter));
+}
+
 class DriverTrackingMap extends ConsumerWidget {
   final String orderId;
   final bool fullscreen;
@@ -295,63 +377,10 @@ class _FullscreenMapViewState extends State<_FullscreenMapView> {
   @override
   Widget build(BuildContext context) {
     final loc = widget.location;
-    final markers = <Marker>{};
-
-    if (loc.hasDriverPosition) {
-      markers.add(Marker(
-        markerId: const MarkerId('driver'),
-        position: LatLng(loc.latitude!, loc.longitude!),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-        infoWindow: InfoWindow(
-          title: loc.driverNom ?? 'Livreur',
-          snippet: loc.etaMinutes != null
-              ? 'Arrive dans ${loc.etaMinutes} min'
-              : 'Votre livreur',
-        ),
-      ));
-    }
-
-    if (loc.hasRestaurant) {
-      markers.add(Marker(
-        markerId: const MarkerId('restaurant'),
-        position: LatLng(loc.restaurantLatitude!, loc.restaurantLongitude!),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
-        infoWindow: InfoWindow(
-          title: loc.restaurantNom ?? 'Restaurant',
-          snippet: 'Point de retrait',
-        ),
-      ));
-    }
-
-    if (_destination != null) {
-      markers.add(Marker(
-        markerId: const MarkerId('destination'),
-        position: _destination!,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-        infoWindow: const InfoWindow(
-          title: 'Adresse de livraison',
-          snippet: 'Vous',
-        ),
-      ));
-    }
-
-    final polylines = <Polyline>{};
-    if (loc.hasDriverPosition && _destination != null) {
-      polylines.add(Polyline(
-        polylineId: const PolylineId('route'),
-        points: [LatLng(loc.latitude!, loc.longitude!), _destination!],
-        color: const Color(0xFF1565C0),
-        width: 5,
-        patterns: [PatternItem.dash(20), PatternItem.gap(10)],
-      ));
-    }
-
-    final initialCenter = loc.hasDriverPosition
-        ? LatLng(loc.latitude!, loc.longitude!)
-        : (_destination ??
-            (loc.hasRestaurant
-                ? LatLng(loc.restaurantLatitude!, loc.restaurantLongitude!)
-                : _kBrazzavilleCenter));
+    final markers = _buildTrackingMarkers(loc, _destination, detailed: true);
+    final polylines =
+        _buildRoutePolyline(loc, _destination, width: 5, dash: 20, gap: 10);
+    final initialCenter = _initialMapCenter(loc, _destination);
 
     return Stack(
       children: [
@@ -430,59 +459,10 @@ class _MapViewState extends State<_MapView> {
   @override
   Widget build(BuildContext context) {
     final loc = widget.location;
-    final markers = <Marker>{};
-
-    if (loc.hasDriverPosition) {
-      markers.add(Marker(
-        markerId: const MarkerId('driver'),
-        position: LatLng(loc.latitude!, loc.longitude!),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-        infoWindow: InfoWindow(
-          title: loc.driverNom ?? 'Livreur',
-          snippet: loc.etaMinutes != null
-              ? 'Arrive dans ${loc.etaMinutes} min'
-              : 'Votre livreur',
-        ),
-      ));
-    }
-
-    if (loc.hasRestaurant) {
-      markers.add(Marker(
-        markerId: const MarkerId('restaurant'),
-        position: LatLng(loc.restaurantLatitude!, loc.restaurantLongitude!),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
-        infoWindow: InfoWindow(
-          title: loc.restaurantNom ?? 'Restaurant',
-        ),
-      ));
-    }
-
-    if (_destination != null) {
-      markers.add(Marker(
-        markerId: const MarkerId('destination'),
-        position: _destination!,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-        infoWindow: const InfoWindow(title: 'Adresse de livraison'),
-      ));
-    }
-
-    final polylines = <Polyline>{};
-    if (loc.hasDriverPosition && _destination != null) {
-      polylines.add(Polyline(
-        polylineId: const PolylineId('route'),
-        points: [LatLng(loc.latitude!, loc.longitude!), _destination!],
-        color: const Color(0xFF1565C0),
-        width: 4,
-        patterns: [PatternItem.dash(16), PatternItem.gap(8)],
-      ));
-    }
-
-    final initialCenter = loc.hasDriverPosition
-        ? LatLng(loc.latitude!, loc.longitude!)
-        : (_destination ??
-            (loc.hasRestaurant
-                ? LatLng(loc.restaurantLatitude!, loc.restaurantLongitude!)
-                : _kBrazzavilleCenter));
+    final markers = _buildTrackingMarkers(loc, _destination, detailed: false);
+    final polylines =
+        _buildRoutePolyline(loc, _destination, width: 4, dash: 16, gap: 8);
+    final initialCenter = _initialMapCenter(loc, _destination);
 
     return SizedBox(
       height: 220,

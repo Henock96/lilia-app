@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/models/menu.dart';
+import 'package:lilia_app/utils/api_response.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'menu_repo.g.dart';
@@ -20,8 +21,11 @@ class MenuRepository {
       final response = await http.get(uri);
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List<dynamic> menusJson = data['data'] as List;
+        final decoded = json.decode(response.body);
+        // /menus/active est double-enveloppé par l'interceptor backend
+        // (`{ data: { message, data: [...], count } }`). On déballe l'enveloppe
+        // externe puis on lit la liste — tolérant aux formes legacy.
+        final menusJson = ApiResponse.listOf(ApiResponse.mapOf(decoded));
         return menusJson.map((json) => MenuDuJour.fromJson(json)).toList();
       } else {
         throw Exception('Failed to load menus: ${response.statusCode}');
@@ -69,8 +73,9 @@ class MenuRepository {
       final response = await http.get(uri);
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final List<dynamic> menusJson = data['data'] as List;
+        final decoded = json.decode(response.body);
+        // Idem `getActiveMenus` : `/menus` est double-enveloppé (contient `count`).
+        final menusJson = ApiResponse.listOf(ApiResponse.mapOf(decoded));
         return menusJson.map((json) => MenuDuJour.fromJson(json)).toList();
       } else {
         throw Exception('Failed to load menus: ${response.statusCode}');

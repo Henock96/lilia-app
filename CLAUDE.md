@@ -110,7 +110,9 @@ iOS spécifique :
 
 ## API Communication
 
-Base URL : `https://lilia-backend.onrender.com`
+Base URL : `AppConstants.baseUrl` — défaut `https://lilia-backend.onrender.com`,
+overridable au build via `--dart-define=API_URL=...` (staging, tunnel local).
+Idem pour `wsUrl` via `--dart-define=WS_URL=...`.
 
 ```dart
 final idToken = await ref.read(firebaseIdTokenProvider.future);
@@ -118,20 +120,34 @@ final response = await client.get(uri, headers: {
   'Authorization': 'Bearer $idToken',
   'Content-Type': 'application/json',
 });
-final data = json.decode(response.body)['data'];
+final decoded = json.decode(response.body);
+final data = ApiResponse.mapOf(decoded);   // tolérant raw OU { data: ... }
 ```
 
+### Helper `ApiResponse` (J2 — juin 2026)
+
+`lib/utils/api_response.dart` — accepte les deux formes pendant la
+migration backend vers `api-contract-v2` (interceptor global qui wrappe
+TOUT en `{ data, message?, meta? }`).
+
+- `ApiResponse.listOf(decoded)` → `List<dynamic>` (vide si payload inattendu)
+- `ApiResponse.mapOf(decoded)` → `Map<String, dynamic>` (throw `StateError` sinon)
+
 ### Format des réponses backend
-| Endpoint | Format |
+| Endpoint | Format actuel |
 |---|---|
 | `GET /restaurants` | `{ data: [...], count }` |
 | `GET /restaurants/:id` | `{ data: {...} }` |
 | `GET /adresses` | `{ data: [...], count }` |
 | `POST /adresses` | `{ data: {...}, message }` |
 | `GET /quartiers` | `{ data: [...], count }` (Public) |
-| `GET /users/me` | `{ user: {...} }` |
+| `GET /users/me` | `{ user: {...} }` → bientôt `{ data: { user: ... } }` (J2) |
 | `POST /orders/checkout` | `{ message, data: {...} }` |
-| `POST /promo/validate` | objet plat |
+| `POST /promo/validate` | objet plat → bientôt `{ data: {...} }` (J2) |
+
+⚠️ Une fois `api-contract-v2` mergé côté backend, TOUTES les réponses
+seront wrappées. Utiliser `ApiResponse.listOf` / `mapOf` au lieu de
+`decoded['data']` direct.
 
 ### Parsing erreurs
 `_extractErrorMessage(body)` → lit `json['message']` (String ou List). Helper dans `order_repository.dart`.
@@ -362,9 +378,15 @@ google_fonts: ^8.1.0
 3. ✅ **`commande_detail_page._buildSummaryCard`** : affiche maintenant serviceFee + discountAmount (cohérence avec checkout)
 4. ✅ **Constantes** `wsUrl` + `trackingNamespace` ajoutées dans `AppConstants`
 
+## Corrections robustesse (audit juin 2026)
+
+1. ✅ **`commande_detail_page`** : `firstWhere(orElse: throw)` → recherche null-safe + UI « Commande introuvable » (plus de crash si on arrive via deep-link/notif sur une commande hors liste).
+2. ✅ **`draft_orders_provider.restoreDraft`** : recherche null-safe (plus de `StateError` si le brouillon a disparu).
+3. ✅ **`review.dart`** : parsing défensif (`as num?`, `tryParse`, fallbacks) — un restaurant sans avis ne crashe plus l'écran de stats.
+4. ✅ **`NotificationService._handleNotificationData`** : switch `data['type']` mort supprimé, cast `orderId` null-safe.
+5. ✅ **`driver_tracking_map.dart`** : duplication `_FullscreenMapView`/`_MapView` factorisée via helpers partagés (`_buildTrackingMarkers`, `_buildRoutePolyline`, `_initialMapCenter`).
+
 ## Dettes techniques restantes
 
-1. **`NotificationService._handleNotificationData`** : switch sur `data['type']` avec cases vides (`'order_update'`, `'message'`) — code mort à supprimer ou implémenter.
-2. **`fullscreen_tracking_screen`** duplique une grande partie de `driver_tracking_map.dart` (`_FullscreenMapView` vs `_MapView`). Factoriser.
-3. Les onglets `Favoris` et `commandes_page` rafraîchissent leurs providers manuellement après notification FCM — pas un bug, mais à surveiller (potentiellement double-load).
-4. **Event `order:status`** reçu via WS mais juste loggué (debug). Pourrait invalider `userOrdersProvider` directement (actuellement géré via FCM).
+1. Les onglets `Favoris` et `commandes_page` rafraîchissent leurs providers manuellement après notification FCM — pas un bug, mais à surveiller (potentiellement double-load).
+2. **Event `order:status`** reçu via WS mais juste loggué (debug). Pourrait invalider `userOrdersProvider` directement (actuellement géré via FCM).

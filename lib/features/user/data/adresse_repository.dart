@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
+import 'package:lilia_app/utils/api_response.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../models/adresse.dart';
@@ -35,7 +36,8 @@ class AdresseRepository extends _$AdresseRepository {
 
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body);
-        final List<dynamic> addressesJson = decoded['data'];
+        // /adresses double-enveloppé (`{ data: { data: [...], count } }`).
+        final addressesJson = ApiResponse.listOf(ApiResponse.mapOf(decoded));
         return addressesJson.map((json) => Adresse.fromJson(json)).toList();
       } else {
         throw Exception('Impossible de charger vos adresses.');
