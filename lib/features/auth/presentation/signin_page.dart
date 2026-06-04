@@ -5,6 +5,7 @@ import 'package:lilia_app/constants/app_size.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 
 import '../controller/auth_controller.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class SignInPage extends ConsumerWidget {
   const SignInPage({super.key});
@@ -13,12 +14,7 @@ class SignInPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.listen(authControllerProvider, (prev, state) {
       if (state.hasError && !state.isLoading) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${state.error}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        context.showErrorSnack('${state.error}');
       }
     });
 
@@ -145,11 +141,7 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
             .read(authControllerProvider.notifier)
             .sendPasswordResetEmailWithEmail(result);
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Un e-mail de réinitialisation a été envoyé.'),
-          ),
-        );
+        context.showSnack('Un e-mail de réinitialisation a été envoyé.');
       } catch (e) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/features/reviews/data/review_repository.dart';
 import 'package:lilia_app/features/reviews/presentation/widgets/star_rating.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class WriteReviewScreen extends ConsumerStatefulWidget {
   final String restaurantId;
@@ -219,24 +220,12 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              _isEditing ? 'Avis modifie avec succes' : 'Merci pour votre avis !',
-            ),
-            backgroundColor: Colors.green,
-          ),
-        );
+        context.showSuccessSnack(_isEditing ? 'Avis modifie avec succes' : 'Merci pour votre avis !');
         Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        context.showErrorSnack('Erreur: $e');
       }
     } finally {
       if (mounted) {

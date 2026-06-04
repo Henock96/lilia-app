@@ -13,6 +13,7 @@ import '../../../models/order_item.dart';
 import '../../cart/application/cart_controller.dart';
 import '../data/order_controller.dart';
 import 'package:lilia_app/utils/currency.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class OrderDetailPage extends ConsumerWidget {
   final String orderId;
@@ -900,48 +901,17 @@ class OrderDetailPage extends ConsumerWidget {
               '\n$totalUnavailable article${totalUnavailable > 1 ? 's' : ''} indisponible${totalUnavailable > 1 ? 's' : ''}';
         }
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text(message)),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            action: SnackBarAction(
-              label: 'Voir le panier',
-              textColor: Colors.white,
-              onPressed: () {
-                context.go('/cart');
-              },
-            ),
+        context.showSnack(
+          message,
+          type: SnackType.success,
+          action: SnackBarAction(
+            label: 'Voir le panier',
+            textColor: Colors.white,
+            onPressed: () => context.go('/cart'),
           ),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.white),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text('Aucun article disponible pour cette commande'),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.orange,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+        context.showErrorSnack('Aucun article disponible pour cette commande');
       }
     } catch (e) {
       if (!context.mounted) return;
@@ -953,22 +923,7 @@ class OrderDetailPage extends ConsumerWidget {
             'Votre panier contient des articles d\'un autre restaurant. Videz-le d\'abord.';
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white),
-              const SizedBox(width: 8),
-              Expanded(child: Text(errorMessage)),
-            ],
-          ),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
-      );
+      context.showErrorSnack(errorMessage);
     }
   }
 
@@ -1021,32 +976,11 @@ class OrderDetailPage extends ConsumerWidget {
                       .read(userOrdersProvider.notifier)
                       .cancelOrder(orderId);
                   if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Row(
-                        children: [
-                          Icon(Icons.check_circle, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text('Commande annulée avec succès'),
-                        ],
-                      ),
-                      backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  );
+                  context.showSuccessSnack('Commande annulée avec succès');
                   Navigator.of(context).pop();
                 } catch (e) {
                   if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Erreur: ${e.toString()}'),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                  context.showErrorSnack('Erreur: ${e.toString()}');
                 }
               },
             ),

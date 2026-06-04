@@ -11,6 +11,7 @@ import 'package:lilia_app/theme/theme_mode_provider.dart';
 
 import '../../common_widgets/build_error_state.dart';
 import 'presentation/pages/about_page.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class UserPage extends ConsumerWidget {
   const UserPage({super.key});
@@ -638,12 +639,7 @@ class _ReferralCard extends ConsumerWidget {
             GestureDetector(
               onTap: () {
                 Clipboard.setData(ClipboardData(text: stats.referralCode));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Code copie !'),
-                    backgroundColor: purpleDisplay,
-                  ),
-                );
+                context.showSuccessSnack('Code copie !');
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(

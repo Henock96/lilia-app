@@ -5,6 +5,7 @@ import 'package:lilia_app/constants/app_size.dart';
 
 import '../../../routing/app_route_enum.dart';
 import '../controller/auth_controller.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class SignUpPage extends ConsumerStatefulWidget {
   const SignUpPage({super.key});
@@ -44,9 +45,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
         _progressIndicatorContext = null;
       }
       if (state.hasError && !state.isLoading) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: ${state.error}'), backgroundColor: Colors.red),
-        );
+        context.showErrorSnack('Erreur: ${state.error}');
       }
     });
 

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
 import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class FavorisDetailPage extends ConsumerStatefulWidget {
   final Product product;
@@ -175,25 +176,14 @@ class _FavorisDetailPageState extends ConsumerState<FavorisDetailPage> {
                 onPressed: () {
                   if (_selectedVariant == null &&
                       widget.product.variants.isNotEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Veuillez sélectionner une variante!'),
-                      ),
-                    );
+                    context.showSnack('Veuillez sélectionner une variante!');
                     return;
                   }
                   final variantId = _selectedVariant!.id;
                   ref
                       .read(cartControllerProvider.notifier)
                       .addItem(variantId: variantId, quantity: _quantity);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '${widget.product.name} a été ajouté au panier.',
-                      ),
-                      duration: const Duration(seconds: 2),
-                    ),
-                  );
+                  context.showSnack('${widget.product.name} a été ajouté au panier.');
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).primaryColor,

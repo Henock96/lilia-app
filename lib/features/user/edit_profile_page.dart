@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/features/auth/controller/auth_controller.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
@@ -49,24 +50,12 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       if (!mounted) return; // Vérifie si le widget est toujours monté
 
       if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profil mis à jour avec succès!'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        context.showSuccessSnack('Profil mis à jour avec succès!');
         Navigator.of(context).pop(); // Retourne à la page précédente
       } else {
         // En cas d'erreur, affiche le message d'erreur du provider
         final error = ref.read(profileControllerProvider).error;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Erreur lors de la mise à jour: ${error ?? "Une erreur inconnue est survenue."}',
-            ),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+        context.showErrorSnack('Erreur lors de la mise à jour: ${error ?? "Une erreur inconnue est survenue."}');
       }
     }
   }

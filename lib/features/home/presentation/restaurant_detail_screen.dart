@@ -17,6 +17,7 @@ import '../data/remote/restaurant_controller.dart';
 import 'widgets/menus_section.dart';
 import 'widgets/vendor_type_badge.dart';
 import 'package:lilia_app/utils/currency.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 /// Écran de détail vendeur (LIL-117 — refonte UI).
 ///
@@ -338,20 +339,14 @@ class _RestaurantDetailScreenState
 
   Future<void> _callRestaurant(String? phoneNumber) async {
     if (phoneNumber == null || phoneNumber.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Numéro de téléphone non disponible')),
-      );
+      context.showSnack('Numéro de téléphone non disponible');
       return;
     }
     final uri = Uri.parse('tel:$phoneNumber');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Impossible d\'ouvrir l\'application téléphone'),
-        ),
-      );
+      context.showSnack('Impossible d\'ouvrir l\'application téléphone');
     }
   }
 }
@@ -1229,12 +1224,7 @@ class _ProductCard extends ConsumerWidget {
 
   Future<void> _addToCart(BuildContext context, WidgetRef ref) async {
     if (product.variants.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Ce produit n\'a pas de variante sélectionnable.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      context.showSnack('Ce produit n\'a pas de variante sélectionnable.');
       return;
     }
     final variantId = product.variants.first.id;
@@ -1255,43 +1245,11 @@ class _ProductCard extends ConsumerWidget {
         restaurantId: product.restaurantId,
       );
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text('${product.name} ajouté au panier')),
-              ],
-            ),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            duration: const Duration(seconds: 1),
-          ),
-        );
+        context.showSuccessSnack('${product.name} ajouté au panier');
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text(e.toString())),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        context.showErrorSnack(e.toString());
       }
     }
   }

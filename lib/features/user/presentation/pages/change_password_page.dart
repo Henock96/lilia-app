@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/features/auth/controller/auth_controller.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class ChangePasswordPage extends ConsumerStatefulWidget {
   const ChangePasswordPage({super.key});
@@ -33,9 +34,7 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
             .read(authControllerProvider.notifier)
             .updatePassword(_newPasswordController.text);
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Mot de passe mis à jour avec succès.')),
-        );
+        context.showSnack('Mot de passe mis à jour avec succès.');
 
         Navigator.of(context).pop();
       } catch (e) {

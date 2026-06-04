@@ -7,6 +7,7 @@ import 'package:lilia_app/models/menu.dart';
 import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/utils/currency.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class MenuDetailPage extends ConsumerStatefulWidget {
   final MenuDuJour menu;
@@ -413,12 +414,7 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
     final menu = widget.menu;
 
     if (menu.products.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Ce menu ne contient pas de produits'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      context.showErrorSnack('Ce menu ne contient pas de produits');
       return;
     }
 
@@ -428,18 +424,11 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
           .addMenu(menuId: menu.id, quantity: _quantity);
 
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Menu "${menu.nom}" ajoute au panier'),
-            backgroundColor: Theme.of(context).primaryColor,
-          ),
-        );
+        context.showSuccessSnack('Menu "${menu.nom}" ajoute au panier');
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-        );
+        context.showErrorSnack(e.toString());
       }
     }
   }

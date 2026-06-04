@@ -8,6 +8,7 @@ import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/services/analytics_service.dart';
 import '../vendor_type_badge.dart';
 import 'package:lilia_app/utils/currency.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class RestaurantCard extends ConsumerWidget {
   final RestaurantSummary restaurant;
@@ -133,17 +134,9 @@ class RestaurantCard extends ConsumerWidget {
                             restaurantName: restaurant.name,
                             isFavorite: !isFavorite,
                           );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                isFavorite
+                          context.showSnack(isFavorite
                                     ? '${restaurant.name} retiré des favoris'
-                                    : '${restaurant.name} ajouté aux favoris',
-                              ),
-                              duration: const Duration(seconds: 2),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
+                                    : '${restaurant.name} ajouté aux favoris');
                         },
                         child: Container(
                           padding: const EdgeInsets.all(8),

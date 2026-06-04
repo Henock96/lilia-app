@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/commandes/presentation/order_progress_bar.dart';
@@ -9,6 +10,7 @@ import 'package:lilia_app/models/order.dart';
 import 'package:intl/intl.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/utils/currency.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class CommandePage extends ConsumerStatefulWidget {
   const CommandePage({super.key});
@@ -40,22 +42,7 @@ class _CommandePageState extends ConsumerState<CommandePage>
 
     ref.listen<String?>(latestUpdatedOrderIdProvider, (previous, next) {
       if (next != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.notifications_active, color: Colors.white),
-                const SizedBox(width: 8),
-                Text('Commande #${next.substring(0, 8)} mise à jour'),
-              ],
-            ),
-            backgroundColor: theme.colorScheme.primary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
+        context.showSuccessSnack('Commande #${next.substring(0, 8)} mise à jour');
         ref.read(latestUpdatedOrderIdProvider.notifier).state = null;
       }
     });
@@ -249,32 +236,11 @@ class _OrderListView extends ConsumerWidget {
                       .read(userOrdersProvider.notifier)
                       .removeOrder(order.id);
                   if (!context.mounted) return false;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Row(
-                        children: [
-                          Icon(Icons.delete_outline, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text('Commande supprimée'),
-                        ],
-                      ),
-                      backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  );
+                  context.showSuccessSnack('Commande supprimée');
                   return true;
                 } catch (e) {
                   if (!context.mounted) return false;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Erreur: ${e.toString()}'),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                  context.showErrorSnack('Erreur: ${e.toString()}');
                   return false;
                 }
               },
@@ -302,10 +268,10 @@ class _OrderListView extends ConsumerWidget {
                   ],
                 ),
               ),
-              child: _OrderCard(order: order),
+              child: _OrderCard(order: order).staggeredIn(index < 8 ? index : 0),
             );
           }
-          return _OrderCard(order: order);
+          return _OrderCard(order: order).staggeredIn(index < 8 ? index : 0);
         },
       ),
     );
@@ -614,31 +580,10 @@ class _OrderCard extends ConsumerWidget {
                       .read(userOrdersProvider.notifier)
                       .cancelOrder(orderId);
                   if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Row(
-                        children: [
-                          Icon(Icons.check_circle, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text('Commande annulée avec succès'),
-                        ],
-                      ),
-                      backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  );
+                  context.showSuccessSnack('Commande annulée avec succès');
                 } catch (e) {
                   if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Erreur: ${e.toString()}'),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                  context.showErrorSnack('Erreur: ${e.toString()}');
                 }
               },
             ),

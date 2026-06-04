@@ -23,6 +23,7 @@ import '../../../models/restaurant.dart';
 import '../../../models/vendor_type.dart';
 import '../data/promo_repository.dart';
 import 'package:lilia_app/utils/currency.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
   final DeliveryOptions? deliveryOptions;
@@ -1209,12 +1210,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Commande enregistree pour plus tard'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      context.showSnack('Commande enregistree pour plus tard');
 
       // Depiler checkout et delivery-options du tab panier
       // pour que le retour au tab panier affiche le CartScreen
@@ -1224,13 +1220,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       context.goNamed(AppRoutes.draftOrders.routeName);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      context.showErrorSnack('Erreur: $e');
     }
   }
 
@@ -1243,13 +1233,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     if (!_formKey.currentState!.validate()) {
       // Montrer un feedback si le formulaire n'est pas valide
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Veuillez remplir le numero de telephone'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
-          ),
-        );
+        context.showErrorSnack('Veuillez remplir le numero de telephone');
       }
       return;
     }
@@ -1370,12 +1354,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                           Clipboard.setData(
                             ClipboardData(text: paymentPhoneNumber),
                           );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Numero copie!'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
+                          context.showSnack('Numero copie!');
                         },
                       ),
                     ],

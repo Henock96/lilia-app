@@ -9,6 +9,7 @@ import 'package:lilia_app/features/favoris/application/restaurant_favorites_prov
 import '../../../models/produit.dart';
 import '../../../models/restaurant.dart';
 import 'package:lilia_app/utils/currency.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class FavorisPage extends ConsumerWidget {
   const FavorisPage({super.key});
@@ -378,15 +379,7 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                         ref
                             .read(restaurantFavoritesProvider.notifier)
                             .remove(restaurant);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '${restaurant.name} retire des favoris',
-                            ),
-                            behavior: SnackBarBehavior.floating,
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
+                        context.showSnack('${restaurant.name} retire des favoris');
                       },
                       child: Container(
                         padding: const EdgeInsets.all(6),

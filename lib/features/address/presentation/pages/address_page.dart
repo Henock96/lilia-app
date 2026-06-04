@@ -4,6 +4,7 @@ import 'package:iconsax/iconsax.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/models/adresse.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class AddressPage extends ConsumerStatefulWidget {
   const AddressPage({super.key});
@@ -296,47 +297,11 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                                 );
                             if (!context.mounted) return;
                             Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: const Row(
-                                  children: [
-                                    Icon(
-                                      Icons.check_circle,
-                                      color: Colors.white,
-                                    ),
-                                    SizedBox(width: 8),
-                                    Text('Adresse ajoutée avec succès'),
-                                  ],
-                                ),
-                                backgroundColor: Colors.green,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            );
+                            context.showSuccessSnack('Adresse ajoutée avec succès');
                             ref.invalidate(adresseControllerProvider);
                           } catch (e) {
                             if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.error_outline,
-                                      color: Colors.white,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(child: Text('Erreur: $e')),
-                                  ],
-                                ),
-                                backgroundColor: Colors.red,
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            );
+                            context.showErrorSnack('Erreur: $e');
                           }
                         }
                       },
@@ -400,31 +365,10 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                       .read(adresseControllerProvider.notifier)
                       .deleteAdresse(address.id);
                   if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Row(
-                        children: [
-                          Icon(Icons.check_circle, color: Colors.white),
-                          SizedBox(width: 8),
-                          Text('Adresse supprimée'),
-                        ],
-                      ),
-                      backgroundColor: Colors.green,
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                  );
+                  context.showSuccessSnack('Adresse supprimée');
                 } catch (e) {
                   if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Erreur: $e'),
-                      backgroundColor: Colors.red,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                  context.showErrorSnack('Erreur: $e');
                 }
               },
               child: const Text('Supprimer'),
