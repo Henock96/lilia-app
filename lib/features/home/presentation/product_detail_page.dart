@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../models/produit.dart';
 import '../../../models/vendor_type.dart';
 import '../../cart/presentation/cart_mode_conflict_dialog.dart';
+import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 
@@ -159,7 +160,7 @@ Téléchargez l'app Lilia Food pour commander !
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // En-tête du produit
-                  _buildProductHeader(theme),
+                  _buildProductHeader(theme).fadeSlideIn(),
 
                   // Description
                   _buildDescription(),
@@ -184,7 +185,7 @@ Téléchargez l'app Lilia Food pour commander !
         ],
       ),
       // Bouton fixe en bas
-      bottomNavigationBar: _buildBottomBar(theme, cs),
+      bottomNavigationBar: _buildBottomBar(theme, cs).fadeSlideIn(dy: 0.5),
     );
   }
 

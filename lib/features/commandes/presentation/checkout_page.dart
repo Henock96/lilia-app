@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
@@ -255,7 +256,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     loyaltyDiscount: loyaltyDiscount,
                     total: total,
                     options: options,
-                  ),
+                  ).fadeSlideIn(),
                   const SizedBox(height: 24),
 
                   // === SECTION PAIEMENT ===
