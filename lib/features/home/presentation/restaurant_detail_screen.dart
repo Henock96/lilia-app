@@ -327,9 +327,11 @@ class _RestaurantDetailScreenState
   }
 
   void _shareRestaurant() {
-    Share.share(
-      'Découvrez nos menus sur Lilia Food ! Commandez maintenant.',
-      subject: 'Vendeur ${widget.restaurantName}',
+    SharePlus.instance.share(
+      ShareParams(
+        text: 'Découvrez nos menus sur Lilia Food ! Commandez maintenant.',
+        subject: 'Vendeur ${widget.restaurantName}',
+      ),
     );
   }
 

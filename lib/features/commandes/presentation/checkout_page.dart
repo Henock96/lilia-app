@@ -115,13 +115,20 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               .roundToDouble();
           final double discountAmount = _promoResult?.discountAmount ?? 0;
           final int userPoints = userProfileAsync.value?.loyaltyPoints ?? 0;
-          final double loyaltyDiscount = userPoints * 5.0;
-          final double total =
-              subTotal +
-              deliveryFee +
-              serviceFee -
-              discountAmount -
-              (_useLoyaltyPoints ? loyaltyDiscount : 0);
+          // Valeur brute des points (1 pt = 5 FCFA) — montant « potentiel ».
+          final double loyaltyValue = userPoints * 5.0;
+          final double beforeLoyalty =
+              subTotal + deliveryFee + serviceFee - discountAmount;
+          // Réduction fidélité réellement appliquée : plafonnée au montant dû
+          // (aligné sur le backend, fix B4) → jamais de total négatif affiché.
+          final double loyaltyDiscount = _useLoyaltyPoints
+              ? (loyaltyValue < beforeLoyalty
+                    ? loyaltyValue
+                    : (beforeLoyalty > 0 ? beforeLoyalty : 0))
+              : 0;
+          final double total = (beforeLoyalty - loyaltyDiscount)
+              .clamp(0, double.infinity)
+              .toDouble();
           final String restaurantId = cart.items.first.product.restaurantId;
 
           // Analytics: début du checkout (une seule fois)
@@ -214,7 +221,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         subtitle: Text(
-                          'Reduction de ${loyaltyDiscount.toStringAsFixed(0)} FCFA',
+                          'Reduction de ${formatPrice(loyaltyValue)}',
                           style: TextStyle(color: Colors.amber[800]),
                         ),
                         secondary: const Icon(Icons.stars, color: Colors.amber),

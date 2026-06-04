@@ -79,9 +79,11 @@ Prix: ${widget.product.prixOriginal.toStringAsFixed(0)} FCFA
 
 Téléchargez l'app Lilia Food pour commander !
 ''';
-    Share.share(
-      message,
-      subject: 'Découvrez ${widget.product.name} sur Lilia Food!',
+    SharePlus.instance.share(
+      ShareParams(
+        text: message,
+        subject: 'Découvrez ${widget.product.name} sur Lilia Food!',
+      ),
     );
   }
 
