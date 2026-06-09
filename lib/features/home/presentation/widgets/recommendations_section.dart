@@ -101,9 +101,9 @@ class _RecommendationCard extends ConsumerWidget {
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(12),
                     ),
-                    child: product.imageUrl != null
+                    child: product.thumbnailUrl != null
                         ? Image.network(
-                            product.imageUrl!,
+                            product.thumbnailUrl!,
                             height: 110,
                             width: double.infinity,
                             fit: BoxFit.cover,
@@ -291,11 +291,11 @@ class _RecommendationCard extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  if (product.imageUrl != null)
+                  if (product.thumbnailUrl != null)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
                       child: Image.network(
-                        product.imageUrl!,
+                        product.thumbnailUrl!,
                         width: 50,
                         height: 50,
                         fit: BoxFit.cover,

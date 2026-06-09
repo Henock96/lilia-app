@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
+import 'package:lilia_app/common_widgets/image_gallery.dart';
 import 'package:lilia_app/services/analytics_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -391,17 +392,14 @@ class _VendorHeroAppBar extends StatelessWidget {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            if (restaurant.imageUrl != null)
-              Hero(
-                tag: 'resto-img-${restaurant.id}',
-                child: Image.network(
-                  restaurant.imageUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => _placeholder(scheme),
-                ),
-              )
-            else
-              _placeholder(scheme),
+            ImageGallery(
+              urls: restaurant.galleryUrls,
+              placeholder: _placeholder(scheme),
+              heroTag: 'resto-img-${restaurant.id}',
+              // Nom + adresse superposés en bas → dots placés en haut.
+              indicatorAlignment: Alignment.topCenter,
+              indicatorPadding: const EdgeInsets.only(top: 70),
+            ),
             // Gradient en bas pour la lisibilité du nom + transition douce
             Positioned(
               bottom: 0,

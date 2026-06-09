@@ -59,7 +59,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       appBar: AppBar(
         elevation: 0,
         centerTitle: true,
-        title: const Text('Lilia Food'),
+        title: const Text('Lilia Food', style: TextStyle(fontWeight: FontWeight.bold),),
         actions: [
           _buildNotificationButton(notificationHistory),
           const SizedBox(width: 8),

@@ -1,4 +1,5 @@
 
+import 'package:lilia_app/models/gallery_image.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/models/vendor_type.dart';
 
@@ -8,6 +9,9 @@ class Product {
   final String description;
   final double prixOriginal;
   final String? imageUrl;
+  // Galerie multi-images (ProductImage côté backend). Vide si l'API ne la
+  // renvoie pas encore ou si le produit n'a que l'imageUrl legacy.
+  final List<GalleryImage> images;
   final String restaurantId;
   // categoryId est nullable côté Prisma (String?) — vrai pour les nouveaux
   // produits HOME_COOK/BAKERY créés sans catégorie via admin web (LIL-117).
@@ -36,6 +40,7 @@ class Product {
     required this.description,
     required this.prixOriginal,
     this.imageUrl,
+    this.images = const [],
     required this.restaurantId,
     this.categoryId,
     this.category,
@@ -56,6 +61,18 @@ class Product {
   });
 
   bool get isAvailable => stockRestant == null || stockRestant! > 0;
+
+  /// URLs à afficher dans le carrousel : la galerie si disponible, sinon
+  /// l'`imageUrl` legacy en fallback. Vide si aucune image.
+  List<String> get galleryUrls {
+    if (images.isNotEmpty) return [for (final img in images) img.url];
+    if (imageUrl != null && imageUrl!.trim().isNotEmpty) return [imageUrl!];
+    return const [];
+  }
+
+  /// Vignette pour les cartes de liste : cover de la galerie si disponible,
+  /// sinon l'`imageUrl` legacy. `null` si aucune image (→ placeholder).
+  String? get thumbnailUrl => galleryUrls.isNotEmpty ? galleryUrls.first : null;
 
   /// Vrai si le produit a une fenêtre horaire et que l'heure actuelle est
   /// dans cette fenêtre. Si pas de fenêtre, toujours vrai (pas de contrainte).
@@ -87,6 +104,7 @@ class Product {
       description: json['description'] ?? '',
       prixOriginal: (json['prixOriginal'] as num).toDouble(),
       imageUrl: json['imageUrl'],
+      images: GalleryImage.listFrom(json['images']),
       restaurantId: json['restaurantId'],
       categoryId: json['categoryId'] as String?,
       category: json['category'] != null ? Category.fromJson(json['category']) : null,

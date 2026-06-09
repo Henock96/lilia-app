@@ -74,9 +74,9 @@ class _FavorisDetailPageState extends ConsumerState<FavorisDetailPage> {
                     child: Hero(
                       tag:
                           'favorite_${widget.product.id}', // Unique tag for favorites
-                      child: widget.product.imageUrl != null
+                      child: widget.product.thumbnailUrl != null
                           ? Image.network(
-                              widget.product.imageUrl!,
+                              widget.product.thumbnailUrl!,
                               height: 250,
                               width: double.infinity,
                               fit: BoxFit.contain,

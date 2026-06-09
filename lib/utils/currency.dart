@@ -1,7 +1,8 @@
 /// Formatage centralisé des montants en Francs CFA pour l'app cliente.
 ///
-/// Affiche le terme courant au Congo (« FCFA ») avec séparateur de milliers
-/// (espace fine insécable, style français) : `150000` → « 150 000 FCFA ».
+/// Affiche le code devise standard du projet (« XAF », pas « FCFA » — aligné
+/// sur l'admin et le backend) avec séparateur de milliers (espace, style
+/// français) : `150000` → « 150 000 XAF ».
 ///
 /// Indépendant des données de locale `intl` (groupement manuel) → aucun risque
 /// d'erreur « locale data not loaded » au runtime.
@@ -15,7 +16,7 @@ String formatPrice(num amount) {
     }
     buffer.write(digits[i]);
   }
-  return '${rounded < 0 ? '-' : ''}$buffer FCFA';
+  return '${rounded < 0 ? '-' : ''}$buffer XAF';
 }
 
 /// Variante sans suffixe devise — utile quand l'unité est affichée à part.

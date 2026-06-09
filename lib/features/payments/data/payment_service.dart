@@ -20,10 +20,17 @@ class PaymentResponse {
   });
 
   factory PaymentResponse.fromJson(Map<String, dynamic> json) {
+    // Deux formats backend selon PAYMENT_MODE :
+    //  • MTN     → { paymentId, referenceId, message? }
+    //  • MANUAL  → { paymentId, mode, instructions: { reference, message, ... } }
+    final instructions = json['instructions'] as Map<String, dynamic>?;
     return PaymentResponse(
       paymentId: json['paymentId'] as String,
-      referenceId: json['referenceId'] as String,
-      message: json['message'] as String? ?? 'Payment initiated',
+      referenceId:
+          (json['referenceId'] ?? instructions?['reference']) as String? ?? '',
+      message:
+          (json['message'] ?? instructions?['message']) as String? ??
+          'Paiement initié',
     );
   }
 }

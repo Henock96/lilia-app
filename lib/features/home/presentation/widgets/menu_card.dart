@@ -32,9 +32,9 @@ class MenuCard extends StatelessWidget {
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(12),
                 ),
-                child: menu.imageUrl != null && menu.imageUrl!.isNotEmpty
+                child: menu.thumbnailUrl != null && menu.thumbnailUrl!.isNotEmpty
                     ? Image.network(
-                        menu.imageUrl!,
+                        menu.thumbnailUrl!,
                         height: 110,
                         width: double.infinity,
                         fit: BoxFit.cover,

@@ -127,9 +127,9 @@ class _PopularRestaurantCard extends StatelessWidget {
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(12),
                     ),
-                    child: restaurant.imageUrl != null
+                    child: restaurant.thumbnailUrl != null
                         ? Image.network(
-                            restaurant.imageUrl!,
+                            restaurant.thumbnailUrl!,
                             height: 100,
                             width: double.infinity,
                             fit: BoxFit.cover,

@@ -667,7 +667,7 @@ class OrderDetailPage extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
           ],
-          _buildSummaryRow(context, 'Frais de service (8%)', order.serviceFee),
+          _buildSummaryRow(context, 'Frais de service', order.serviceFee),
           if (order.discountAmount > 0) ...[
             const SizedBox(height: 8),
             _buildSummaryRow(

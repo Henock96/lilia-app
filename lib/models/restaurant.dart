@@ -1,3 +1,4 @@
+import 'package:lilia_app/models/gallery_image.dart';
 import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/models/vendor_type.dart';
 
@@ -158,6 +159,8 @@ class RestaurantSummary {
   final String address;
   final String? phoneNumber;
   final String? imageUrl;
+  // Galerie photos du vendeur (VendorPhoto côté backend).
+  final List<GalleryImage> photos;
   final String? description;
   final double? averageRating;
   final int? totalReviews;
@@ -181,6 +184,7 @@ class RestaurantSummary {
     required this.address,
     this.phoneNumber,
     this.imageUrl,
+    this.photos = const [],
     this.description,
     this.averageRating,
     this.totalReviews,
@@ -202,6 +206,14 @@ class RestaurantSummary {
   /// Retourne les spécialités formatées (ex: "Pizza, Burger, Sushi")
   String get specialtiesFormatted => specialties.map((s) => s.name).join(', ');
 
+  /// Vignette pour les cartes de liste : cover de la galerie photos si
+  /// disponible, sinon l'`imageUrl` legacy. `null` si aucune image.
+  String? get thumbnailUrl {
+    if (photos.isNotEmpty) return photos.first.url;
+    if (imageUrl != null && imageUrl!.trim().isNotEmpty) return imageUrl;
+    return null;
+  }
+
   factory RestaurantSummary.fromJson(Map<String, dynamic> json) {
     // Parser les spécialités
     List<Specialty> specialties = [];
@@ -217,6 +229,7 @@ class RestaurantSummary {
       address: json['adresse'],
       phoneNumber: json['phone'],
       imageUrl: json['imageUrl'],
+      photos: GalleryImage.listFrom(json['photos']),
       description: json['description'],
       averageRating: json['averageRating'] != null
           ? (json['averageRating'] as num).toDouble()
@@ -241,6 +254,8 @@ class Restaurant {
   final String address;
   final String? phoneNumber;
   final String? imageUrl;
+  // Galerie photos du vendeur (VendorPhoto côté backend).
+  final List<GalleryImage> photos;
   final List<Product> products;
   final Map<String, Category> categoriesMap;
 
@@ -267,6 +282,7 @@ class Restaurant {
     required this.address,
     this.phoneNumber,
     this.imageUrl,
+    this.photos = const [],
     required this.products,
     required this.categoriesMap,
     this.isOpen = true,
@@ -287,6 +303,18 @@ class Restaurant {
   /// Retourne le temps de livraison formaté
   String get deliveryTimeFormatted =>
       '$estimatedDeliveryTimeMin-$estimatedDeliveryTimeMax min';
+
+  /// URLs à afficher dans le carrousel d'en-tête : la galerie photos si
+  /// disponible, sinon l'`imageUrl` legacy en fallback.
+  List<String> get galleryUrls {
+    if (photos.isNotEmpty) return [for (final p in photos) p.url];
+    if (imageUrl != null && imageUrl!.trim().isNotEmpty) return [imageUrl!];
+    return const [];
+  }
+
+  /// Vignette pour les cartes de liste : cover de la galerie si disponible,
+  /// sinon l'`imageUrl` legacy. `null` si aucune image (→ placeholder).
+  String? get thumbnailUrl => galleryUrls.isNotEmpty ? galleryUrls.first : null;
 
   factory Restaurant.fromJson(Map<String, dynamic> json) {
     var productsList = (json['products'] as List?) ?? [];
@@ -325,6 +353,7 @@ class Restaurant {
       address: json['adresse'],
       phoneNumber: json['phone'],
       imageUrl: json['imageUrl'],
+      photos: GalleryImage.listFrom(json['photos']),
       products: products,
       categoriesMap: categoriesMap,
       isOpen: json['isOpen'] ?? true,

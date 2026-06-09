@@ -1,3 +1,4 @@
+import 'package:lilia_app/models/gallery_image.dart';
 import 'package:lilia_app/models/produit.dart';
 
 class MenuDuJour {
@@ -5,6 +6,8 @@ class MenuDuJour {
   final String nom;
   final String? description;
   final String? imageUrl;
+  // Galerie multi-images (MenuImage côté backend).
+  final List<GalleryImage> images;
   final double prix;
   final String type; // 'COMBO' ou 'PLAT_SPECIAL'
   final String? ingredients; // Composition pour PLAT_SPECIAL
@@ -22,6 +25,7 @@ class MenuDuJour {
     required this.nom,
     this.description,
     this.imageUrl,
+    this.images = const [],
     required this.prix,
     this.type = 'COMBO',
     this.ingredients,
@@ -37,6 +41,18 @@ class MenuDuJour {
 
   bool get isPlatSpecial => type == 'PLAT_SPECIAL';
 
+  /// URLs à afficher dans le carrousel d'en-tête : la galerie si disponible,
+  /// sinon l'`imageUrl` legacy en fallback.
+  List<String> get galleryUrls {
+    if (images.isNotEmpty) return [for (final img in images) img.url];
+    if (imageUrl != null && imageUrl!.trim().isNotEmpty) return [imageUrl!];
+    return const [];
+  }
+
+  /// Vignette pour les cartes de liste : cover de la galerie si disponible,
+  /// sinon l'`imageUrl` legacy. `null` si aucune image (→ placeholder).
+  String? get thumbnailUrl => galleryUrls.isNotEmpty ? galleryUrls.first : null;
+
   factory MenuDuJour.fromJson(Map<String, dynamic> json) {
     var productsList = json['products'] as List? ?? [];
     List<MenuProduct> products =
@@ -47,6 +63,7 @@ class MenuDuJour {
       nom: json['nom'],
       description: json['description'],
       imageUrl: json['imageUrl'],
+      images: GalleryImage.listFrom(json['images']),
       prix: (json['prix'] as num).toDouble(),
       type: json['type'] as String? ?? 'COMBO',
       ingredients: json['ingredients'] as String?,

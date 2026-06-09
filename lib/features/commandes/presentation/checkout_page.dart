@@ -12,6 +12,7 @@ import 'package:lilia_app/features/cart/application/draft_orders_provider.dart';
 import 'package:lilia_app/features/commandes/data/checkout_controller.dart';
 import 'package:lilia_app/features/commandes/presentation/delivery_options_page.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
+import 'package:lilia_app/features/payments/data/payment_service.dart';
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
@@ -207,11 +208,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   if (userPoints >= 100) ...[
                     _buildSectionTitle('Points de fidelite'),
                     const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.amber[50],
+                    Material(
+                      color: Colors.amber[50],
+                      clipBehavior: Clip.antiAlias,
+                      shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
+                        side: BorderSide(
                           color: Colors.amber.withValues(alpha: 0.4),
                         ),
                       ),
@@ -1487,6 +1489,21 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
                   // Reset key so a new order gets a new key
                   _idempotencyKey = null;
+
+                  // Crée le paiement PENDING (mode MANUAL) pour qu'il
+                  // apparaisse dans l'admin « Paiements à confirmer ».
+                  // Best-effort : un échec ici ne doit pas annuler la commande
+                  // déjà créée (le backend est idempotent via
+                  // assertNoPendingPayment).
+                  try {
+                    await ref.read(paymentServiceProvider).createPayment(
+                          orderId: checkout.id,
+                          amount: total,
+                          phoneNumber: _phoneController.text.trim(),
+                        );
+                  } catch (e) {
+                    debugPrint('⚠️ Création du paiement échouée: $e');
+                  }
 
                   // Analytics: commande réussie
                   AnalyticsService.logOrderCreated(

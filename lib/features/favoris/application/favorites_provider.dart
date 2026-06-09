@@ -64,6 +64,7 @@ extension ProductJson on Product {
       'description': description,
       'prixOriginal': prixOriginal,
       'imageUrl': imageUrl,
+      'images': images.map((i) => i.toJson()).toList(),
       'restaurantId': restaurantId,
       'categoryId': categoryId,
       'category': category?.toJson(),

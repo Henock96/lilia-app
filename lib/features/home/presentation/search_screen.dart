@@ -191,9 +191,9 @@ class _SearchRestaurantTile extends StatelessWidget {
         },
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: restaurant.imageUrl != null
+          child: restaurant.thumbnailUrl != null
               ? Image.network(
-                  restaurant.imageUrl!,
+                  restaurant.thumbnailUrl!,
                   width: 50,
                   height: 50,
                   fit: BoxFit.cover,
@@ -285,9 +285,9 @@ class _SearchProductTile extends ConsumerWidget {
         },
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: product.imageUrl != null
+          child: product.thumbnailUrl != null
               ? Image.network(
-                  product.imageUrl!,
+                  product.thumbnailUrl!,
                   width: 50,
                   height: 50,
                   fit: BoxFit.cover,

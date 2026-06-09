@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:lilia_app/common_widgets/image_gallery.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/models/menu.dart';
 import 'package:lilia_app/models/produit.dart';
@@ -20,6 +21,22 @@ class MenuDetailPage extends ConsumerStatefulWidget {
 
 class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
   int _quantity = 1;
+
+  /// Placeholder dégradé orange affiché quand le menu n'a aucune image.
+  Widget _buildPlaceholder() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.orange[400]!, Colors.orange[700]!],
+        ),
+      ),
+      child: const Center(
+        child: Icon(Icons.restaurant_menu, size: 80, color: Colors.white),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,37 +65,13 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
                   ],
                 ),
               ),
-              background: menu.imageUrl != null && menu.imageUrl!.isNotEmpty
-                  ? Image.network(
-                      menu.imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.orange[200],
-                          child: const Icon(
-                            Icons.restaurant_menu,
-                            size: 80,
-                            color: Colors.white,
-                          ),
-                        );
-                      },
-                    )
-                  : Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [Colors.orange[400]!, Colors.orange[700]!],
-                        ),
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.restaurant_menu,
-                          size: 80,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
+              background: ImageGallery(
+                urls: menu.galleryUrls,
+                placeholder: _buildPlaceholder(),
+                // Le nom du menu est superposé en bas (FlexibleSpaceBar.title).
+                indicatorAlignment: Alignment.topCenter,
+                indicatorPadding: const EdgeInsets.only(top: 70),
+              ),
             ),
           ),
 

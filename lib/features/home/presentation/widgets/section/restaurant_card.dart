@@ -57,11 +57,11 @@ class RestaurantCard extends ConsumerWidget {
                       borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(16),
                       ),
-                      child: restaurant.imageUrl != null
+                      child: restaurant.thumbnailUrl != null
                           ? Hero(
                               tag: 'resto-img-${restaurant.id}',
                               child: Image.network(
-                              restaurant.imageUrl!,
+                              restaurant.thumbnailUrl!,
                               height: 150,
                               width: double.infinity,
                               fit: BoxFit.cover,

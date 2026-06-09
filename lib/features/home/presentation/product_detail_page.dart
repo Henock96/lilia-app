@@ -8,6 +8,7 @@ import '../../../models/produit.dart';
 import '../../../models/vendor_type.dart';
 import '../../cart/presentation/cart_mode_conflict_dialog.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
+import 'package:lilia_app/common_widgets/image_gallery.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 
@@ -263,40 +264,10 @@ Téléchargez l'app Lilia Food pour commander !
         ),
       ],
       flexibleSpace: FlexibleSpaceBar(
-        background: Hero(
-          tag: widget.product.id,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              widget.product.imageUrl != null
-                  ? Image.network(
-                      widget.product.imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => _buildPlaceholderImage(),
-                    )
-                  : _buildPlaceholderImage(),
-              // Gradient en bas pour transition douce
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  height: 80,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.transparent,
-                        theme.colorScheme.surface.withValues(alpha: 0.8),
-                        theme.colorScheme.surface,
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        background: ImageGallery(
+          urls: widget.product.galleryUrls,
+          placeholder: _buildPlaceholderImage(),
+          heroTag: widget.product.id,
         ),
       ),
     );

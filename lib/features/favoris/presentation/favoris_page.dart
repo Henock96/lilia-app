@@ -123,9 +123,9 @@ class ProductCardFavoris extends ConsumerWidget {
                 tag: 'favorite_${product.id}',
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: product.imageUrl != null
+                  child: product.thumbnailUrl != null
                       ? Image.network(
-                          product.imageUrl!,
+                          product.thumbnailUrl!,
                           width: 80,
                           height: 80,
                           fit: BoxFit.cover,
@@ -317,9 +317,9 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(12),
                     ),
-                    child: restaurant.imageUrl != null
+                    child: restaurant.thumbnailUrl != null
                         ? Image.network(
-                            restaurant.imageUrl!,
+                            restaurant.thumbnailUrl!,
                             height: 120,
                             width: double.infinity,
                             fit: BoxFit.cover,
