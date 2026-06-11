@@ -2,6 +2,11 @@
 
 App **client** Flutter de la plateforme Lilia Food (Brazzaville, Congo). Rôle `CLIENT`.
 
+Lilia Food n'est plus une simple app de livraison de restaurants : c'est une
+**marketplace locale multi-vendeurs** (restaurants, cuisines maison,
+boulangeries, pâtisseries, boissons). Le terme « restaurant » dans le code
+historique désigne désormais un **vendeur** typé par `vendorType`.
+
 **Backend URL** : `https://lilia-backend.onrender.com`
 
 ## Écosystème
@@ -12,6 +17,37 @@ App **client** Flutter de la plateforme Lilia Food (Brazzaville, Congo). Rôle `
 | **Client mobile** | **Flutter + Riverpod** | **`lilia-app/`** |
 | Admin dashboard | Flutter + Riverpod | `lilia-food-admin/` |
 | App livreur | Flutter + Riverpod | `lilia_food_delivery/` (com.dreesis) |
+
+---
+
+## Marketplace multi-vendeurs (LIL-110 → LIL-117)
+
+Le catalogue mélange plusieurs types de vendeurs. `lib/models/vendor_type.dart` —
+enum `VendorType` aligné sur le backend Prisma :
+
+| `VendorType` | Label | Emoji |
+|--------------|-------|-------|
+| `RESTAURANT` | Restaurant | 🍽️ |
+| `HOME_COOK` | Cuisine maison | 🥧 |
+| `BAKERY` | Boulangerie | 🥐 |
+| `BEVERAGE_SHOP` | Boissons | 🥤 |
+| `GROCERY` | Épicerie | 🛒 |
+
+- **Filtre par type** : `home/presentation/widgets/vendor_type_filter_bar.dart`
+  (chips) + `vendor_type_badge.dart` sur les cartes vendeur. `restaurant_repo`
+  passe `?vendorType=...` à `GET /products` et `GET /vendors`.
+- **Catalogue filtré** : seuls les vendeurs `isActive: true, adminApproved: true`
+  sont exposés (frontière backend, voir CLAUDE.local.md backend).
+- **Produits typés** : `ProductType` (FOOD, BEVERAGE, PASTRY, GROCERY ; `ALCOHOL`
+  existe en DB mais **jamais proposé** — pas de vente d'alcool au lancement).
+- **Sur commande / précommande** : produits `madeToOrder` (cuisine maison,
+  pâtisserie). Un panier = un seul mode : on n'autorise pas de mélanger des
+  produits immédiats et des produits sur commande (garde-fou backend `cart` +
+  UX modal de conflit côté `cart_controller` / `checkout_page`).
+
+⚠️ Beaucoup de symboles s'appellent encore `restaurant*` (modèle `Restaurant`,
+`restaurant_repo`, routes `/restaurants`) : c'est le **vendeur générique**, pas
+seulement un restaurant. Ne pas renommer sans coordination cross-app.
 
 ---
 
