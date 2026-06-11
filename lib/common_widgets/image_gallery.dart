@@ -1,5 +1,6 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 
 /// Carrousel d'images réutilisable pour les en-têtes de détail (produit,
 /// restaurant, menu). Affiche :
@@ -35,12 +36,12 @@ class ImageGallery extends StatefulWidget {
 class _ImageGalleryState extends State<ImageGallery> {
   int _current = 0;
 
-  Widget _image(String url) => Image.network(
-        url,
+  Widget _image(String url) => AppCachedImage(
+        imageUrl: url,
         fit: BoxFit.cover,
         width: double.infinity,
         height: double.infinity,
-        errorBuilder: (_, _, _) => widget.placeholder,
+        errorWidget: widget.placeholder,
       );
 
   Widget _maybeHero(int index, Widget child) =>

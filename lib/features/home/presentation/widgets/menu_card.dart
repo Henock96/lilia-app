@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/models/menu.dart';
 import 'package:lilia_app/utils/currency.dart';
 
@@ -33,22 +34,12 @@ class MenuCard extends StatelessWidget {
                   top: Radius.circular(12),
                 ),
                 child: menu.thumbnailUrl != null && menu.thumbnailUrl!.isNotEmpty
-                    ? Image.network(
-                        menu.thumbnailUrl!,
+                    ? AppCachedImage(
+                        imageUrl: menu.thumbnailUrl!,
                         height: 110,
                         width: double.infinity,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            height: 120,
-                            color: Colors.grey[300],
-                            child: const Icon(
-                              Icons.restaurant_menu,
-                              size: 50,
-                              color: Colors.grey,
-                            ),
-                          );
-                        },
+                        errorIcon: Icons.restaurant_menu,
                       )
                     : Container(
                         height: 120,

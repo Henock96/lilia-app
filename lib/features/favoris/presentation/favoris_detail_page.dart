@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
 import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
@@ -75,24 +76,12 @@ class _FavorisDetailPageState extends ConsumerState<FavorisDetailPage> {
                       tag:
                           'favorite_${widget.product.id}', // Unique tag for favorites
                       child: widget.product.thumbnailUrl != null
-                          ? Image.network(
-                              widget.product.thumbnailUrl!,
+                          ? AppCachedImage(
+                              imageUrl: widget.product.thumbnailUrl!,
                               height: 250,
                               width: double.infinity,
                               fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  height: 250,
-                                  color: Colors.grey[200],
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.fastfood,
-                                      size: 80,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                );
-                              },
+                              errorIcon: Icons.fastfood,
                             )
                           : Container(
                               height: 250,

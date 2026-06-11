@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/commandes/presentation/order_progress_bar.dart';
@@ -336,15 +337,11 @@ class _OrderCard extends ConsumerWidget {
                     width: 100,
                     height: 120,
                     child: imageUrl != null
-                        ? Image.network(
-                            imageUrl,
+                        ? AppCachedImage(
+                            imageUrl: imageUrl,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) =>
-                                _buildPlaceholderImage(),
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return _buildPlaceholderImage(isLoading: true);
-                            },
+                            errorWidget: _buildPlaceholderImage(),
+                            placeholder: _buildPlaceholderImage(isLoading: true),
                           )
                         : _buildPlaceholderImage(),
                   ),

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 
 import '../../../features/cart/application/cart_controller.dart';
 import '../../../models/produit.dart';
@@ -192,12 +193,12 @@ class _SearchRestaurantTile extends StatelessWidget {
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: restaurant.thumbnailUrl != null
-              ? Image.network(
-                  restaurant.thumbnailUrl!,
+              ? AppCachedImage(
+                  imageUrl: restaurant.thumbnailUrl!,
                   width: 50,
                   height: 50,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => _placeholderBox(
+                  errorWidget: _placeholderBox(
                     cs,
                     const Icon(Icons.restaurant, size: 24),
                   ),
@@ -286,12 +287,12 @@ class _SearchProductTile extends ConsumerWidget {
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: product.thumbnailUrl != null
-              ? Image.network(
-                  product.thumbnailUrl!,
+              ? AppCachedImage(
+                  imageUrl: product.thumbnailUrl!,
                   width: 50,
                   height: 50,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => _placeholderBox(cs),
+                  errorWidget: _placeholderBox(cs),
                 )
               : _placeholderBox(cs),
         ),

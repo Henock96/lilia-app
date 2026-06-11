@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
@@ -325,23 +326,12 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(6),
                       child: item.product.imageUrl != null
-                          ? Image.network(
-                              item.product.imageUrl!,
+                          ? AppCachedImage(
+                              imageUrl: item.product.imageUrl!,
                               width: 40,
                               height: 40,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  width: 40,
-                                  height: 40,
-                                  color: cs.surfaceContainerHighest,
-                                  child: Icon(
-                                    Icons.fastfood,
-                                    size: 18,
-                                    color: cs.outline,
-                                  ),
-                                );
-                              },
+                              errorIcon: Icons.fastfood,
                             )
                           : Container(
                               width: 40,
@@ -494,22 +484,12 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: widget.item.product.imageUrl != null
-                    ? Image.network(
-                        widget.item.product.imageUrl!,
+                    ? AppCachedImage(
+                        imageUrl: widget.item.product.imageUrl!,
                         width: 60,
                         height: 60,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            width: 60,
-                            height: 60,
-                            color: cs.surfaceContainerHighest,
-                            child: Icon(
-                              Icons.fastfood,
-                              color: cs.outline,
-                            ),
-                          );
-                        },
+                        errorIcon: Icons.fastfood,
                       )
                     : Container(
                         width: 60,
@@ -714,12 +694,12 @@ class _SuggestionTile extends ConsumerWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: product.imageUrl != null
-                      ? Image.network(
-                          product.imageUrl!,
+                      ? AppCachedImage(
+                          imageUrl: product.imageUrl!,
                           width: 60,
                           height: 60,
                           fit: BoxFit.cover,
-                          errorBuilder: (ctx, _, _) => _buildPlaceholder(ctx),
+                          errorWidget: _buildPlaceholder(context),
                         )
                       : _buildPlaceholder(context),
                 ),

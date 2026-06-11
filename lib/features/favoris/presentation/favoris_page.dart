@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
 import 'package:lilia_app/features/favoris/application/restaurant_favorites_provider.dart';
@@ -124,21 +125,12 @@ class ProductCardFavoris extends ConsumerWidget {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: product.thumbnailUrl != null
-                      ? Image.network(
-                          product.thumbnailUrl!,
+                      ? AppCachedImage(
+                          imageUrl: product.thumbnailUrl!,
                           width: 80,
                           height: 80,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => Container(
-                            width: 80,
-                            height: 80,
-                            color: cs.surfaceContainerHighest,
-                            child: Icon(
-                              Icons.fastfood,
-                              size: 36,
-                              color: cs.outline,
-                            ),
-                          ),
+                          errorIcon: Icons.fastfood,
                         )
                       : Container(
                           width: 80,
@@ -318,22 +310,12 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                       top: Radius.circular(12),
                     ),
                     child: restaurant.thumbnailUrl != null
-                        ? Image.network(
-                            restaurant.thumbnailUrl!,
+                        ? AppCachedImage(
+                            imageUrl: restaurant.thumbnailUrl!,
                             height: 120,
                             width: double.infinity,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => Container(
-                              height: 120,
-                              color: cs.surfaceContainerHighest,
-                              child: Center(
-                                child: Icon(
-                                  Icons.restaurant,
-                                  size: 40,
-                                  color: cs.outline,
-                                ),
-                              ),
-                            ),
+                            errorIcon: Icons.restaurant,
                           )
                         : Container(
                             height: 120,

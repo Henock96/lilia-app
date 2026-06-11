@@ -3,6 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/common_widgets/connectivity_banner.dart';
 import 'package:lilia_app/routing/app_router.dart';
 import 'package:lilia_app/services/analytics_service.dart';
@@ -25,6 +26,8 @@ final locationInitializerProvider = FutureProvider<void>((ref) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Cache mémoire images plafonné à 100 MB (LIL-37).
+  LiliaImageCache.configureMemoryCache();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   await initializeDateFormatting('fr_FR', null);

@@ -1,14 +1,26 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:http/http.dart' as http;
 import 'package:lilia_app/models/checkout.dart';
+import 'package:lilia_app/utils/json_isolate.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../models/order.dart';
 
 part 'order_repository.g.dart';
+
+/// Décodage + mapping de la liste des commandes `{ data: [...] }`.
+/// Top-level → exécutable sur isolate (cf. [parseJson]). Les commandes
+/// portent des items + produits imbriqués : parsing potentiellement lourd.
+List<Order> _parseOrders(String body) {
+  final decoded = json.decode(body);
+  final data = decoded is Map<String, dynamic> ? decoded['data'] : null;
+  final list = data is List ? data : const <dynamic>[];
+  return list.whereType<Map<String, dynamic>>().map(Order.fromJson).toList();
+}
 
 String _extractErrorMessage(http.Response response, String fallback) {
   try {
@@ -21,11 +33,6 @@ String _extractErrorMessage(http.Response response, String fallback) {
   } catch (_) {}
   return fallback;
 }
-
-Map<String, dynamic>? _asMap(Object? value) =>
-    value is Map<String, dynamic> ? value : null;
-
-List<dynamic> _asList(Object? value) => value is List ? value : <dynamic>[];
 
 @Riverpod(keepAlive: true)
 class OrderRepository extends _$OrderRepository {
@@ -40,17 +47,29 @@ class OrderRepository extends _$OrderRepository {
       headers: {'Authorization': 'Bearer $token'},
     );
     if (response.statusCode == 200) {
-      final body = _asMap(json.decode(utf8.decode(response.bodyBytes)));
-      final ordersJson = _asList(body?["data"]);
-      return ordersJson
-          .whereType<Map<String, dynamic>>()
-          .map(Order.fromJson)
-          .toList();
+      return parseJson(utf8.decode(response.bodyBytes), _parseOrders);
     } else {
       throw Exception(
         _extractErrorMessage(response, 'Impossible de charger vos commandes.'),
       );
     }
+  }
+
+  /// Télécharge le reçu PDF d'une commande payée.
+  /// Renvoie les octets du PDF (à écrire dans un fichier puis partager).
+  Future<Uint8List> downloadReceipt(String orderId) async {
+    final token = await ref.read(firebaseIdTokenProvider.future);
+    if (token == null) throw Exception('Veuillez vous reconnecter.');
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/orders/$orderId/receipt'),
+      headers: {'Authorization': 'Bearer $token'},
+    );
+    if (response.statusCode == 200) {
+      return response.bodyBytes;
+    }
+    throw Exception(
+      _extractErrorMessage(response, 'Impossible de générer le reçu.'),
+    );
   }
 
   Future<Checkout> createOrders({

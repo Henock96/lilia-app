@@ -2,10 +2,20 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/models/vendor_type.dart';
+import 'package:lilia_app/utils/json_isolate.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../models/restaurant.dart';
 
 part 'restaurant_repo.g.dart';
+
+/// Décodage + mapping d'une liste `{ data: [...] }` de vendeurs.
+/// Top-level → exécutable sur isolate (cf. [parseJson]).
+List<RestaurantSummary> _parseRestaurantSummaries(String body) {
+  final List<dynamic> data = json.decode(body)['data'] as List<dynamic>;
+  return data
+      .map((e) => RestaurantSummary.fromJson(e as Map<String, dynamic>))
+      .toList();
+}
 
 class RestaurantRepository {
   /// Récupérer la liste de tous les restaurants (legacy /restaurants —
@@ -17,8 +27,7 @@ class RestaurantRepository {
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body)["data"];
-        return data.map((json) => RestaurantSummary.fromJson(json)).toList();
+        return parseJson(response.body, _parseRestaurantSummaries);
       } else {
         throw Exception('Failed to load restaurants: ${response.statusCode}');
       }
@@ -42,8 +51,7 @@ class RestaurantRepository {
       final response = await http.get(uri);
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body)["data"];
-        return data.map((json) => RestaurantSummary.fromJson(json)).toList();
+        return parseJson(response.body, _parseRestaurantSummaries);
       } else {
         throw Exception('Failed to load vendors: ${response.statusCode}');
       }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 
 import '../../../../features/cart/application/cart_controller.dart';
@@ -102,12 +103,12 @@ class _RecommendationCard extends ConsumerWidget {
                       top: Radius.circular(12),
                     ),
                     child: product.thumbnailUrl != null
-                        ? Image.network(
-                            product.thumbnailUrl!,
+                        ? AppCachedImage(
+                            imageUrl: product.thumbnailUrl!,
                             height: 110,
                             width: double.infinity,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => _buildPlaceholder(),
+                            errorWidget: _buildPlaceholder(),
                           )
                         : _buildPlaceholder(),
                   ),
@@ -294,17 +295,12 @@ class _RecommendationCard extends ConsumerWidget {
                   if (product.thumbnailUrl != null)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        product.thumbnailUrl!,
+                      child: AppCachedImage(
+                        imageUrl: product.thumbnailUrl!,
                         width: 50,
                         height: 50,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(
-                          width: 50,
-                          height: 50,
-                          color: Colors.grey[200],
-                          child: const Icon(Icons.fastfood, size: 24),
-                        ),
+                        errorIcon: Icons.fastfood,
                       ),
                     ),
                   const SizedBox(width: 12),

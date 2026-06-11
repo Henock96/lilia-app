@@ -1,8 +1,13 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/features/commandes/presentation/fullscreen_tracking_screen.dart';
 import 'package:lilia_app/features/commandes/presentation/progress_step.dart';
@@ -12,8 +17,18 @@ import 'package:lilia_app/models/order.dart';
 import '../../../models/order_item.dart';
 import '../../cart/application/cart_controller.dart';
 import '../data/order_controller.dart';
+import '../data/order_repository.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
+
+/// Statuts pour lesquels le reçu PDF est téléchargeable (payée, non annulée).
+const _receiptStatuses = <OrderStatus>{
+  OrderStatus.payer,
+  OrderStatus.enPreparation,
+  OrderStatus.pret,
+  OrderStatus.enRoute,
+  OrderStatus.livrer,
+};
 
 class OrderDetailPage extends ConsumerWidget {
   final String orderId;
@@ -120,6 +135,12 @@ class OrderDetailPage extends ConsumerWidget {
                 _buildSummaryCard(context, order),
 
                 const SizedBox(height: 24),
+
+                // Reçu PDF : disponible une fois la commande payée (non annulée)
+                if (_receiptStatuses.contains(order.status)) ...[
+                  _ReceiptButton(orderId: order.id),
+                  const SizedBox(height: 16),
+                ],
 
                 // Bouton Annuler pour les commandes en attente
                 if (order.status == OrderStatus.enAttente)
@@ -431,11 +452,10 @@ class OrderDetailPage extends ConsumerWidget {
                   width: 60,
                   height: 60,
                   child: order.restaurant.imageUrl != null
-                      ? Image.network(
-                          order.restaurant.imageUrl!,
+                      ? AppCachedImage(
+                          imageUrl: order.restaurant.imageUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (ctx, error, stackTrace) =>
-                              _buildPlaceholderImage(ctx),
+                          errorWidget: _buildPlaceholderImage(context),
                         )
                       : _buildPlaceholderImage(context),
                 ),
@@ -1090,11 +1110,10 @@ class _OrderItemCard extends StatelessWidget {
             width: 70,
             height: 70,
             child: itemImageUrl.isNotEmpty
-                ? Image.network(
-                    itemImageUrl,
+                ? AppCachedImage(
+                    imageUrl: itemImageUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (ctx, error, stackTrace) =>
-                        _buildPlaceholderImage(ctx),
+                    errorWidget: _buildPlaceholderImage(context),
                   )
                 : _buildPlaceholderImage(context),
           ),
@@ -1250,6 +1269,71 @@ class _OrderProgressStepper extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
       ],
+    );
+  }
+}
+
+/// Bouton autonome gérant son propre état de chargement pendant la génération
+/// et le partage du reçu PDF.
+class _ReceiptButton extends ConsumerStatefulWidget {
+  final String orderId;
+  const _ReceiptButton({required this.orderId});
+
+  @override
+  ConsumerState<_ReceiptButton> createState() => _ReceiptButtonState();
+}
+
+class _ReceiptButtonState extends ConsumerState<_ReceiptButton> {
+  bool _loading = false;
+
+  Future<void> _download() async {
+    setState(() => _loading = true);
+    try {
+      final bytes = await ref
+          .read(orderRepositoryProvider.notifier)
+          .downloadReceipt(widget.orderId);
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/recu-${widget.orderId}.pdf');
+      await file.writeAsBytes(bytes);
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(file.path)]),
+      );
+    } catch (e) {
+      if (mounted) {
+        context.showSnack(
+          e.toString().replaceFirst('Exception: ', ''),
+          type: SnackType.error,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: _loading ? null : _download,
+        icon: _loading
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Iconsax.document_download),
+        label: Text(_loading ? 'Génération…' : 'Télécharger le reçu'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: cs.primary,
+          side: BorderSide(color: cs.primary),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+      ),
     );
   }
 }

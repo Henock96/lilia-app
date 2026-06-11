@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/features/favoris/application/restaurant_favorites_provider.dart';
 import 'package:lilia_app/features/reviews/presentation/widgets/star_rating.dart';
 import 'package:lilia_app/models/restaurant.dart';
@@ -60,25 +61,13 @@ class RestaurantCard extends ConsumerWidget {
                       child: restaurant.thumbnailUrl != null
                           ? Hero(
                               tag: 'resto-img-${restaurant.id}',
-                              child: Image.network(
-                              restaurant.thumbnailUrl!,
-                              height: 150,
-                              width: double.infinity,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  height: 150,
-                                  color: Colors.grey[200],
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.restaurant,
-                                      size: 48,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                              child: AppCachedImage(
+                                imageUrl: restaurant.thumbnailUrl!,
+                                height: 150,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorIcon: Icons.restaurant,
+                              ),
                             )
                           : Container(
                               height: 150,

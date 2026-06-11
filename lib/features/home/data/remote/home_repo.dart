@@ -10,8 +10,26 @@ import '../../../../models/produit.dart';
 import '../../../../models/restaurant.dart';
 import '../../../../models/search_result.dart';
 import '../../../../utils/api_response.dart';
+import '../../../../utils/json_isolate.dart';
 
 part 'home_repo.g.dart';
+
+// Parsers top-level (décodage + mapping) déportables sur isolate via
+// [parseJson] quand le payload dépasse le seuil. Cf. utils/json_isolate.dart.
+List<Product> _parseProducts(String body) {
+  final List<dynamic> data = json.decode(body)['data'] as List<dynamic>;
+  return data.map((j) => Product.fromJson(j as Map<String, dynamic>)).toList();
+}
+
+List<RestaurantSummary> _parsePopularRestaurants(String body) {
+  final List<dynamic> data = json.decode(body)['data'] as List<dynamic>;
+  return data
+      .map((j) => RestaurantSummary.fromJson(j as Map<String, dynamic>))
+      .toList();
+}
+
+SearchResult _parseSearchResult(String body) =>
+    SearchResult.fromJson(ApiResponse.mapOf(json.decode(body)));
 
 class HomeRepository {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -28,8 +46,7 @@ class HomeRepository {
         Uri.parse('${AppConstants.baseUrl}/products/popular?limit=$limit'),
       );
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body)['data'];
-        return data.map((j) => Product.fromJson(j)).toList();
+        return parseJson(response.body, _parseProducts);
       }
       throw Exception('Failed to load popular products: ${response.statusCode}');
     } catch (e) {
@@ -44,8 +61,7 @@ class HomeRepository {
         Uri.parse('${AppConstants.baseUrl}/restaurants/popular?limit=$limit'),
       );
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body)['data'];
-        return data.map((j) => RestaurantSummary.fromJson(j)).toList();
+        return parseJson(response.body, _parsePopularRestaurants);
       }
       throw Exception('Failed to load popular restaurants: ${response.statusCode}');
     } catch (e) {
@@ -63,7 +79,7 @@ class HomeRepository {
       );
       if (response.statusCode == 200) {
         // Tolère objet plat OU `{ data: {...} }` (api-contract-v2).
-        return SearchResult.fromJson(ApiResponse.mapOf(json.decode(response.body)));
+        return parseJson(response.body, _parseSearchResult);
       }
       throw Exception('Failed to search: ${response.statusCode}');
     } catch (e) {
@@ -82,8 +98,7 @@ class HomeRepository {
         headers: {'Authorization': 'Bearer $token'},
       );
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body)['data'];
-        return data.map((j) => Product.fromJson(j)).toList();
+        return parseJson(response.body, _parseProducts);
       }
       // Recommandations = feature non bloquante : on dégrade en liste vide,
       // mais on trace l'erreur en debug au lieu de l'avaler totalement (C12).

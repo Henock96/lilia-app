@@ -1,6 +1,7 @@
 import 'package:cloudinary_public/cloudinary_public.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:lilia_app/utils/image_compressor.dart';
 
 class CloudinaryService {
   // Upload NON signé : seuls le cloud name (public) et le preset unsigned
@@ -10,9 +11,15 @@ class CloudinaryService {
 
   Future<String?> uploadImage(XFile image) async {
     try {
+      // Compression déportée sur un isolate (cf. [ImageCompressor]) : évite de
+      // bloquer l'UI et réduit la data envoyée sur Cloudinary.
+      final original = await image.readAsBytes();
+      final compressed = await ImageCompressor.compress(original);
+
       final response = await _cloudinary.uploadFile(
-        CloudinaryFile.fromFile(
-          image.path,
+        CloudinaryFile.fromBytesData(
+          compressed,
+          identifier: image.name,
           resourceType: CloudinaryResourceType.Image,
         ),
       );

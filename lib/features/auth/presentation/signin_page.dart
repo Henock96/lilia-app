@@ -161,6 +161,7 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           TextFormField(
+            key: const Key('signin_email'),
             controller: _emailController,
             decoration: const InputDecoration(
               labelText: 'Email',
@@ -178,6 +179,7 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
           ),
           gapH20,
           TextFormField(
+            key: const Key('signin_password'),
             controller: _passwordController,
             obscureText: _obscurePassword,
             decoration: InputDecoration(
@@ -208,6 +210,7 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
           ),
           gapH16,
           ElevatedButton(
+            key: const Key('signin_submit'),
             onPressed: state.isLoading ? null : _signIn,
             child: state.isLoading
                 ? const SizedBox(

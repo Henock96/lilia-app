@@ -2,6 +2,7 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/home/presentation/widgets/section/banner_shimmer.dart';
@@ -184,10 +185,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         if (apiBanners.isNotEmpty) {
           return _buildSliderContent(
             itemCount: apiBanners.length,
-            imageBuilder: (index) => Image.network(
-              apiBanners[index].imageUrl,
+            imageBuilder: (index) => AppCachedImage(
+              imageUrl: apiBanners[index].imageUrl,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
+              errorWidget:
                   Image.asset('assets/images/banner.png', fit: BoxFit.cover),
             ),
             titleBuilder: (index) => apiBanners[index].title,

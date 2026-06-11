@@ -422,6 +422,28 @@ google_fonts: ^8.1.0
 4. ✅ **`NotificationService._handleNotificationData`** : switch `data['type']` mort supprimé, cast `orderId` null-safe.
 5. ✅ **`driver_tracking_map.dart`** : duplication `_FullscreenMapView`/`_MapView` factorisée via helpers partagés (`_buildTrackingMarkers`, `_buildRoutePolyline`, `_initialMapCenter`).
 
+## Performance (juin 2026)
+
+1. ✅ **LIL-37 — Cache image** : `Image.network` → `AppCachedImage` /
+   `AppCachedAvatar` (`common_widgets/app_cached_image.dart`) basé sur
+   `cached_network_image`. Cache disque dédié `LiliaImageCache` (30 j, 400
+   objets) + cache mémoire plafonné 100 MB (`configureMemoryCache()` dans
+   `main()`). Placeholder shimmer auto-contenu (`AppShimmerBox`, sans dép.) +
+   error widget cohérent. Économise la data 4G et fluidifie le scroll.
+2. ✅ **Parsing JSON sur isolate** (`utils/json_isolate.dart`) : `parseJson()`
+   déporte `jsonDecode` + mapping sur un isolate via `compute` au-delà de
+   ~40 KB. Appliqué aux grosses listes : vendeurs (`restaurant_repo`), produits
+   / recommandations / recherche (`home_repo`), commandes (`order_repository`).
+   ⚠️ Le parser passé doit être **top-level/statique** (contrainte isolate).
+3. ✅ **Compression image sur isolate** (`utils/image_compressor.dart`) :
+   `ImageCompressor.compress()` (package `image`, pur Dart → `compute`)
+   redimensionne ≤1280px + ré-encode JPEG 80 avant upload Cloudinary
+   (`cloudinary_service`). Ne gèle plus l'UI, réduit la data envoyée.
+4. ✅ **Tests de perf automatisés** : `integration_test/perf_test.dart` +
+   `test_driver/perf_driver.dart` (login, scroll home, navigation 4 onglets,
+   montée en charge). Mesure FPS / jank / réseau. Cf. `PERF_TESTING.md`.
+   `signin_page` a des `Key` (`signin_email`/`password`/`submit`) pour le drive.
+
 ## Dettes techniques restantes
 
 1. Les onglets `Favoris` et `commandes_page` rafraîchissent leurs providers manuellement après notification FCM — pas un bug, mais à surveiller (potentiellement double-load).

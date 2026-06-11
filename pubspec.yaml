@@ -49,6 +49,9 @@ dependencies:
   flutter_launcher_icons: ^0.14.4
   image_picker: ^1.2.2
   cloudinary_public: ^0.23.1
+  cached_network_image: ^3.4.1
+  flutter_cache_manager: ^3.4.1
+  image: ^4.3.0
   firebase_messaging: ^16.2.0
   flutter_local_notifications: ^21.0.0
   carousel_slider: ^5.1.2
@@ -60,9 +63,14 @@ dependencies:
   socket_io_client: ^3.1.2
   sentry_flutter: ^9.20.0
   flutter_animate: ^4.5.2
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_driver:
     sdk: flutter
 
   # The "flutter_lints" package below contains a set of recommended lints to
