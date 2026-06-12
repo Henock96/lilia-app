@@ -67,6 +67,22 @@ class ApiClient {
           {Map<String, dynamic>? query}) =>
       _run(() => dio.get<dynamic>(path, queryParameters: query));
 
+  /// Renvoie le corps brut (String non décodée) — pour le parsing déporté sur
+  /// isolate via `parseJson` sur les grosses listes (préserve l'optim perf).
+  Future<String> getText(String path, {Map<String, dynamic>? query}) async {
+    try {
+      final res = await dio.get<String>(
+        path,
+        queryParameters: query,
+        options: Options(responseType: ResponseType.plain),
+      );
+      _observer.onRequest(_snap(res.requestOptions, res.statusCode));
+      return res.data ?? '';
+    } on DioException catch (e) {
+      throw _report(e);
+    }
+  }
+
   Future<Response<dynamic>> postJson(String path,
           {Object? body, Map<String, String>? headers}) =>
       _run(() =>

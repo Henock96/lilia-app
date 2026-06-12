@@ -34,6 +34,14 @@ void main() {
     );
   });
 
+  test('getText renvoie le corps brut non décodé', () async {
+    final client = buildClient((a) {
+      a.onGet('/orders/my', (s) => s.reply(200, {'data': [], 'count': 0}));
+    });
+    final body = await client.getText('/orders/my');
+    expect(body, contains('"count":0'));
+  });
+
   test('downloadBytes renvoie les octets', () async {
     final client = buildClient((a) {
       a.onGet('/orders/1/receipt', (s) => s.reply(200, [37, 80, 68, 70]));
