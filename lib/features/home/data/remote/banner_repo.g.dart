@@ -53,4 +53,4 @@ final class BannerRepositoryProvider
   }
 }
 
-String _$bannerRepositoryHash() => r'f3e2e032ea456c5c57c9f9234944b8e3adbf3bc6';
+String _$bannerRepositoryHash() => r'04fe75b3b4eacef9406a10476830d1241e2fb11e';

@@ -1,8 +1,5 @@
-﻿import 'dart:convert';
-
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:http/http.dart' as http;
-import 'package:lilia_app/constants/app_constants.dart';
+import 'package:lilia_app/core/network/api_client.dart';
+import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/utils/api_response.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -21,27 +18,19 @@ class RestaurantFavorites extends _$RestaurantFavorites {
   // sur un même restaurant d'envoyer add + remove qui se croisent (C9).
   final Set<String> _toggling = {};
 
-  Future<String?> _getToken() async {
-    return await FirebaseAuth.instance.currentUser?.getIdToken();
-  }
+  ApiClient get _api => ref.read(apiClientProvider);
 
   Future<List<RestaurantSummary>> _fetchFromBackend() async {
-    final token = await _getToken();
-    if (token == null) return [];
-
-    final response = await http.get(
-      Uri.parse('${AppConstants.baseUrl}/favorites'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode == 200) {
+    try {
+      final res = await _api.getJson('/favorites');
       // Tolère payload brut `[...]` OU wrappé `{ data: [...] }` (api-contract-v2).
-      final decoded = json.decode(utf8.decode(response.bodyBytes));
-      return ApiResponse.listOf(decoded)
+      return ApiResponse.listOf(res.data)
           .map((e) => RestaurantSummary.fromJson(e as Map<String, dynamic>))
           .toList();
+    } on ApiException {
+      // Non connecté / erreur : liste vide (favoris = feature non bloquante).
+      return [];
     }
-    return [];
   }
 
   Future<void> toggleFavorite(RestaurantSummary restaurant) async {
@@ -61,38 +50,26 @@ class RestaurantFavorites extends _$RestaurantFavorites {
   }
 
   Future<void> add(RestaurantSummary restaurant) async {
-    final token = await _getToken();
-    if (token == null) return;
-
     // Optimistic update
     final current = await future;
     state = AsyncData([...current, restaurant]);
 
-    final response = await http.post(
-      Uri.parse('${AppConstants.baseUrl}/favorites/${restaurant.id}'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode != 200 && response.statusCode != 201) {
+    try {
+      await _api.postJson('/favorites/${restaurant.id}');
+    } on ApiException {
       // Rollback
       state = AsyncData(current);
     }
   }
 
   Future<void> remove(RestaurantSummary restaurant) async {
-    final token = await _getToken();
-    if (token == null) return;
-
     // Optimistic update
     final current = await future;
     state = AsyncData(current.where((r) => r.id != restaurant.id).toList());
 
-    final response = await http.delete(
-      Uri.parse('${AppConstants.baseUrl}/favorites/${restaurant.id}'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-
-    if (response.statusCode != 200 && response.statusCode != 204) {
+    try {
+      await _api.deleteJson('/favorites/${restaurant.id}');
+    } on ApiException {
       // Rollback
       state = AsyncData(current);
     }

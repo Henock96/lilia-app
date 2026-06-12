@@ -1,10 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:lilia_app/constants/app_constants.dart';
+import 'package:lilia_app/core/network/api_client.dart';
+import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:http/http.dart' as http;
 
 part 'user_sync_provider.g.dart';
 
@@ -38,22 +38,15 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
         }
 
         try {
-          final response = await http.get(
-            Uri.parse('${AppConstants.baseUrl}/users/me'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          );
-
+          final res = await ref.read(apiClientProvider).getJson('/users/me');
           if (kDebugMode) {
             // Status only — never log the token nor the response body
             // (contains user PII).
-            debugPrint('Backend /users/me sync status: ${response.statusCode}');
+            debugPrint('Backend /users/me sync status: ${res.statusCode}');
           }
-        } catch (e) {
+        } on ApiException catch (e) {
           if (kDebugMode) {
-            debugPrint('Backend sync error: ${e.runtimeType}');
+            debugPrint('Backend sync error: ${e.kind}');
           }
         }
       } else {

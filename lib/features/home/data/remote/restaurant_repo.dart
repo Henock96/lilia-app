@@ -1,6 +1,5 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:lilia_app/constants/app_constants.dart';
+import 'package:lilia_app/core/network/api_client.dart';
 import 'package:lilia_app/models/vendor_type.dart';
 import 'package:lilia_app/utils/json_isolate.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -18,22 +17,15 @@ List<RestaurantSummary> _parseRestaurantSummaries(String body) {
 }
 
 class RestaurantRepository {
+  final ApiClient _api;
+
+  RestaurantRepository(this._api);
+
   /// Récupérer la liste de tous les restaurants (legacy /restaurants —
   /// backend filtre déjà sur adminApproved=true depuis Sprint B).
   Future<List<RestaurantSummary>> getAllRestaurants() async {
-    try {
-      final response = await http.get(
-        Uri.parse('${AppConstants.baseUrl}/restaurants'),
-      );
-
-      if (response.statusCode == 200) {
-        return parseJson(response.body, _parseRestaurantSummaries);
-      } else {
-        throw Exception('Failed to load restaurants: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Failed to connect to the server: $e');
-    }
+    final body = await _api.getText('/restaurants');
+    return parseJson(body, _parseRestaurantSummaries);
   }
 
   /// Marketplace multi-vendeurs (LIL-117) — GET /vendors avec filtre
@@ -41,23 +33,11 @@ class RestaurantRepository {
   /// adminApproved, on ne reçoit donc que les vendeurs visibles publiquement.
   /// Réponse paginée `{ data, meta }` — on garde uniquement `data`.
   Future<List<RestaurantSummary>> getVendors({VendorType? vendorType}) async {
-    try {
-      final uri = Uri.parse('${AppConstants.baseUrl}/vendors').replace(
-        queryParameters: {
-          if (vendorType != null) 'vendorType': vendorType.name,
-          'limit': '50',
-        },
-      );
-      final response = await http.get(uri);
-
-      if (response.statusCode == 200) {
-        return parseJson(response.body, _parseRestaurantSummaries);
-      } else {
-        throw Exception('Failed to load vendors: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Failed to connect to the server: $e');
-    }
+    final body = await _api.getText('/vendors', query: {
+      if (vendorType != null) 'vendorType': vendorType.name,
+      'limit': '50',
+    });
+    return parseJson(body, _parseRestaurantSummaries);
   }
 
   /// Récupérer un vendeur par son ID avec ses produits (LIL-117).
@@ -66,23 +46,12 @@ class RestaurantRepository {
   /// utilisé par l'écran de détail vendeur (HOME_COOK / BAKERY surtout).
   /// Backend filtre déjà isActive + adminApproved.
   Future<Restaurant> getRestaurant(String id) async {
-    try {
-      final response = await http.get(
-        Uri.parse('${AppConstants.baseUrl}/vendors/$id'),
-      );
-
-      if (response.statusCode == 200) {
-        return Restaurant.fromJson(json.decode(response.body)["data"]);
-      } else {
-        throw Exception('Failed to load vendor: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Failed to connect to the server: $e');
-    }
+    final res = await _api.getJson('/vendors/$id');
+    return Restaurant.fromJson((res.data as Map<String, dynamic>)['data']);
   }
 }
 
 @Riverpod(keepAlive: true)
 RestaurantRepository restaurantRepository(Ref ref) {
-  return RestaurantRepository();
+  return RestaurantRepository(ref.watch(apiClientProvider));
 }
