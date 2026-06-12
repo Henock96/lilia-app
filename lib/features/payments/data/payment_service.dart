@@ -1,9 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/widgets.dart';
-import 'package:http/http.dart' as http;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lilia_app/constants/app_constants.dart';
-import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
+import 'package:lilia_app/core/network/api_client.dart';
 import 'package:lilia_app/utils/api_response.dart';
 
 enum PaymentStatus { pending, success, failed, cancelled }
@@ -81,17 +78,9 @@ class PaymentStatusResponse {
 }
 
 class PaymentService {
-  final http.Client _httpClient;
-  final FirebaseAuthenticationRepository _authRepository;
-  final String baseUrl;
+  final ApiClient _api;
 
-  PaymentService({
-    required http.Client httpClient,
-    required FirebaseAuthenticationRepository authRepository,
-    String? baseUrl,
-  }) : _httpClient = httpClient,
-       _authRepository = authRepository,
-       baseUrl = baseUrl ?? AppConstants.baseUrl;
+  PaymentService({required ApiClient api}) : _api = api;
 
   // Créer un paiement
   Future<PaymentResponse> createPayment({
@@ -106,40 +95,16 @@ class PaymentService {
       debugPrint('💳 Amount: $amount $currency');
       debugPrint('💳 Payment phone provided.');
 
-      final idToken = await _authRepository.getIdToken();
-      if (idToken == null) {
-        throw Exception('User not authenticated');
-      }
+      final res = await _api.postJson('/payments', body: {
+        'orderId': orderId,
+        'amount': amount,
+        'currency': currency,
+        'phoneNumber': phoneNumber,
+        'payerMessage': payerMessage ?? 'Paiement commande $orderId',
+      });
 
-      final url = Uri.parse('$baseUrl/payments');
-
-      final response = await _httpClient
-          .post(
-            url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $idToken',
-            },
-            body: jsonEncode({
-              'orderId': orderId,
-              'amount': amount,
-              'currency': currency,
-              'phoneNumber': phoneNumber,
-              'payerMessage': payerMessage ?? 'Paiement commande $orderId',
-            }),
-          )
-          .timeout(const Duration(seconds: 30));
-
-      debugPrint('💳 Payment response status: ${response.statusCode}');
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        // Réponse enveloppée `{ data: {...} }` par l'interceptor backend.
-        return PaymentResponse.fromJson(ApiResponse.mapOf(data));
-      } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['message'] ?? 'Failed to create payment');
-      }
+      // Réponse enveloppée `{ data: {...} }` par l'interceptor backend.
+      return PaymentResponse.fromJson(ApiResponse.mapOf(res.data));
     } catch (e) {
       debugPrint('❌ Error creating payment: $e');
       rethrow;
@@ -151,32 +116,10 @@ class PaymentService {
     try {
       debugPrint('🔍 Checking payment status: $paymentId');
 
-      final idToken = await _authRepository.getIdToken();
-      if (idToken == null) {
-        throw Exception('User not authenticated');
-      }
+      final res = await _api.getJson('/payments/$paymentId/status');
 
-      final url = Uri.parse('$baseUrl/payments/$paymentId/status');
-
-      final response = await _httpClient
-          .get(
-            url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $idToken',
-            },
-          )
-          .timeout(const Duration(seconds: 15));
-
-      debugPrint('🔍 Status check response: ${response.statusCode}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        // Réponse enveloppée `{ data: {...} }` par l'interceptor backend.
-        return PaymentStatusResponse.fromJson(ApiResponse.mapOf(data));
-      } else {
-        throw Exception('Failed to check payment status');
-      }
+      // Réponse enveloppée `{ data: {...} }` par l'interceptor backend.
+      return PaymentStatusResponse.fromJson(ApiResponse.mapOf(res.data));
     } catch (e) {
       debugPrint('❌ Error checking payment status: $e');
       rethrow;
@@ -244,7 +187,5 @@ class PaymentService {
 }
 
 final paymentServiceProvider = Provider<PaymentService>((ref) {
-  final authRepository = ref.watch(authRepositoryProvider);
-  final httpClient = ref.watch(httpClientProvider);
-  return PaymentService(httpClient: httpClient, authRepository: authRepository);
+  return PaymentService(api: ref.watch(apiClientProvider));
 });

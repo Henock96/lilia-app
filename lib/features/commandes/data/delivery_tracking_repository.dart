@@ -1,12 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../../constants/app_constants.dart';
-import '../../../features/auth/repository/firebase_auth_repository.dart';
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_exception.dart';
 import '../../notifications/application/notification_providers.dart';
 import 'order_controller.dart';
 import 'tracking_socket_service.dart';
@@ -130,18 +128,17 @@ class DriverLocation {
 /// livraison, même si le livreur n'a pas encore émis sa position GPS —
 /// l'UI peut alors afficher déjà le marker resto + destination et
 /// l'avatar livreur. `null` uniquement si le backend renvoie une erreur.
-Future<DriverLocation?> fetchDriverLocation(String orderId, String token) async {
-  final response = await http.get(
-    Uri.parse('${AppConstants.baseUrl}/deliveries/by-order/$orderId'),
-    headers: {'Authorization': 'Bearer $token'},
-  );
-  if (response.statusCode == 200) {
-    final body = jsonDecode(utf8.decode(response.bodyBytes));
-    final data = body['data'] as Map<String, dynamic>?;
+Future<DriverLocation?> fetchDriverLocation(String orderId, ApiClient api) async {
+  try {
+    final res = await api.getJson('/deliveries/by-order/$orderId');
+    final data = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>?;
     if (data == null) return null;
     return DriverLocation.fromHttpJson(data);
+  } on ApiException catch (e) {
+    // Contrat : null si le backend renvoie une erreur (livraison absente, etc.).
+    debugPrint('fetchDriverLocation: ${e.message}');
+    return null;
   }
-  return null;
 }
 
 /// Controller qui combine WebSocket temps réel + HTTP initial.
@@ -204,9 +201,7 @@ class DriverLocationController extends _$DriverLocationController {
   }
 
   Future<DriverLocation?> _fetchHttp(String orderId) async {
-    final token = await ref.read(firebaseIdTokenProvider.future);
-    if (token == null) return null;
-    return fetchDriverLocation(orderId, token);
+    return fetchDriverLocation(orderId, ref.read(apiClientProvider));
   }
 
   void _startHttpFallback(String orderId) {
@@ -224,7 +219,10 @@ class DriverLocationController extends _$DriverLocationController {
                     fresh.updatedAt!.isAfter(previous.updatedAt!)))) {
           state = AsyncValue.data(fresh);
         }
-      } catch (_) {}
+      } catch (e) {
+        // Poll de fallback : on log mais on ne casse pas le timer périodique.
+        debugPrint('Tracking HTTP fallback: $e');
+      }
     });
   }
 

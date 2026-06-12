@@ -5,14 +5,12 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:lilia_app/constants/app_constants.dart';
-import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
+import 'package:lilia_app/core/network/api_client.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
 import 'package:lilia_app/features/notifications/data/notification_model.dart';
 import 'package:lilia_app/firebase_options.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:http/http.dart' as http;
 
 part 'notification_service.g.dart';
 
@@ -66,8 +64,7 @@ class NotificationService {
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
-  final FirebaseAuthenticationRepository _authRepository;
-  final http.Client _httpClient;
+  final ApiClient _api;
   final Ref _ref;
 
   // 🔥 AJOUT: Stream controllers pour éviter les erreurs de Subject fermé
@@ -79,7 +76,7 @@ class NotificationService {
   Timer? _ordersInvalidationDebounce;
   // Flag pour savoir si le service a été dispose
   bool _isDisposed = false;
-  NotificationService(this._authRepository, this._httpClient, this._ref);
+  NotificationService(this._api, this._ref);
 
   String? fcmToken;
 
@@ -381,38 +378,12 @@ class NotificationService {
       // Stoppe les retries si le service a été disposé entre-temps (C23).
       if (_isDisposed) return;
       try {
-        final idToken = await _authRepository.getIdToken();
-        if (idToken == null) {
-          debugPrint(
-            'Firebase ID Token is null, cannot authenticate to server.',
-          );
-          return;
-        }
-
-        final url = Uri.parse(
-          '${AppConstants.baseUrl}/notifications/register-token',
+        await _api.postJson(
+          '/notifications/register-token',
+          body: {'token': fcmToken},
         );
-
-        final response = await _httpClient
-            .post(
-              url,
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer $idToken',
-              },
-              body: jsonEncode({'token': fcmToken}),
-            )
-            .timeout(const Duration(seconds: 15));
-
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          debugPrint('FCM Token registered successfully on the server.');
-          return; // Succès, sortir de la boucle
-        } else {
-          debugPrint(
-            'Failed to register FCM token (attempt $attempt/$maxRetries). '
-            'Status: ${response.statusCode}, Body: ${response.body}',
-          );
-        }
+        debugPrint('FCM Token registered successfully on the server.');
+        return; // Succès, sortir de la boucle
       } catch (e) {
         debugPrint(
           'Error registering FCM token (attempt $attempt/$maxRetries): $e',
@@ -436,32 +407,11 @@ class NotificationService {
     }
 
     try {
-      final idToken = await _authRepository.getIdToken();
-      if (idToken == null) {
-        debugPrint('Firebase ID Token is null, cannot remove FCM token.');
-        return;
-      }
-
-      final url = Uri.parse('${AppConstants.baseUrl}/notifications/token');
-
-      final response = await _httpClient
-          .delete(
-            url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $idToken',
-            },
-            body: jsonEncode({'token': fcmToken}),
-          )
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        debugPrint('FCM Token removed successfully from the server.');
-      } else {
-        debugPrint(
-          'Failed to remove FCM token. Status: ${response.statusCode}, Body: ${response.body}',
-        );
-      }
+      await _api.deleteJson(
+        '/notifications/token',
+        body: {'token': fcmToken},
+      );
+      debugPrint('FCM Token removed successfully from the server.');
     } catch (e) {
       debugPrint('Error removing FCM token from server: $e');
     }
@@ -517,9 +467,7 @@ class NotificationService {
 
 @Riverpod(keepAlive: true)
 NotificationService notificationService(Ref ref) {
-  final authRepository = ref.watch(authRepositoryProvider);
-  final httpClient = ref.watch(httpClientProvider);
-  final service = NotificationService(authRepository, httpClient, ref);
+  final service = NotificationService(ref.watch(apiClientProvider), ref);
 
   // 🔥 IMPORTANT: Nettoyer le service quand le provider est dispose
   ref.onDispose(() {

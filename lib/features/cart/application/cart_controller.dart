@@ -3,12 +3,13 @@ import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/features/cart/data/cart_repository.dart';
+import 'package:lilia_app/core/network/api_client.dart';
 
 part 'cart_controller.g.dart';
 
 @riverpod
 CartRepository cartRepository(Ref ref) {
-  final repository = CartRepository();
+  final repository = CartRepository(ref.watch(apiClientProvider));
   ref.onDispose(repository.dispose);
   return repository;
 }

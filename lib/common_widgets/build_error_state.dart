@@ -71,7 +71,9 @@ class BuildErrorState extends ConsumerWidget {
         if (parsed['message'] != null) {
           errorStr = parsed['message'].toString();
         }
-      } catch (_) {}
+      } catch (_) {
+        // errorStr n'est pas du JSON valide : on conserve le texte nettoyé.
+      }
     }
     // Nettoyer les messages techniques restants
     errorStr = errorStr
