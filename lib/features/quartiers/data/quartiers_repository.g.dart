@@ -34,7 +34,7 @@ final class QuartiersRepositoryProvider
 }
 
 String _$quartiersRepositoryHash() =>
-    r'bc4b757a1ac99f00da5c97c99f03b340d5877b3d';
+    r'4ee206139c83fd86bcf432809a3404bf63ba113c';
 
 abstract class _$QuartiersRepository extends $AsyncNotifier<void> {
   FutureOr<void> build();

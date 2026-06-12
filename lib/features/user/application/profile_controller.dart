@@ -6,12 +6,13 @@ import 'package:lilia_app/models/loyalty_transaction.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_app/features/user/data/user_repository.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
+import 'package:lilia_app/core/network/api_client.dart';
 
 part 'profile_controller.g.dart';
 
 @riverpod
 UserRepository userRepository(Ref ref) {
-  return UserRepository();
+  return UserRepository(ref.watch(apiClientProvider));
 }
 
 @riverpod

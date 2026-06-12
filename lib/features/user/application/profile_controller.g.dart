@@ -48,7 +48,7 @@ final class UserRepositoryProvider
   }
 }
 
-String _$userRepositoryHash() => r'8366fba5ac0d6b90c6a637882d24c5e759a5a92f';
+String _$userRepositoryHash() => r'827710bacb7cd582dbf9d749c54fb446ecc85629';
 
 @ProviderFor(userProfile)
 final userProfileProvider = UserProfileProvider._();
