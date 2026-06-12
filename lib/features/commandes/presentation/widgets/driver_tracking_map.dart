@@ -176,7 +176,7 @@ class DriverTrackingMap extends ConsumerWidget {
               ),
             );
           }
-          return _FullscreenMapView(location: location);
+          return _TrackingMapView(location: location, fullscreen: true);
         },
       );
     }
@@ -249,7 +249,7 @@ class DriverTrackingMap extends ConsumerWidget {
                   message: 'En attente d\'attribution d\'un livreur…',
                 );
               }
-              return _MapView(location: location);
+              return _TrackingMapView(location: location, fullscreen: false);
             },
           ),
 
@@ -296,18 +296,27 @@ class _LiveBadge extends StatelessWidget {
   );
 }
 
-class _FullscreenMapView extends StatefulWidget {
+/// Carte de tracking partagée entre l'affichage inline (carte de la commande)
+/// et l'affichage plein écran. Le mode [fullscreen] ajoute : contrôleur caméra
+/// + recadrage automatique sur les points (`_fitBounds`), suivi du GPS client
+/// en temps réel (si la destination n'est pas fixée par le backend), overlay
+/// « en attente du livreur » et contrôles de zoom. En mode inline, la carte a
+/// une hauteur fixe et un rendu plus épuré.
+class _TrackingMapView extends StatefulWidget {
   final DriverLocation location;
-  const _FullscreenMapView({required this.location});
+  final bool fullscreen;
+  const _TrackingMapView({required this.location, required this.fullscreen});
 
   @override
-  State<_FullscreenMapView> createState() => _FullscreenMapViewState();
+  State<_TrackingMapView> createState() => _TrackingMapViewState();
 }
 
-class _FullscreenMapViewState extends State<_FullscreenMapView> {
-  GoogleMapController? _ctrl;
+class _TrackingMapViewState extends State<_TrackingMapView> {
+  GoogleMapController? _ctrl; // plein écran uniquement (recadrage)
   LatLng? _destination;
-  StreamSubscription<Position>? _posSub;
+  StreamSubscription<Position>? _posSub; // plein écran uniquement
+
+  bool get _fullscreen => widget.fullscreen;
 
   @override
   void initState() {
@@ -319,8 +328,9 @@ class _FullscreenMapViewState extends State<_FullscreenMapView> {
     final dest = await _resolveClientDestination(widget.location);
     if (!mounted) return;
     setState(() => _destination = dest);
-    _fitBounds();
+    if (!_fullscreen) return;
 
+    _fitBounds();
     // Stream du GPS client uniquement si on n'a PAS de coords backend
     // (sinon la destination est fixe = adresse de la commande).
     if (widget.location.destinationLatitude == null) {
@@ -377,28 +387,38 @@ class _FullscreenMapViewState extends State<_FullscreenMapView> {
   @override
   Widget build(BuildContext context) {
     final loc = widget.location;
-    final markers = _buildTrackingMarkers(loc, _destination, detailed: true);
-    final polylines =
-        _buildRoutePolyline(loc, _destination, width: 5, dash: 20, gap: 10);
+    final markers =
+        _buildTrackingMarkers(loc, _destination, detailed: _fullscreen);
+    final polylines = _fullscreen
+        ? _buildRoutePolyline(loc, _destination, width: 5, dash: 20, gap: 10)
+        : _buildRoutePolyline(loc, _destination, width: 4, dash: 16, gap: 8);
     final initialCenter = _initialMapCenter(loc, _destination);
+
+    final map = GoogleMap(
+      initialCameraPosition: CameraPosition(target: initialCenter, zoom: 15),
+      onMapCreated: _fullscreen
+          ? (c) {
+              _ctrl = c;
+              _fitBounds();
+            }
+          : null,
+      markers: markers,
+      polylines: polylines,
+      myLocationEnabled: false,
+      myLocationButtonEnabled: false,
+      zoomControlsEnabled: _fullscreen,
+      mapToolbarEnabled: false,
+      scrollGesturesEnabled: true,
+      tiltGesturesEnabled: false,
+    );
+
+    if (!_fullscreen) {
+      return SizedBox(height: 220, child: map);
+    }
 
     return Stack(
       children: [
-        GoogleMap(
-          initialCameraPosition: CameraPosition(target: initialCenter, zoom: 15),
-          onMapCreated: (c) {
-            _ctrl = c;
-            _fitBounds();
-          },
-          markers: markers,
-          polylines: polylines,
-          myLocationEnabled: false,
-          myLocationButtonEnabled: false,
-          zoomControlsEnabled: true,
-          mapToolbarEnabled: false,
-          scrollGesturesEnabled: true,
-          tiltGesturesEnabled: false,
-        ),
+        map,
         if (!loc.hasDriverPosition)
           Positioned(
             top: 16,
@@ -430,51 +450,6 @@ class _FullscreenMapViewState extends State<_FullscreenMapView> {
             ),
           ),
       ],
-    );
-  }
-}
-
-class _MapView extends StatefulWidget {
-  final DriverLocation location;
-  const _MapView({required this.location});
-
-  @override
-  State<_MapView> createState() => _MapViewState();
-}
-
-class _MapViewState extends State<_MapView> {
-  LatLng? _destination;
-
-  @override
-  void initState() {
-    super.initState();
-    _initDestination();
-  }
-
-  Future<void> _initDestination() async {
-    final dest = await _resolveClientDestination(widget.location);
-    if (mounted) setState(() => _destination = dest);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final loc = widget.location;
-    final markers = _buildTrackingMarkers(loc, _destination, detailed: false);
-    final polylines =
-        _buildRoutePolyline(loc, _destination, width: 4, dash: 16, gap: 8);
-    final initialCenter = _initialMapCenter(loc, _destination);
-
-    return SizedBox(
-      height: 220,
-      child: GoogleMap(
-        initialCameraPosition: CameraPosition(target: initialCenter, zoom: 15),
-        markers: markers,
-        polylines: polylines,
-        myLocationButtonEnabled: false,
-        zoomControlsEnabled: false,
-        scrollGesturesEnabled: true,
-        tiltGesturesEnabled: false,
-      ),
     );
   }
 }

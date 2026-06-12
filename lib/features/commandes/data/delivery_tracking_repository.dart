@@ -7,6 +7,8 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../constants/app_constants.dart';
 import '../../../features/auth/repository/firebase_auth_repository.dart';
+import '../../notifications/application/notification_providers.dart';
+import 'order_controller.dart';
 import 'tracking_socket_service.dart';
 
 part 'delivery_tracking_repository.g.dart';
@@ -154,6 +156,10 @@ class DriverLocationController extends _$DriverLocationController {
   Timer? _httpFallbackTimer;
   StreamSubscription<DriverPositionEvent>? _wsPositionSub;
   StreamSubscription<String>? _wsStatusSub;
+  // Debounce des invalidations de userOrdersProvider déclenchées par le WS :
+  // un changement de statut peut arriver quasi-simultanément via WS et FCM, on
+  // évite ainsi un double refetch de la liste de commandes (cf. B-10 / dette #2).
+  Timer? _statusInvalidationDebounce;
   String? _orderId;
 
   @override
@@ -183,7 +189,12 @@ class DriverLocationController extends _$DriverLocationController {
 
     _wsStatusSub = streams.status.listen((status) {
       debugPrint('[Tracking] order:status → $status');
-      // L'UI listen aussi via FCM ; ici on pourrait refresh userOrdersProvider.
+      if (!ref.mounted) return;
+      // Le WS est fiable (<1s) ; on rafraîchit la liste de commandes ici au lieu
+      // de dépendre uniquement de FCM (best-effort). Mirroir du path FCM dans
+      // NotificationService : set du dernier orderId + invalidate debouncé.
+      ref.read(latestUpdatedOrderIdProvider.notifier).state = orderId;
+      _invalidateUserOrdersDebounced();
     });
 
     // Fallback HTTP plus rare — la WS prend le relai en temps normal
@@ -223,8 +234,21 @@ class DriverLocationController extends _$DriverLocationController {
     state = await AsyncValue.guard(() => _fetchHttp(_orderId!));
   }
 
+  /// Invalide `userOrdersProvider` au plus une fois par fenêtre de 600 ms
+  /// (même fenêtre que le path FCM dans NotificationService).
+  void _invalidateUserOrdersDebounced() {
+    _statusInvalidationDebounce?.cancel();
+    _statusInvalidationDebounce = Timer(
+      const Duration(milliseconds: 600),
+      () {
+        if (ref.mounted) ref.invalidate(userOrdersProvider);
+      },
+    );
+  }
+
   void _cleanup() {
     _httpFallbackTimer?.cancel();
+    _statusInvalidationDebounce?.cancel();
     _wsPositionSub?.cancel();
     _wsStatusSub?.cancel();
     final id = _orderId;
