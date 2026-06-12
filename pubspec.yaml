@@ -45,6 +45,7 @@ dependencies:
   intl: ^0.20.2
   shared_preferences: ^2.5.5
   http: ^1.6.0
+  dio: ^5.7.0
   iconsax: ^0.0.8
   flutter_launcher_icons: ^0.14.4
   image_picker: ^1.2.2
@@ -70,6 +71,7 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
+  http_mock_adapter: ^0.6.1
   flutter_driver:
     sdk: flutter
 
