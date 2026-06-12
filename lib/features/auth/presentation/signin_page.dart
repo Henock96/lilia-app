@@ -6,6 +6,7 @@ import 'package:lilia_app/routing/app_route_enum.dart';
 
 import '../controller/auth_controller.dart';
 import 'package:lilia_app/utils/snackbar.dart';
+import 'package:lilia_app/features/auth/presentation/phone_collection_sheet.dart';
 
 class SignInPage extends ConsumerWidget {
   const SignInPage({super.key});
@@ -257,6 +258,11 @@ class _SocialLogins extends ConsumerWidget {
     return OutlinedButton.icon(
       onPressed: () async {
         await ref.read(authControllerProvider.notifier).signInWithGoogle();
+        final auth = ref.read(authControllerProvider);
+        if (!auth.hasError && context.mounted) {
+          // Numero absent du token Google => proposer de le saisir (skippable).
+          await maybePromptPhoneNumber(context, ref);
+        }
       },
       icon: Image.asset(
         'assets/images/google_logo.png',
