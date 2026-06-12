@@ -2,9 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:lilia_app/constants/app_constants.dart';
-import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
-import 'package:http/http.dart' as http;
+import 'package:lilia_app/core/network/api_client.dart';
 import 'package:lilia_app/models/checkout.dart';
 import 'package:lilia_app/utils/json_isolate.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -22,55 +20,22 @@ List<Order> _parseOrders(String body) {
   return list.whereType<Map<String, dynamic>>().map(Order.fromJson).toList();
 }
 
-String _extractErrorMessage(http.Response response, String fallback) {
-  try {
-    final body = json.decode(utf8.decode(response.bodyBytes));
-    if (body is Map<String, dynamic> && body['message'] != null) {
-      final message = body['message'];
-      if (message is List) return message.join('. ');
-      return message.toString();
-    }
-  } catch (_) {}
-  return fallback;
-}
-
 @Riverpod(keepAlive: true)
 class OrderRepository extends _$OrderRepository {
+  ApiClient get _api => ref.read(apiClientProvider);
+
   @override
   Future<void> build() async {}
 
   Future<List<Order>> getMyOrders() async {
-    final token = await ref.read(firebaseIdTokenProvider.future);
-    if (token == null) throw Exception('Veuillez vous reconnecter.');
-    final response = await http.get(
-      Uri.parse('${AppConstants.baseUrl}/orders/my'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    if (response.statusCode == 200) {
-      return parseJson(utf8.decode(response.bodyBytes), _parseOrders);
-    } else {
-      throw Exception(
-        _extractErrorMessage(response, 'Impossible de charger vos commandes.'),
-      );
-    }
+    // Corps brut → parsing déporté sur isolate au-delà du seuil (perf).
+    final body = await _api.getText('/orders/my');
+    return parseJson(body, _parseOrders);
   }
 
   /// Télécharge le reçu PDF d'une commande payée.
-  /// Renvoie les octets du PDF (à écrire dans un fichier puis partager).
-  Future<Uint8List> downloadReceipt(String orderId) async {
-    final token = await ref.read(firebaseIdTokenProvider.future);
-    if (token == null) throw Exception('Veuillez vous reconnecter.');
-    final response = await http.get(
-      Uri.parse('${AppConstants.baseUrl}/orders/$orderId/receipt'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    if (response.statusCode == 200) {
-      return response.bodyBytes;
-    }
-    throw Exception(
-      _extractErrorMessage(response, 'Impossible de générer le reçu.'),
-    );
-  }
+  Future<Uint8List> downloadReceipt(String orderId) =>
+      _api.downloadBytes('/orders/$orderId/receipt');
 
   Future<Checkout> createOrders({
     String? adresseId,
@@ -86,10 +51,7 @@ class OrderRepository extends _$OrderRepository {
     // LIL-122 : commande programmée (panier 100% madeToOrder)
     DateTime? scheduledFor,
   }) async {
-    final token = await ref.read(firebaseIdTokenProvider.future);
-    if (token == null) throw Exception('Veuillez vous reconnecter.');
-
-    final Map<String, dynamic> bodyMap = {
+    final bodyMap = <String, dynamic>{
       'paymentMethod': paymentMethod,
       'isDelivery': isDelivery,
       if (isDelivery && adresseId != null) 'adresseId': adresseId,
@@ -106,63 +68,22 @@ class OrderRepository extends _$OrderRepository {
       },
     };
 
-    final response = await http.post(
-      Uri.parse('${AppConstants.baseUrl}/orders/checkout'),
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-        if (idempotencyKey != null) 'Idempotency-Key': idempotencyKey,
-      },
-      body: json.encode(bodyMap),
+    final res = await _api.postJson(
+      '/orders/checkout',
+      body: bodyMap,
+      headers:
+          idempotencyKey != null ? {'Idempotency-Key': idempotencyKey} : null,
     );
-    if (response.statusCode == 201) {
-      return checkoutFromMap(response.body);
-    } else {
-      throw Exception(
-        _extractErrorMessage(response, 'Impossible de passer la commande.'),
-      );
-    }
+    // checkoutFromMap attend l'enveloppe JSON brute { message, data: {...} }.
+    return checkoutFromMap(json.encode(res.data));
   }
 
-  Future<void> reorder(String orderId) async {
-    final token = await ref.read(firebaseIdTokenProvider.future);
-    if (token == null) throw Exception('Veuillez vous reconnecter.');
-    final response = await http.post(
-      Uri.parse('${AppConstants.baseUrl}/orders/$orderId/reorder'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      throw Exception(
-        _extractErrorMessage(response, 'Impossible de recommander.'),
-      );
-    }
-  }
+  Future<void> reorder(String orderId) =>
+      _api.postJson('/orders/$orderId/reorder');
 
-  Future<void> deleteOrder(String orderId) async {
-    final token = await ref.read(firebaseIdTokenProvider.future);
-    if (token == null) throw Exception('Veuillez vous reconnecter.');
-    final response = await http.delete(
-      Uri.parse('${AppConstants.baseUrl}/orders/$orderId'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    if (response.statusCode != 200) {
-      throw Exception(
-        _extractErrorMessage(response, 'Impossible de supprimer la commande.'),
-      );
-    }
-  }
+  Future<void> deleteOrder(String orderId) =>
+      _api.deleteJson('/orders/$orderId');
 
-  Future<void> cancelOrder(String orderId) async {
-    final token = await ref.read(firebaseIdTokenProvider.future);
-    if (token == null) throw Exception('Veuillez vous reconnecter.');
-    final response = await http.patch(
-      Uri.parse('${AppConstants.baseUrl}/orders/$orderId/cancel'),
-      headers: {'Authorization': 'Bearer $token'},
-    );
-    if (response.statusCode != 200) {
-      throw Exception(
-        _extractErrorMessage(response, 'Impossible d\'annuler la commande.'),
-      );
-    }
-  }
+  Future<void> cancelOrder(String orderId) =>
+      _api.patchJson('/orders/$orderId/cancel');
 }
