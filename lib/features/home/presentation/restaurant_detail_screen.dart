@@ -9,13 +9,14 @@ import 'package:lilia_app/services/analytics_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../models/menu.dart';
 import '../../../models/produit.dart';
 import '../../../models/restaurant.dart';
 import '../../../models/vendor_type.dart';
 import '../../../routing/app_route_enum.dart';
 import '../../cart/presentation/cart_mode_conflict_dialog.dart';
 import '../data/remote/restaurant_controller.dart';
-import 'widgets/menus_section.dart';
+import 'widgets/menu_card.dart';
 import 'widgets/vendor_type_badge.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
@@ -23,15 +24,15 @@ import 'package:lilia_app/utils/snackbar.dart';
 /// Écran de détail vendeur (LIL-117 — refonte UI).
 ///
 /// Layout :
-///   1. Hero image plein écran avec back/share/reviews/favoris floating
-///   2. Carte d'identité : nom, type vendeur, note, statut ouvert/fermé
-///   3. Story + spécialités/certifications/note de production (si VendorProfile)
+///   1. Hero image plein écran avec back/menus/share/reviews floating
+///      (l'icône menus n'apparaît que si le vendeur a des menus du jour actifs)
+///   2. Carte d'identité : statut ouvert/fermé + spécialités (même ligne) + note
+///   3. Story « À propos » pliable + certifications/note de production (si VendorProfile)
 ///   4. Quick info livraison (temps, frais, minimum)
 ///   5. Horaires (collapsible)
 ///   6. Bouton "Appeler"
-///   7. Menus du jour
-///   8. Search + tabs catégories
-///   9. Produits groupés par catégorie
+///   7. Search + tabs catégories
+///   8. Produits groupés par catégorie
 class RestaurantDetailScreen extends ConsumerStatefulWidget {
   final String restaurantId;
   final String restaurantName;
@@ -103,6 +104,8 @@ class _RestaurantDetailScreenState
         // 1. Hero
         _VendorHeroAppBar(
           restaurant: restaurant,
+          hasMenus: restaurant.menus.isNotEmpty,
+          onMenus: () => _showMenusSheet(restaurant.menus),
           onShare: _shareRestaurant,
           onReviews: () => context.pushNamed(
             AppRoutes.reviews.routeName,
@@ -113,7 +116,7 @@ class _RestaurantDetailScreenState
           ),
         ),
 
-        // 2. Carte d'identité (titre, type, rating, statut)
+        // 2. Carte d'identité (statut ouvert/fermé + spécialités + note)
         SliverToBoxAdapter(
           child: _VendorIdentityCard(restaurant: restaurant),
         ),
@@ -125,13 +128,7 @@ class _RestaurantDetailScreenState
             child: _VendorProfileSection(profile: restaurant.vendorProfile!),
           ),
 
-        // 4. Spécialités (chips Specialty[])
-        if (restaurant.specialties.isNotEmpty)
-          SliverToBoxAdapter(
-            child: _SpecialtyChipsSection(specialties: restaurant.specialties),
-          ),
-
-        // 5. Quick info livraison
+        // 4. Quick info livraison
         SliverToBoxAdapter(
           child: _DeliveryInfoCard(restaurant: restaurant),
         ),
@@ -171,12 +168,7 @@ class _RestaurantDetailScreenState
             ),
           ),
 
-        // 8. Menus du jour
-        SliverToBoxAdapter(
-          child: MenusSection(restaurantId: widget.restaurantId),
-        ),
-
-        // 9. Section produits — header
+        // 7. Section produits — header
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
@@ -196,7 +188,7 @@ class _RestaurantDetailScreenState
           ),
         ),
 
-        // 10. Search produit
+        // 8. Search produit
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
@@ -232,7 +224,7 @@ class _RestaurantDetailScreenState
           ),
         ),
 
-        // 11. Onglets catégories
+        // 9. Onglets catégories
         if (categories.isNotEmpty)
           SliverToBoxAdapter(
             child: _CategoryTabs(
@@ -242,7 +234,7 @@ class _RestaurantDetailScreenState
             ),
           ),
 
-        // 12. Liste des produits
+        // 10. Liste des produits
         if (filteredProducts.isEmpty)
           const SliverToBoxAdapter(
             child: Padding(
@@ -329,6 +321,76 @@ class _RestaurantDetailScreenState
     return grouped;
   }
 
+  /// Affiche les menus du jour dans un bottom sheet. Les menus sont déjà
+  /// embarqués dans le vendeur (`restaurant.menus`) — aucune requête réseau.
+  void _showMenusSheet(List<MenuDuJour> menus) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.restaurant_menu, size: 22),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Menus du Jour',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${menus.length}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  height: 240,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: menus.length,
+                    itemBuilder: (context, index) {
+                      final menu = menus[index];
+                      return MenuCard(
+                        menu: menu,
+                        onTap: () {
+                          Navigator.of(sheetContext).pop();
+                          context.pushNamed(
+                            AppRoutes.menuDetail.routeName,
+                            extra: menu,
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _shareRestaurant() {
     SharePlus.instance.share(
       ShareParams(
@@ -356,11 +418,15 @@ class _RestaurantDetailScreenState
 
 class _VendorHeroAppBar extends StatelessWidget {
   final Restaurant restaurant;
+  final bool hasMenus;
+  final VoidCallback onMenus;
   final VoidCallback onShare;
   final VoidCallback onReviews;
 
   const _VendorHeroAppBar({
     required this.restaurant,
+    required this.hasMenus,
+    required this.onMenus,
     required this.onShare,
     required this.onReviews,
   });
@@ -380,6 +446,13 @@ class _VendorHeroAppBar extends StatelessWidget {
         onTap: () => Navigator.of(context).pop(),
       ),
       actions: [
+        // Accès aux menus du jour — visible seulement si le vendeur en a.
+        if (hasMenus)
+          _circleButton(
+            context,
+            icon: Icons.restaurant_menu,
+            onTap: onMenus,
+          ),
         _circleButton(context, icon: Icons.share_outlined, onTap: onShare),
         _circleButton(
           context,
@@ -514,76 +587,104 @@ class _VendorIdentityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final hasRating =
+        restaurant.averageRating != null && restaurant.averageRating! > 0;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              // Statut ouvert/fermé
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: restaurant.isOpen
-                      ? Colors.green.withValues(alpha: 0.1)
-                      : Colors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: restaurant.isOpen ? Colors.green : Colors.red,
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      restaurant.isOpen
-                          ? Icons.check_circle
-                          : Icons.cancel,
-                      color: restaurant.isOpen ? Colors.green : Colors.red,
-                      size: 14,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      restaurant.isOpen ? 'Ouvert' : 'Fermé',
-                      style: TextStyle(
-                        color: restaurant.isOpen ? Colors.green : Colors.red,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Spacer(),
-              // Rating + reviews
-              if (restaurant.averageRating != null &&
-                  restaurant.averageRating! > 0) ...[
-                const Icon(Icons.star_rounded, size: 18, color: Colors.amber),
-                const SizedBox(width: 2),
-                Text(
-                  restaurant.averageRating!.toStringAsFixed(1),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (restaurant.totalReviews != null)
-                  Text(
-                    ' (${restaurant.totalReviews})',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
+          // Statut ouvert/fermé + spécialités sur la même ligne (le Wrap
+          // passe à la ligne automatiquement si les chips débordent).
+          Expanded(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _statusChip(),
+                for (final s in restaurant.specialties) _specialtyChip(context, s),
               ],
-            ],
+            ),
           ),
+          if (hasRating) ...[
+            const SizedBox(width: 8),
+            _rating(context),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _statusChip() {
+    final open = restaurant.isOpen;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: (open ? Colors.green : Colors.red).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: open ? Colors.green : Colors.red, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            open ? Icons.check_circle : Icons.cancel,
+            color: open ? Colors.green : Colors.red,
+            size: 14,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            open ? 'Ouvert' : 'Fermé',
+            style: TextStyle(
+              color: open ? Colors.green : Colors.red,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _specialtyChip(BuildContext context, Specialty specialty) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: scheme.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Text(
+        specialty.name,
+        style: TextStyle(
+          fontSize: 12,
+          color: scheme.primary,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _rating(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      // Aligne visuellement la note avec la première ligne de chips.
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.star_rounded, size: 18, color: Colors.amber),
+          const SizedBox(width: 2),
+          Text(
+            restaurant.averageRating!.toStringAsFixed(1),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          if (restaurant.totalReviews != null)
+            Text(
+              ' (${restaurant.totalReviews})',
+              style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+            ),
         ],
       ),
     );
@@ -592,14 +693,24 @@ class _VendorIdentityCard extends StatelessWidget {
 
 // ─── Profil enrichi (story + certifications + production note) ──────────────
 
-class _VendorProfileSection extends StatelessWidget {
+class _VendorProfileSection extends StatefulWidget {
   final VendorProfile profile;
 
   const _VendorProfileSection({required this.profile});
 
   @override
+  State<_VendorProfileSection> createState() => _VendorProfileSectionState();
+}
+
+class _VendorProfileSectionState extends State<_VendorProfileSection> {
+  // Story repliée par défaut : les produits restent rapidement accessibles.
+  bool _storyExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
+    final profile = widget.profile;
     final scheme = Theme.of(context).colorScheme;
+    final hasStory = profile.story != null && profile.story!.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Container(
@@ -614,29 +725,43 @@ class _VendorProfileSection extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (profile.story != null && profile.story!.isNotEmpty) ...[
-              Row(
-                children: [
-                  Icon(
-                    Icons.menu_book_outlined,
-                    size: 18,
-                    color: scheme.primary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'À propos',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+            if (hasStory) ...[
+              InkWell(
+                onTap: () =>
+                    setState(() => _storyExpanded = !_storyExpanded),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.menu_book_outlined,
+                      size: 18,
                       color: scheme.primary,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    Text(
+                      'À propos',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: scheme.primary,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      _storyExpanded ? Icons.expand_less : Icons.expand_more,
+                      size: 20,
+                      color: scheme.primary,
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 profile.story!,
                 style: const TextStyle(fontSize: 13.5, height: 1.45),
+                maxLines: _storyExpanded ? null : 2,
+                overflow: _storyExpanded
+                    ? TextOverflow.visible
+                    : TextOverflow.ellipsis,
               ),
             ],
             if (profile.certifications.isNotEmpty) ...[
@@ -751,48 +876,6 @@ class _ChipsRow extends StatelessWidget {
               .toList(),
         ),
       ],
-    );
-  }
-}
-
-// ─── Spécialités cuisine (Specialty[] séparé du VendorProfile) ─────────────
-
-class _SpecialtyChipsSection extends StatelessWidget {
-  final List<Specialty> specialties;
-
-  const _SpecialtyChipsSection({required this.specialties});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 6,
-        children: specialties
-            .map(
-              (s) => Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  s.name,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: scheme.primary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            )
-            .toList(),
-      ),
     );
   }
 }

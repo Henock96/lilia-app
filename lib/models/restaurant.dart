@@ -1,4 +1,5 @@
 import 'package:lilia_app/models/gallery_image.dart';
+import 'package:lilia_app/models/menu.dart';
 import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/models/vendor_type.dart';
 
@@ -276,6 +277,10 @@ class Restaurant {
   final int? preorderLeadHours;
   final VendorProfile? vendorProfile;
 
+  // Menus du jour actifs embarqués dans `GET /vendors/:id` (clé `menuDuJour`).
+  // Évite une 2e requête `/menus/active` sur l'écran de détail vendeur.
+  final List<MenuDuJour> menus;
+
   Restaurant({
     required this.id,
     required this.name,
@@ -298,6 +303,7 @@ class Restaurant {
     this.acceptsPreorders = false,
     this.preorderLeadHours,
     this.vendorProfile,
+    this.menus = const [],
   });
 
   /// Retourne le temps de livraison formaté
@@ -347,6 +353,14 @@ class Restaurant {
           .toList();
     }
 
+    // Menus du jour actifs embarqués (clé relation Prisma `menuDuJour`).
+    List<MenuDuJour> menus = [];
+    if (json['menuDuJour'] != null) {
+      menus = (json['menuDuJour'] as List)
+          .map((m) => MenuDuJour.fromJson(m as Map<String, dynamic>))
+          .toList();
+    }
+
     return Restaurant(
       id: json['id'],
       name: json['nom'],
@@ -373,6 +387,7 @@ class Restaurant {
       vendorProfile: json['vendorProfile'] != null
           ? VendorProfile.fromJson(json['vendorProfile'] as Map<String, dynamic>)
           : null,
+      menus: menus,
     );
   }
 }
