@@ -1280,6 +1280,34 @@ Passer LIL-136 en « In Review » et lier les commits/PR des 3 repos.
 
 ---
 
+## Correction de périmètre (constatée à l'exécution — 2026-06-13)
+
+L'inventaire initial (`find -name "*repository*.dart"`) sous-comptait les fichiers
+réseau. Périmètre réel :
+
+- **lilia-app (FAIT)** : 17 fichiers migrés, pas 10. Fichiers hors-convention
+  ajoutés : `home/data/remote/{home,banner,restaurant,menu}_repo.dart`,
+  `features/auth/user_sync_provider.dart`,
+  `features/favoris/application/restaurant_favorites_provider.dart`. Le WS
+  `tracking_socket_service.dart` reste sur `getIdToken` (handshake socket, hors
+  scope HTTP, conforme au plan).
+  **Révision (feedback user)** : `firebase_auth_repository.dart` a finalement
+  AUSSI été migré (les 3 `/users/sync`). La crainte de cycle était infondée :
+  `apiClient → firebaseAuth` et `authRepository → apiClient`, jamais l'inverse
+  (import circulaire fichier OK en Dart, pas de cycle de providers).
+  `httpClientProvider` supprimé, `http` retiré du pubspec. Résultat : **plus
+  aucun import `http` dans lib/test** → point d'injection token réellement unique.
+- **lilia-food-admin (T10, À FAIRE)** : ~15 fichiers (pas 6) utilisant
+  `FirebaseAuth.instance` + `http` : `features/{clients/{client,user},users/user,
+  incidents,admin/admin_operations,settings/restaurant_settings,home/order,
+  zones,products/product,menus/menu,categories/category,deliveries/delivery,
+  photos/{product_images,menu_images,vendor_photos}}` + `services/notification`.
+  Package name = `lilia_admin` (imports `package:lilia_admin/`). `firebaseAuthProvider`
+  présent. `AppConstants.baseUrl` présent. Pas de `httpClientProvider`.
+- **lilia_food_delivery (T11, À FAIRE)** : vérifier l'inventaire réel de la même
+  façon (`grep -rln "package:http/http.dart" lib`) avant de chiffrer ; 3 catch
+  muets à supprimer.
+
 ## Self-Review (effectuée)
 
 - **Couverture spec** : ApiException (T2), NetworkObserver (T3), ErrorInterceptor (T4),
