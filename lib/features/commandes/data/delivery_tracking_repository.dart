@@ -158,6 +158,9 @@ class DriverLocationController extends _$DriverLocationController {
   // évite ainsi un double refetch de la liste de commandes (cf. B-10 / dette #2).
   Timer? _statusInvalidationDebounce;
   String? _orderId;
+  // Référence capturée pendant build() : `ref.read` est interdit dans onDispose
+  // (Riverpod 3.x), on garde donc le service pour pouvoir unwatch au cleanup.
+  TrackingSocketService? _socket;
 
   @override
   FutureOr<DriverLocation?> build(String orderId) async {
@@ -168,6 +171,7 @@ class DriverLocationController extends _$DriverLocationController {
 
     // Abonnement WebSocket
     final socket = ref.read(trackingSocketServiceProvider);
+    _socket = socket;
     final streams = socket.watch(orderId);
 
     DriverLocation? current = initial;
@@ -251,8 +255,10 @@ class DriverLocationController extends _$DriverLocationController {
     _wsStatusSub?.cancel();
     final id = _orderId;
     if (id != null) {
-      ref.read(trackingSocketServiceProvider).unwatch(id);
+      // _socket capturé en build() — pas de ref.read pendant le dispose.
+      _socket?.unwatch(id);
     }
+    _socket = null;
     _orderId = null; // évite toute réutilisation d'un orderId obsolète (C14)
   }
 }

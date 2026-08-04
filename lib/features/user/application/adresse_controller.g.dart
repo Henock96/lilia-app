@@ -39,7 +39,7 @@ abstract class _$AdresseController extends $AsyncNotifier<List<Adresse>> {
   FutureOr<List<Adresse>> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<List<Adresse>>, List<Adresse>>;
     final element =
         ref.element
@@ -49,6 +49,6 @@ abstract class _$AdresseController extends $AsyncNotifier<List<Adresse>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

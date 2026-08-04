@@ -26,7 +26,12 @@ class LocationService {
           accuracy: LocationAccuracy.medium,
           distanceFilter: 50,
         ),
-      ).listen((pos) => _lastPosition = pos);
+      ).listen(
+        (pos) => _lastPosition = pos,
+        // GPS indisponible — pas bloquant, on garde la dernière position connue.
+        onError: (_) {},
+        cancelOnError: false,
+      );
     } catch (_) {
       // GPS indisponible — pas bloquant
     }

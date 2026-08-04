@@ -339,10 +339,16 @@ class _TrackingMapViewState extends State<_TrackingMapView> {
           accuracy: LocationAccuracy.high,
           distanceFilter: 15,
         ),
-      ).listen((p) {
-        if (!mounted) return;
-        setState(() => _destination = LatLng(p.latitude, p.longitude));
-      });
+      ).listen(
+        (p) {
+          if (!mounted) return;
+          setState(() => _destination = LatLng(p.latitude, p.longitude));
+        },
+        // GPS indisponible (permission refusée, simulateur sans position,
+        // perte de signal) : on garde la destination déjà résolue, pas de crash.
+        onError: (_) {},
+        cancelOnError: false,
+      );
     }
   }
 

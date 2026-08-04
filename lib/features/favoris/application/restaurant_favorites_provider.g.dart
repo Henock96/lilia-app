@@ -42,7 +42,7 @@ abstract class _$RestaurantFavorites
   FutureOr<List<RestaurantSummary>> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref
             as $Ref<
@@ -60,7 +60,7 @@ abstract class _$RestaurantFavorites
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }
 

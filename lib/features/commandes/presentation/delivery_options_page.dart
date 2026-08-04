@@ -83,12 +83,12 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
           // LIL-131 : on charge le restaurant pour adapter l'UI au vendorType
           // (HOME_COOK n'a pas d'adresse physique → retrait masqué ; BAKERY,
           // HOME_COOK et BEVERAGE_SHOP affichent un badge en tête).
-          final restaurantAsync =
-              ref.watch(restaurantControllerProvider(_restaurantId!));
+          final restaurantAsync = ref.watch(
+            restaurantControllerProvider(_restaurantId!),
+          );
           final restaurant = restaurantAsync.value;
           // Si HOME_COOK, on force le mode livraison (le retrait n'a pas de sens).
-          if (restaurant?.vendorType == VendorType.HOME_COOK &&
-              !_isDelivery) {
+          if (restaurant?.vendorType == VendorType.HOME_COOK && !_isDelivery) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
                 setState(() {
@@ -212,80 +212,80 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
         border: Border.all(color: cs.outline),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
-        children: [
-          // Option Livraison
-          RadioListTile<bool>(
-            value: true,
-            groupValue: _isDelivery,
-            onChanged: (value) {
-              setState(() {
-                _isDelivery = value!;
-                _calculatedDeliveryFee = null;
-              });
-            },
-            title: const Text(
-              'Livraison a domicile',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: const Text(
-              'Recevez votre commande chez vous',
-              style: TextStyle(fontSize: 13),
-            ),
-            secondary: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: _isDelivery
-                    ? cs.primary.withValues(alpha: 0.1)
-                    : cs.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                Icons.delivery_dining,
-                color: _isDelivery ? cs.primary : cs.outline,
-                size: 28,
-              ),
-            ),
-            activeColor: cs.primary,
-          ),
-          if (!hidePickup) ...[
-            Divider(height: 1, color: cs.outline),
-            // Option Retrait
+      // `groupValue`/`onChanged` sur RadioListTile sont dépréciés depuis
+      // Flutter 3.32 : c'est désormais l'ancêtre RadioGroup qui porte l'état du
+      // groupe. Les frais de livraison suivent le mode : inconnus (null, à
+      // recalculer selon le quartier) en livraison, nuls au retrait.
+      child: RadioGroup<bool>(
+        groupValue: _isDelivery,
+        onChanged: (value) {
+          if (value == null) return;
+          setState(() {
+            _isDelivery = value;
+            _calculatedDeliveryFee = value ? null : 0;
+          });
+        },
+        child: Column(
+          children: [
+            // Option Livraison
             RadioListTile<bool>(
-              value: false,
-              groupValue: _isDelivery,
-              onChanged: (value) {
-                setState(() {
-                  _isDelivery = value!;
-                  _calculatedDeliveryFee = 0;
-                });
-              },
-              title: Text(
-                pickupTitle,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+              value: true,
+              title: const Text(
+                'Livraison a domicile',
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
-              subtitle: Text(
-                'Pas de frais supplementaires',
-                style: TextStyle(fontSize: 13, color: Colors.green[600]),
+              subtitle: const Text(
+                'Recevez votre commande chez vous',
+                style: TextStyle(fontSize: 13),
               ),
               secondary: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: !_isDelivery
-                      ? Colors.green.withValues(alpha: 0.1)
+                  color: _isDelivery
+                      ? cs.primary.withValues(alpha: 0.1)
                       : cs.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
-                  Icons.store,
-                  color: !_isDelivery ? Colors.green : cs.outline,
+                  Icons.delivery_dining,
+                  color: _isDelivery ? cs.primary : cs.outline,
                   size: 28,
                 ),
               ),
               activeColor: cs.primary,
             ),
+            if (!hidePickup) ...[
+              Divider(height: 1, color: cs.outline),
+              // Option Retrait
+              RadioListTile<bool>(
+                value: false,
+                title: Text(
+                  pickupTitle,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  'Pas de frais supplementaires',
+                  style: TextStyle(fontSize: 13, color: Colors.green[600]),
+                ),
+                secondary: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: !_isDelivery
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : cs.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.store,
+                    color: !_isDelivery ? Colors.green : cs.outline,
+                    size: 28,
+                  ),
+                ),
+                activeColor: cs.primary,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

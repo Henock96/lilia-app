@@ -444,6 +444,46 @@ google_fonts: ^8.1.0
    montée en charge). Mesure FPS / jank / réseau. Cf. `PERF_TESTING.md`.
    `signin_page` a des `Key` (`signin_email`/`password`/`submit`) pour le drive.
 
+## Remédiation audit (août 2026 — `AUDIT_2026-08-01.md`)
+
+1. ✅ **Clé Google Maps iOS sortie du code** (E-4). Elle était en dur dans
+   `AppDelegate.swift`. Nouveau pattern (copié de `lilia_food_delivery`) :
+   - `ios/Flutter/MapsKeys.xcconfig` — **template committé**, valeur bidon
+     (`GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY`)
+   - `ios/Flutter/MapsKeys.local.xcconfig` — **valeur réelle, gitignorée**
+   - `Debug.xcconfig` / `Release.xcconfig` font `#include "MapsKeys.xcconfig"`
+     puis `#include? "MapsKeys.local.xcconfig"` (le `?` = optionnel, donc le
+     build passe sans le fichier local ; le local écrase le template)
+   - `Info.plist` lit `$(GOOGLE_MAPS_API_KEY)`, `AppDelegate.swift` la récupère
+     depuis le bundle
+   - ⚠️ **Reste à faire côté ops** : la clé `AIzaSyDnEX…` est dans l'historique
+     git — à **révoquer**, remplacer par 3 clés restreintes (une par app) avec
+     quota.
+2. ✅ **Keystore retiré du dépôt** (C-1) — `upload-keystore.jks` sorti de l'index
+   (`git rm --cached`, fichier local préservé). `.gitignore` durci : `*.jks`,
+   `*.keystore`, `/android/key.properties`, `/android/build/`, `/android/app/build/`.
+   ⚠️ Il reste dans l'historique git → rotation du keystore + Play App Signing à
+   décider.
+3. ✅ **Dépendances alignées** sur les 3 apps Flutter : `firebase_core ^4.10.0`,
+   `firebase_auth ^6.5.2`, `firebase_messaging ^16.3.0`, `flutter_riverpod
+   ^3.3.2`, `riverpod_annotation ^4.0.3`, `go_router ^17.3.0`, `dio ^5.9.2`,
+   `google_maps_flutter ^2.17.1`, `flutter_local_notifications ^22.0.1`,
+   `image ^4.9.1`. `build_runner` régénéré. Version app **1.2.4+29**.
+4. ✅ **`RadioListTile` déprécié → `RadioGroup`** (`delivery_options_page.dart`) —
+   `groupValue`/`onChanged` par tuile sont dépréciés en Flutter 3.4x ; l'état est
+   maintenant porté par un `RadioGroup` parent.
+5. ✅ **Garde `mounted`** ajoutée avant les `setState` post-`await`.
+6. ✅ **`import 'dart:typed_data'` inutile** retiré de `api_client.dart` (déjà
+   exporté par `foundation.dart`).
+7. ✅ **`test/widget_test.dart`** supprimé — c'était encore le template Flutter
+   (compteur), il ne testait rien de l'app.
+8. ✅ **Encodage** — accents réparés dans plusieurs libellés (`vendor_type.dart`,
+   `location_service.dart`, `delivery_tracking_repository.dart`).
+
+Résultat : `flutter analyze` **0 erreur / 0 warning**, tests **34/34**.
+
+---
+
 ## Dettes techniques restantes
 
 1. Les onglets `Favoris` et `commandes_page` rafraîchissent leurs providers manuellement après notification FCM — pas un bug, mais à surveiller (potentiellement double-load).

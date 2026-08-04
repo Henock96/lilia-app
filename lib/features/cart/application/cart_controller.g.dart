@@ -80,7 +80,7 @@ abstract class _$CartController extends $StreamNotifier<Cart?> {
   Stream<Cart?> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<Cart?>, Cart?>;
     final element =
         ref.element
@@ -90,6 +90,6 @@ abstract class _$CartController extends $StreamNotifier<Cart?> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

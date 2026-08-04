@@ -191,7 +191,7 @@ abstract class _$MarketplaceFilter extends $Notifier<VendorType?> {
   VendorType? build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<VendorType?, VendorType?>;
     final element =
         ref.element
@@ -201,7 +201,7 @@ abstract class _$MarketplaceFilter extends $Notifier<VendorType?> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }
 

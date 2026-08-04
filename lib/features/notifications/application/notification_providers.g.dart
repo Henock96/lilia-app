@@ -89,7 +89,7 @@ abstract class _$NotificationHistory
   FutureOr<List<AppNotification>> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref
             as $Ref<AsyncValue<List<AppNotification>>, List<AppNotification>>;
@@ -104,6 +104,6 @@ abstract class _$NotificationHistory
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

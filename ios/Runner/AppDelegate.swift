@@ -8,8 +8,14 @@ import UIKit
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
-    // Remplacer YOUR_GOOGLE_MAPS_API_KEY par la vraie clé
-    GMSServices.provideAPIKey("AIzaSyDnEX8VAhy9AC-odv-l0K22TAhlmXktPTk")
+    // La clé vient de `ios/Flutter/MapsKeys.local.xcconfig` (gitignoré) via
+    // Info.plist — même pattern que lilia_food_delivery. Elle n'a rien à faire
+    // dans le code : une clé committée reste dans l'historique git à jamais.
+    if let apiKey = Bundle.main.object(forInfoDictionaryKey: "GoogleMapsApiKey") as? String,
+       !apiKey.isEmpty,
+       apiKey != "YOUR_GOOGLE_MAPS_API_KEY" {
+      GMSServices.provideAPIKey(apiKey)
+    }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
