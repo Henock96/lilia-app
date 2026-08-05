@@ -480,7 +480,32 @@ google_fonts: ^8.1.0
 8. ✅ **Encodage** — accents réparés dans plusieurs libellés (`vendor_type.dart`,
    `location_service.dart`, `delivery_tracking_repository.dart`).
 
-Résultat : `flutter analyze` **0 erreur / 0 warning**, tests **34/34**.
+Résultat : `flutter analyze` **0 erreur / 0 warning**, tests **40/40**.
+
+### Tests de non-régression ajoutés
+
+- `test/features/commandes/delivery_options_page_test.dart` — 6 widget tests sur
+  le `RadioGroup` refait (providers `cart` / `quartiers` / `adresses` /
+  `restaurant` surchargés, aucun appel réseau) : présence du `RadioGroup<bool>`,
+  livraison par défaut, bascule retrait aller-retour, retrait masqué pour
+  `HOME_COOK`, panier vide.
+- `integration_test/audit_smoke_test.dart` — smoke on-device (démarrage,
+  session, navigation des 4 onglets, écran mode de livraison). **S'arrête avant
+  le checkout** et se saute si le panier est vide : ne mute jamais la prod.
+  ```bash
+  flutter test integration_test/audit_smoke_test.dart -d <device-id> \
+    --dart-define=API_URL=https://lilia-backend.onrender.com \
+    --dart-define=WS_URL=https://lilia-backend.onrender.com
+  ```
+
+⚠️ **Ne pas utiliser `pumpAndSettle` dans ces tests** : le carrousel de
+bannières de la home s'auto-défile, l'arbre ne se stabilise donc jamais. Et son
+premier argument est l'**intervalle entre frames**, pas un timeout — le timeout
+vaut 10 minutes par défaut. Pomper sur un budget de temps réel borné.
+
+⚠️ **`analysis_options.yaml` exclut `build/**`** : le checkout SwiftPM des
+plugins y dépose leurs apps d'exemple (`build/macos/SourcePackages/
+firebase_auth-*/example/`), ce qui remontait 122 erreurs étrangères au projet.
 
 ---
 
