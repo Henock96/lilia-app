@@ -9,6 +9,14 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  exclude:
+    # Le checkout SwiftPM des plugins atterrit sous build/ (ex.
+    # build/macos/SourcePackages/firebase_auth-*/example/) et remontait 122
+    # erreurs qui n'appartiennent pas au projet — `flutter analyze` en devenait
+    # inexploitable. Répertoire gitignoré, régénéré à chaque build.
+    - build/**
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`
