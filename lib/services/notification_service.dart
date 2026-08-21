@@ -316,16 +316,7 @@ class NotificationService {
 
       await _requestPermission();
 
-      try {
-        fcmToken = await _fcm.getToken();
-      } on FirebaseException catch (e) {
-        if (e.code == 'apns-token-not-set') {
-          // iOS simulator: APNS unavailable, push notifications won't work
-          debugPrint('⚠️ APNS not available (simulator?), skipping FCM token');
-        } else {
-          rethrow;
-        }
-      }
+      fcmToken = await _fetchFcmToken();
 
       if (fcmToken != null) {
         debugPrint('FCM token obtained.');
@@ -358,17 +349,45 @@ class NotificationService {
     }
   }
 
+  /// Récupère le token FCM en attendant d'abord le token APNS sur iOS.
+  ///
+  /// L'enregistrement APNS est **asynchrone** : au premier lancement, il n'est
+  /// pas encore terminé quand `init()` s'exécute. Appeler `getToken()` tout de
+  /// suite lève `apns-token-not-set`, et l'ancienne version abandonnait
+  /// définitivement — l'app restait sans token FCM pour toute la session, donc
+  /// sans aucun push. On laisse donc APNS le temps de répondre.
+  ///
+  /// Renvoie `null` quand APNS est réellement indisponible (simulateur iOS).
+  Future<String?> _fetchFcmToken({
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    var attempt = 0;
+
+    while (DateTime.now().isBefore(deadline)) {
+      attempt++;
+      try {
+        return await _fcm.getToken();
+      } on FirebaseException catch (e) {
+        if (e.code != 'apns-token-not-set') rethrow;
+        // APNS pas encore prêt : on retente jusqu'à l'échéance.
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      }
+    }
+
+    debugPrint(
+      '⚠️ Token APNS indisponible après $attempt tentatives '
+      '(${timeout.inSeconds}s). Simulateur iOS, ou entitlement '
+      '`aps-environment` absent de la config de build. Aucun push ne sera reçu.',
+    );
+    return null;
+  }
+
   // 8. Amélioration de registerTokenOnServer avec retry
   Future<void> registerTokenOnServer({int maxRetries = 5}) async {
     // Essayer d'obtenir le token si pas encore disponible (ex: init() appelé avant connexion)
-    if (fcmToken == null) {
-      try {
-        fcmToken = await _fcm.getToken();
-      } on FirebaseException catch (e) {
-        if (e.code == 'apns-token-not-set') return;
-        rethrow;
-      }
-    }
+    // `_fetchFcmToken` absorbe `apns-token-not-set` et renvoie null.
+    fcmToken ??= await _fetchFcmToken();
     if (fcmToken == null) {
       debugPrint('FCM Token is null, cannot register on server.');
       return;
