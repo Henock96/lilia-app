@@ -274,9 +274,46 @@ DriverLocationController(orderId) (@riverpod)
 - Support iOS : `DarwinInitializationSettings`
 - Token registré via `POST /notifications/register-token` (5 retries backoff 15s)
 - Token supprimé au logout via `DELETE /notifications/token`
-- Skip gracieux si APNs indisponible (simulateur iOS — code `apns-token-not-set`)
+- `_fetchFcmToken()` retente `getToken()` toutes les 500 ms pendant 10 s tant
+  qu'APNs répond `apns-token-not-set`, puis renonce (simulateur iOS)
 - `onTokenRefresh` → re-register
 - Quand `data.orderId` reçu → `latestUpdatedOrderIdProvider` + invalidate `userOrdersProvider`
+
+### iOS — les 4 conditions d'un push qui arrive (août 2026)
+
+Les push n'ont jamais fonctionné sur iOS jusqu'à cette date. **Le simulateur ne
+permet pas de le diagnostiquer** : il n'a pas d'APNs du tout, et le message
+« APNS not available (simulator?) » s'affiche aussi sur un appareil réel en
+panne. Toujours tester sur iPhone physique.
+
+Les quatre maillons, dans l'ordre où ils cassent :
+
+1. **`aps-environment` dans les entitlements de la config compilée.** `flutter
+   run` compile en **Debug** — l'entitlement ne vivait que sur Release, donc
+   aucun enregistrement APNS. `Runner.entitlements` (Debug + Profile) et
+   `RunnerRelease.entitlements` (Release) doivent tous deux exister.
+2. **Attendre le token APNS.** Son obtention est asynchrone et n'est pas
+   terminée quand `init()` s'exécute au premier lancement. Un `getToken()`
+   unique échoue et perd le token pour toute la session — d'où le retry.
+3. **Le bundle ID doit être identique partout** : les 6
+   `PRODUCT_BUNDLE_IDENTIFIER` du projet Xcode, `GoogleService-Info.plist` et
+   `iosBundleId` dans `firebase_options.dart`. Actuellement
+   `com.dreesis.lilia.liliaApp`. Changer le bundle crée une **app iOS
+   distincte** : nouvelle installation, session Firebase Auth perdue.
+4. **Clé APNs valide dans la console Firebase** (Cloud Messaging → *Apple app
+   configuration*). Sans elle, FCM accepte le message puis Apple le rejette.
+   Le code d'erreur remonté par le backend distingue les cas :
+   - `Request is missing required authentication credential` → aucune clé
+   - `Invalid APNs credential` → clé présente mais refusée (Key ID / Team ID
+     mal saisis, clé révoquée, ou `.p8` sans capability APNs).
+     **Team ID de signature : `4R7BCB3ZSZ`.**
+
+**Diagnostiquer sans passer commande** : `NotificationsService` loggue
+`Échec envoi FCM — user X, code=…`. Pour reproduire hors backend, un script
+Firebase Admin qui envoie sur un token de la table `FcmToken` donne le code
+exact en quelques secondes (voir l'historique de la session du 2026-08-06).
+⚠️ Un token accepté côté Android et refusé côté iOS avec les **mêmes**
+credentials isole le problème sur APNs, pas sur Firebase.
 
 ---
 
