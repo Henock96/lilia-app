@@ -16,10 +16,18 @@ class ErrorInterceptor extends Interceptor {
   }
 
   ApiException _toApiException(DioException err) {
+    // ⚠️ Ce switch est exhaustif sur `DioExceptionType`, un enum de dépendance
+    // tierce en `^5.x` : dio peut y ajouter des valeurs sur une simple montée
+    // de version mineure, et la compilation casse alors ici. C'est arrivé avec
+    // 5.11.0 (`transformTimeout`) — l'échec remonte comme un « BUILD FAILED »
+    // iOS peu parlant, mais l'erreur Dart nomme précisément la valeur manquante.
+    // Le remède est d'ajouter le nouveau `case` au bon groupe ci-dessous ; un
+    // `default` serait signalé comme inatteignable par l'analyseur.
     switch (err.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
+      case DioExceptionType.transformTimeout:
         return const ApiException(_timeout, kind: ApiErrorKind.timeout);
       case DioExceptionType.connectionError:
         return const ApiException(_network, kind: ApiErrorKind.network);
