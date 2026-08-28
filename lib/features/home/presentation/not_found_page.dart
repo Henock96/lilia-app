@@ -10,9 +10,7 @@ class NotFoundScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(),
-      body: EmptyPlaceholderWidget(
-        message: '404 - Page non trouvé !',
-      ),
+      body: EmptyPlaceholderWidget(message: '404 - Page non trouvé !'),
     );
   }
 }

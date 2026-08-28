@@ -17,7 +17,9 @@ class ReviewRepository {
     final res = await _api.getJson('/reviews/restaurant/$restaurantId');
     // Liste possiblement double-enveloppée (`{ data: { data: [...], ... } }`).
     final reviewsJson = ApiResponse.listOf(ApiResponse.mapOf(res.data));
-    return reviewsJson.map((json) => Review.fromJson(json)).toList();
+    return reviewsJson
+        .map((json) => Review.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   /// Récupérer les statistiques d'un restaurant
@@ -31,8 +33,9 @@ class ReviewRepository {
   /// Dégrade gracieusement : renvoie un refus motivé plutôt que de lever.
   Future<CanReviewResponse> canReview(String restaurantId) async {
     try {
-      final res =
-          await _api.getJson('/reviews/restaurant/$restaurantId/can-review');
+      final res = await _api.getJson(
+        '/reviews/restaurant/$restaurantId/can-review',
+      );
       // Objet plat → enveloppé `{ data: {...} }` par l'interceptor.
       return CanReviewResponse.fromJson(ApiResponse.mapOf(res.data));
     } on ApiException catch (e) {
@@ -47,11 +50,12 @@ class ReviewRepository {
   /// Récupérer mon avis pour un restaurant (null si absent ou non connecté).
   Future<Review?> getMyReview(String restaurantId) async {
     try {
-      final res =
-          await _api.getJson('/reviews/restaurant/$restaurantId/my-review');
+      final res = await _api.getJson(
+        '/reviews/restaurant/$restaurantId/my-review',
+      );
       final data = res.data;
       if (data is Map && data['data'] != null) {
-        return Review.fromJson(data['data']);
+        return Review.fromJson(data['data'] as Map<String, dynamic>);
       }
       return null;
     } on ApiException catch (e) {
@@ -74,7 +78,9 @@ class ReviewRepository {
       if (orderId != null) 'orderId': orderId,
     };
     final res = await _api.postJson('/reviews', body: body);
-    return Review.fromJson((res.data as Map<String, dynamic>)['data']);
+    return Review.fromJson(
+      (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+    );
   }
 
   /// Mettre à jour un avis
@@ -88,7 +94,9 @@ class ReviewRepository {
     if (comment != null) body['comment'] = comment;
 
     final res = await _api.patchJson('/reviews/$reviewId', body: body);
-    return Review.fromJson((res.data as Map<String, dynamic>)['data']);
+    return Review.fromJson(
+      (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+    );
   }
 
   /// Supprimer un avis

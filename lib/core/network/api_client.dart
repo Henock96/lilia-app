@@ -1,4 +1,3 @@
-
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -40,8 +39,11 @@ class ApiClient {
       ),
     );
     dio.interceptors.addAll([
-      AuthInterceptor(dio,
-          tokenProvider: tokenProvider, forceRefreshToken: forceRefreshToken),
+      AuthInterceptor(
+        dio,
+        tokenProvider: tokenProvider,
+        forceRefreshToken: forceRefreshToken,
+      ),
       RetryInterceptor(dio),
       ErrorInterceptor(),
     ]);
@@ -54,16 +56,16 @@ class ApiClient {
     required String baseUrl,
     required Future<String?> Function() tokenProvider,
     required Future<String?> Function() forceRefreshToken,
-  }) =>
-      ApiClient(
-        baseUrl: baseUrl,
-        tokenProvider: tokenProvider,
-        forceRefreshToken: forceRefreshToken,
-      );
+  }) => ApiClient(
+    baseUrl: baseUrl,
+    tokenProvider: tokenProvider,
+    forceRefreshToken: forceRefreshToken,
+  );
 
-  Future<Response<dynamic>> getJson(String path,
-          {Map<String, dynamic>? query}) =>
-      _run(() => dio.get<dynamic>(path, queryParameters: query));
+  Future<Response<dynamic>> getJson(
+    String path, {
+    Map<String, dynamic>? query,
+  }) => _run(() => dio.get<dynamic>(path, queryParameters: query));
 
   /// Renvoie le corps brut (String non décodée) — pour le parsing déporté sur
   /// isolate via `parseJson` sur les grosses listes (préserve l'optim perf).
@@ -81,10 +83,17 @@ class ApiClient {
     }
   }
 
-  Future<Response<dynamic>> postJson(String path,
-          {Object? body, Map<String, String>? headers}) =>
-      _run(() =>
-          dio.post<dynamic>(path, data: body, options: Options(headers: headers)));
+  Future<Response<dynamic>> postJson(
+    String path, {
+    Object? body,
+    Map<String, String>? headers,
+  }) => _run(
+    () => dio.post<dynamic>(
+      path,
+      data: body,
+      options: Options(headers: headers),
+    ),
+  );
 
   Future<Response<dynamic>> patchJson(String path, {Object? body}) =>
       _run(() => dio.patch<dynamic>(path, data: body));
@@ -109,7 +118,8 @@ class ApiClient {
   }
 
   Future<Response<dynamic>> _run(
-      Future<Response<dynamic>> Function() call) async {
+    Future<Response<dynamic>> Function() call,
+  ) async {
     try {
       final res = await call();
       _observer.onRequest(_snap(res.requestOptions, res.statusCode));

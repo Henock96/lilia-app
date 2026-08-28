@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/constants/app_size.dart';
@@ -19,7 +19,8 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
 
   @override
   void dispose() {
-    if (_progressIndicatorContext != null && _progressIndicatorContext!.mounted) {
+    if (_progressIndicatorContext != null &&
+        _progressIndicatorContext!.mounted) {
       Navigator.of(_progressIndicatorContext!).pop();
       _progressIndicatorContext = null;
     }
@@ -30,7 +31,7 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
   Widget build(BuildContext context) {
     ref.listen(authControllerProvider, (prev, state) async {
       if (state.isLoading) {
-        await showDialog(
+        await showDialog<void>(
           context: context,
           barrierDismissible: false,
           builder: (ctx) {
@@ -40,7 +41,8 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
         );
         return;
       }
-      if (_progressIndicatorContext != null && _progressIndicatorContext!.mounted) {
+      if (_progressIndicatorContext != null &&
+          _progressIndicatorContext!.mounted) {
         Navigator.of(_progressIndicatorContext!).pop();
         _progressIndicatorContext = null;
       }
@@ -84,9 +86,17 @@ class _Header extends StatelessWidget {
         gapH64,
         Icon(Icons.fastfood, size: 80, color: theme.colorScheme.primary),
         gapH16,
-        Text('Rejoignez Lilia Food', textAlign: TextAlign.center, style: theme.textTheme.titleLarge),
+        Text(
+          'Rejoignez Lilia Food',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.titleLarge,
+        ),
         gapH8,
-        Text('Creez votre compte en quelques etapes', textAlign: TextAlign.center, style: theme.textTheme.bodyMedium),
+        Text(
+          'Creez votre compte en quelques etapes',
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodyMedium,
+        ),
       ],
     );
   }
@@ -122,13 +132,17 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
 
   Future<void> _signUp() async {
     if (_formKey.currentState!.validate()) {
-      await ref.read(authControllerProvider.notifier).createUserWithEmailAndPassword(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-        _nameController.text.trim(),
-        _phoneController.text.trim(),
-        referralCode: _referralController.text.trim().isEmpty ? null : _referralController.text.trim().toUpperCase(),
-      );
+      await ref
+          .read(authControllerProvider.notifier)
+          .createUserWithEmailAndPassword(
+            _emailController.text.trim(),
+            _passwordController.text.trim(),
+            _nameController.text.trim(),
+            _phoneController.text.trim(),
+            referralCode: _referralController.text.trim().isEmpty
+                ? null
+                : _referralController.text.trim().toUpperCase(),
+          );
     }
   }
 
@@ -144,23 +158,37 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
         children: [
           TextFormField(
             controller: _nameController,
-            decoration: const InputDecoration(labelText: 'Nom complet', prefixIcon: Icon(Icons.person_outline)),
-            validator: (v) => (v == null || v.isEmpty) ? 'Veuillez entrer votre nom' : null,
+            decoration: const InputDecoration(
+              labelText: 'Nom complet',
+              prefixIcon: Icon(Icons.person_outline),
+            ),
+            validator: (v) =>
+                (v == null || v.isEmpty) ? 'Veuillez entrer votre nom' : null,
           ),
           gapH12,
           TextFormField(
             controller: _phoneController,
-            decoration: const InputDecoration(labelText: 'Numero de telephone', prefixIcon: Icon(Icons.phone_outlined)),
+            decoration: const InputDecoration(
+              labelText: 'Numero de telephone',
+              prefixIcon: Icon(Icons.phone_outlined),
+            ),
             keyboardType: TextInputType.phone,
-            validator: (v) => (v == null || v.isEmpty) ? 'Veuillez entrer votre numero' : null,
+            validator: (v) => (v == null || v.isEmpty)
+                ? 'Veuillez entrer votre numero'
+                : null,
           ),
           gapH12,
           TextFormField(
             controller: _emailController,
-            decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_outlined)),
+            decoration: const InputDecoration(
+              labelText: 'Email',
+              prefixIcon: Icon(Icons.email_outlined),
+            ),
             validator: (v) {
               if (v == null || v.isEmpty) return 'Veuillez entrer votre email';
-              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) return 'Email invalide';
+              if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) {
+                return 'Email invalide';
+              }
               return null;
             },
           ),
@@ -172,12 +200,20 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
               labelText: 'Mot de Passe',
               prefixIcon: const Icon(Icons.lock_outline),
               suffixIcon: IconButton(
-                icon: Icon(_obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                tooltip: 'Masquer le mot de passe',
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
+                ),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
               ),
             ),
             validator: (v) {
-              if (v == null || v.isEmpty) return 'Veuillez entrer un mot de passe';
+              if (v == null || v.isEmpty) {
+                return 'Veuillez entrer un mot de passe';
+              }
               if (v.length < 6) return 'Au moins 6 caracteres';
               return null;
             },
@@ -186,10 +222,15 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
           TextFormField(
             controller: _confirmPasswordController,
             obscureText: true,
-            decoration: const InputDecoration(labelText: 'Confirmer le mot de passe', prefixIcon: Icon(Icons.lock_outline)),
+            decoration: const InputDecoration(
+              labelText: 'Confirmer le mot de passe',
+              prefixIcon: Icon(Icons.lock_outline),
+            ),
             validator: (v) {
               if (v == null || v.isEmpty) return 'Confirmez votre mot de passe';
-              if (v != _passwordController.text) return 'Les mots de passe ne correspondent pas';
+              if (v != _passwordController.text) {
+                return 'Les mots de passe ne correspondent pas';
+              }
               return null;
             },
           ),
@@ -199,12 +240,18 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
             decoration: BoxDecoration(
               color: theme.colorScheme.primary.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: theme.colorScheme.primary.withValues(alpha: 0.2)),
+              border: Border.all(
+                color: theme.colorScheme.primary.withValues(alpha: 0.2),
+              ),
             ),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: Row(
               children: [
-                Icon(Icons.card_giftcard, color: theme.colorScheme.primary, size: 20),
+                Icon(
+                  Icons.card_giftcard,
+                  color: theme.colorScheme.primary,
+                  size: 20,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: TextFormField(
@@ -212,18 +259,30 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
                     decoration: InputDecoration(
                       labelText: 'Code de parrainage (optionnel)',
                       border: InputBorder.none,
-                      labelStyle: TextStyle(color: theme.colorScheme.primary.withValues(alpha: 0.7)),
+                      labelStyle: TextStyle(
+                        color: theme.colorScheme.primary.withValues(alpha: 0.7),
+                      ),
                     ),
                     textCapitalization: TextCapitalization.characters,
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text('+200 pts', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
+                  child: Text(
+                    '+200 pts',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -232,7 +291,11 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
           ElevatedButton(
             onPressed: state.isLoading ? null : _signUp,
             child: state.isLoading
-                ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(color: Colors.white))
+                ? const SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(color: Colors.white),
+                  )
                 : const Text("S'inscrire"),
           ),
         ],
@@ -252,7 +315,10 @@ class _OrDivider extends StatelessWidget {
         const Expanded(child: Divider()),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: Sizes.p8),
-          child: Text('OU', style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey)),
+          child: Text(
+            'OU',
+            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+          ),
         ),
         const Expanded(child: Divider()),
       ],
@@ -271,7 +337,10 @@ class _SocialLogins extends ConsumerWidget {
         await ref.read(authControllerProvider.notifier).signInWithGoogle();
       },
       icon: Image.asset('assets/images/google_logo.png', height: 24.0),
-      label: Text("S'inscrire avec Google", style: TextStyle(color: cs.onSurface)),
+      label: Text(
+        "S'inscrire avec Google",
+        style: TextStyle(color: cs.onSurface),
+      ),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 12.0),
         side: BorderSide(color: cs.outline.withValues(alpha: 0.4)),
@@ -288,10 +357,23 @@ class _SignInNavigation extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text('Vous avez deja un compte ?', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 14)),
+        Text(
+          'Vous avez deja un compte ?',
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
+            fontSize: 14,
+          ),
+        ),
         TextButton(
           onPressed: () => context.goNamed(AppRoutes.signIn.routeName),
-          child: Text("Se connecter", style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 12, fontWeight: FontWeight.w600)),
+          child: Text(
+            "Se connecter",
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.primary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ),
       ],
     );

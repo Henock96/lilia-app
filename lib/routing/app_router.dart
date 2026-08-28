@@ -199,9 +199,9 @@ GoRouter router(Ref ref) {
                       return MaterialPage(
                         child: RestaurantDetailScreen(
                           restaurantId: restaurantId,
-                          restaurantName: extra["restaurantName"] is String
-                              ? extra["restaurantName"]
-                              : 'Votre Restaurant',
+                          restaurantName:
+                              extra["restaurantName"] as String? ??
+                              'Votre Restaurant',
                         ),
                       );
                     },

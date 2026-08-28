@@ -14,8 +14,10 @@ class BannerRepository {
       '/banners',
       query: {if (restaurantId != null) 'restaurantId': restaurantId},
     );
-    final List<dynamic> data = (res.data as Map<String, dynamic>)['data'];
-    return data.map((json) => AppBanner.fromJson(json)).toList();
+    final data = (res.data as Map<String, dynamic>)['data'] as List<dynamic>;
+    return data
+        .map((json) => AppBanner.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 }
 

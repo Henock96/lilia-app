@@ -23,15 +23,15 @@ class Adresse {
 
   factory Adresse.fromJson(Map<String, dynamic> json) {
     return Adresse(
-      id: json['id'],
-      rue: json['rue'],
-      ville: json['ville'],
-      etat: json['etat'],
-      country: json['country'],
-      userId: json['userId'],
-      quartierId: json['quartierId'],
+      id: json['id'] as String,
+      rue: json['rue'] as String,
+      ville: json['ville'] as String,
+      etat: json['etat'] as String?,
+      country: json['country'] as String,
+      userId: json['userId'] as String,
+      quartierId: json['quartierId'] as String?,
       quartier: json['quartier'] != null
-          ? Quartier.fromJson(json['quartier'])
+          ? Quartier.fromJson(json['quartier'] as Map<String, dynamic>)
           : null,
     );
   }

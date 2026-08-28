@@ -7,11 +7,7 @@ class MenuCard extends StatelessWidget {
   final MenuDuJour menu;
   final VoidCallback onTap;
 
-  const MenuCard({
-    super.key,
-    required this.menu,
-    required this.onTap,
-  });
+  const MenuCard({super.key, required this.menu, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +29,8 @@ class MenuCard extends StatelessWidget {
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(12),
                 ),
-                child: menu.thumbnailUrl != null && menu.thumbnailUrl!.isNotEmpty
+                child:
+                    menu.thumbnailUrl != null && menu.thumbnailUrl!.isNotEmpty
                     ? AppCachedImage(
                         imageUrl: menu.thumbnailUrl!,
                         height: 110,
@@ -72,10 +69,7 @@ class MenuCard extends StatelessWidget {
                     // Nom du restaurant
                     Text(
                       menu.restaurant.nom,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),

@@ -185,7 +185,7 @@ class AboutPage extends StatelessWidget {
   }) {
     Navigator.push(
       context,
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (context) => _TextDetailPage(title: title, content: content),
       ),
     );

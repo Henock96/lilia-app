@@ -256,9 +256,7 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
                         decoration: BoxDecoration(
                           color: Colors.orange[50],
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.orange[200]!,
-                          ),
+                          border: Border.all(color: Colors.orange[200]!),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -355,6 +353,7 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
                       child: Row(
                         children: [
                           IconButton(
+                            tooltip: 'Diminuer la quantité',
                             onPressed: _quantity > 1
                                 ? () => setState(() => _quantity--)
                                 : null,
@@ -369,6 +368,7 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
                             ),
                           ),
                           IconButton(
+                            tooltip: 'Augmenter la quantité',
                             onPressed: () => setState(() => _quantity++),
                             icon: const Icon(Icons.add),
                             iconSize: 20,

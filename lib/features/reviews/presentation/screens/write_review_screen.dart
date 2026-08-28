@@ -72,20 +72,14 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
             // Nom du restaurant
             Text(
               widget.restaurantName,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
 
             // Section note
             const Text(
               'Votre note',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 12),
             Center(
@@ -103,10 +97,7 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
             Center(
               child: Text(
                 _getRatingText(_rating),
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[600],
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
               ),
             ),
             const SizedBox(height: 32),
@@ -114,10 +105,7 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
             // Section commentaire
             const Text(
               'Votre commentaire (optionnel)',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 12),
             TextField(
@@ -167,10 +155,7 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
               Center(
                 child: Text(
                   'Veuillez selectionner une note',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[500],
-                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
                 ),
               ),
             ],
@@ -220,7 +205,9 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
       }
 
       if (mounted) {
-        context.showSuccessSnack(_isEditing ? 'Avis modifie avec succes' : 'Merci pour votre avis !');
+        context.showSuccessSnack(
+          _isEditing ? 'Avis modifie avec succes' : 'Merci pour votre avis !',
+        );
         Navigator.pop(context, true);
       }
     } catch (e) {

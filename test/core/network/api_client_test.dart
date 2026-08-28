@@ -17,7 +17,7 @@ void main() {
 
   test('getJson renvoie le body décodé', () async {
     final client = buildClient((a) {
-      a.onGet('/orders/my', (s) => s.reply(200, {'data': [], 'count': 0}));
+      a.onGet('/orders/my', (s) => s.reply(200, {'data': <dynamic>[], 'count': 0}));
     });
     final res = await client.getJson('/orders/my');
     expect(res.statusCode, 200);
@@ -36,7 +36,7 @@ void main() {
 
   test('getText renvoie le corps brut non décodé', () async {
     final client = buildClient((a) {
-      a.onGet('/orders/my', (s) => s.reply(200, {'data': [], 'count': 0}));
+      a.onGet('/orders/my', (s) => s.reply(200, {'data': <dynamic>[], 'count': 0}));
     });
     final body = await client.getText('/orders/my');
     expect(body, contains('"count":0'));

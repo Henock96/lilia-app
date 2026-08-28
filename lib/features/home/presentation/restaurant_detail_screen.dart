@@ -117,9 +117,7 @@ class _RestaurantDetailScreenState
         ),
 
         // 2. Carte d'identité (statut ouvert/fermé + spécialités + note)
-        SliverToBoxAdapter(
-          child: _VendorIdentityCard(restaurant: restaurant),
-        ),
+        SliverToBoxAdapter(child: _VendorIdentityCard(restaurant: restaurant)),
 
         // 3. Story + profil enrichi (HOME_COOK/BAKERY surtout)
         if (restaurant.vendorProfile != null &&
@@ -129,9 +127,7 @@ class _RestaurantDetailScreenState
           ),
 
         // 4. Quick info livraison
-        SliverToBoxAdapter(
-          child: _DeliveryInfoCard(restaurant: restaurant),
-        ),
+        SliverToBoxAdapter(child: _DeliveryInfoCard(restaurant: restaurant)),
 
         // 6. Horaires
         if (restaurant.operatingHours.isNotEmpty)
@@ -145,7 +141,8 @@ class _RestaurantDetailScreenState
           ),
 
         // 7. Appeler
-        if (restaurant.phoneNumber != null && restaurant.phoneNumber!.isNotEmpty)
+        if (restaurant.phoneNumber != null &&
+            restaurant.phoneNumber!.isNotEmpty)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -199,6 +196,7 @@ class _RestaurantDetailScreenState
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
+                        tooltip: 'Effacer',
                         icon: const Icon(Icons.clear),
                         onPressed: () {
                           _searchController.clear();
@@ -211,8 +209,9 @@ class _RestaurantDetailScreenState
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor:
-                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                fillColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 12,
@@ -244,8 +243,10 @@ class _RestaurantDetailScreenState
                   children: [
                     Icon(Icons.search_off, size: 48),
                     SizedBox(height: 16),
-                    Text('Aucun produit trouvé',
-                        style: TextStyle(fontSize: 16)),
+                    Text(
+                      'Aucun produit trouvé',
+                      style: TextStyle(fontSize: 16),
+                    ),
                   ],
                 ),
               ),
@@ -294,7 +295,8 @@ class _RestaurantDetailScreenState
   List<Product> _filterProducts(List<Product> products) {
     return products.where((product) {
       if (_searchQuery.isNotEmpty) {
-        final matches = product.name.toLowerCase().contains(_searchQuery) ||
+        final matches =
+            product.name.toLowerCase().contains(_searchQuery) ||
             product.description.toLowerCase().contains(_searchQuery);
         if (!matches) return false;
       }
@@ -324,7 +326,7 @@ class _RestaurantDetailScreenState
   /// Affiche les menus du jour dans un bottom sheet. Les menus sont déjà
   /// embarqués dans le vendeur (`restaurant.menus`) — aucune requête réseau.
   void _showMenusSheet(List<MenuDuJour> menus) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
@@ -448,11 +450,7 @@ class _VendorHeroAppBar extends StatelessWidget {
       actions: [
         // Accès aux menus du jour — visible seulement si le vendeur en a.
         if (hasMenus)
-          _circleButton(
-            context,
-            icon: Icons.restaurant_menu,
-            onTap: onMenus,
-          ),
+          _circleButton(context, icon: Icons.restaurant_menu, onTap: onMenus),
         _circleButton(context, icon: Icons.share_outlined, onTap: onShare),
         _circleButton(
           context,
@@ -548,11 +546,11 @@ class _VendorHeroAppBar extends StatelessWidget {
   }
 
   Widget _placeholder(ColorScheme scheme) => Container(
-        color: scheme.surfaceContainerHighest,
-        child: Center(
-          child: Icon(Icons.restaurant, size: 96, color: scheme.outline),
-        ),
-      );
+    color: scheme.surfaceContainerHighest,
+    child: Center(
+      child: Icon(Icons.restaurant, size: 96, color: scheme.outline),
+    ),
+  );
 
   Widget _circleButton(
     BuildContext context, {
@@ -603,14 +601,12 @@ class _VendorIdentityCard extends StatelessWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 _statusChip(),
-                for (final s in restaurant.specialties) _specialtyChip(context, s),
+                for (final s in restaurant.specialties)
+                  _specialtyChip(context, s),
               ],
             ),
           ),
-          if (hasRating) ...[
-            const SizedBox(width: 8),
-            _rating(context),
-          ],
+          if (hasRating) ...[const SizedBox(width: 8), _rating(context)],
         ],
       ),
     );
@@ -718,17 +714,14 @@ class _VendorProfileSectionState extends State<_VendorProfileSection> {
         decoration: BoxDecoration(
           color: scheme.primary.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: scheme.primary.withValues(alpha: 0.18),
-          ),
+          border: Border.all(color: scheme.primary.withValues(alpha: 0.18)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (hasStory) ...[
               InkWell(
-                onTap: () =>
-                    setState(() => _storyExpanded = !_storyExpanded),
+                onTap: () => setState(() => _storyExpanded = !_storyExpanded),
                 child: Row(
                   children: [
                     Icon(
@@ -982,7 +975,7 @@ class _InfoTile extends StatelessWidget {
 class _CategoryTabs extends StatelessWidget {
   final List<String> categories;
   final String? selectedCategory;
-  final Function(String?) onCategorySelected;
+  final void Function(String?) onCategorySelected;
 
   const _CategoryTabs({
     required this.categories,
@@ -1004,8 +997,9 @@ class _CategoryTabs extends StatelessWidget {
               label: const Text('Tous'),
               selected: selectedCategory == null,
               onSelected: (_) => onCategorySelected(null),
-              selectedColor:
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+              selectedColor: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.2),
               checkmarkColor: Theme.of(context).colorScheme.primary,
             ),
           ),
@@ -1018,10 +1012,9 @@ class _CategoryTabs extends StatelessWidget {
                 onSelected: (_) => onCategorySelected(
                   selectedCategory == category ? null : category,
                 ),
-                selectedColor: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withValues(alpha: 0.2),
+                selectedColor: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.2),
                 checkmarkColor: Theme.of(context).colorScheme.primary,
               ),
             ),
@@ -1038,10 +1031,7 @@ class _CategorySection extends StatelessWidget {
   final String categoryName;
   final List<Product> products;
 
-  const _CategorySection({
-    required this.categoryName,
-    required this.products,
-  });
+  const _CategorySection({required this.categoryName, required this.products});
 
   @override
   Widget build(BuildContext context) {
@@ -1061,13 +1051,9 @@ class _CategorySection extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color:
-                      Theme.of(context).colorScheme.surfaceContainerHighest,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -1113,190 +1099,198 @@ class _ProductCard extends ConsumerWidget {
     final available = product.isAvailable;
     final scheme = Theme.of(context).colorScheme;
 
-    return Opacity(
-      opacity: available ? 1.0 : 0.5,
-      child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        elevation: 2,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Stack(
-                children: [
-                  Container(
-                    width: 85,
-                    height: 85,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      color: scheme.surfaceContainerHighest,
-                      image: product.imageUrl != null
-                          ? DecorationImage(
-                              image: NetworkImage(product.imageUrl!),
-                              fit: BoxFit.cover,
+    return Semantics(
+      // Le badge « Épuisé » et l'opacité sont purement visuels : sans ce label,
+      // un lecteur d'écran présente un produit indisponible comme disponible.
+      label: available ? product.name : '${product.name}, épuisé',
+      enabled: available,
+      child: Opacity(
+        opacity: available ? 1.0 : 0.5,
+        child: Card(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Stack(
+                  children: [
+                    Container(
+                      width: 85,
+                      height: 85,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        color: scheme.surfaceContainerHighest,
+                        image: product.imageUrl != null
+                            ? DecorationImage(
+                                image: NetworkImage(product.imageUrl!),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: product.imageUrl == null
+                          ? Center(
+                              child: Icon(
+                                Icons.fastfood,
+                                size: 40,
+                                color: scheme.outline,
+                              ),
                             )
                           : null,
                     ),
-                    child: product.imageUrl == null
-                        ? Center(
-                            child: Icon(
-                              Icons.fastfood,
-                              size: 40,
-                              color: scheme.outline,
+                    if (!available)
+                      Positioned(
+                        top: 4,
+                        left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'Épuisé',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
                             ),
-                          )
-                        : null,
-                  ),
-                  if (!available)
-                    Positioned(
-                      top: 4,
-                      left: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
+                          ),
                         ),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(4),
+                      )
+                    else if (product.madeToOrder)
+                      Positioned(
+                        top: 4,
+                        left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.purple,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'Sur commande',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-                        child: const Text(
-                          'Épuisé',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                      )
+                    else if (product.variants.length > 1)
+                      Positioned(
+                        top: 4,
+                        left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '${product.variants.length} tailles',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
-                    )
-                  else if (product.madeToOrder)
-                    Positioned(
-                      top: 4,
-                      left: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.purple,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          'Sur commande',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    )
-                  else if (product.variants.length > 1)
-                    Positioned(
-                      top: 4,
-                      left: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          '${product.variants.length} tailles',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      product.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          formatPrice(getDisplayPrice()),
-                          style: TextStyle(
-                            color: available ? scheme.primary : Colors.grey,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        if (available)
-                          InkWell(
-                            onTap: () => _addToCart(context, ref),
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: scheme.primary,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Icon(
-                                Icons.add,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                            ),
-                          )
-                        else
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              'Épuisé',
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        product.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            formatPrice(getDisplayPrice()),
+                            style: TextStyle(
+                              color: available ? scheme.primary : Colors.grey,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          if (available)
+                            InkWell(
+                              onTap: () => _addToCart(context, ref),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: scheme.primary,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Icon(
+                                  Icons.add,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            )
+                          else
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text(
+                                'Épuisé',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1354,8 +1348,9 @@ class _OperatingHoursSectionState extends State<_OperatingHoursSection> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final today = DayOfWeek.today;
-    final todayHours =
-        widget.operatingHours.where((h) => h.dayOfWeek == today).toList();
+    final todayHours = widget.operatingHours
+        .where((h) => h.dayOfWeek == today)
+        .toList();
     final sortedHours = List<OperatingHours>.from(widget.operatingHours)
       ..sort((a, b) => a.dayOfWeek.index.compareTo(b.dayOfWeek.index));
 
@@ -1372,8 +1367,7 @@ class _OperatingHoursSectionState extends State<_OperatingHoursSection> {
             onTap: () => setState(() => _expanded = !_expanded),
             borderRadius: BorderRadius.circular(12),
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               child: Row(
                 children: [
                   Container(
@@ -1403,8 +1397,8 @@ class _OperatingHoursSectionState extends State<_OperatingHoursSection> {
                         Text(
                           todayHours.isNotEmpty
                               ? todayHours.first.isClosed
-                                  ? 'Fermé aujourd\'hui'
-                                  : '${todayHours.first.openTime} - ${todayHours.first.closeTime}'
+                                    ? 'Fermé aujourd\'hui'
+                                    : '${todayHours.first.openTime} - ${todayHours.first.closeTime}'
                               : 'Non renseigné',
                           style: const TextStyle(
                             fontSize: 13,
@@ -1474,8 +1468,8 @@ class _OperatingHoursSectionState extends State<_OperatingHoursSection> {
                               color: hours.isClosed
                                   ? scheme.error
                                   : isToday
-                                      ? scheme.onSurface
-                                      : scheme.onSurfaceVariant,
+                                  ? scheme.onSurface
+                                  : scheme.onSurfaceVariant,
                             ),
                           ),
                         ),

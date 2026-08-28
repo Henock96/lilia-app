@@ -210,6 +210,7 @@ Téléchargez l'app Lilia Food pour commander !
           ],
         ),
         child: IconButton(
+          tooltip: 'Retour',
           icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
@@ -228,6 +229,7 @@ Téléchargez l'app Lilia Food pour commander !
             ],
           ),
           child: IconButton(
+            tooltip: 'Retirer des favoris',
             icon: Icon(
               isFavorite ? Icons.favorite : Icons.favorite_border,
               color: isFavorite ? Colors.red : theme.colorScheme.onSurface,
@@ -255,6 +257,7 @@ Téléchargez l'app Lilia Food pour commander !
             ],
           ),
           child: IconButton(
+            tooltip: 'Partager',
             icon: Icon(
               Icons.share_outlined,
               color: theme.colorScheme.onSurface,
@@ -452,11 +455,7 @@ Téléchargez l'app Lilia Food pour commander !
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.menu_book_outlined,
-                  size: 18,
-                  color: scheme.primary,
-                ),
+                Icon(Icons.menu_book_outlined, size: 18, color: scheme.primary),
                 const SizedBox(width: 6),
                 Text(
                   'Détails produit',
@@ -494,7 +493,8 @@ Téléchargez l'app Lilia Food pour commander !
               _DetailRow(
                 icon: Icons.access_time,
                 label: 'Conservation',
-                value: '${p.shelfLifeDays} jour${p.shelfLifeDays! > 1 ? 's' : ''}',
+                value:
+                    '${p.shelfLifeDays} jour${p.shelfLifeDays! > 1 ? 's' : ''}',
                 accent: Colors.teal,
               ),
 
@@ -922,10 +922,7 @@ class _DetailRow extends StatelessWidget {
               ],
             ),
           ),
-          if (trailing != null) ...[
-            const SizedBox(width: 8),
-            trailing!,
-          ],
+          if (trailing != null) ...[const SizedBox(width: 8), trailing!],
         ],
       ),
     );

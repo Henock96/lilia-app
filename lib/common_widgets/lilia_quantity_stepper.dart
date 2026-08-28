@@ -40,7 +40,9 @@ class LiliaQuantityStepper extends StatelessWidget {
           child: Text(
             '$value',
             style: GoogleFonts.inter(
-              fontSize: 17, fontWeight: FontWeight.w700, color: t.textPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: t.textPrimary,
             ),
           ),
         ),
@@ -77,7 +79,8 @@ class _StepBtn extends StatelessWidget {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
-        width: 34, height: 34,
+        width: 34,
+        height: 34,
         decoration: BoxDecoration(color: bg, borderRadius: LiliaRadius.smAll),
         child: Icon(icon, size: 18, color: color),
       ),

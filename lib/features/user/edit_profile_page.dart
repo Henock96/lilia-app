@@ -55,7 +55,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       } else {
         // En cas d'erreur, affiche le message d'erreur du provider
         final error = ref.read(profileControllerProvider).error;
-        context.showErrorSnack('Erreur lors de la mise à jour: ${error ?? "Une erreur inconnue est survenue."}');
+        context.showErrorSnack(
+          'Erreur lors de la mise à jour: ${error ?? "Une erreur inconnue est survenue."}',
+        );
       }
     }
   }

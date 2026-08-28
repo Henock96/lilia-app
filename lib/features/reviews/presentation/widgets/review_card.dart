@@ -57,10 +57,7 @@ class ReviewCard extends StatelessWidget {
                       ),
                       Text(
                         dateFormat.format(review.createdAt),
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ],
                   ),
@@ -92,7 +89,10 @@ class ReviewCard extends StatelessWidget {
                           children: [
                             Icon(Icons.delete, size: 18, color: Colors.red),
                             SizedBox(width: 8),
-                            Text('Supprimer', style: TextStyle(color: Colors.red)),
+                            Text(
+                              'Supprimer',
+                              style: TextStyle(color: Colors.red),
+                            ),
                           ],
                         ),
                       ),
@@ -108,10 +108,7 @@ class ReviewCard extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 review.comment!,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey[800],
-                ),
+                style: TextStyle(fontSize: 14, color: Colors.grey[800]),
               ),
             ],
           ],

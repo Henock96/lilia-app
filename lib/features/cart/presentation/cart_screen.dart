@@ -126,8 +126,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       ...menuGroups.entries.map((entry) {
                         final menuId = entry.key;
                         final groupItems = entry.value;
-                        return MenuCartCard(menuId: menuId, items: groupItems)
-                            .fadeSlideIn();
+                        return MenuCartCard(
+                          menuId: menuId,
+                          items: groupItems,
+                        ).fadeSlideIn();
                       }),
                       // Items individuels
                       ...individualItems.map(
@@ -282,11 +284,7 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
               color: cs.primary.withValues(alpha: 0.1),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.restaurant_menu,
-                    size: 20,
-                    color: cs.primary,
-                  ),
+                  Icon(Icons.restaurant_menu, size: 20, color: cs.primary),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
@@ -397,6 +395,7 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
                     )
                   else ...[
                     IconButton(
+                      tooltip: 'Diminuer la quantité',
                       icon: const Icon(Icons.remove_circle_outline),
                       onPressed: _isLoading
                           ? null
@@ -404,12 +403,14 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
                     ),
                     Text('$_quantity', style: const TextStyle(fontSize: 18)),
                     IconButton(
+                      tooltip: 'Augmenter la quantité',
                       icon: const Icon(Icons.add_circle_outline),
                       onPressed: _isLoading
                           ? null
                           : () => _updateQuantity(_quantity + 1),
                     ),
                     IconButton(
+                      tooltip: 'Supprimer',
                       icon: const Icon(Icons.delete, color: Colors.red),
                       onPressed: _isLoading ? null : _removeMenu,
                     ),
@@ -513,7 +514,10 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                     const SizedBox(height: 4),
                     Text(
                       widget.item.variant.label,
-                      style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+                      style: TextStyle(
+                        color: cs.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -544,6 +548,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                 Row(
                   children: [
                     IconButton(
+                      tooltip: 'Diminuer la quantité',
                       icon: const Icon(Icons.remove_circle_outline),
                       onPressed: _isLoading
                           ? null
@@ -554,12 +559,14 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                       style: const TextStyle(fontSize: 18),
                     ),
                     IconButton(
+                      tooltip: 'Augmenter la quantité',
                       icon: const Icon(Icons.add_circle_outline),
                       onPressed: _isLoading
                           ? null
                           : () => _updateQuantity(widget.item.quantite + 1),
                     ),
                     IconButton(
+                      tooltip: 'Supprimer',
                       icon: const Icon(Icons.delete, color: Colors.red),
                       onPressed: _isLoading ? null : _removeItem,
                     ),
@@ -585,7 +592,11 @@ class _EmptyCartWithSuggestions extends ConsumerWidget {
       child: Column(
         children: [
           const SizedBox(height: 60),
-          Icon(Iconsax.shopping_bag, size: 80, color: theme.colorScheme.onSurfaceVariant),
+          Icon(
+            Iconsax.shopping_bag,
+            size: 80,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(height: 16),
           Text(
             'Votre panier est vide',
@@ -598,7 +609,10 @@ class _EmptyCartWithSuggestions extends ConsumerWidget {
           const SizedBox(height: 8),
           Text(
             'Ajoutez des plats pour commencer',
-            style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 14,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 20),
           ElevatedButton.icon(
@@ -652,7 +666,9 @@ class _EmptyCartWithSuggestions extends ConsumerWidget {
             },
             loading: () => Padding(
               padding: const EdgeInsets.all(32),
-              child: CircularProgressIndicator(color: theme.colorScheme.primary),
+              child: CircularProgressIndicator(
+                color: theme.colorScheme.primary,
+              ),
             ),
             error: (_, _) => const SizedBox.shrink(),
           ),
@@ -824,7 +840,7 @@ class _SuggestionTile extends ConsumerWidget {
             context.showSuccessSnack('${product.name} ajouté au panier');
           }
         })
-        .catchError((e) {
+        .catchError((Object e) {
           if (context.mounted) {
             context.showErrorSnack('Erreur: $e');
           }
@@ -833,7 +849,7 @@ class _SuggestionTile extends ConsumerWidget {
 
   void _showVariantBottomSheet(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),

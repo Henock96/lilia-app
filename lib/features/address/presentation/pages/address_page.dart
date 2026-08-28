@@ -97,7 +97,7 @@ class _AddressPageState extends ConsumerState<AddressPage> {
     final formKey = GlobalKey<FormState>();
     final theme = Theme.of(context);
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -297,7 +297,9 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                                 );
                             if (!context.mounted) return;
                             Navigator.pop(context);
-                            context.showSuccessSnack('Adresse ajoutée avec succès');
+                            context.showSuccessSnack(
+                              'Adresse ajoutée avec succès',
+                            );
                             ref.invalidate(adresseControllerProvider);
                           } catch (e) {
                             if (!context.mounted) return;
@@ -331,7 +333,7 @@ class _AddressPageState extends ConsumerState<AddressPage> {
   }
 
   void _showDeleteConfirmation(BuildContext context, Adresse address) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(

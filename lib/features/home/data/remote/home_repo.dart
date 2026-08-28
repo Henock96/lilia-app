@@ -37,15 +37,19 @@ class HomeRepository {
 
   /// GET /products/popular?limit=10
   Future<List<Product>> getPopularProducts({int limit = 10}) async {
-    final body =
-        await _api.getText('/products/popular', query: {'limit': '$limit'});
+    final body = await _api.getText(
+      '/products/popular',
+      query: {'limit': '$limit'},
+    );
     return parseJson(body, _parseProducts);
   }
 
   /// GET /restaurants/popular?limit=6
   Future<List<RestaurantSummary>> getPopularRestaurants({int limit = 6}) async {
-    final body =
-        await _api.getText('/restaurants/popular', query: {'limit': '$limit'});
+    final body = await _api.getText(
+      '/restaurants/popular',
+      query: {'limit': '$limit'},
+    );
     return parseJson(body, _parsePopularRestaurants);
   }
 
@@ -59,8 +63,10 @@ class HomeRepository {
   /// GET /products/recommendations (authentifié)
   Future<List<Product>> getRecommendations({int limit = 10}) async {
     try {
-      final body = await _api
-          .getText('/products/recommendations', query: {'limit': '$limit'});
+      final body = await _api.getText(
+        '/products/recommendations',
+        query: {'limit': '$limit'},
+      );
       return parseJson(body, _parseProducts);
     } on ApiException catch (e) {
       // Recommandations = feature non bloquante : on dégrade en liste vide,
@@ -77,7 +83,9 @@ class HomeRepository {
     final res = await _api.getJson('/categories');
     // /categories double-enveloppé (`{ data: { data: [...], count } }`).
     final data = ApiResponse.listOf(ApiResponse.mapOf(res.data));
-    return data.map((j) => Category.fromJson(j as Map<String, dynamic>)).toList();
+    return data
+        .map((j) => Category.fromJson(j as Map<String, dynamic>))
+        .toList();
   }
 }
 

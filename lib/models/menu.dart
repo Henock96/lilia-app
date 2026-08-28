@@ -55,26 +55,29 @@ class MenuDuJour {
 
   factory MenuDuJour.fromJson(Map<String, dynamic> json) {
     var productsList = json['products'] as List? ?? [];
-    List<MenuProduct> products =
-        productsList.map((i) => MenuProduct.fromJson(i)).toList();
+    List<MenuProduct> products = productsList
+        .map((i) => MenuProduct.fromJson(i as Map<String, dynamic>))
+        .toList();
 
     return MenuDuJour(
-      id: json['id'],
-      nom: json['nom'],
-      description: json['description'],
-      imageUrl: json['imageUrl'],
+      id: json['id'] as String,
+      nom: json['nom'] as String,
+      description: json['description'] as String?,
+      imageUrl: json['imageUrl'] as String?,
       images: GalleryImage.listFrom(json['images']),
       prix: (json['prix'] as num).toDouble(),
       type: json['type'] as String? ?? 'COMBO',
       ingredients: json['ingredients'] as String?,
-      dateDebut: DateTime.parse(json['dateDebut']),
-      dateFin: DateTime.parse(json['dateFin']),
-      isActive: json['isActive'] ?? true,
-      restaurantId: json['restaurantId'],
-      restaurant: MenuRestaurant.fromJson(json['restaurant']),
+      dateDebut: DateTime.parse(json['dateDebut'] as String),
+      dateFin: DateTime.parse(json['dateFin'] as String),
+      isActive: (json['isActive'] as bool?) ?? true,
+      restaurantId: json['restaurantId'] as String,
+      restaurant: MenuRestaurant.fromJson(
+        json['restaurant'] as Map<String, dynamic>,
+      ),
       products: products,
-      createdAt: DateTime.parse(json['createdAt']),
-      updatedAt: DateTime.parse(json['updatedAt']),
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
   }
 
@@ -109,12 +112,12 @@ class MenuProduct {
 
   factory MenuProduct.fromJson(Map<String, dynamic> json) {
     return MenuProduct(
-      id: json['id'],
-      menuId: json['menuId'],
-      productId: json['productId'],
-      ordre: json['ordre'] ?? 0,
-      product: Product.fromJson(json['product']),
-      createdAt: DateTime.parse(json['createdAt']),
+      id: json['id'] as String,
+      menuId: json['menuId'] as String,
+      productId: json['productId'] as String,
+      ordre: (json['ordre'] as int?) ?? 0,
+      product: Product.fromJson(json['product'] as Map<String, dynamic>),
+      createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }
 }
@@ -124,17 +127,13 @@ class MenuRestaurant {
   final String nom;
   final String? imageUrl;
 
-  MenuRestaurant({
-    required this.id,
-    required this.nom,
-    this.imageUrl,
-  });
+  MenuRestaurant({required this.id, required this.nom, this.imageUrl});
 
   factory MenuRestaurant.fromJson(Map<String, dynamic> json) {
     return MenuRestaurant(
-      id: json['id'],
-      nom: json['nom'],
-      imageUrl: json['imageUrl'],
+      id: json['id'] as String,
+      nom: json['nom'] as String,
+      imageUrl: json['imageUrl'] as String?,
     );
   }
 }

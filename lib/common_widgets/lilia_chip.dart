@@ -27,7 +27,9 @@ class LiliaFilterChip extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? t.actionPrimary.withValues(alpha: 0.1) : t.bgElevated,
+          color: selected
+              ? t.actionPrimary.withValues(alpha: 0.1)
+              : t.bgElevated,
           borderRadius: LiliaRadius.pillAll,
           border: Border.all(
             color: selected ? t.actionPrimary : t.border,
@@ -39,7 +41,10 @@ class LiliaFilterChip extends StatelessWidget {
           children: [
             if (icon != null) ...[
               IconTheme(
-                data: IconThemeData(size: 14, color: selected ? t.actionPrimary : t.textSecondary),
+                data: IconThemeData(
+                  size: 14,
+                  color: selected ? t.actionPrimary : t.textSecondary,
+                ),
                 child: icon!,
               ),
               const SizedBox(width: 6),
@@ -85,12 +90,21 @@ class LiliaCategoryChip extends StatelessWidget {
         children: [
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            width: 56, height: 56,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: active ? t.actionPrimary : t.actionPrimary.withValues(alpha: 0.1),
+              color: active
+                  ? t.actionPrimary
+                  : t.actionPrimary.withValues(alpha: 0.1),
               boxShadow: active
-                  ? [BoxShadow(color: t.actionPrimary.withValues(alpha: 0.35), blurRadius: 12, offset: const Offset(0, 4))]
+                  ? [
+                      BoxShadow(
+                        color: t.actionPrimary.withValues(alpha: 0.35),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
                   : null,
             ),
             child: Center(

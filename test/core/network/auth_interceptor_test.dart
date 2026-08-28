@@ -44,7 +44,7 @@ void main() {
       tokenProvider: () async => 'tok-123',
       forceRefreshToken: () async => 'tok-refreshed',
     ));
-    await dio.get('/me');
+    await dio.get<dynamic>('/me');
     expect(adapter.lastAuth, 'Bearer tok-123');
   });
 
@@ -61,7 +61,7 @@ void main() {
         return 'fresh';
       },
     ));
-    final res = await dio.get('/secure');
+    final res = await dio.get<dynamic>('/secure');
     expect(res.statusCode, 200);
     expect(refreshCount, 1);
     expect(adapter.calls, 2);
@@ -80,7 +80,7 @@ void main() {
         return 'still-bad';
       },
     ));
-    await expectLater(dio.get('/secure'), throwsA(isA<DioException>()));
+    await expectLater(dio.get<dynamic>('/secure'), throwsA(isA<DioException>()));
     expect(refreshCount, 1);
     expect(adapter.calls, 2); // initial + 1 seul replay
   });

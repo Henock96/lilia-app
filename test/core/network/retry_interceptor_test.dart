@@ -45,7 +45,7 @@ void main() {
   test('retry sur 503 puis succès', () async {
     final adapter = _CountingAdapter((c) => c == 0 ? 503 : 200);
     final dio = _dioWith(adapter);
-    final res = await dio.get('/flaky');
+    final res = await dio.get<dynamic>('/flaky');
     expect(res.statusCode, 200);
     expect(adapter.calls, 2); // 1 échec + 1 retry réussi
   });
@@ -53,14 +53,14 @@ void main() {
   test('pas de retry sur 400', () async {
     final adapter = _CountingAdapter((_) => 400);
     final dio = _dioWith(adapter);
-    await expectLater(dio.get('/bad'), throwsA(isA<DioException>()));
+    await expectLater(dio.get<dynamic>('/bad'), throwsA(isA<DioException>()));
     expect(adapter.calls, 1);
   });
 
   test('POST sans Idempotency-Key non retryé sur 503', () async {
     final adapter = _CountingAdapter((_) => 503);
     final dio = _dioWith(adapter);
-    await expectLater(dio.post('/orders', data: {'x': 1}), throwsA(isA<DioException>()));
+    await expectLater(dio.post<dynamic>('/orders', data: {'x': 1}), throwsA(isA<DioException>()));
     expect(adapter.calls, 1);
   });
 
@@ -68,7 +68,7 @@ void main() {
     final adapter = _CountingAdapter((_) => 503);
     final dio = _dioWith(adapter);
     await expectLater(
-      dio.post('/orders',
+      dio.post<dynamic>('/orders',
           data: {'x': 1},
           options: Options(headers: {'Idempotency-Key': 'abc'})),
       throwsA(isA<DioException>()),

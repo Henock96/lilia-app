@@ -68,6 +68,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         actions: [
           if (_searchController.text.isNotEmpty)
             IconButton(
+              tooltip: 'Fermer',
               onPressed: () {
                 _searchController.clear();
                 setState(() => _query = '');
@@ -392,7 +393,7 @@ class _SearchProductTile extends ConsumerWidget {
   }
 
   void _showVariantBottomSheet(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),

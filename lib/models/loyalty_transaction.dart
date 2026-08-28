@@ -15,11 +15,11 @@
 
   factory LoyaltyTransaction.fromJson(Map<String, dynamic> json) {
     return LoyaltyTransaction(
-      id: json['id'],
+      id: json['id'] as String,
       points: (json['points'] as num).toInt(),
-      reason: json['reason'],
-      orderId: json['orderId'],
-      createdAt: DateTime.parse(json['createdAt']),
+      reason: json['reason'] as String,
+      orderId: json['orderId'] as String?,
+      createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }
 }
@@ -39,7 +39,7 @@ class ReferralStats {
 
   factory ReferralStats.fromJson(Map<String, dynamic> json) {
     return ReferralStats(
-      referralCode: json['referralCode'] ?? '',
+      referralCode: (json['referralCode'] as String?) ?? '',
       totalReferrals: (json['totalReferrals'] as num?)?.toInt() ?? 0,
       rewardedReferrals: (json['rewardedReferrals'] as num?)?.toInt() ?? 0,
       loyaltyPoints: (json['loyaltyPoints'] as num?)?.toInt() ?? 0,

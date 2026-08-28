@@ -227,7 +227,7 @@ class ReviewsScreen extends ConsumerWidget {
   }
 
   void _deleteReview(BuildContext context, WidgetRef ref, String reviewId) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Supprimer l\'avis'),

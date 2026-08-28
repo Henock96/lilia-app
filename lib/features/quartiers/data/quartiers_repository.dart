@@ -20,7 +20,9 @@ class QuartiersRepository extends _$QuartiersRepository {
     // /quartiers est double-enveloppé par l'interceptor backend
     // (`{ data: { data: [...], count } }`). Déballe l'externe puis lit la liste.
     final quartiersJson = ApiResponse.listOf(ApiResponse.mapOf(res.data));
-    return quartiersJson.map((json) => Quartier.fromJson(json)).toList();
+    return quartiersJson
+        .map((json) => Quartier.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   /// Calcule les frais de livraison pour un restaurant et un quartier

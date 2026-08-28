@@ -10,9 +10,7 @@ class ErrorInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    handler.reject(
-      err.copyWith(error: _toApiException(err)),
-    );
+    handler.reject(err.copyWith(error: _toApiException(err)));
   }
 
   ApiException _toApiException(DioException err) {

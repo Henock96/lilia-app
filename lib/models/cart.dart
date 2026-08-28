@@ -1,4 +1,5 @@
 import 'package:lilia_app/utils/currency.dart';
+
 Map<String, dynamic> _asMap(Object? value) =>
     value is Map<String, dynamic> ? value : <String, dynamic>{};
 
@@ -84,8 +85,7 @@ class Cart {
   /// `madeToOrder=true`. Drive le flux checkout (date picker requis,
   /// disclaimer paiement, etc.). Backend rejette les paniers mixtes,
   /// donc en pratique tout ou rien — mais ce getter reste tolérant.
-  bool get hasMadeToOrderItems =>
-      items.any((item) => item.product.madeToOrder);
+  bool get hasMadeToOrderItems => items.any((item) => item.product.madeToOrder);
 
   /// Vrai si le panier est 100% madeToOrder ET non vide (= preorder pur).
   bool get isPreorderCart =>
@@ -229,13 +229,12 @@ class ProductItem {
     String? imageUrl,
     String? restaurantId,
     bool? madeToOrder,
-  }) =>
-      ProductItem(
-        nom: nom ?? this.nom,
-        imageUrl: imageUrl ?? this.imageUrl,
-        restaurantId: restaurantId ?? this.restaurantId,
-        madeToOrder: madeToOrder ?? this.madeToOrder,
-      );
+  }) => ProductItem(
+    nom: nom ?? this.nom,
+    imageUrl: imageUrl ?? this.imageUrl,
+    restaurantId: restaurantId ?? this.restaurantId,
+    madeToOrder: madeToOrder ?? this.madeToOrder,
+  );
 
   factory ProductItem.fromMap(Map<String, dynamic> json) => ProductItem(
     nom: _asString(json["nom"], 'Produit'),

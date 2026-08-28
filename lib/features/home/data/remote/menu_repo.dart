@@ -21,13 +21,17 @@ class MenuRepository {
     // (`{ data: { message, data: [...], count } }`). On déballe l'enveloppe
     // externe puis on lit la liste — tolérant aux formes legacy.
     final menusJson = ApiResponse.listOf(ApiResponse.mapOf(res.data));
-    return menusJson.map((json) => MenuDuJour.fromJson(json)).toList();
+    return menusJson
+        .map((json) => MenuDuJour.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   /// Récupère un menu spécifique par son ID
   Future<MenuDuJour> getMenuById(String menuId) async {
     final res = await _api.getJson('/menus/$menuId');
-    return MenuDuJour.fromJson((res.data as Map<String, dynamic>)['data']);
+    return MenuDuJour.fromJson(
+      (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+    );
   }
 
   /// Récupère tous les menus (actifs et inactifs)
@@ -45,7 +49,9 @@ class MenuRepository {
     final res = await _api.getJson('/menus', query: queryParams);
     // Idem `getActiveMenus` : `/menus` est double-enveloppé (contient `count`).
     final menusJson = ApiResponse.listOf(ApiResponse.mapOf(res.data));
-    return menusJson.map((json) => MenuDuJour.fromJson(json)).toList();
+    return menusJson
+        .map((json) => MenuDuJour.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 }
 

@@ -3,13 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
-import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:lilia_app/features/quartiers/application/quartiers_controller.dart';
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/models/adresse.dart';
 import 'package:lilia_app/models/quartier.dart';
+import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/models/vendor_type.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
@@ -31,6 +31,10 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
   final TextEditingController _newAddressController = TextEditingController();
 
   double? _calculatedDeliveryFee;
+
+  /// Vrai quand les frais affichés sont un repli local et non la réponse de
+  /// `/quartiers/delivery-fee` : le montant final peut différer.
+  bool _deliveryFeeIsEstimate = false;
   bool _isCalculatingFee = false;
   String? _restaurantId;
 
@@ -63,6 +67,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
+          tooltip: 'Retour',
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.goNamed(AppRoutes.cart.routeName),
         ),
@@ -538,7 +543,11 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
   Widget _buildDeliveryFeeSummary(double subTotal) {
     final cs = Theme.of(context).colorScheme;
     final deliveryFee = _isDelivery ? (_calculatedDeliveryFee ?? 0) : 0.0;
-    final serviceFee = (subTotal * AppConstants.serviceFeeRate).roundToDouble();
+    // Taux servi par `/platform-settings` — plus de 8 % en dur : le taux est
+    // modifiable par l'admin et le serveur facture le sien.
+    final settings =
+        ref.watch(platformSettingsProvider).value ?? PlatformSettings.fallback;
+    final serviceFee = (subTotal * settings.serviceFeeRate).roundToDouble();
     final total = subTotal + deliveryFee + serviceFee;
 
     return Container(
@@ -584,17 +593,33 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                     ),
                 ],
               ),
-              Text(
-                _isDelivery
-                    ? (_calculatedDeliveryFee != null
-                          ? formatPrice(_calculatedDeliveryFee!)
-                          : 'Selectionnez un quartier')
-                    : 'Gratuit',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: !_isDelivery ? Colors.green : null,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    _isDelivery
+                        ? (_calculatedDeliveryFee != null
+                              ? formatPrice(_calculatedDeliveryFee!)
+                              : 'Selectionnez un quartier')
+                        : 'Gratuit',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: !_isDelivery ? Colors.green : null,
+                    ),
+                  ),
+                  // Le calcul de zone a échoué : on affiche un repli, le
+                  // montant final peut différer. Le dire plutôt que de laisser
+                  // croire à un montant confirmé.
+                  if (_isDelivery && _deliveryFeeIsEstimate)
+                    Text(
+                      'Estimation — montant confirme a la commande',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
@@ -651,11 +676,21 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
       );
       setState(() {
         _calculatedDeliveryFee = result.fee;
+        _deliveryFeeIsEstimate = false;
         _isCalculatingFee = false;
       });
     } catch (e) {
+      // Le calcul de zone a échoué (réseau instable — le cas nominal à
+      // Brazzaville). On retombe sur les frais fixes du vendeur, et à défaut
+      // sur le défaut serveur — l'ancienne valeur en dur de 500 FCFA était
+      // 500 FCFA sous le défaut backend, écart invisible pour le client.
+      final vendorFee = ref
+          .read(restaurantControllerProvider(_restaurantId!))
+          .value
+          ?.fixedDeliveryFee;
       setState(() {
-        _calculatedDeliveryFee = 500; // Valeur par défaut en cas d'erreur
+        _calculatedDeliveryFee = vendorFee ?? kDefaultDeliveryFee;
+        _deliveryFeeIsEstimate = true;
         _isCalculatingFee = false;
       });
     }
@@ -685,7 +720,9 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
         newAddressRue: _useNewAddress
             ? _newAddressController.text.trim()
             : null,
-        deliveryFee: _isDelivery ? (_calculatedDeliveryFee ?? 500) : 0,
+        deliveryFee: _isDelivery
+            ? (_calculatedDeliveryFee ?? kDefaultDeliveryFee)
+            : 0,
       ),
     );
   }

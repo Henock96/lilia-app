@@ -31,9 +31,7 @@ Future<LatLng> _resolveClientDestination(DriverLocation location) async {
       return _kBrazzavilleCenter;
     }
     final pos = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.low,
-      ),
+      locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
     );
     return LatLng(pos.latitude, pos.longitude);
   } catch (_) {
@@ -52,41 +50,47 @@ Set<Marker> _buildTrackingMarkers(
   final markers = <Marker>{};
 
   if (loc.hasDriverPosition) {
-    markers.add(Marker(
-      markerId: const MarkerId('driver'),
-      position: LatLng(loc.latitude!, loc.longitude!),
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
-      infoWindow: InfoWindow(
-        title: loc.driverNom ?? 'Livreur',
-        snippet: loc.etaMinutes != null
-            ? 'Arrive dans ${loc.etaMinutes} min'
-            : 'Votre livreur',
+    markers.add(
+      Marker(
+        markerId: const MarkerId('driver'),
+        position: LatLng(loc.latitude!, loc.longitude!),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueOrange),
+        infoWindow: InfoWindow(
+          title: loc.driverNom ?? 'Livreur',
+          snippet: loc.etaMinutes != null
+              ? 'Arrive dans ${loc.etaMinutes} min'
+              : 'Votre livreur',
+        ),
       ),
-    ));
+    );
   }
 
   if (loc.hasRestaurant) {
-    markers.add(Marker(
-      markerId: const MarkerId('restaurant'),
-      position: LatLng(loc.restaurantLatitude!, loc.restaurantLongitude!),
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
-      infoWindow: InfoWindow(
-        title: loc.restaurantNom ?? 'Restaurant',
-        snippet: detailed ? 'Point de retrait' : null,
+    markers.add(
+      Marker(
+        markerId: const MarkerId('restaurant'),
+        position: LatLng(loc.restaurantLatitude!, loc.restaurantLongitude!),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueViolet),
+        infoWindow: InfoWindow(
+          title: loc.restaurantNom ?? 'Restaurant',
+          snippet: detailed ? 'Point de retrait' : null,
+        ),
       ),
-    ));
+    );
   }
 
   if (destination != null) {
-    markers.add(Marker(
-      markerId: const MarkerId('destination'),
-      position: destination,
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-      infoWindow: InfoWindow(
-        title: 'Adresse de livraison',
-        snippet: detailed ? 'Vous' : null,
+    markers.add(
+      Marker(
+        markerId: const MarkerId('destination'),
+        position: destination,
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        infoWindow: InfoWindow(
+          title: 'Adresse de livraison',
+          snippet: detailed ? 'Vous' : null,
+        ),
       ),
-    ));
+    );
   }
 
   return markers;
@@ -102,13 +106,18 @@ Set<Polyline> _buildRoutePolyline(
 }) {
   final polylines = <Polyline>{};
   if (loc.hasDriverPosition && destination != null) {
-    polylines.add(Polyline(
-      polylineId: const PolylineId('route'),
-      points: [LatLng(loc.latitude!, loc.longitude!), destination],
-      color: const Color(0xFF1565C0),
-      width: width,
-      patterns: [PatternItem.dash(dash.toDouble()), PatternItem.gap(gap.toDouble())],
-    ));
+    polylines.add(
+      Polyline(
+        polylineId: const PolylineId('route'),
+        points: [LatLng(loc.latitude!, loc.longitude!), destination],
+        color: const Color(0xFF1565C0),
+        width: width,
+        patterns: [
+          PatternItem.dash(dash.toDouble()),
+          PatternItem.gap(gap.toDouble()),
+        ],
+      ),
+    );
   }
   return polylines;
 }
@@ -118,9 +127,9 @@ LatLng _initialMapCenter(DriverLocation loc, LatLng? destination) {
   return loc.hasDriverPosition
       ? LatLng(loc.latitude!, loc.longitude!)
       : (destination ??
-          (loc.hasRestaurant
-              ? LatLng(loc.restaurantLatitude!, loc.restaurantLongitude!)
-              : _kBrazzavilleCenter));
+            (loc.hasRestaurant
+                ? LatLng(loc.restaurantLatitude!, loc.restaurantLongitude!)
+                : _kBrazzavilleCenter));
 }
 
 class DriverTrackingMap extends ConsumerWidget {
@@ -334,21 +343,22 @@ class _TrackingMapViewState extends State<_TrackingMapView> {
     // Stream du GPS client uniquement si on n'a PAS de coords backend
     // (sinon la destination est fixe = adresse de la commande).
     if (widget.location.destinationLatitude == null) {
-      _posSub = Geolocator.getPositionStream(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 15,
-        ),
-      ).listen(
-        (p) {
-          if (!mounted) return;
-          setState(() => _destination = LatLng(p.latitude, p.longitude));
-        },
-        // GPS indisponible (permission refusée, simulateur sans position,
-        // perte de signal) : on garde la destination déjà résolue, pas de crash.
-        onError: (_) {},
-        cancelOnError: false,
-      );
+      _posSub =
+          Geolocator.getPositionStream(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              distanceFilter: 15,
+            ),
+          ).listen(
+            (p) {
+              if (!mounted) return;
+              setState(() => _destination = LatLng(p.latitude, p.longitude));
+            },
+            // GPS indisponible (permission refusée, simulateur sans position,
+            // perte de signal) : on garde la destination déjà résolue, pas de crash.
+            onError: (_) {},
+            cancelOnError: false,
+          );
     }
   }
 
@@ -372,10 +382,14 @@ class _TrackingMapViewState extends State<_TrackingMapView> {
       _ctrl?.animateCamera(
         CameraUpdate.newLatLngBounds(
           LatLngBounds(
-            southwest: LatLng(lats.reduce((a, b) => a < b ? a : b) - 0.005,
-                lngs.reduce((a, b) => a < b ? a : b) - 0.005),
-            northeast: LatLng(lats.reduce((a, b) => a > b ? a : b) + 0.005,
-                lngs.reduce((a, b) => a > b ? a : b) + 0.005),
+            southwest: LatLng(
+              lats.reduce((a, b) => a < b ? a : b) - 0.005,
+              lngs.reduce((a, b) => a < b ? a : b) - 0.005,
+            ),
+            northeast: LatLng(
+              lats.reduce((a, b) => a > b ? a : b) + 0.005,
+              lngs.reduce((a, b) => a > b ? a : b) + 0.005,
+            ),
           ),
           80,
         ),
@@ -393,8 +407,11 @@ class _TrackingMapViewState extends State<_TrackingMapView> {
   @override
   Widget build(BuildContext context) {
     final loc = widget.location;
-    final markers =
-        _buildTrackingMarkers(loc, _destination, detailed: _fullscreen);
+    final markers = _buildTrackingMarkers(
+      loc,
+      _destination,
+      detailed: _fullscreen,
+    );
     final polylines = _fullscreen
         ? _buildRoutePolyline(loc, _destination, width: 5, dash: 20, gap: 10)
         : _buildRoutePolyline(loc, _destination, width: 4, dash: 16, gap: 8);
@@ -528,6 +545,7 @@ class _DriverInfo extends StatelessWidget {
           ),
           if (location.driverPhone != null)
             IconButton(
+              tooltip: 'Appeler',
               onPressed: () =>
                   launchUrl(Uri.parse('tel:${location.driverPhone}')),
               icon: const Icon(Icons.call),

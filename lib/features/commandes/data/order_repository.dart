@@ -71,8 +71,9 @@ class OrderRepository extends _$OrderRepository {
     final res = await _api.postJson(
       '/orders/checkout',
       body: bodyMap,
-      headers:
-          idempotencyKey != null ? {'Idempotency-Key': idempotencyKey} : null,
+      headers: idempotencyKey != null
+          ? {'Idempotency-Key': idempotencyKey}
+          : null,
     );
     // checkoutFromMap attend l'enveloppe JSON brute { message, data: {...} }.
     return checkoutFromMap(json.encode(res.data));

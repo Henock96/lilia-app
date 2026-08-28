@@ -3,7 +3,7 @@ import 'dart:convert';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:lilia_app/core/network/api_client.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
@@ -83,12 +83,9 @@ class NotificationService {
   /// Invalide `userOrdersProvider` au plus une fois par fenêtre de 600 ms.
   void _invalidateUserOrdersDebounced() {
     _ordersInvalidationDebounce?.cancel();
-    _ordersInvalidationDebounce = Timer(
-      const Duration(milliseconds: 600),
-      () {
-        if (!_isDisposed) _ref.invalidate(userOrdersProvider);
-      },
-    );
+    _ordersInvalidationDebounce = Timer(const Duration(milliseconds: 600), () {
+      if (!_isDisposed) _ref.invalidate(userOrdersProvider);
+    });
   }
 
   Future<void> _requestPermission() async {
@@ -109,6 +106,23 @@ class NotificationService {
       debugPrint('User granted provisional permission');
     } else {
       debugPrint('User declined or has not accepted permission');
+    }
+
+    // iOS : sans ceci, AUCUNE notification ne s'affiche app au premier plan.
+    // `UNUserNotificationCenter` n'a qu'un seul delegate et Firebase Messaging
+    // se l'attribue (swizzling activé par défaut) — le `willPresentNotification`
+    // de flutter_local_notifications n'est donc jamais appelé et le
+    // `_localNotifications.show()` s'exécute sans rien afficher. Cet appel dit
+    // au delegate de Firebase de présenter lui-même la notification distante.
+    // Sans effet sur Android, où `onMessage` n'affiche jamais rien tout seul :
+    // là c'est bien la notification locale qui fait le travail (cf.
+    // `_showLocalNotification`).
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      await _fcm.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
     }
   }
 
@@ -213,7 +227,7 @@ class NotificationService {
       try {
         final data = jsonDecode(response.payload!);
         debugPrint('Local notification tapped with payload: $data');
-        _handleNotificationData(data);
+        _handleNotificationData(data as Map<String, dynamic>);
       } catch (e) {
         debugPrint('Error parsing notification payload: $e');
       }
@@ -235,6 +249,12 @@ class NotificationService {
   void _showLocalNotification(RemoteMessage message) {
     final notification = message.notification;
     if (notification == null) return;
+
+    // Sur iOS, `setForegroundNotificationPresentationOptions` (cf.
+    // `_requestPermission`) fait présenter la notification distante par le
+    // système : en afficher une locale en plus la ferait apparaître EN DOUBLE.
+    // Android, lui, n'affiche rien de lui-même au premier plan.
+    if (defaultTargetPlatform == TargetPlatform.iOS) return;
 
     const AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
@@ -412,7 +432,7 @@ class NotificationService {
           debugPrint('Max retries reached. Failed to register FCM token.');
         } else {
           // Backoff borné (5s, 10s, 15s, 20s) — évite le blocage ~4 min (C7).
-          await Future.delayed(Duration(seconds: attempt * 5));
+          await Future<void>.delayed(Duration(seconds: attempt * 5));
         }
       }
     }
@@ -426,10 +446,7 @@ class NotificationService {
     }
 
     try {
-      await _api.deleteJson(
-        '/notifications/token',
-        body: {'token': fcmToken},
-      );
+      await _api.deleteJson('/notifications/token', body: {'token': fcmToken});
       debugPrint('FCM Token removed successfully from the server.');
     } catch (e) {
       debugPrint('Error removing FCM token from server: $e');
@@ -471,8 +488,17 @@ class NotificationService {
           priority: Priority.high,
         );
 
+    // Sans bloc `iOS`, flutter_local_notifications n'affiche rien sur iOS : ce
+    // bouton de test paraissait donc cassé alors que seul l'affichage manquait.
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
     const NotificationDetails platformDetails = NotificationDetails(
       android: androidDetails,
+      iOS: iosDetails,
     );
 
     await _localNotifications.show(

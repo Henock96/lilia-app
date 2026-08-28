@@ -128,10 +128,14 @@ class DriverLocation {
 /// livraison, même si le livreur n'a pas encore émis sa position GPS —
 /// l'UI peut alors afficher déjà le marker resto + destination et
 /// l'avatar livreur. `null` uniquement si le backend renvoie une erreur.
-Future<DriverLocation?> fetchDriverLocation(String orderId, ApiClient api) async {
+Future<DriverLocation?> fetchDriverLocation(
+  String orderId,
+  ApiClient api,
+) async {
   try {
     final res = await api.getJson('/deliveries/by-order/$orderId');
-    final data = (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>?;
+    final data =
+        (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>?;
     if (data == null) return null;
     return DriverLocation.fromHttpJson(data);
   } on ApiException catch (e) {
@@ -178,7 +182,8 @@ class DriverLocationController extends _$DriverLocationController {
 
     _wsPositionSub = streams.position.listen((event) {
       if (!ref.mounted) return;
-      current = current?.copyWithWsPosition(event) ??
+      current =
+          current?.copyWithWsPosition(event) ??
           DriverLocation(
             latitude: event.lat,
             longitude: event.lng,
@@ -240,12 +245,9 @@ class DriverLocationController extends _$DriverLocationController {
   /// (même fenêtre que le path FCM dans NotificationService).
   void _invalidateUserOrdersDebounced() {
     _statusInvalidationDebounce?.cancel();
-    _statusInvalidationDebounce = Timer(
-      const Duration(milliseconds: 600),
-      () {
-        if (ref.mounted) ref.invalidate(userOrdersProvider);
-      },
-    );
+    _statusInvalidationDebounce = Timer(const Duration(milliseconds: 600), () {
+      if (ref.mounted) ref.invalidate(userOrdersProvider);
+    });
   }
 
   void _cleanup() {

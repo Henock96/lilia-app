@@ -41,8 +41,9 @@ class RecommendationsSection extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 itemCount: products.length,
                 itemBuilder: (context, index) {
-                  return _RecommendationCard(product: products[index])
-                      .fadeScaleIn(delay: AppMotion.stagger * index.clamp(0, 5));
+                  return _RecommendationCard(
+                    product: products[index],
+                  ).fadeScaleIn(delay: AppMotion.stagger * index.clamp(0, 5));
                 },
               ),
             ),
@@ -65,171 +66,175 @@ class _RecommendationCard extends ConsumerWidget {
     final theme = Theme.of(context);
     final isAvailable = product.isAvailable;
 
-    return GestureDetector(
-      onTap: () {
-        AnalyticsService.logRecommendationTap(
-          productId: product.id,
-          productName: product.name,
-        );
-        context.pushNamed(
-          AppRoutes.productDetail.routeName,
-          extra: product,
-        );
-      },
-      child: Container(
-        width: 160,
-        margin: const EdgeInsets.symmetric(horizontal: 6),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Opacity(
-          opacity: isAvailable ? 1.0 : 0.5,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Image
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(12),
+    return Semantics(
+      button: true,
+      // L'indisponibilité n'était portée que par `Opacity(0.5)` et un badge
+      // rouge : muette pour TalkBack / VoiceOver.
+      label: isAvailable ? product.name : '${product.name}, épuisé',
+      enabled: isAvailable,
+      child: GestureDetector(
+        onTap: () {
+          AnalyticsService.logRecommendationTap(
+            productId: product.id,
+            productName: product.name,
+          );
+          context.pushNamed(AppRoutes.productDetail.routeName, extra: product);
+        },
+        child: Container(
+          width: 160,
+          margin: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Opacity(
+            opacity: isAvailable ? 1.0 : 0.5,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(12),
+                      ),
+                      child: product.thumbnailUrl != null
+                          ? AppCachedImage(
+                              imageUrl: product.thumbnailUrl!,
+                              height: 110,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorWidget: _buildPlaceholder(),
+                            )
+                          : _buildPlaceholder(),
                     ),
-                    child: product.thumbnailUrl != null
-                        ? AppCachedImage(
-                            imageUrl: product.thumbnailUrl!,
-                            height: 110,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorWidget: _buildPlaceholder(),
-                          )
-                        : _buildPlaceholder(),
-                  ),
-                  // Badge recommande
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.deepPurple,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.thumb_up, color: Colors.white, size: 10),
-                          SizedBox(width: 3),
-                          Text(
-                            'Pour vous',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  if (!isAvailable)
+                    // Badge recommande
                     Positioned(
                       top: 6,
-                      right: 6,
+                      left: 6,
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 6,
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.red,
+                          color: Colors.deepPurple,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Text(
-                          'Epuise',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.thumb_up, color: Colors.white, size: 10),
+                            SizedBox(width: 3),
+                            Text(
+                              'Pour vous',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                ],
-              ),
-              // Infos
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        product.name,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
+                    if (!isAvailable)
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Text(
+                            'Epuise',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
-                      if (product.restaurantName != null)
+                  ],
+                ),
+                // Infos
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          product.restaurantName!,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey[500],
+                          product.name,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      const Spacer(),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
+                        const SizedBox(height: 2),
+                        if (product.restaurantName != null)
                           Text(
-                            formatPrice(product.displayPrice),
+                            product.restaurantName!,
                             style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: theme.primaryColor,
+                              fontSize: 11,
+                              color: Colors.grey[500],
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          if (isAvailable)
-                            GestureDetector(
-                              onTap: () => _handleAddToCart(context, ref),
-                              child: Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: theme.primaryColor,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.add,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
+                        const Spacer(),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              formatPrice(product.displayPrice),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: theme.primaryColor,
                               ),
                             ),
-                        ],
-                      ),
-                    ],
+                            if (isAvailable)
+                              GestureDetector(
+                                onTap: () => _handleAddToCart(context, ref),
+                                child: Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: theme.primaryColor,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.add,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -266,19 +271,20 @@ class _RecommendationCard extends ConsumerWidget {
         .read(cartControllerProvider.notifier)
         .addItem(variantId: variant.id)
         .then((_) {
-      if (context.mounted) {
-        context.showSuccessSnack('${product.name} ajouté au panier');
-      }
-    }).catchError((e) {
-      if (context.mounted) {
-        context.showErrorSnack('Erreur: $e');
-      }
-    });
+          if (context.mounted) {
+            context.showSuccessSnack('${product.name} ajouté au panier');
+          }
+        })
+        .catchError((Object e) {
+          if (context.mounted) {
+            context.showErrorSnack('Erreur: $e');
+          }
+        });
   }
 
   void _showVariantBottomSheet(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -341,7 +347,10 @@ class _RecommendationCard extends ConsumerWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(variant.displayLabel, style: const TextStyle(fontSize: 14)),
+                        Text(
+                          variant.displayLabel,
+                          style: const TextStyle(fontSize: 14),
+                        ),
                         Text(
                           formatPrice(variant.prix),
                           style: TextStyle(

@@ -37,17 +37,17 @@ class _ImageGalleryState extends State<ImageGallery> {
   int _current = 0;
 
   Widget _image(String url) => AppCachedImage(
-        imageUrl: url,
-        fit: BoxFit.cover,
-        width: double.infinity,
-        height: double.infinity,
-        errorWidget: widget.placeholder,
-      );
+    imageUrl: url,
+    fit: BoxFit.cover,
+    width: double.infinity,
+    height: double.infinity,
+    errorWidget: widget.placeholder,
+  );
 
   Widget _maybeHero(int index, Widget child) =>
       (index == 0 && widget.heroTag != null)
-          ? Hero(tag: widget.heroTag!, child: child)
-          : child;
+      ? Hero(tag: widget.heroTag!, child: child)
+      : child;
 
   @override
   Widget build(BuildContext context) {

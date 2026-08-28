@@ -29,12 +29,12 @@ class GalleryImage {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'url': url,
-        'alt': alt,
-        'displayOrder': displayOrder,
-        'isCover': isCover,
-      };
+    'id': id,
+    'url': url,
+    'alt': alt,
+    'displayOrder': displayOrder,
+    'isCover': isCover,
+  };
 
   /// Parse une liste JSON brute en filtrant les URLs vides, triée cover
   /// d'abord puis par `displayOrder`. Retourne une liste vide si l'entrée

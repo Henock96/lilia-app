@@ -61,7 +61,7 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
       // 2. Afficher un dialogue de chargement
       if (!mounted) return;
 
-      showDialog(
+      showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (context) => PaymentLoadingDialog(
@@ -102,7 +102,7 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
   }
 
   void _showSuccessDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
@@ -132,7 +132,7 @@ class _PaymentPageState extends ConsumerState<PaymentPage> {
   }
 
   void _showErrorDialog(String message) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Row(
@@ -368,7 +368,7 @@ class _PaymentLoadingDialogState extends ConsumerState<PaymentLoadingDialog> {
     super.initState();
     // Compter les secondes
     Future.doWhile(() async {
-      await Future.delayed(Duration(seconds: 1));
+      await Future<void>.delayed(Duration(seconds: 1));
       if (mounted) {
         setState(() => _secondsElapsed++);
         return true;

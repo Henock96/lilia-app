@@ -8,7 +8,6 @@ part 'order_controller.g.dart';
 // Utilisation d'un AsyncNotifier pour une gestion d'état asynchrone moderne.
 @riverpod
 class UserOrders extends _$UserOrders {
-  
   // La méthode build charge l'état initial.
   @override
   Future<List<Order>> build() async {

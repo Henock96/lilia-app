@@ -5,15 +5,55 @@ import 'package:lilia_app/utils/api_response.dart';
 
 enum PaymentStatus { pending, success, failed, cancelled }
 
+/// Instructions de virement renvoyées par le backend en mode MANUAL.
+///
+/// Ces valeurs font autorité : le numéro d'encaissement et le montant à envoyer
+/// viennent du serveur (`LILIA_PAYMENT_PHONE` / `LILIA_AIRTEL_PAYMENT_PHONE` et
+/// `order.total`). L'app les affichait auparavant depuis des constantes en dur —
+/// dont un numéro Airtel qui n'était qu'un placeholder — et changer le numéro
+/// d'encaissement imposait une release sur les stores.
+class PaymentInstructions {
+  final String phone;
+  final double amount;
+  final String reference;
+  final String methodLabel;
+  final String message;
+  final String? note;
+
+  const PaymentInstructions({
+    required this.phone,
+    required this.amount,
+    required this.reference,
+    required this.methodLabel,
+    required this.message,
+    this.note,
+  });
+
+  factory PaymentInstructions.fromJson(Map<String, dynamic> json) {
+    return PaymentInstructions(
+      phone: json['phone'] as String? ?? '',
+      amount: (json['amount'] as num?)?.toDouble() ?? 0,
+      reference: json['reference'] as String? ?? '',
+      methodLabel: json['methodLabel'] as String? ?? 'Mobile Money',
+      message: json['message'] as String? ?? '',
+      note: json['note'] as String?,
+    );
+  }
+}
+
 class PaymentResponse {
   final String paymentId;
   final String referenceId;
   final String message;
 
+  /// Présent uniquement en mode MANUAL (le mode de production actuel).
+  final PaymentInstructions? instructions;
+
   PaymentResponse({
     required this.paymentId,
     required this.referenceId,
     required this.message,
+    this.instructions,
   });
 
   factory PaymentResponse.fromJson(Map<String, dynamic> json) {
@@ -28,6 +68,9 @@ class PaymentResponse {
       message:
           (json['message'] ?? instructions?['message']) as String? ??
           'Paiement initié',
+      instructions: instructions != null
+          ? PaymentInstructions.fromJson(instructions)
+          : null,
     );
   }
 }
@@ -95,13 +138,16 @@ class PaymentService {
       debugPrint('💳 Amount: $amount $currency');
       debugPrint('💳 Payment phone provided.');
 
-      final res = await _api.postJson('/payments', body: {
-        'orderId': orderId,
-        'amount': amount,
-        'currency': currency,
-        'phoneNumber': phoneNumber,
-        'payerMessage': payerMessage ?? 'Paiement commande $orderId',
-      });
+      final res = await _api.postJson(
+        '/payments',
+        body: {
+          'orderId': orderId,
+          'amount': amount,
+          'currency': currency,
+          'phoneNumber': phoneNumber,
+          'payerMessage': payerMessage ?? 'Paiement commande $orderId',
+        },
+      );
 
       // Réponse enveloppée `{ data: {...} }` par l'interceptor backend.
       return PaymentResponse.fromJson(ApiResponse.mapOf(res.data));
@@ -147,10 +193,10 @@ class PaymentService {
         debugPrint(
           '⏳ Payment still pending, checking again in ${pollInterval.inSeconds}s...',
         );
-        await Future.delayed(pollInterval);
+        await Future<void>.delayed(pollInterval);
       } catch (e) {
         debugPrint('⚠️ Error during polling: $e');
-        await Future.delayed(pollInterval);
+        await Future<void>.delayed(pollInterval);
       }
     }
 

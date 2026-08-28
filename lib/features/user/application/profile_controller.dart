@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
 import 'package:lilia_app/features/user/data/cloudinary_service.dart';
@@ -18,7 +18,9 @@ UserRepository userRepository(Ref ref) {
 @riverpod
 Future<AppUser> userProfile(Ref ref) async {
   final authState = ref.watch(authStateChangeProvider);
-  if (authState.asData?.value == null) throw Exception('Utilisateur non authentifie.');
+  if (authState.asData?.value == null) {
+    throw Exception('Utilisateur non authentifie.');
+  }
   final userRepository = ref.watch(userRepositoryProvider);
   return userRepository.getUserProfile();
 }
@@ -61,13 +63,18 @@ class ProfileController extends _$ProfileController {
     final cloudinaryService = CloudinaryService();
 
     debugPrint("1. Ouverture de la galerie...");
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+    );
     if (image == null) return;
 
     state = const AsyncLoading();
     try {
       final imageUrl = await cloudinaryService.uploadImage(image);
-      if (imageUrl == null) throw Exception("Erreur lors du telechargement de l'image.");
+      if (imageUrl == null) {
+        throw Exception("Erreur lors du telechargement de l'image.");
+      }
       await updateUser({'imageUrl': imageUrl});
     } catch (e, st) {
       state = AsyncError(e, st);

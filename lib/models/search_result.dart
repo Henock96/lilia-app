@@ -9,12 +9,16 @@ class SearchResult {
 
   factory SearchResult.fromJson(Map<String, dynamic> json) {
     return SearchResult(
-      restaurants: (json['restaurants'] as List?)
-              ?.map((r) => RestaurantSummary.fromJson(r))
+      restaurants:
+          (json['restaurants'] as List?)
+              ?.map(
+                (r) => RestaurantSummary.fromJson(r as Map<String, dynamic>),
+              )
               .toList() ??
           [],
-      products: (json['products'] as List?)
-              ?.map((p) => Product.fromJson(p))
+      products:
+          (json['products'] as List?)
+              ?.map((p) => Product.fromJson(p as Map<String, dynamic>))
               .toList() ??
           [],
     );

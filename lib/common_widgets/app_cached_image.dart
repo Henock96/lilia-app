@@ -61,6 +61,13 @@ class AppCachedImage extends StatelessWidget {
   /// Widget d'erreur personnalisé (sinon icône neutre).
   final Widget? errorWidget;
 
+  /// Description lue par TalkBack / VoiceOver (ex. « Photo du plat Poulet DG »).
+  ///
+  /// Les photos de plats et de vendeurs étaient totalement muettes pour un
+  /// lecteur d'écran. Passer `null` masque l'image aux technologies
+  /// d'assistance — le bon choix pour une image purement décorative.
+  final String? semanticLabel;
+
   const AppCachedImage({
     super.key,
     required this.imageUrl,
@@ -70,27 +77,41 @@ class AppCachedImage extends StatelessWidget {
     this.errorIcon = Icons.image_not_supported_outlined,
     this.placeholder,
     this.errorWidget,
+    this.semanticLabel,
   });
 
   bool get _hasUrl => imageUrl != null && imageUrl!.trim().isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
+    final Widget child;
     if (!_hasUrl) {
-      return errorWidget ?? _DefaultError(width: width, height: height, icon: errorIcon);
+      child =
+          errorWidget ??
+          _DefaultError(width: width, height: height, icon: errorIcon);
+    } else {
+      child = CachedNetworkImage(
+        imageUrl: imageUrl!,
+        cacheManager: LiliaImageCache.instance,
+        width: width,
+        height: height,
+        fit: fit,
+        fadeInDuration: const Duration(milliseconds: 200),
+        placeholder: (_, _) =>
+            placeholder ?? AppShimmerBox(width: width, height: height),
+        errorWidget: (_, _, _) =>
+            errorWidget ??
+            _DefaultError(width: width, height: height, icon: errorIcon),
+      );
     }
 
-    return CachedNetworkImage(
-      imageUrl: imageUrl!,
-      cacheManager: LiliaImageCache.instance,
-      width: width,
-      height: height,
-      fit: fit,
-      fadeInDuration: const Duration(milliseconds: 200),
-      placeholder: (_, _) =>
-          placeholder ?? AppShimmerBox(width: width, height: height),
-      errorWidget: (_, _, _) =>
-          errorWidget ?? _DefaultError(width: width, height: height, icon: errorIcon),
+    // `image: true` annonce le rôle ; sans label on masque le nœud, qui
+    // n'apporterait rien d'autre que du bruit au lecteur d'écran.
+    return Semantics(
+      image: true,
+      label: semanticLabel,
+      excludeSemantics: semanticLabel == null,
+      child: child,
     );
   }
 }
@@ -101,11 +122,15 @@ class AppCachedAvatar extends StatelessWidget {
   final double radius;
   final Widget? fallback;
 
+  /// Description lue par les lecteurs d'écran (ex. « Photo de profil de Awa »).
+  final String? semanticLabel;
+
   const AppCachedAvatar({
     super.key,
     required this.imageUrl,
     this.radius = 24,
     this.fallback,
+    this.semanticLabel,
   });
 
   bool get _hasUrl => imageUrl != null && imageUrl!.trim().isNotEmpty;
@@ -116,25 +141,38 @@ class AppCachedAvatar extends StatelessWidget {
     final placeholder = CircleAvatar(
       radius: radius,
       backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.12),
-      child: fallback ??
+      child:
+          fallback ??
           Icon(Icons.person, size: radius, color: theme.colorScheme.primary),
     );
 
-    if (!_hasUrl) return placeholder;
+    if (!_hasUrl) {
+      return Semantics(
+        image: true,
+        label: semanticLabel,
+        excludeSemantics: semanticLabel == null,
+        child: placeholder,
+      );
+    }
 
-    return ClipOval(
-      child: CachedNetworkImage(
-        imageUrl: imageUrl!,
-        cacheManager: LiliaImageCache.instance,
-        width: radius * 2,
-        height: radius * 2,
-        fit: BoxFit.cover,
-        placeholder: (_, _) => AppShimmerBox(
+    return Semantics(
+      image: true,
+      label: semanticLabel,
+      excludeSemantics: semanticLabel == null,
+      child: ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: imageUrl!,
+          cacheManager: LiliaImageCache.instance,
           width: radius * 2,
           height: radius * 2,
-          borderRadius: BorderRadius.circular(radius),
+          fit: BoxFit.cover,
+          placeholder: (_, _) => AppShimmerBox(
+            width: radius * 2,
+            height: radius * 2,
+            borderRadius: BorderRadius.circular(radius),
+          ),
+          errorWidget: (_, _, _) => placeholder,
         ),
-        errorWidget: (_, _, _) => placeholder,
       ),
     );
   }
@@ -169,8 +207,9 @@ class _AppShimmerBoxState extends State<AppShimmerBox>
   @override
   Widget build(BuildContext context) {
     final base = Theme.of(context).colorScheme.surfaceContainerHighest;
-    final highlight =
-        Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4);
+    final highlight = Theme.of(
+      context,
+    ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4);
 
     return AnimatedBuilder(
       animation: _controller,

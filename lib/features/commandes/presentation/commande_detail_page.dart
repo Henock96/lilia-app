@@ -44,6 +44,7 @@ class OrderDetailPage extends ConsumerWidget {
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
+          tooltip: 'Retour',
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
@@ -69,11 +70,16 @@ class OrderDetailPage extends ConsumerWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Iconsax.receipt_search,
-                        size: 64, color: Colors.grey),
+                    const Icon(
+                      Iconsax.receipt_search,
+                      size: 64,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(height: 16),
-                    Text('Commande introuvable',
-                        style: theme.textTheme.titleMedium),
+                    Text(
+                      'Commande introuvable',
+                      style: theme.textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 8),
                     const Text(
                       'Cette commande n\'est plus disponible ou a été retirée de votre liste.',
@@ -171,7 +177,7 @@ class OrderDetailPage extends ConsumerWidget {
     //final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
+        MaterialPageRoute<void>(
           builder: (_) => FullscreenTrackingScreen(orderId: orderId),
         ),
       ),
@@ -680,11 +686,7 @@ class OrderDetailPage extends ConsumerWidget {
           _buildSummaryRow(context, 'Sous-total', order.subTotal),
           const SizedBox(height: 8),
           if (order.isDelivery) ...[
-            _buildSummaryRow(
-              context,
-              'Frais de livraison',
-              order.deliveryFee,
-            ),
+            _buildSummaryRow(context, 'Frais de livraison', order.deliveryFee),
             const SizedBox(height: 8),
           ],
           _buildSummaryRow(context, 'Frais de service', order.serviceFee),
@@ -756,11 +758,9 @@ class OrderDetailPage extends ConsumerWidget {
     final valueColor = isTotal
         ? cs.primary
         : isDiscount
-            ? Colors.green.shade700
-            : cs.onSurface;
-    final formatted = isDiscount
-        ? formatPrice(value)
-        : formatPrice(value);
+        ? Colors.green.shade700
+        : cs.onSurface;
+    final formatted = isDiscount ? formatPrice(value) : formatPrice(value);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -778,8 +778,8 @@ class OrderDetailPage extends ConsumerWidget {
                 color: isTotal
                     ? cs.onSurface
                     : isDiscount
-                        ? Colors.green.shade700
-                        : cs.onSurfaceVariant,
+                    ? Colors.green.shade700
+                    : cs.onSurfaceVariant,
               ),
             ),
           ],
@@ -894,7 +894,7 @@ class OrderDetailPage extends ConsumerWidget {
     String orderId,
   ) async {
     // Show loading dialog
-    showDialog(
+    showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => const Center(child: CircularProgressIndicator()),
@@ -909,9 +909,16 @@ class OrderDetailPage extends ConsumerWidget {
       Navigator.of(context, rootNavigator: true).pop(); // Close loading dialog
 
       final summary = result['summary'] as Map<String, dynamic>? ?? {};
-      final totalAdded = summary['totalAdded'] ?? result['totalAdded'] ?? 0;
-      final totalUnavailable =
-          summary['totalUnavailable'] ?? result['totalUnavailable'] ?? 0;
+      // Typés explicitement : ces valeurs viennent d'un Map<String, dynamic>
+      // et servaient directement de condition (`totalAdded > 0`).
+      final int totalAdded =
+          (summary['totalAdded'] as int?) ??
+          (result['totalAdded'] as int?) ??
+          0;
+      final int totalUnavailable =
+          (summary['totalUnavailable'] as int?) ??
+          (result['totalUnavailable'] as int?) ??
+          0;
 
       if (totalAdded > 0) {
         String message =
@@ -960,7 +967,7 @@ class OrderDetailPage extends ConsumerWidget {
     WidgetRef ref,
     String orderId,
   ) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -1295,9 +1302,7 @@ class _ReceiptButtonState extends ConsumerState<_ReceiptButton> {
       final dir = await getTemporaryDirectory();
       final file = File('${dir.path}/recu-${widget.orderId}.pdf');
       await file.writeAsBytes(bytes);
-      await SharePlus.instance.share(
-        ShareParams(files: [XFile(file.path)]),
-      );
+      await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
     } catch (e) {
       if (mounted) {
         context.showSnack(

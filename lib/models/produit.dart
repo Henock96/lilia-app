@@ -1,4 +1,3 @@
-
 import 'package:lilia_app/models/gallery_image.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/models/vendor_type.dart';
@@ -79,7 +78,8 @@ class Product {
   bool get isWithinAvailabilityWindow {
     if (availableFrom == null || availableUntil == null) return true;
     final now = DateTime.now();
-    final current = '${now.hour.toString().padLeft(2, '0')}:'
+    final current =
+        '${now.hour.toString().padLeft(2, '0')}:'
         '${now.minute.toString().padLeft(2, '0')}';
     return current.compareTo(availableFrom!) >= 0 &&
         current.compareTo(availableUntil!) <= 0;
@@ -99,15 +99,17 @@ class Product {
         .toList();
 
     return Product(
-      id: json['id'],
-      name: json['nom'],
-      description: json['description'] ?? '',
+      id: json['id'] as String,
+      name: json['nom'] as String,
+      description: (json['description'] as String?) ?? '',
       prixOriginal: (json['prixOriginal'] as num).toDouble(),
-      imageUrl: json['imageUrl'],
+      imageUrl: json['imageUrl'] as String?,
       images: GalleryImage.listFrom(json['images']),
-      restaurantId: json['restaurantId'],
+      restaurantId: json['restaurantId'] as String,
       categoryId: json['categoryId'] as String?,
-      category: json['category'] != null ? Category.fromJson(json['category']) : null,
+      category: json['category'] != null
+          ? Category.fromJson(json['category'] as Map<String, dynamic>)
+          : null,
       variants: variants,
       stockRestant: json['stockRestant'] as int?,
       orderCount: json['orderCount'] as int?,
@@ -121,7 +123,7 @@ class Product {
       stockMode: StockMode.fromString(json['stockMode'] as String?),
       ingredients: json['ingredients'] as String?,
       shelfLifeDays: json['shelfLifeDays'] as int?,
-      madeToOrder: json['madeToOrder'] ?? false,
+      madeToOrder: (json['madeToOrder'] as bool?) ?? false,
       availableFrom: json['availableFrom'] as String?,
       availableUntil: json['availableUntil'] as String?,
     );
@@ -134,18 +136,14 @@ class ProductVariant {
   final String? label;
   final double prix;
 
-  ProductVariant({
-    required this.id,
-    this.label,
-    required this.prix,
-  });
+  ProductVariant({required this.id, this.label, required this.prix});
 
   /// Label affichable — jamais null, fallback "Standard".
   String get displayLabel => label ?? 'Standard';
 
   factory ProductVariant.fromJson(Map<String, dynamic> json) {
     return ProductVariant(
-      id: json['id'],
+      id: json['id'] as String,
       label: json['label'] as String?,
       prix: (json['prix'] as num).toDouble(),
     );

@@ -53,11 +53,7 @@ class _ShimmerBoxState extends State<ShimmerBox>
             gradient: LinearGradient(
               begin: Alignment(_animation.value - 1, 0),
               end: Alignment(_animation.value, 0),
-              colors: [
-                Colors.grey[200]!,
-                Colors.grey[100]!,
-                Colors.grey[200]!,
-              ],
+              colors: [Colors.grey[200]!, Colors.grey[100]!, Colors.grey[200]!],
               stops: const [0.0, 0.5, 1.0],
             ),
           ),

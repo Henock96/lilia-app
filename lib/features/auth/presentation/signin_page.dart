@@ -187,6 +187,7 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
               labelText: 'Mot de Passe',
               prefixIcon: const Icon(Icons.lock_outline),
               suffixIcon: IconButton(
+                tooltip: 'Masquer le mot de passe',
                 icon: Icon(
                   _obscurePassword
                       ? Icons.visibility_off_outlined
@@ -264,10 +265,7 @@ class _SocialLogins extends ConsumerWidget {
           await maybePromptPhoneNumber(context, ref);
         }
       },
-      icon: Image.asset(
-        'assets/images/google_logo.png',
-        height: 24.0,
-      ),
+      icon: Image.asset('assets/images/google_logo.png', height: 24.0),
       label: Text(
         'Se connecter avec Google',
         style: TextStyle(color: cs.onSurface),
@@ -297,7 +295,11 @@ class _SignUpNavigation extends StatelessWidget {
           onPressed: () => context.goNamed(AppRoutes.signUp.routeName),
           child: Text(
             "S'inscrire",
-            style: TextStyle(color: cs.primary, fontSize: 14, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: cs.primary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],

@@ -43,7 +43,9 @@ class _CommandePageState extends ConsumerState<CommandePage>
 
     ref.listen<String?>(latestUpdatedOrderIdProvider, (previous, next) {
       if (next != null) {
-        context.showSuccessSnack('Commande #${next.substring(0, 8)} mise à jour');
+        context.showSuccessSnack(
+          'Commande #${next.substring(0, 8)} mise à jour',
+        );
         ref.read(latestUpdatedOrderIdProvider.notifier).state = null;
       }
     });
@@ -269,7 +271,9 @@ class _OrderListView extends ConsumerWidget {
                   ],
                 ),
               ),
-              child: _OrderCard(order: order).staggeredIn(index < 8 ? index : 0),
+              child: _OrderCard(
+                order: order,
+              ).staggeredIn(index < 8 ? index : 0),
             );
           }
           return _OrderCard(order: order).staggeredIn(index < 8 ? index : 0);
@@ -341,7 +345,9 @@ class _OrderCard extends ConsumerWidget {
                             imageUrl: imageUrl,
                             fit: BoxFit.cover,
                             errorWidget: _buildPlaceholderImage(),
-                            placeholder: _buildPlaceholderImage(isLoading: true),
+                            placeholder: _buildPlaceholderImage(
+                              isLoading: true,
+                            ),
                           )
                         : _buildPlaceholderImage(),
                   ),
@@ -535,7 +541,7 @@ class _OrderCard extends ConsumerWidget {
     WidgetRef ref,
     String orderId,
   ) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(

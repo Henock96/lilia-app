@@ -17,7 +17,7 @@ extension SnackBarX on BuildContext {
   void showSnack(
     String message, {
     SnackType type = SnackType.info,
-    Duration duration = const Duration(seconds: 3),
+    Duration duration = const Duration(seconds: 2),
     SnackBarAction? action,
   }) {
     final (Color bg, IconData icon) = switch (type) {
@@ -60,14 +60,14 @@ extension SnackBarX on BuildContext {
   }
 
   void showSuccessSnack(String message, {Duration? duration}) => showSnack(
-        message,
-        type: SnackType.success,
-        duration: duration ?? const Duration(seconds: 3),
-      );
+    message,
+    type: SnackType.success,
+    duration: duration ?? const Duration(seconds: 2),
+  );
 
   void showErrorSnack(String message, {Duration? duration}) => showSnack(
-        message,
-        type: SnackType.error,
-        duration: duration ?? const Duration(seconds: 4),
-      );
+    message,
+    type: SnackType.error,
+    duration: duration ?? const Duration(seconds: 3),
+  );
 }

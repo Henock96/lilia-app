@@ -20,15 +20,17 @@ class PromoRepository extends _$PromoRepository {
     required double subTotal,
     required double deliveryFee,
   }) async {
-    final res = await ref.read(apiClientProvider).postJson(
-      '/promo/validate',
-      body: {
-        'code': code.trim().toUpperCase(),
-        'restaurantId': restaurantId,
-        'subTotal': subTotal,
-        'deliveryFee': deliveryFee,
-      },
-    );
+    final res = await ref
+        .read(apiClientProvider)
+        .postJson(
+          '/promo/validate',
+          body: {
+            'code': code.trim().toUpperCase(),
+            'restaurantId': restaurantId,
+            'subTotal': subTotal,
+            'deliveryFee': deliveryFee,
+          },
+        );
     // Objet plat côté backend → enveloppé `{ data: {...} }` par l'interceptor.
     return PromoValidationResult.fromJson(ApiResponse.mapOf(res.data));
   }

@@ -62,7 +62,9 @@ class _LiliaInputState extends State<LiliaInput> {
           Text(
             widget.label!,
             style: GoogleFonts.inter(
-              fontSize: 12, fontWeight: FontWeight.w600, color: t.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: t.textSecondary,
             ),
           ),
           const SizedBox(height: 6),
@@ -78,12 +80,18 @@ class _LiliaInputState extends State<LiliaInput> {
                 color: hasError
                     ? t.danger
                     : _focused
-                        ? t.borderFocus
-                        : t.border,
+                    ? t.borderFocus
+                    : t.border,
                 width: 1.5,
               ),
               boxShadow: _focused && !hasError
-                  ? [BoxShadow(color: t.borderFocus.withValues(alpha: 0.12), blurRadius: 0, spreadRadius: 3)]
+                  ? [
+                      BoxShadow(
+                        color: t.borderFocus.withValues(alpha: 0.12),
+                        blurRadius: 0,
+                        spreadRadius: 3,
+                      ),
+                    ]
                   : null,
             ),
             child: Row(
@@ -113,11 +121,16 @@ class _LiliaInputState extends State<LiliaInput> {
                     autofocus: widget.autofocus,
                     maxLines: widget.maxLines,
                     style: GoogleFonts.inter(
-                      fontSize: 15, color: t.textPrimary, fontWeight: FontWeight.w400,
+                      fontSize: 15,
+                      color: t.textPrimary,
+                      fontWeight: FontWeight.w400,
                     ),
                     decoration: InputDecoration(
                       hintText: widget.hint,
-                      hintStyle: GoogleFonts.inter(fontSize: 15, color: t.textMuted),
+                      hintStyle: GoogleFonts.inter(
+                        fontSize: 15,
+                        color: t.textMuted,
+                      ),
                       border: InputBorder.none,
                       enabledBorder: InputBorder.none,
                       focusedBorder: InputBorder.none,
@@ -150,7 +163,11 @@ class _LiliaInputState extends State<LiliaInput> {
           const SizedBox(height: 4),
           Text(
             widget.errorText!,
-            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500, color: t.danger),
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: t.danger,
+            ),
           ),
         ],
       ],

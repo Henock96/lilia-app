@@ -9,9 +9,4 @@ class AuthLoadingState {
   bool get hasError => state == LoadingStateEnum.erreur;
 }
 
-enum LoadingStateEnum {
-  initial,
-  chargement,
-  succes,
-  erreur,
-}
+enum LoadingStateEnum { initial, chargement, succes, erreur }

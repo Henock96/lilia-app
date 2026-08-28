@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
@@ -28,6 +29,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Cache mémoire images plafonné à 100 MB (LIL-37).
   LiliaImageCache.configureMemoryCache();
+  // Les polices (Inter, Oswald, Fraunces, Girassol, Lora) sont embarquées dans
+  // le bundle : plus aucun appel à fonts.gstatic.com au premier lancement.
+  // Sans ce flag, `google_fonts` retenterait quand même le réseau — latence au
+  // démarrage sur la 4G de Brazzaville, et dépendance à un tiers.
+  GoogleFonts.config.allowRuntimeFetching = false;
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   await initializeDateFormatting('fr_FR', null);

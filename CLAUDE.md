@@ -196,11 +196,21 @@ seront wrappées. Utiliser `ApiResponse.listOf` / `mapOf` au lieu de
 ## Order Flow — Côté client
 
 1. Browsing restaurants → produit → add to cart
-2. Checkout (`checkout_page.dart`) :
+2. Checkout (`checkout_page.dart`) — `_startPaymentFlow`, **dans cet ordre** :
    - Validation adresse / téléphone / mode (livraison/retrait)
    - Application code promo via `POST /promo/validate`
-   - Toggle points fidélité (visible si ≥ 100 pts, 1 pt = 5 FCFA, tous consommés d'un coup)
-   - `POST /orders/checkout` avec idempotency-key
+   - Toggle points fidélité (visible si ≥ `loyaltyMinRedemption`)
+   - `POST /orders/checkout` avec idempotency-key → la commande existe
+   - `POST /payments` (2 tentatives ; l'appel est sûr à rejouer, le backend
+     réutilise le `Payment` PENDING existant)
+   - **puis seulement** la modale d'instructions, alimentée par
+     `instructions.phone` / `.amount` / `.reference` du serveur
+
+   ⚠️ L'ordre inverse (modale d'abord) affichait un numéro Airtel placeholder et
+   un montant recalculé localement, et un échec de `POST /payments` était avalé
+   dans un `debugPrint` : le client payait un virement que l'admin ne pouvait
+   rattacher à rien. En cas d'échec définitif, `_showPaymentRecoveryDialog`
+   propose de réessayer et l'erreur part dans Sentry.
 3. **Order status** affiché en temps réel via FCM push :
    - `EN_ATTENTE → PAYER → EN_PREPARATION → PRET → EN_ROUTE → LIVRER`
    - + `ANNULER` à tout moment EN_ATTENTE/PAYER
@@ -319,13 +329,28 @@ credentials isole le problème sur APNs, pas sur Firebase.
 
 ## Pricing & Calculs
 
-```dart
-serviceFee = (subTotal * 0.08).roundToDouble();      // 8%
-total = subTotal + deliveryFee + serviceFee - discountAmount;
-// discountAmount = promo + (loyaltyPoints * 5 FCFA si useLoyaltyPoints)
-```
+⚠️ **Le client ne fait plus autorité sur les montants** (août 2026). Il calcule
+une **estimation** avant commande ; le montant dû est celui de la commande créée
+par le serveur (`order.total`), repris tel quel dans la modale de paiement.
 
-Affichage côté checkout : ligne sous-total, frais livraison (avec "Gratuit" barré si FREE_DELIVERY), frais service 8%, réduction promo (verte), réduction points fidélité, total.
+- `lib/features/commandes/domain/checkout_estimate.dart` — `CheckoutEstimate
+  .compute()`, logique pure et testée (13 tests), qui reproduit
+  `OrderCheckoutService` étape par étape.
+- `lib/features/settings/data/platform_settings_service.dart` —
+  `platformSettingsProvider` lit `GET /platform-settings` (public) :
+  `serviceFeePercent`, `loyaltyPointValueXaf`, `loyaltyMinRedemption`. Fallback
+  local aligné sur les défauts Prisma si le réseau est indisponible.
+
+Trois divergences avec le serveur ont été corrigées à cette occasion :
+1. taux de commission codé en dur à 8 % alors que l'admin peut le changer ;
+2. arrondi de la fidélité — le serveur convertit en points entiers
+   (`floor(dû / 5)`), le client plafonnait à la valeur brute : sur 703 FCFA dus,
+   il affichait 0 à payer quand le serveur en facturait 3 ;
+3. frais de livraison de repli à 500 FCFA côté client contre 1000 côté serveur
+   (`kDefaultDeliveryFee` dans `models/restaurant.dart`), désormais aligné et
+   signalé à l'écran par « Estimation — montant confirmé à la commande ».
+
+Affichage côté checkout : ligne sous-total, frais livraison (avec "Gratuit" barré si FREE_DELIVERY), frais de service (taux servi par le backend), réduction promo (verte), réduction points fidélité, total.
 
 ✅ **commande_detail_page** affiche maintenant subTotal, deliveryFee (si `isDelivery`), serviceFee, discountAmount (verte avec icône `local_offer`, si > 0), total — aligné checkout (mai 2026).
 
@@ -550,3 +575,51 @@ firebase_auth-*/example/`), ce qui remontait 122 erreurs étrangères au projet.
 
 1. Les onglets `Favoris` et `commandes_page` rafraîchissent leurs providers manuellement après notification FCM — pas un bug, mais à surveiller (potentiellement double-load).
 2. **Event `order:status`** reçu via WS mais juste loggué (debug). Pourrait invalider `userOrdersProvider` directement (actuellement géré via FCM).
+
+---
+
+## Remédiation audit (27 août 2026 — `AUDIT_2026-08-27_client_backend.md`)
+
+`flutter analyze` **0 issue** (modes stricts activés), **75 tests** verts
+(40 avant), build APK ✅.
+
+1. **Flux de paiement** (S2/S3/S4) — cf. Order Flow et Pricing ci-dessus. Les
+   constantes `mtnMomoPaymentNumber`, `airtelMoneyPaymentNumber` et
+   `serviceFeeRate` ont quitté `AppConstants` : elles viennent du serveur.
+2. **Accessibilité** (A1) — l'app comptait **0** `Semantics`, **0**
+   `semanticLabel` et 2 tooltips pour 31 `IconButton` :
+   - 25 `tooltip:` ajoutés (Flutter en dérive le label sémantique) ;
+   - `AppCachedImage` / `AppCachedAvatar` acceptent un `semanticLabel` ; sans
+     lui l'image est **masquée** aux lecteurs d'écran (décorative) ;
+   - cartes vendeur et produit enveloppées de `Semantics(button:, label:)` —
+     l'état « fermé » / « épuisé » n'était porté que par `Opacity` et une
+     couleur, donc muet pour TalkBack / VoiceOver ;
+   - `test/a11y/accessibility_guidelines_test.dart` exécute les 4 guidelines de
+     `flutter_test` (tap targets Android + iOS, contraste, cibles étiquetées).
+3. **Contrastes WCAG AA** (A2) — 4 combinaisons étaient sous le seuil, dont le
+   fond de **tous** les boutons d'action (3.67:1 en clair, 2.84:1 en sombre) :
+   - `actionPrimary` clair : `orange500` → `orange600` (blanc : 4.94:1) ;
+   - nouveau token **`textOnAction`** — en sombre l'action est un orange clair
+     sur lequel le blanc est illisible ; on y pose un texte foncé (6.20:1).
+     Ne jamais remettre `Colors.white` en dur sur un bouton ;
+   - `textMuted` : `charcoal450` (#6E665F) en clair, `charcoal300` en sombre ;
+   - `onTertiary`, `onPrimary` et l'action du snackbar corrigés aussi.
+   - `test/theme/contrast_test.dart` calcule les ratios et casse la CI à la
+     moindre régression de palette.
+4. **Lint** (Q2) — `riverpod_lint` était déclaré depuis des mois **sans jamais
+   s'exécuter**. Il utilise désormais le bloc `plugins:` d'`analysis_options.yaml`
+   (il ne passe plus par `custom_lint` depuis la 3.1). Modes stricts activés
+   (`strict-casts`, `strict-inference`, `strict-raw-types`) : **195 problèmes**
+   remontés, tous corrigés — l'essentiel étant du `json['x']` dynamique passé
+   sans cast aux constructeurs de modèles.
+5. **Tests** (Q3) — la logique monétaire n'était pas couverte :
+   `checkout_estimate_test.dart` (13), `payment_instructions_test.dart` (7),
+   `contrast_test.dart` (9), `accessibility_guidelines_test.dart` (6).
+6. **Polices embarquées** — Inter, Oswald, Fraunces et Girassol sont bundlées
+   dans `assets/fonts/` (licences OFL conservées) et
+   `GoogleFonts.config.allowRuntimeFetching = false` dans `main()`. Elles
+   étaient téléchargées depuis `fonts.gstatic.com` au premier lancement :
+   latence au démarrage sur la 4G de Brazzaville, polices de repli hors ligne,
+   et dépendance réseau à un tiers.
+7. **Code mort** — `widgets/section/fallback_slider.dart` (widget vide jamais
+   utilisé) supprimé.

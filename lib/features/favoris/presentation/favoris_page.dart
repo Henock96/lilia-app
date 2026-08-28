@@ -78,8 +78,9 @@ class _ProductFavoritesTab extends ConsumerWidget {
           padding: const EdgeInsets.all(12),
           itemCount: products.length,
           itemBuilder: (context, index) {
-            return ProductCardFavoris(product: products[index])
-                .staggeredIn(index < 6 ? index : 0);
+            return ProductCardFavoris(
+              product: products[index],
+            ).staggeredIn(index < 6 ? index : 0);
           },
         );
       },
@@ -199,6 +200,7 @@ class ProductCardFavoris extends ConsumerWidget {
                 ),
               ),
               IconButton(
+                tooltip: 'Retirer des favoris',
                 icon: Icon(
                   isFavorite ? Icons.favorite : Icons.favorite_border,
                   color: isFavorite ? Colors.red : cs.outline,
@@ -265,8 +267,9 @@ class _RestaurantFavoritesTab extends ConsumerWidget {
           padding: const EdgeInsets.all(12),
           itemCount: restaurants.length,
           itemBuilder: (context, index) {
-            return _RestaurantFavoriteCard(restaurant: restaurants[index])
-                .staggeredIn(index < 6 ? index : 0);
+            return _RestaurantFavoriteCard(
+              restaurant: restaurants[index],
+            ).staggeredIn(index < 6 ? index : 0);
           },
         );
       },
@@ -361,7 +364,9 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                         ref
                             .read(restaurantFavoritesProvider.notifier)
                             .remove(restaurant);
-                        context.showSnack('${restaurant.name} retire des favoris');
+                        context.showSnack(
+                          '${restaurant.name} retire des favoris',
+                        );
                       },
                       child: Container(
                         padding: const EdgeInsets.all(6),

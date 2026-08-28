@@ -3,8 +3,13 @@ import 'package:lilia_app/models/menu.dart';
 import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/models/vendor_type.dart';
 
-/// Enum des jours de la semaine
+/// Enum des jours de la semaine.
+///
+/// Les valeurs sont en majuscules parce qu'elles sont sérialisées telles quelles
+/// vers l'enum Prisma `DayOfWeek` du backend (`e.name == value` plus bas) :
+/// les renommer casserait le parsing des horaires d'ouverture.
 enum DayOfWeek {
+  // ignore_for_file: constant_identifier_names
   LUNDI,
   MARDI,
   MERCREDI,
@@ -93,12 +98,14 @@ class OperatingHours {
 
   factory OperatingHours.fromJson(Map<String, dynamic> json) {
     return OperatingHours(
-      id: json['id'] ?? '',
-      restaurantId: json['restaurantId'] ?? '',
-      dayOfWeek: DayOfWeek.fromString(json['dayOfWeek'] ?? 'LUNDI'),
-      openTime: json['openTime'] ?? '08:00',
-      closeTime: json['closeTime'] ?? '22:00',
-      isClosed: json['isClosed'] ?? false,
+      id: (json['id'] as String?) ?? '',
+      restaurantId: (json['restaurantId'] as String?) ?? '',
+      dayOfWeek: DayOfWeek.fromString(
+        (json['dayOfWeek'] as String?) ?? 'LUNDI',
+      ),
+      openTime: (json['openTime'] as String?) ?? '08:00',
+      closeTime: (json['closeTime'] as String?) ?? '22:00',
+      isClosed: (json['isClosed'] as bool?) ?? false,
     );
   }
 }
@@ -111,7 +118,7 @@ class Specialty {
   Specialty({required this.id, required this.name});
 
   factory Specialty.fromJson(Map<String, dynamic> json) {
-    return Specialty(id: json['id'], name: json['name']);
+    return Specialty(id: json['id'] as String, name: json['name'] as String);
   }
 }
 
@@ -140,13 +147,11 @@ class VendorProfile {
   factory VendorProfile.fromJson(Map<String, dynamic> json) {
     return VendorProfile(
       story: json['story'] as String?,
-      certifications: (json['certifications'] as List?)
-              ?.map((e) => e as String)
-              .toList() ??
+      certifications:
+          (json['certifications'] as List?)?.map((e) => e as String).toList() ??
           const [],
-      specialties: (json['specialties'] as List?)
-              ?.map((e) => e as String)
-              .toList() ??
+      specialties:
+          (json['specialties'] as List?)?.map((e) => e as String).toList() ??
           const [],
       productionNote: json['productionNote'] as String?,
     );
@@ -154,6 +159,14 @@ class VendorProfile {
 }
 
 /// Modèle simplifié pour la liste des restaurants (sans les produits)
+/// Frais de livraison de repli, aligné sur le défaut Prisma
+/// (`Restaurant.fixedDeliveryFee @default(1000)`).
+///
+/// Le client utilisait 500 FCFA en dur : quand le calcul de zone échouait, il
+/// affichait 500 FCFA de moins que ce que le serveur allait facturer, sans le
+/// moindre signal.
+const double kDefaultDeliveryFee = 1000;
+
 class RestaurantSummary {
   final String id;
   final String name;
@@ -194,7 +207,7 @@ class RestaurantSummary {
     this.estimatedDeliveryTimeMin = 15,
     this.estimatedDeliveryTimeMax = 30,
     this.minimumOrderAmount = 0,
-    this.fixedDeliveryFee = 500,
+    this.fixedDeliveryFee = kDefaultDeliveryFee,
     this.vendorType = VendorType.RESTAURANT,
     this.acceptsPreorders = false,
     this.preorderLeadHours,
@@ -220,30 +233,33 @@ class RestaurantSummary {
     List<Specialty> specialties = [];
     if (json['specialties'] != null) {
       specialties = (json['specialties'] as List)
-          .map((s) => Specialty.fromJson(s))
+          .map((s) => Specialty.fromJson(s as Map<String, dynamic>))
           .toList();
     }
 
     return RestaurantSummary(
-      id: json['id'],
-      name: json['nom'],
-      address: json['adresse'],
-      phoneNumber: json['phone'],
-      imageUrl: json['imageUrl'],
+      id: json['id'] as String,
+      name: json['nom'] as String,
+      address: json['adresse'] as String,
+      phoneNumber: json['phone'] as String?,
+      imageUrl: json['imageUrl'] as String?,
       photos: GalleryImage.listFrom(json['photos']),
-      description: json['description'],
+      description: json['description'] as String?,
       averageRating: json['averageRating'] != null
           ? (json['averageRating'] as num).toDouble()
           : null,
       totalReviews: json['totalReviews'] as int?,
-      isOpen: json['isOpen'] ?? true,
+      isOpen: (json['isOpen'] as bool?) ?? true,
       specialties: specialties,
-      estimatedDeliveryTimeMin: json['estimatedDeliveryTimeMin'] ?? 15,
-      estimatedDeliveryTimeMax: json['estimatedDeliveryTimeMax'] ?? 30,
+      estimatedDeliveryTimeMin:
+          (json['estimatedDeliveryTimeMin'] as int?) ?? 15,
+      estimatedDeliveryTimeMax:
+          (json['estimatedDeliveryTimeMax'] as int?) ?? 30,
       minimumOrderAmount: (json['minimumOrderAmount'] as num?)?.toDouble() ?? 0,
-      fixedDeliveryFee: (json['fixedDeliveryFee'] as num?)?.toDouble() ?? 500,
+      fixedDeliveryFee:
+          (json['fixedDeliveryFee'] as num?)?.toDouble() ?? kDefaultDeliveryFee,
       vendorType: VendorType.fromString(json['vendorType'] as String?),
-      acceptsPreorders: json['acceptsPreorders'] ?? false,
+      acceptsPreorders: (json['acceptsPreorders'] as bool?) ?? false,
       preorderLeadHours: json['preorderLeadHours'] as int?,
     );
   }
@@ -296,7 +312,7 @@ class Restaurant {
     this.estimatedDeliveryTimeMin = 15,
     this.estimatedDeliveryTimeMax = 30,
     this.minimumOrderAmount = 0,
-    this.fixedDeliveryFee = 500,
+    this.fixedDeliveryFee = kDefaultDeliveryFee,
     this.averageRating,
     this.totalReviews,
     this.vendorType = VendorType.RESTAURANT,
@@ -325,7 +341,7 @@ class Restaurant {
   factory Restaurant.fromJson(Map<String, dynamic> json) {
     var productsList = (json['products'] as List?) ?? [];
     List<Product> products = productsList
-        .map((i) => Product.fromJson(i))
+        .map((i) => Product.fromJson(i as Map<String, dynamic>))
         .toList();
 
     // Construire une map de catégories à partir des produits
@@ -341,7 +357,7 @@ class Restaurant {
     List<Specialty> specialties = [];
     if (json['specialties'] != null) {
       specialties = (json['specialties'] as List)
-          .map((s) => Specialty.fromJson(s))
+          .map((s) => Specialty.fromJson(s as Map<String, dynamic>))
           .toList();
     }
 
@@ -349,7 +365,7 @@ class Restaurant {
     List<OperatingHours> operatingHours = [];
     if (json['operatingHours'] != null) {
       operatingHours = (json['operatingHours'] as List)
-          .map((h) => OperatingHours.fromJson(h))
+          .map((h) => OperatingHours.fromJson(h as Map<String, dynamic>))
           .toList();
     }
 
@@ -362,30 +378,35 @@ class Restaurant {
     }
 
     return Restaurant(
-      id: json['id'],
-      name: json['nom'],
-      address: json['adresse'],
-      phoneNumber: json['phone'],
-      imageUrl: json['imageUrl'],
+      id: json['id'] as String,
+      name: json['nom'] as String,
+      address: json['adresse'] as String,
+      phoneNumber: json['phone'] as String?,
+      imageUrl: json['imageUrl'] as String?,
       photos: GalleryImage.listFrom(json['photos']),
       products: products,
       categoriesMap: categoriesMap,
-      isOpen: json['isOpen'] ?? true,
+      isOpen: (json['isOpen'] as bool?) ?? true,
       specialties: specialties,
       operatingHours: operatingHours,
-      estimatedDeliveryTimeMin: json['estimatedDeliveryTimeMin'] ?? 15,
-      estimatedDeliveryTimeMax: json['estimatedDeliveryTimeMax'] ?? 30,
+      estimatedDeliveryTimeMin:
+          (json['estimatedDeliveryTimeMin'] as int?) ?? 15,
+      estimatedDeliveryTimeMax:
+          (json['estimatedDeliveryTimeMax'] as int?) ?? 30,
       minimumOrderAmount: (json['minimumOrderAmount'] as num?)?.toDouble() ?? 0,
-      fixedDeliveryFee: (json['fixedDeliveryFee'] as num?)?.toDouble() ?? 500,
+      fixedDeliveryFee:
+          (json['fixedDeliveryFee'] as num?)?.toDouble() ?? kDefaultDeliveryFee,
       averageRating: json['averageRating'] != null
           ? (json['averageRating'] as num).toDouble()
           : null,
       totalReviews: json['totalReviews'] as int?,
       vendorType: VendorType.fromString(json['vendorType'] as String?),
-      acceptsPreorders: json['acceptsPreorders'] ?? false,
+      acceptsPreorders: (json['acceptsPreorders'] as bool?) ?? false,
       preorderLeadHours: json['preorderLeadHours'] as int?,
       vendorProfile: json['vendorProfile'] != null
-          ? VendorProfile.fromJson(json['vendorProfile'] as Map<String, dynamic>)
+          ? VendorProfile.fromJson(
+              json['vendorProfile'] as Map<String, dynamic>,
+            )
           : null,
       menus: menus,
     );
@@ -400,8 +421,8 @@ class Category {
 
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
-      id: json['id'],
-      name: json['nom'], // Correspond à 'nom' de votre JSON
+      id: json['id'] as String,
+      name: json['nom'] as String, // Correspond à 'nom' de votre JSON
     );
   }
 }

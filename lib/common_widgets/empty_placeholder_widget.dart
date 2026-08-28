@@ -28,7 +28,7 @@ class EmptyPlaceholderWidget extends StatelessWidget {
             PrimaryButton(
               onPressed: () => context.goNamed(AppRoutes.home.routeName),
               text: "Aller à la page d'accueil",
-            )
+            ),
           ],
         ),
       ),

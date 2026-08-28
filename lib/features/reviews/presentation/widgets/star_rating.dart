@@ -31,8 +31,8 @@ class StarRating extends StatelessWidget {
             fillAmount >= 1
                 ? Icons.star
                 : fillAmount > 0
-                    ? Icons.star_half
-                    : Icons.star_border,
+                ? Icons.star_half
+                : Icons.star_border,
             size: size,
             color: starColor,
           );
@@ -123,11 +123,7 @@ class RatingBadge extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(
-          Icons.star,
-          size: iconSize,
-          color: Colors.amber,
-        ),
+        Icon(Icons.star, size: iconSize, color: Colors.amber),
         const SizedBox(width: 2),
         Text(
           rating.toStringAsFixed(1),
@@ -139,10 +135,7 @@ class RatingBadge extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           '($reviewCount)',
-          style: TextStyle(
-            fontSize: iconSize * 0.75,
-            color: Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: iconSize * 0.75, color: Colors.grey[600]),
         ),
       ],
     );

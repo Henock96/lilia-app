@@ -20,15 +20,14 @@ class ConnectivityBanner extends ConsumerWidget {
               Container(
                 width: double.infinity,
                 color: Colors.red.shade700,
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 8,
+                  horizontal: 16,
+                ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(
-                      Icons.wifi_off,
-                      color: Colors.white,
-                      size: 18,
-                    ),
+                    const Icon(Icons.wifi_off, color: Colors.white, size: 18),
                     const SizedBox(width: 8),
                     const Text(
                       'Pas de connexion internet',
@@ -58,7 +57,8 @@ class ConnectivityWrapper extends ConsumerStatefulWidget {
   const ConnectivityWrapper({super.key, required this.child});
 
   @override
-  ConsumerState<ConnectivityWrapper> createState() => _ConnectivityWrapperState();
+  ConsumerState<ConnectivityWrapper> createState() =>
+      _ConnectivityWrapperState();
 }
 
 class _ConnectivityWrapperState extends ConsumerState<ConnectivityWrapper> {
@@ -70,7 +70,8 @@ class _ConnectivityWrapperState extends ConsumerState<ConnectivityWrapper> {
 
     connectivityStatus.whenData((isConnected) {
       // Afficher un message seulement si l'état change
-      if (_previousConnectionStatus != null && _previousConnectionStatus != isConnected) {
+      if (_previousConnectionStatus != null &&
+          _previousConnectionStatus != isConnected) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
 
@@ -94,7 +95,9 @@ class _ConnectivityWrapperState extends ConsumerState<ConnectivityWrapper> {
                   ),
                 ],
               ),
-              backgroundColor: isConnected ? Colors.green.shade700 : Colors.red.shade700,
+              backgroundColor: isConnected
+                  ? Colors.green.shade700
+                  : Colors.red.shade700,
               duration: Duration(seconds: isConnected ? 2 : 5),
               behavior: SnackBarBehavior.floating,
             ),

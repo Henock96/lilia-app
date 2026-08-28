@@ -60,7 +60,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       appBar: AppBar(
         elevation: 0,
         centerTitle: true,
-        title: const Text('Lilia Food', style: TextStyle(fontWeight: FontWeight.bold),),
+        title: const Text(
+          'Lilia Food',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         actions: [
           _buildNotificationButton(notificationHistory),
           const SizedBox(width: 8),
@@ -158,9 +161,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         isLabelVisible: notifications.isNotEmpty,
         backgroundColor: Colors.red,
         child: IconButton(
+          tooltip: 'Notifications',
           onPressed: () {
             Navigator.of(context).push(
-              MaterialPageRoute(
+              MaterialPageRoute<void>(
                 builder: (context) => const NotificationsHistoryScreen(),
               ),
             );
@@ -169,10 +173,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ),
       ),
       loading: () => const IconButton(
+        tooltip: 'Notifications',
         onPressed: null,
         icon: Icon(Icons.notifications_outlined),
       ),
       error: (_, _) => const IconButton(
+        tooltip: 'Notifications',
         onPressed: null,
         icon: Icon(Icons.notifications_outlined, color: Colors.red),
       ),
@@ -188,8 +194,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             imageBuilder: (index) => AppCachedImage(
               imageUrl: apiBanners[index].imageUrl,
               fit: BoxFit.cover,
-              errorWidget:
-                  Image.asset('assets/images/banner.png', fit: BoxFit.cover),
+              errorWidget: Image.asset(
+                'assets/images/banner.png',
+                fit: BoxFit.cover,
+              ),
             ),
             titleBuilder: (index) => apiBanners[index].title,
             hasTitle: (index) =>

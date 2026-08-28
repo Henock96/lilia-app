@@ -24,7 +24,8 @@ class PhoneCollectionSheet extends ConsumerStatefulWidget {
   const PhoneCollectionSheet({super.key});
 
   @override
-  ConsumerState<PhoneCollectionSheet> createState() => _PhoneCollectionSheetState();
+  ConsumerState<PhoneCollectionSheet> createState() =>
+      _PhoneCollectionSheetState();
 }
 
 class _PhoneCollectionSheetState extends ConsumerState<PhoneCollectionSheet> {
@@ -41,9 +42,9 @@ class _PhoneCollectionSheetState extends ConsumerState<PhoneCollectionSheet> {
     final phone = _controller.text.trim();
     if (phone.isEmpty) return;
     setState(() => _saving = true);
-    final ok = await ref
-        .read(profileControllerProvider.notifier)
-        .updateUser({'phone': phone});
+    final ok = await ref.read(profileControllerProvider.notifier).updateUser({
+      'phone': phone,
+    });
     if (!mounted) return;
     setState(() => _saving = false);
     if (ok) Navigator.of(context).pop();
@@ -58,8 +59,10 @@ class _PhoneCollectionSheetState extends ConsumerState<PhoneCollectionSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('Ajoute ton numero',
-              style: Theme.of(context).textTheme.titleLarge),
+          Text(
+            'Ajoute ton numero',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
           const SizedBox(height: 8),
           const Text(
             'Pour le suivi de tes commandes et nos messages importants.',
@@ -80,7 +83,10 @@ class _PhoneCollectionSheetState extends ConsumerState<PhoneCollectionSheet> {
             onPressed: _saving ? null : _save,
             child: _saving
                 ? const SizedBox(
-                    height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Text('Enregistrer'),
           ),
           TextButton(

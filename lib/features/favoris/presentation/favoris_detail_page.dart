@@ -48,6 +48,7 @@ class _FavorisDetailPageState extends ConsumerState<FavorisDetailPage> {
         title: Text(widget.product.name),
         actions: [
           IconButton(
+            tooltip: 'Retirer des favoris',
             icon: Icon(
               isFavorite ? Icons.favorite : Icons.favorite_border,
               color: isFavorite ? Colors.red : Colors.black,
@@ -172,7 +173,9 @@ class _FavorisDetailPageState extends ConsumerState<FavorisDetailPage> {
                   ref
                       .read(cartControllerProvider.notifier)
                       .addItem(variantId: variantId, quantity: _quantity);
-                  context.showSnack('${widget.product.name} a été ajouté au panier.');
+                  context.showSnack(
+                    '${widget.product.name} a été ajouté au panier.',
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).primaryColor,

@@ -20,7 +20,9 @@ class AdresseRepository extends _$AdresseRepository {
     final res = await _api.getJson('/adresses');
     // /adresses double-enveloppé (`{ data: { data: [...], count } }`).
     final addressesJson = ApiResponse.listOf(ApiResponse.mapOf(res.data));
-    return addressesJson.map((json) => Adresse.fromJson(json)).toList();
+    return addressesJson
+        .map((json) => Adresse.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 
   Future<Adresse> createAdresse({

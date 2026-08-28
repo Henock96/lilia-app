@@ -3,24 +3,23 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/lilia_tokens.dart';
 
 class OrderStatusStepper extends StatelessWidget {
-  const OrderStatusStepper({
-    super.key,
-    required this.status,
-  });
+  const OrderStatusStepper({super.key, required this.status});
 
   final String status;
 
   static const _steps = [
     ('CONFIRMED', 'Confirmée'),
     ('PREPARING', 'Préparation'),
-    ('READY',     'Prête'),
-    ('EN_ROUTE',  'En route'),
+    ('READY', 'Prête'),
+    ('EN_ROUTE', 'En route'),
     ('DELIVERED', 'Livrée'),
   ];
 
   @override
   Widget build(BuildContext context) {
-    if (status == 'CANCELLED' || status == 'PENDING_PAYMENT') return const SizedBox.shrink();
+    if (status == 'CANCELLED' || status == 'PENDING_PAYMENT') {
+      return const SizedBox.shrink();
+    }
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final t = isDark ? LiliaSemantics.dark : LiliaSemantics.light;
@@ -45,12 +44,13 @@ class OrderStatusStepper extends StatelessWidget {
             }
             // Dot
             final dotIndex = i ~/ 2;
-            final done    = dotIndex <= currentStep;
+            final done = dotIndex <= currentStep;
             final current = dotIndex == currentStep;
 
             return AnimatedContainer(
               duration: const Duration(milliseconds: 300),
-              width: 26, height: 26,
+              width: 26,
+              height: 26,
               decoration: BoxDecoration(
                 color: done ? t.actionPrimary : t.bgMuted,
                 shape: BoxShape.circle,
@@ -59,7 +59,13 @@ class OrderStatusStepper extends StatelessWidget {
                   width: 1.5,
                 ),
                 boxShadow: current
-                    ? [BoxShadow(color: t.actionPrimary.withValues(alpha: 0.25), blurRadius: 0, spreadRadius: 4)]
+                    ? [
+                        BoxShadow(
+                          color: t.actionPrimary.withValues(alpha: 0.25),
+                          blurRadius: 0,
+                          spreadRadius: 4,
+                        ),
+                      ]
                     : null,
               ),
               child: Center(
@@ -68,7 +74,8 @@ class OrderStatusStepper extends StatelessWidget {
                     : Text(
                         '${dotIndex + 1}',
                         style: GoogleFonts.inter(
-                          fontSize: 10, fontWeight: FontWeight.w700,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
                           color: done ? Colors.white : t.textMuted,
                         ),
                       ),
@@ -87,7 +94,8 @@ class OrderStatusStepper extends StatelessWidget {
             return Text(
               _steps[i].$2,
               style: GoogleFonts.inter(
-                fontSize: 9, fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 9,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                 color: active ? t.actionPrimary : t.textMuted,
               ),
             );

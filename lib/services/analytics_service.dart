@@ -31,10 +31,7 @@ class AnalyticsService {
         if (itemCount != null) 'item_count': itemCount,
       },
     );
-    await _analytics.logPurchase(
-      currency: 'XAF',
-      value: total,
-    );
+    await _analytics.logPurchase(currency: 'XAF', value: total);
   }
 
   static Future<void> logOrderFailed({
@@ -103,10 +100,7 @@ class AnalyticsService {
   }) async {
     await _analytics.logRemoveFromCart(
       currency: 'XAF',
-      parameters: {
-        'product_id': productId,
-        'product_name': productName,
-      },
+      parameters: {'product_id': productId, 'product_name': productName},
     );
   }
 
@@ -117,9 +111,7 @@ class AnalyticsService {
     await _analytics.logBeginCheckout(
       currency: 'XAF',
       value: total,
-      parameters: {
-        'is_delivery': isDelivery.toString(),
-      },
+      parameters: {'is_delivery': isDelivery.toString()},
     );
   }
 
@@ -133,10 +125,7 @@ class AnalyticsService {
     await _analytics.logViewItem(
       currency: 'XAF',
       value: price,
-      parameters: {
-        'product_id': productId,
-        'product_name': productName,
-      },
+      parameters: {'product_id': productId, 'product_name': productName},
     );
   }
 
@@ -150,10 +139,7 @@ class AnalyticsService {
     await _analytics.logLogin(loginMethod: method);
   }
 
-  static Future<void> setUserProperties({
-    String? userId,
-    String? city,
-  }) async {
+  static Future<void> setUserProperties({String? userId, String? city}) async {
     if (userId != null) {
       await _analytics.setUserId(id: userId);
     }
@@ -220,21 +206,14 @@ class AnalyticsService {
   }) async {
     await _analytics.logEvent(
       name: 'popular_dish_tap',
-      parameters: {
-        'product_id': productId,
-        'product_name': productName,
-      },
+      parameters: {'product_id': productId, 'product_name': productName},
     );
   }
 
-  static Future<void> logCategoryTap({
-    required String categoryName,
-  }) async {
+  static Future<void> logCategoryTap({required String categoryName}) async {
     await _analytics.logEvent(
       name: 'category_tap',
-      parameters: {
-        'category_name': categoryName,
-      },
+      parameters: {'category_name': categoryName},
     );
   }
 
@@ -274,10 +253,7 @@ class AnalyticsService {
   }) async {
     await _analytics.logEvent(
       name: 'recommendation_tap',
-      parameters: {
-        'product_id': productId,
-        'product_name': productName,
-      },
+      parameters: {'product_id': productId, 'product_name': productName},
     );
   }
 }

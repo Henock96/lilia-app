@@ -33,10 +33,13 @@ class RestaurantRepository {
   /// adminApproved, on ne reçoit donc que les vendeurs visibles publiquement.
   /// Réponse paginée `{ data, meta }` — on garde uniquement `data`.
   Future<List<RestaurantSummary>> getVendors({VendorType? vendorType}) async {
-    final body = await _api.getText('/vendors', query: {
-      if (vendorType != null) 'vendorType': vendorType.name,
-      'limit': '50',
-    });
+    final body = await _api.getText(
+      '/vendors',
+      query: {
+        if (vendorType != null) 'vendorType': vendorType.name,
+        'limit': '50',
+      },
+    );
     return parseJson(body, _parseRestaurantSummaries);
   }
 
@@ -47,7 +50,9 @@ class RestaurantRepository {
   /// Backend filtre déjà isActive + adminApproved.
   Future<Restaurant> getRestaurant(String id) async {
     final res = await _api.getJson('/vendors/$id');
-    return Restaurant.fromJson((res.data as Map<String, dynamic>)['data']);
+    return Restaurant.fromJson(
+      (res.data as Map<String, dynamic>)['data'] as Map<String, dynamic>,
+    );
   }
 }
 

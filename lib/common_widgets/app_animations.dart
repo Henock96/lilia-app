@@ -27,12 +27,22 @@ extension AppAnimateX on Widget {
   /// Apparition fondu + léger glissement vertical.
   Widget fadeSlideIn({Duration? delay, double dy = 0.12}) => animate()
       .fadeIn(duration: AppMotion.base, delay: delay, curve: AppMotion.curve)
-      .slideY(begin: dy, end: 0, duration: AppMotion.base, curve: AppMotion.curve);
+      .slideY(
+        begin: dy,
+        end: 0,
+        duration: AppMotion.base,
+        curve: AppMotion.curve,
+      );
 
   /// Apparition fondu + léger zoom (cartes, vignettes).
   Widget fadeScaleIn({Duration? delay}) => animate()
       .fadeIn(duration: AppMotion.base, delay: delay, curve: AppMotion.curve)
-      .scaleXY(begin: 0.96, end: 1, duration: AppMotion.base, curve: AppMotion.curve);
+      .scaleXY(
+        begin: 0.96,
+        end: 1,
+        duration: AppMotion.base,
+        curve: AppMotion.curve,
+      );
 
   /// Entrée en cascade selon l'index dans une liste/grille.
   Widget staggeredIn(int index, {double dy = 0.12}) =>
@@ -90,12 +100,7 @@ class _PressableScaleState extends State<PressableScale> {
 /// Bloc « skeleton » animé (effet shimmer) pour les états de chargement —
 /// remplace avantageusement les `CircularProgressIndicator` (perçu plus rapide).
 class AppSkeleton extends StatelessWidget {
-  const AppSkeleton({
-    super.key,
-    this.width,
-    this.height = 16,
-    this.radius = 8,
-  });
+  const AppSkeleton({super.key, this.width, this.height = 16, this.radius = 8});
 
   final double? width;
   final double height;
@@ -107,13 +112,13 @@ class AppSkeleton extends StatelessWidget {
         ? LiliaColors.charcoal600
         : LiliaColors.charcoal100;
     return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: base,
-        borderRadius: BorderRadius.circular(radius),
-      ),
-    )
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            color: base,
+            borderRadius: BorderRadius.circular(radius),
+          ),
+        )
         .animate(onPlay: (c) => c.repeat())
         .shimmer(
           duration: const Duration(milliseconds: 1100),

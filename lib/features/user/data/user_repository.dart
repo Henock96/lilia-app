@@ -16,7 +16,9 @@ class UserRepository {
   /// Extrait l'objet user de la réponse `/users/me`, tolérant aux deux formes :
   /// legacy `{ user: {...} }` ET wrappée api-contract-v2 `{ data: { user: {...} } }`.
   Map<String, dynamic> _extractUser(dynamic decoded) {
-    final unwrapped = ApiResponse.mapOf(decoded); // { data: { user } } -> { user }
+    final unwrapped = ApiResponse.mapOf(
+      decoded,
+    ); // { data: { user } } -> { user }
     final user = unwrapped['user'] ?? unwrapped;
     return user as Map<String, dynamic>;
   }

@@ -19,7 +19,10 @@ class RetryInterceptor extends Interceptor {
   static const _attemptKey = 'retry_attempt';
 
   @override
-  Future<void> onError(DioException err, ErrorInterceptorHandler handler) async {
+  Future<void> onError(
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
     final attempt = (err.requestOptions.extra[_attemptKey] as int?) ?? 0;
 
     if (!_shouldRetry(err) || attempt >= maxRetries) {
@@ -47,12 +50,14 @@ class RetryInterceptor extends Interceptor {
 
   bool _shouldRetry(DioException err) {
     final method = err.requestOptions.method.toUpperCase();
-    final isIdempotent = method == 'GET' ||
+    final isIdempotent =
+        method == 'GET' ||
         method == 'PUT' ||
         method == 'PATCH' ||
         method == 'DELETE';
-    final hasIdempotencyKey =
-        err.requestOptions.headers.containsKey('Idempotency-Key');
+    final hasIdempotencyKey = err.requestOptions.headers.containsKey(
+      'Idempotency-Key',
+    );
     if (!isIdempotent && !hasIdempotencyKey) return false;
 
     switch (err.type) {

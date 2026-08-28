@@ -29,7 +29,9 @@ class DriverPositionEvent {
       lng: (json['lng'] as num).toDouble(),
       eta: (json['eta'] as num?)?.toInt(),
       timestamp: json['timestamp'] != null
-          ? DateTime.fromMillisecondsSinceEpoch((json['timestamp'] as num).toInt())
+          ? DateTime.fromMillisecondsSinceEpoch(
+              (json['timestamp'] as num).toInt(),
+            )
           : DateTime.now(),
     );
   }
@@ -91,13 +93,17 @@ class TrackingSocketService {
             _socket!.emit('order:watch', {'orderId': orderId});
           }
         })
-        ..onDisconnect((reason) => debugPrint('[Tracking WS] disconnected: $reason'))
+        ..onDisconnect(
+          (reason) => debugPrint('[Tracking WS] disconnected: $reason'),
+        )
         ..onConnectError((e) => debugPrint('[Tracking WS] connect error: $e'))
         ..onError((e) => debugPrint('[Tracking WS] error: $e'))
         ..on('driver:position', (data) {
           if (data is! Map) return;
           try {
-            final event = DriverPositionEvent.fromJson(Map<String, dynamic>.from(data));
+            final event = DriverPositionEvent.fromJson(
+              Map<String, dynamic>.from(data),
+            );
             // Le payload ne contient pas l'orderId — broadcast à tous les watchers
             // (en pratique le client ne watch qu'une commande à la fois)
             for (final ctrl in _positionStreams.values) {
@@ -126,7 +132,9 @@ class TrackingSocketService {
 
   /// S'abonne à une commande. Retourne deux streams (position + statut).
   /// Le caller doit appeler `unwatch(orderId)` quand il n'a plus besoin.
-  ({Stream<DriverPositionEvent> position, Stream<String> status}) watch(String orderId) {
+  ({Stream<DriverPositionEvent> position, Stream<String> status}) watch(
+    String orderId,
+  ) {
     final posCtrl = _positionStreams.putIfAbsent(
       orderId,
       () => StreamController<DriverPositionEvent>.broadcast(),

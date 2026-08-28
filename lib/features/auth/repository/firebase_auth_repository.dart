@@ -80,14 +80,17 @@ class FirebaseAuthenticationRepository {
     }
     // Étape 3: Sauvegarder les informations dans notre backend
     try {
-      await _api.postJson('/users/sync', body: {
-        'firebaseUid': user.uid,
-        'email': email,
-        'nom': name,
-        'telephone': phone,
-        if (referralCode != null && referralCode.isNotEmpty)
-          'referralCode': referralCode,
-      });
+      await _api.postJson(
+        '/users/sync',
+        body: {
+          'firebaseUid': user.uid,
+          'email': email,
+          'nom': name,
+          'telephone': phone,
+          if (referralCode != null && referralCode.isNotEmpty)
+            'referralCode': referralCode,
+        },
+      );
     } on ApiException catch (e) {
       // Si le backend échoue, on supprime l'utilisateur Firebase pour éviter
       // un état incohérent.
@@ -138,12 +141,15 @@ class FirebaseAuthenticationRepository {
         debugPrint('Synchronizing Google user with backend...');
       }
 
-      await _api.postJson('/users/sync', body: {
-        'firebaseUid': user.uid,
-        'email': user.email,
-        'nom': user.displayName,
-        'telephone': user.phoneNumber,
-      });
+      await _api.postJson(
+        '/users/sync',
+        body: {
+          'firebaseUid': user.uid,
+          'email': user.email,
+          'nom': user.displayName,
+          'telephone': user.phoneNumber,
+        },
+      );
 
       if (kDebugMode) {
         debugPrint('User successfully synchronized with backend');

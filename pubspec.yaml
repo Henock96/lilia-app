@@ -53,7 +53,10 @@ dev_dependencies:
 
   flutter_lints: ^6.0.0
   riverpod_generator: ^4.0.0+1
-  riverpod_lint: ^3.1.0
+  # `riverpod_lint` doit être déclaré dans le bloc `plugins:` de
+  # `analysis_options.yaml` pour tourner. Il était présent ici depuis des mois
+  # sans qu'aucune de ses règles ne s'exécute.
+  riverpod_lint: ^3.1.4
   build_runner: ^2.15.0
 
 
@@ -70,9 +73,32 @@ flutter:
   assets:
     - assets/images/
 
+  # Polices embarquées.
+  #
+  # Le thème utilise Oswald, Fraunces, Girassol et Inter via `GoogleFonts.*`,
+  # qui les téléchargeait depuis fonts.gstatic.com au premier lancement : de la
+  # latence au démarrage sur la 4G de Brazzaville, et des polices de repli hors
+  # ligne. Déclarées ici, `google_fonts` les résout depuis le bundle et
+  # `allowRuntimeFetching = false` (main.dart) interdit tout appel réseau.
+  #
+  # Toutes sous licence SIL Open Font (OFL.txt conservé à côté de chaque .ttf).
   fonts:
-   - family: Lora
-     fonts:
-       - asset: assets/fonts/lora/Lora-Italic-VariableFont_wght.ttf
-       - asset: assets/fonts/lora/Lora-VariableFont_wght.ttf
-  #         style: italic
+    - family: Lora
+      fonts:
+        - asset: assets/fonts/lora/Lora-Italic-VariableFont_wght.ttf
+          style: italic
+        - asset: assets/fonts/lora/Lora-VariableFont_wght.ttf
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/inter/Inter-VariableFont.ttf
+        - asset: assets/fonts/inter/Inter-Italic-VariableFont.ttf
+          style: italic
+    - family: Oswald
+      fonts:
+        - asset: assets/fonts/oswald/Oswald-VariableFont.ttf
+    - family: Fraunces
+      fonts:
+        - asset: assets/fonts/fraunces/Fraunces-VariableFont.ttf
+    - family: Girassol
+      fonts:
+        - asset: assets/fonts/girassol/Girassol-Regular.ttf
