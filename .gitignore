@@ -60,3 +60,6 @@ ios/Runner.xcworkspace/xcshareddata/swiftpm
 
 # Clé Google Maps iOS — fichier local, jamais committé (audit 2026-08-01, E-4)
 /ios/Flutter/MapsKeys.local.xcconfig
+
+# Clés APNs Apple (.p8) — un secret, jamais versionné
+*.p8
