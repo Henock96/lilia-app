@@ -206,44 +206,20 @@ class LiliaRadius {
 }
 
 // ─── OrderStatus helpers ──────────────────────────────────────────────────────
-
-class LiliaOrderStatus {
-  LiliaOrderStatus._();
-
-  static String label(String status) => switch (status) {
-    'PENDING_PAYMENT' => 'En attente de paiement',
-    'CONFIRMED' => 'Confirmée',
-    'PREPARING' => 'En préparation',
-    'READY' => 'Prête',
-    'ASSIGNED' => 'Livreur assigné',
-    'EN_ROUTE' => 'En route',
-    'DELIVERED' => 'Livrée',
-    'CANCELLED' => 'Annulée',
-    _ => status,
-  };
-
-  static Color color(String status, {bool dark = false}) => switch (status) {
-    'PENDING_PAYMENT' => dark ? LiliaColors.amber300 : LiliaColors.amber400,
-    'CONFIRMED' ||
-    'ASSIGNED' => dark ? LiliaColors.blue300 : LiliaColors.blue500,
-    'PREPARING' => dark ? LiliaColors.orange400 : LiliaColors.orange500,
-    'READY' => dark ? const Color(0xFF4DC280) : LiliaColors.green400,
-    'EN_ROUTE' => dark ? LiliaColors.orange400 : LiliaColors.orange500,
-    'DELIVERED' => dark ? const Color(0xFF4DC280) : LiliaColors.green400,
-    'CANCELLED' => dark ? LiliaColors.red300 : LiliaColors.red400,
-    _ => dark ? LiliaColors.charcoal300 : LiliaColors.charcoal450,
-  };
-
-  static int stepIndex(String status) => switch (status) {
-    'CONFIRMED' => 0,
-    'PREPARING' => 1,
-    'READY' => 2,
-    'ASSIGNED' => 2,
-    'EN_ROUTE' => 3,
-    'DELIVERED' => 4,
-    _ => -1,
-  };
-}
+//
+// `LiliaOrderStatus` (label / color / stepIndex) a été SUPPRIMÉ le 29/08/2026.
+//
+// Ses trois méthodes mappaient des statuts qui n'existent pas côté backend —
+// `CONFIRMED`, `PREPARING`, `READY`, `DELIVERED`, `ASSIGNED`,
+// `PENDING_PAYMENT` — alors que l'API n'émet que `EN_ATTENTE`, `PAYER`,
+// `EN_PREPARATION`, `PRET`, `EN_ROUTE`, `LIVRER`, `ANNULER`. Seul `EN_ROUTE`
+// coïncidait : `stepIndex` renvoyait -1 pour tous les autres, donc une barre
+// de progression figée à l'étape 0.
+//
+// Aucun appelant au moment de la suppression — c'était un piège pour le
+// prochain qui l'aurait réutilisé de bonne foi. L'affichage de progression
+// vit dans `_OrderProgressStepper` (commande_detail_page.dart), qui travaille
+// sur l'enum Dart `OrderStatus` et reste donc aligné par le compilateur.
 
 // ─── formatCurrency ───────────────────────────────────────────────────────────
 

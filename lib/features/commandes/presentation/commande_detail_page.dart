@@ -22,6 +22,8 @@ import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 import '../../reviews/presentation/widgets/rate_driver_sheet.dart';
 import '../data/delivery_tracking_repository.dart';
+import '../../../services/notification_router.dart';
+import '../../notifications/application/notification_providers.dart';
 
 /// Statuts pour lesquels le reçu PDF est téléchargeable (payée, non annulée).
 const _receiptStatuses = <OrderStatus>{
@@ -159,6 +161,11 @@ class OrderDetailPage extends ConsumerWidget {
                   _RateDriverCard(orderId: order.id),
                   const SizedBox(height: 16),
                 ],
+
+                // Suite proposée par la dernière notification reçue
+                // (reprendre un paiement, comprendre un incident). Sans ça,
+                // le client arrivait sur l'écran sans savoir quoi faire.
+                _NotificationIntentBanner(orderId: order.id),
 
                 // Bouton Commander à nouveau pour les commandes livrées ou annulées
                 if (order.status == OrderStatus.livrer ||
@@ -1514,6 +1521,78 @@ class _DeliveryProgressHint extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+
+/// Traduit en action l'intention portée par la dernière notification.
+///
+/// L'invitation à noter est déjà traitée par `_RateDriverCard` : cette
+/// bannière ne couvre que les deux cas qui appelaient une explication et
+/// n'en recevaient aucune — paiement à reprendre, incident de livraison.
+class _NotificationIntentBanner extends ConsumerWidget {
+  const _NotificationIntentBanner({required this.orderId});
+
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pending = ref.watch(pendingNotificationIntentProvider);
+
+    // L'intention ne vaut que pour la commande qu'elle désigne.
+    if (pending == null || pending.orderId != orderId) {
+      return const SizedBox.shrink();
+    }
+
+    final cs = Theme.of(context).colorScheme;
+
+    final (icon, color, message) = switch (pending.intent) {
+      NotificationIntent.retryPayment => (
+        Icons.error_outline,
+        cs.error,
+        'Le paiement n\'a pas abouti. Vous pouvez le relancer depuis le '
+            'bouton de paiement ci-dessus.',
+      ),
+      NotificationIntent.deliveryIncident => (
+        Icons.info_outline,
+        Colors.orange,
+        'Un incident est survenu pendant la livraison. Le vendeur vous '
+            'recontacte pour trouver une solution.',
+      ),
+      // `rateDelivery` est déjà servi par _RateDriverCard ; `none` n'affiche
+      // rien. On ne duplique pas l'invitation.
+      _ => (null, null, null),
+    };
+
+    if (message == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color!.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(width: 12),
+            Expanded(child: Text(message, style: const TextStyle(fontSize: 13))),
+            IconButton(
+              tooltip: 'Masquer',
+              icon: const Icon(Icons.close, size: 18),
+              // Consommer l'intention : sans ça, revenir sur la commande
+              // rouvrirait la même bannière indéfiniment.
+              onPressed: () => ref
+                  .read(pendingNotificationIntentProvider.notifier)
+                  .state = null,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

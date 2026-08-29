@@ -11,6 +11,7 @@ import 'package:lilia_app/features/notifications/application/notification_provid
 import 'package:lilia_app/features/notifications/data/notification_model.dart';
 import 'package:lilia_app/firebase_options.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'notification_router.dart';
 
 part 'notification_service.g.dart';
 
@@ -133,12 +134,9 @@ class NotificationService {
       RemoteMessage message,
     ) {
       debugPrint('Message opened from background: ${message.data}');
-      if (message.data.containsKey('orderId')) {
-        final orderId = message.data['orderId'] as String;
-        // Mettre à jour l'état pour déclencher une navigation ou un rafraîchissement
-        _ref.read(latestUpdatedOrderIdProvider.notifier).state = orderId;
-        _invalidateUserOrdersDebounced();
-      }
+      // Ouverture depuis la notification = geste explicite : le routeur
+      // autorise alors la navigation.
+      _handleNotificationData(message.data, trigger: NotificationTrigger.tap);
     });
     // Gère les messages lorsque l'application est au premier plan
     _onMessageSubscription = FirebaseMessaging.onMessage.listen((
@@ -162,11 +160,7 @@ class NotificationService {
             .read(notificationHistoryProvider.notifier)
             .addNotification(notification);
 
-        if (message.data.containsKey('orderId')) {
-          final orderId = message.data['orderId'] as String;
-          _ref.read(latestUpdatedOrderIdProvider.notifier).state = orderId;
-          _invalidateUserOrdersDebounced();
-        }
+        _handleNotificationData(message.data);
       }
     });
   }
@@ -235,13 +229,30 @@ class NotificationService {
   }
 
   // 4. Centraliser la logique de traitement des données
-  void _handleNotificationData(Map<String, dynamic> data) {
-    // FCM transmet toujours les valeurs `data` sous forme de String.
-    // Cast null-safe pour ne pas crasher si la clé est absente / mal typée.
-    final orderId = data['orderId'];
-    if (orderId is String && orderId.isNotEmpty) {
-      _ref.read(latestUpdatedOrderIdProvider.notifier).state = orderId;
+  //
+  // Le routage vit dans `NotificationRouter` (pur, testé) : ce service ne fait
+  // qu'appliquer la décision. Avant, il posait `latestUpdatedOrderIdProvider`
+  // et rechargeait, quel que soit l'événement — une livraison terminée, un
+  // paiement échoué et une annulation déclenchaient la même chose.
+  void _handleNotificationData(
+    Map<String, dynamic> data, {
+    NotificationTrigger trigger = NotificationTrigger.foreground,
+  }) {
+    final action = const NotificationRouter().resolve(data, trigger: trigger);
+
+    if (action.orderId != null) {
+      _ref.read(latestUpdatedOrderIdProvider.notifier).state = action.orderId;
+    }
+    if (action.refresh == NotificationTarget.orders) {
       _invalidateUserOrdersDebounced();
+    }
+    if (action.intent != NotificationIntent.none && action.orderId != null) {
+      // L'écran de détail lit cette intention pour proposer la bonne suite :
+      // noter le livreur, reprendre un paiement, expliquer un incident.
+      _ref.read(pendingNotificationIntentProvider.notifier).state = (
+        orderId: action.orderId!,
+        intent: action.intent,
+      );
     }
   }
 
@@ -362,7 +373,10 @@ class NotificationService {
       final initialMessage = await _fcm.getInitialMessage();
       if (initialMessage != null) {
         debugPrint('App opened from terminated state via notification');
-        _handleNotificationData(initialMessage.data);
+        _handleNotificationData(
+          initialMessage.data,
+          trigger: NotificationTrigger.tap,
+        );
       }
     } catch (e) {
       debugPrint('Error initializing notification service: $e');
@@ -532,3 +546,4 @@ extension RefExtensions on Ref {
     }
   }
 }
+

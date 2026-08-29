@@ -214,12 +214,27 @@ class DriverLocationController extends _$DriverLocationController {
   // (Riverpod 3.x), on garde donc le service pour pouvoir unwatch au cleanup.
   TrackingSocketService? _socket;
 
+  /// Livraisons dont plus aucune position ni changement de statut n'arrivera.
+  ///
+  /// Une commande livrée reste consultable indéfiniment dans l'historique :
+  /// sans cette liste, ouvrir une commande d'il y a trois mois ouvrait un
+  /// WebSocket et armait un poll HTTP toutes les 30 s pour une course terminée.
+  static const _terminalDeliveryStatuses = {'LIVRER', 'ECHEC'};
+
   @override
   FutureOr<DriverLocation?> build(String orderId) async {
     _orderId = orderId;
     ref.onDispose(_cleanup);
 
     final initial = await _fetchHttp(orderId);
+
+    // Course terminée (ou inexistante) : rien à suivre. On rend l'état une
+    // fois et on s'arrête — c'est le cas de la très grande majorité des
+    // commandes consultées, l'historique étant plus lu que le suivi live.
+    if (initial == null ||
+        _terminalDeliveryStatuses.contains(initial.deliveryStatus)) {
+      return initial;
+    }
 
     // Abonnement WebSocket
     final socket = ref.read(trackingSocketServiceProvider);
@@ -244,6 +259,12 @@ class DriverLocationController extends _$DriverLocationController {
     _wsStatusSub = streams.status.listen((status) {
       debugPrint('[Tracking] order:status → $status');
       if (!ref.mounted) return;
+      // La commande vient de se terminer sous nos yeux : le suivi n'a plus
+      // d'objet, on coupe socket et timer plutôt que de tourner à vide jusqu'à
+      // ce que l'utilisateur ferme l'écran.
+      if (status == 'LIVRER' || status == 'ANNULER') {
+        _stopLiveTracking();
+      }
       // Le WS est fiable (<1s) ; on rafraîchit la liste de commandes ici au lieu
       // de dépendre uniquement de FCM (best-effort). Mirroir du path FCM dans
       // NotificationService : set du dernier orderId + invalidate debouncé.
@@ -296,6 +317,19 @@ class DriverLocationController extends _$DriverLocationController {
     _statusInvalidationDebounce = Timer(const Duration(milliseconds: 600), () {
       if (ref.mounted) ref.invalidate(userOrdersProvider);
     });
+  }
+
+  /// Coupe le suivi temps réel en gardant le provider vivant.
+  ///
+  /// Distinct de [_cleanup], qui s'exécute au dispose : ici l'écran reste
+  /// affiché et doit continuer à montrer le dernier état connu.
+  void _stopLiveTracking() {
+    _httpFallbackTimer?.cancel();
+    _httpFallbackTimer = null;
+    _wsPositionSub?.cancel();
+    _wsPositionSub = null;
+    final id = _orderId;
+    if (id != null) _socket?.unwatch(id);
   }
 
   void _cleanup() {
