@@ -81,7 +81,7 @@ final class UserProfileProvider
   }
 }
 
-String _$userProfileHash() => r'a287223e5bef2dbd5a964cae13367afc78cb4598';
+String _$userProfileHash() => r'4eda160d7451343a13ffa8f6e0a1c8d4fb23b6be';
 
 @ProviderFor(referralStats)
 final referralStatsProvider = ReferralStatsProvider._();
@@ -188,7 +188,7 @@ final class ProfileControllerProvider
   ProfileController create() => ProfileController();
 }
 
-String _$profileControllerHash() => r'791b2819b742e73ce7bce43950718c22e2aecf7f';
+String _$profileControllerHash() => r'3dae50606300452e37c1c23c2fc71b57152aac79';
 
 abstract class _$ProfileController extends $AsyncNotifier<void> {
   FutureOr<void> build();

@@ -1,4 +1,5 @@
 import 'package:lilia_app/core/network/api_client.dart';
+import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
 import 'package:lilia_app/models/loyalty_transaction.dart';
 import 'package:lilia_app/utils/api_response.dart';
@@ -39,5 +40,17 @@ class UserRepository {
     return ApiResponse.listOf(res.data)
         .map((e) => LoyaltyTransaction.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// Supprime les données de compte utilisateur côté backend (DELETE /users/me).
+  Future<void> deleteAccount() async {
+    try {
+      await _api.deleteJson('/users/me');
+    } on ApiException catch (e) {
+      // Tolérer le code 404 si la route n'est pas encore déployée ou déjà purgée
+      if (e.statusCode != 404) {
+        rethrow;
+      }
+    }
   }
 }

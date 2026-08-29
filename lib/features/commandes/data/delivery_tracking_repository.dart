@@ -21,8 +21,9 @@ part 'delivery_tracking_repository.g.dart';
 /// ```
 /// {
 ///   id, status, lastLatitude, lastLongitude, lastPositionAt,
-///   estimatedArrival, pickedUpAt, deliveredAt, createdAt,
+///   estimatedArrival, acceptedAt, pickedUpAt, deliveredAt, createdAt,
 ///   deliverer: { id, nom, phone, imageUrl },
+///   review: { id, rating, createdAt } | null,
 ///   order: {
 ///     id,
 ///     deliveryLatitude, deliveryLongitude,
@@ -31,6 +32,19 @@ part 'delivery_tracking_repository.g.dart';
 /// }
 /// ```
 class DriverLocation {
+  /// Identifiant de la livraison — nécessaire pour noter le livreur.
+  final String? deliveryId;
+
+  /// Statut de la livraison tel que le backend le connaît :
+  /// `ASSIGNER` / `ACCEPTER` / `EN_TRANSIT` / `LIVRER` / `ECHEC`.
+  ///
+  /// Sert à afficher où en est réellement la course. `ACCEPTER` signifie que le
+  /// livreur va chercher la commande — pas qu'il roule vers le client.
+  final String? deliveryStatus;
+
+  /// Note déjà laissée par le client sur cette livraison, s'il y en a une.
+  final int? myRating;
+
   /// Dernière position connue du livreur. `null` si le livreur n'a pas
   /// encore émis (mission acceptée mais pas encore en route, GPS pas prêt).
   final double? latitude;
@@ -55,6 +69,9 @@ class DriverLocation {
   final double? restaurantLongitude;
 
   const DriverLocation({
+    this.deliveryId,
+    this.deliveryStatus,
+    this.myRating,
     this.latitude,
     this.longitude,
     this.updatedAt,
@@ -72,6 +89,29 @@ class DriverLocation {
   /// `true` ssi on a une position GPS exploitable du livreur.
   bool get hasDriverPosition => latitude != null && longitude != null;
 
+  /// Le livreur a le repas en main et roule vers le client.
+  bool get isOnTheWay => deliveryStatus == 'EN_TRANSIT';
+
+  /// Le livreur a accepté la mission mais va encore chercher la commande.
+  /// C'est la nuance que l'app annonçait à tort comme « en route ».
+  bool get isHeadingToRestaurant => deliveryStatus == 'ACCEPTER';
+
+  /// La commande a été remise : la notation du livreur devient possible.
+  bool get isDelivered => deliveryStatus == 'LIVRER';
+
+  /// Le client peut encore noter cette livraison.
+  bool get canRateDriver => isDelivered && myRating == null;
+
+  /// Libellé d'avancement affiché au client, honnête sur ce qui se passe.
+  String get progressLabel => switch (deliveryStatus) {
+    'ASSIGNER' => 'Un livreur a été assigné à votre commande',
+    'ACCEPTER' => 'Le livreur va récupérer votre commande',
+    'EN_TRANSIT' => 'Votre commande est en route',
+    'LIVRER' => 'Commande livrée',
+    'ECHEC' => 'Incident de livraison',
+    _ => 'Préparation en cours',
+  };
+
   /// `true` ssi le backend a renvoyé l'adresse client géocodée.
   bool get hasDestination =>
       destinationLatitude != null && destinationLongitude != null;
@@ -85,7 +125,12 @@ class DriverLocation {
     final order = json['order'] as Map<String, dynamic>?;
     final restaurant = order?['restaurant'] as Map<String, dynamic>?;
 
+    final review = json['review'] as Map<String, dynamic>?;
+
     return DriverLocation(
+      deliveryId: json['id'] as String?,
+      deliveryStatus: json['status'] as String?,
+      myRating: (review?['rating'] as num?)?.toInt(),
       latitude: (json['lastLatitude'] as num?)?.toDouble(),
       longitude: (json['lastLongitude'] as num?)?.toDouble(),
       updatedAt: json['lastPositionAt'] != null
@@ -106,6 +151,9 @@ class DriverLocation {
   /// commande (livreur, resto, destination) déjà chargé via HTTP.
   DriverLocation copyWithWsPosition(DriverPositionEvent event) {
     return DriverLocation(
+      deliveryId: deliveryId,
+      deliveryStatus: deliveryStatus,
+      myRating: myRating,
       latitude: event.lat,
       longitude: event.lng,
       updatedAt: event.timestamp,

@@ -24,13 +24,14 @@ class AuthController extends _$AuthController {
     // Écoute les changements d'état d'authentification de Firebase
     final authStream = ref.watch(authRepositoryProvider).authStateChanges();
 
-    // Écoute le stream pour déclencher l'initialisation des notifications
-    authStream.listen((user) {
+    // Écoute le stream de manière sécurisée avec nettoyage onDispose
+    final subscription = authStream.listen((user) {
       if (user != null) {
         // L'utilisateur est connecté
         _setupNotifications();
       }
     });
+    ref.onDispose(subscription.cancel);
 
     return authStream;
   }
@@ -181,6 +182,65 @@ class AuthController extends _$AuthController {
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
+    }
+  }
+
+  /// Supprime définitivement le compte utilisateur (Backend + Firebase Auth).
+  Future<bool> deleteAccount() async {
+    state = const AsyncValue.loading();
+    try {
+      // 1. Supprimer le token FCM sur le serveur
+      try {
+        final notificationService = ref.read(notificationServiceProvider);
+        await notificationService.removeTokenFromServer();
+      } catch (_) {}
+
+      // 2. Supprimer les données backend
+      try {
+        final userRepository = ref.read(userRepositoryProvider);
+        await userRepository.deleteAccount();
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint('Backend deleteAccount error: $e');
+        }
+      }
+
+      // 3. Supprimer le compte Firebase Auth
+      final authRepository = ref.read(authRepositoryProvider);
+      await authRepository.deleteFirebaseAccount();
+
+      // 4. Invalider tous les providers user-scoped
+      ref.invalidate(cartControllerProvider);
+      ref.invalidate(notificationHistoryProvider);
+      ref.invalidate(orderRepositoryProvider);
+      ref.invalidate(userOrdersProvider);
+      ref.invalidate(favoritesProvider);
+      ref.invalidate(restaurantFavoritesProvider);
+      ref.invalidate(userProfileProvider);
+      ref.invalidate(referralStatsProvider);
+      ref.invalidate(loyaltyTransactionsProvider);
+
+      state = const AsyncValue.data(null);
+      return true;
+    } on FirebaseAuthException catch (e, st) {
+      if (e.code == 'requires-recent-login') {
+        state = AsyncValue.error(
+          'Cette opération est sensible. Veuillez vous reconnecter avant de supprimer votre compte.',
+          st,
+        );
+      } else {
+        state = AsyncValue.error(
+          'Impossible de supprimer le compte. Veuillez réessayer.',
+          st,
+        );
+      }
+      return false;
+    } catch (e, st) {
+      state = AsyncValue.error(
+        'Une erreur est survenue lors de la suppression du compte.',
+        st,
+      );
+      return false;
     }
   }
 }

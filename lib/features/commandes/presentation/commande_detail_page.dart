@@ -20,6 +20,8 @@ import '../data/order_controller.dart';
 import '../data/order_repository.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
+import '../../reviews/presentation/widgets/rate_driver_sheet.dart';
+import '../data/delivery_tracking_repository.dart';
 
 /// Statuts pour lesquels le reçu PDF est téléchargeable (payée, non annulée).
 const _receiptStatuses = <OrderStatus>{
@@ -151,6 +153,12 @@ class OrderDetailPage extends ConsumerWidget {
                 // Bouton Annuler pour les commandes en attente
                 if (order.status == OrderStatus.enAttente)
                   _buildCancelButton(context, ref, order.id),
+
+                // Notation du livreur — uniquement après livraison effective.
+                if (order.status == OrderStatus.livrer) ...[
+                  _RateDriverCard(orderId: order.id),
+                  const SizedBox(height: 16),
+                ],
 
                 // Bouton Commander à nouveau pour les commandes livrées ou annulées
                 if (order.status == OrderStatus.livrer ||
@@ -422,6 +430,11 @@ class OrderDetailPage extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
           _OrderProgressStepper(status: order.status),
+          // Précision sur l'étape livreur : le stepper est basé sur le statut
+          // de la COMMANDE, qui reste « Prête » tant que le livreur n'a pas
+          // récupéré le repas. Sans cette ligne, le client ne saurait pas
+          // qu'un livreur est déjà en route vers le restaurant.
+          _DeliveryProgressHint(orderId: order.id),
         ],
       ),
     );
@@ -1339,6 +1352,168 @@ class _ReceiptButtonState extends ConsumerState<_ReceiptButton> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Invitation à noter le livreur, affichée une fois la commande livrée.
+///
+/// S'appuie sur `GET /deliveries/by-order/:orderId`, qui porte déjà le statut
+/// de la livraison **et** la note éventuelle : pas d'appel supplémentaire pour
+/// savoir si le client a déjà voté. La carte disparaît une fois la note posée
+/// et laisse place au rappel de la note donnée.
+class _RateDriverCard extends ConsumerWidget {
+  const _RateDriverCard({required this.orderId});
+
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tracking = ref.watch(driverLocationControllerProvider(orderId));
+
+    return tracking.maybeWhen(
+      orElse: () => const SizedBox.shrink(),
+      data: (location) {
+        // Retrait au comptoir, ou livraison sans livreur enregistré : il n'y a
+        // personne à noter.
+        final deliveryId = location?.deliveryId;
+        if (location == null || deliveryId == null) {
+          return const SizedBox.shrink();
+        }
+
+        final cs = Theme.of(context).colorScheme;
+        final alreadyRated = location.myRating != null;
+
+        if (alreadyRated) {
+          return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.green),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Merci ! Vous avez noté cette livraison ${location.myRating}/5.',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: cs.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.star_rounded, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      location.driverNom != null
+                          ? 'Notez la livraison de ${location.driverNom}'
+                          : 'Notez votre livraison',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () async {
+                    final rated = await RateDriverSheet.show(
+                      context,
+                      deliveryId: deliveryId,
+                      driverName: location.driverNom,
+                    );
+                    if (rated == true) {
+                      // Recharge le tracking : la note revient dans le payload,
+                      // la carte bascule sur le remerciement.
+                      ref.invalidate(driverLocationControllerProvider(orderId));
+                    }
+                  },
+                  icon: const Icon(Icons.star_border_rounded),
+                  label: const Text('Noter le livreur'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+
+/// Précision textuelle sur l'avancement de la livraison.
+///
+/// Le stepper suit `Order.status`, qui reste `PRET` entre l'acceptation de la
+/// mission et la récupération du repas — c'est voulu : la commande n'est pas
+/// « en route » tant qu'elle est sur le comptoir. Mais le client gagne à savoir
+/// qu'un livreur a pris la course et vient la chercher.
+class _DeliveryProgressHint extends ConsumerWidget {
+  const _DeliveryProgressHint({required this.orderId});
+
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tracking = ref.watch(driverLocationControllerProvider(orderId));
+
+    return tracking.maybeWhen(
+      orElse: () => const SizedBox.shrink(),
+      data: (location) {
+        // On ne montre l'indication que pendant les étapes livreur : avant
+        // l'assignation, le stepper suffit.
+        if (location == null ||
+            !(location.isHeadingToRestaurant || location.isOnTheWay)) {
+          return const SizedBox.shrink();
+        }
+
+        final cs = Theme.of(context).colorScheme;
+        final who = location.driverNom?.trim();
+        final label = location.isHeadingToRestaurant && who != null
+            ? '$who va récupérer votre commande'
+            : location.progressLabel;
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 16),
+          child: Row(
+            children: [
+              Icon(
+                location.isOnTheWay
+                    ? Icons.delivery_dining
+                    : Icons.storefront_outlined,
+                size: 18,
+                color: cs.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -134,6 +134,8 @@ class FirebaseAuthenticationRepository {
       throw Exception("La connexion Google a échoué.");
     }
 
+    final isNewUser = userCred.additionalUserInfo?.isNewUser ?? false;
+
     // Étape 8: Synchroniser avec le backend
     // Note: Le backend utilise UPSERT donc gère inscription ET connexion
     try {
@@ -158,17 +160,22 @@ class FirebaseAuthenticationRepository {
       if (kDebugMode) {
         debugPrint('Backend sync failed: ${e.kind} ${e.statusCode}');
       }
-      // Supprimer l'utilisateur Firebase si le backend échoue (état cohérent).
-      await user.delete();
+      // Supprimer l'utilisateur Firebase UNIQUEMENT s'il s'agit d'une nouvelle inscription
+      // pour éviter de détruire le compte d'un utilisateur existant (C-AUTH-1).
+      if (isNewUser) {
+        await user.delete();
+      }
       if (e.kind == ApiErrorKind.network) {
         throw Exception('Erreur réseau: Impossible de se connecter au serveur');
       }
       if (e.kind == ApiErrorKind.timeout) {
         throw Exception('Le serveur ne répond pas. Veuillez réessayer.');
       }
-      throw Exception(
-        'Échec de la synchronisation avec le backend (${e.statusCode}).',
-      );
+      if (isNewUser) {
+        throw Exception(
+          'Échec de la synchronisation avec le backend (${e.statusCode}).',
+        );
+      }
     }
     return AppUser.fromFirebaseUser(user);
   }
@@ -182,6 +189,17 @@ class FirebaseAuthenticationRepository {
       return true;
     } on Exception {
       return false;
+    }
+  }
+
+  /// Supprime le compte utilisateur Firebase et déconnecte les services associés.
+  Future<void> deleteFirebaseAccount() async {
+    try {
+      await _googleSignIn.disconnect();
+    } catch (_) {}
+    final user = _firebaseAuth.currentUser;
+    if (user != null) {
+      await user.delete();
     }
   }
 

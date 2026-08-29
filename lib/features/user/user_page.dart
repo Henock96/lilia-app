@@ -291,6 +291,26 @@ class UserPage extends ConsumerWidget {
                         ),
                       ),
 
+                      const SizedBox(height: 12),
+
+                      // Bouton Suppression de compte (Conformité App Store / RGPD)
+                      TextButton.icon(
+                        onPressed: () =>
+                            _showDeleteAccountConfirmationDialog(context, ref),
+                        icon: Icon(
+                          Iconsax.trash,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.error.withValues(alpha: 0.8),
+                        ),
+                        label: Text(
+                          'Supprimer mon compte',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).colorScheme.error.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ),
+
                       const SizedBox(height: 24),
                     ],
                   ),
@@ -343,6 +363,74 @@ class UserPage extends ConsumerWidget {
               onPressed: () async {
                 Navigator.of(context).pop();
                 await ref.read(authControllerProvider.notifier).signOut();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteAccountConfirmationDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) {
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        final errorColor = Theme.of(context).colorScheme.error;
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Iconsax.trash, color: errorColor),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('Supprimer mon compte ?')),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Cette action est irréversible. Vos informations personnelles, adresses, points de fidélité et commandes seront définitivement supprimés.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Voulez-vous vraiment continuer ?',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: errorColor,
+                ),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Annuler'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: errorColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Supprimer définitivement'),
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                final ok = await ref
+                    .read(authControllerProvider.notifier)
+                    .deleteAccount();
+                if (!ok && context.mounted) {
+                  final error = ref.read(authControllerProvider).asError?.error;
+                  if (error != null) {
+                    context.showErrorSnack(error.toString());
+                  }
+                }
               },
             ),
           ],

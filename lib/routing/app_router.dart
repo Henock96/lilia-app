@@ -76,6 +76,12 @@ GoRouter router(Ref ref) {
         return AppRoutes.signIn.path;
       }
 
+      // Ne pas tenter de rediriger pendant le chargement initial de l'authentification
+      // pour éviter le clignotement / flash vers la page de connexion.
+      if (authState.isLoading) {
+        return null;
+      }
+
       // Gère les différents états de l'AsyncValue pour l'authentification
       final bool isLoggedIn = authState.when(
         data: (user) =>
