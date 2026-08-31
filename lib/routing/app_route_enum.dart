@@ -16,6 +16,7 @@ enum AppRoutes {
   cart,
   deliveryOptions,
   checkout,
+  paymentPending,
   orderSuccess,
   reviews,
   writeReview,
@@ -60,6 +61,10 @@ extension AppRoutesExtension on AppRoutes {
         return 'delivery-options';
       case AppRoutes.checkout:
         return 'checkout';
+      case AppRoutes.paymentPending:
+        // Sous `/commandes` : le retour arrière tombe alors sur la liste des
+        // commandes, et non sur un panier qui vient d'être vidé.
+        return 'paiement/:paymentId';
       case AppRoutes.orderSuccess:
         return '/order-success';
       case AppRoutes.reviews:
@@ -109,6 +114,8 @@ extension AppRoutesExtension on AppRoutes {
         return 'DeliveryOptions';
       case AppRoutes.checkout:
         return 'Checkout';
+      case AppRoutes.paymentPending:
+        return 'PaymentPending';
       case AppRoutes.orderSuccess:
         return 'OrderSuccess';
       case AppRoutes.reviews:

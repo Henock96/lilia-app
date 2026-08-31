@@ -12,7 +12,11 @@ import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/features/commandes/presentation/fullscreen_tracking_screen.dart';
 import 'package:lilia_app/features/commandes/presentation/progress_step.dart';
 import 'package:lilia_app/features/commandes/presentation/status_info.dart';
+import 'package:lilia_app/core/network/api_exception.dart';
+import 'package:lilia_app/features/payments/data/payment_service.dart';
+import 'package:lilia_app/features/payments/presentation/payment_pending_args.dart';
 import 'package:lilia_app/models/order.dart';
+import 'package:lilia_app/routing/app_route_enum.dart';
 
 import '../../../models/order_item.dart';
 import '../../cart/application/cart_controller.dart';
@@ -150,6 +154,16 @@ class OrderDetailPage extends ConsumerWidget {
                 if (_receiptStatuses.contains(order.status)) ...[
                   _ReceiptButton(orderId: order.id),
                   const SizedBox(height: 16),
+                ],
+
+                // Reprise du paiement — le trou que la bannière
+                // `retryPayment` promettait de combler en renvoyant vers « le
+                // bouton de paiement ci-dessus », qui n'existait pas. Une
+                // commande dont le paiement avait échoué était un cul-de-sac :
+                // il fallait la repasser entièrement.
+                if (order.status == OrderStatus.enAttente) ...[
+                  _PayNowButton(order: order),
+                  const SizedBox(height: 12),
                 ],
 
                 // Bouton Annuler pour les commandes en attente
@@ -1592,6 +1606,247 @@ class _NotificationIntentBanner extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Relance le paiement d'une commande restée `EN_ATTENTE`.
+///
+/// Le même appel qu'au checkout : `POST /payments` sur la même commande. Le
+/// serveur réutilise la tentative en cours s'il y en a une, ou en ouvre une
+/// nouvelle si la précédente a échoué — l'application n'a rien à arbitrer.
+///
+/// Le montant n'est **pas** transmis : il vient de `order.total`. Afficher
+/// `order.total` ici n'est qu'un rappel visuel de ce que le serveur facturera.
+class _PayNowButton extends ConsumerStatefulWidget {
+  const _PayNowButton({required this.order});
+
+  final Order order;
+
+  @override
+  ConsumerState<_PayNowButton> createState() => _PayNowButtonState();
+}
+
+class _PayNowButtonState extends ConsumerState<_PayNowButton> {
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _busy ? null : _start,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: cs.primary,
+          foregroundColor: cs.onPrimary,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 0,
+        ),
+        child: _busy
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Iconsax.wallet_check),
+                  const SizedBox(width: 10),
+                  Text(
+                    'Payer maintenant · ${formatPrice(widget.order.total.toDouble())}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Future<void> _start() async {
+    // On redemande le numéro plutôt que de réutiliser celui de la commande.
+    //
+    // Deux raisons : le modèle client ne porte pas `contactPhone` (le numéro
+    // donné au livreur n'est pas forcément celui qui paie), et une seconde
+    // tentative vise souvent un autre compte — c'est précisément parce que le
+    // premier n'avait pas de solde qu'on en est là.
+    final choice = await _askPaymentPhone();
+    if (choice == null || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      final payment = await ref
+          .read(paymentServiceProvider)
+          .createPayment(
+            orderId: widget.order.id,
+            phoneNumber: choice.phone,
+            method: choice.method,
+          );
+
+      if (!mounted) return;
+
+      if (payment.isSettled) {
+        ref.invalidate(userOrdersProvider);
+        context.showSnack('Commande déjà réglée.');
+        return;
+      }
+
+      if (payment.isInteractive) {
+        context.goNamed(
+          AppRoutes.paymentPending.routeName,
+          pathParameters: {'paymentId': payment.paymentId},
+          extra: PaymentPendingArgs(
+            orderId: widget.order.id,
+            amount: payment.amount > 0
+                ? payment.amount
+                : widget.order.total.round(),
+            method: choice.method,
+          ),
+        );
+        return;
+      }
+
+      // Mode manuel : on redonne les instructions de virement du serveur.
+      await _showManualInstructions(payment);
+    } catch (e) {
+      if (!mounted) return;
+      // Le serveur porte le motif exact (commande non payable, trop de
+      // tentatives, opérateur indisponible). On l'affiche tel quel.
+      context.showErrorSnack(
+        e is ApiException ? e.message : 'Le paiement n\'a pas pu être relancé.',
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  /// Demande le numéro et l'opérateur du paiement.
+  ///
+  /// Pré-rempli avec l'opérateur choisi à la commande : dans la majorité des
+  /// cas, le client se contente de valider.
+  Future<({String phone, String method})?> _askPaymentPhone() async {
+    final controller = TextEditingController();
+    var method = widget.order.paymentMethod;
+    final formKey = GlobalKey<FormState>();
+
+    return showModalBottomSheet<({String phone, String method})>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+        ),
+        child: StatefulBuilder(
+          builder: (innerContext, setSheetState) => Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Payer ${formatPrice(widget.order.total.toDouble())}',
+                  style: Theme.of(innerContext).textTheme.titleLarge,
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(
+                      value: 'MTN_MOMO',
+                      label: Text('MTN MoMo'),
+                    ),
+                    ButtonSegment(
+                      value: 'AIRTEL_MONEY',
+                      label: Text('Airtel Money'),
+                    ),
+                  ],
+                  selected: {method},
+                  onSelectionChanged: (selection) =>
+                      setSheetState(() => method = selection.first),
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: controller,
+                  keyboardType: TextInputType.phone,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Numéro Mobile Money',
+                    hintText: '06 123 45 67',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (value) {
+                    final input = (value ?? '').trim();
+                    if (input.isEmpty) return 'Numéro requis';
+                    final ok = ref
+                        .read(paymentServiceProvider)
+                        .validatePhoneNumber(input);
+                    return ok ? null : 'Numéro congolais invalide';
+                  },
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    if (formKey.currentState?.validate() ?? false) {
+                      Navigator.of(sheetContext).pop((
+                        phone: controller.text.trim(),
+                        method: method,
+                      ));
+                    }
+                  },
+                  child: const Text('Envoyer la demande de paiement'),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showManualInstructions(PaymentResponse payment) async {
+    final instructions = payment.instructions;
+    if (instructions == null) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Instructions de paiement'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(instructions.message),
+            const SizedBox(height: 12),
+            SelectableText(
+              instructions.phone,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text('Référence : ${instructions.reference}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Fermer'),
+          ),
+        ],
       ),
     );
   }

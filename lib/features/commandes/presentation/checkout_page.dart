@@ -13,6 +13,7 @@ import 'package:lilia_app/features/commandes/data/checkout_controller.dart';
 import 'package:lilia_app/features/commandes/presentation/delivery_options_page.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:lilia_app/features/payments/data/payment_service.dart';
+import 'package:lilia_app/features/payments/presentation/payment_pending_args.dart';
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
@@ -51,6 +52,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   String? _promoError;
   bool _useLoyaltyPoints = false;
   String _selectedPaymentMethod = 'MTN_MOMO';
+
+  /// Numéro Mobile Money qui paiera, distinct du téléphone de contact.
+  ///
+  /// Le même champ servait aux deux. Or on paie souvent depuis un autre
+  /// téléphone que celui qu'on donne au livreur (numéro de la maison, du
+  /// conjoint) — et avec un prestataire qui envoie réellement une demande, se
+  /// tromper de numéro n'est plus une coquille sur un papier, c'est un paiement
+  /// qui n'arrive pas.
+  final TextEditingController _momoPhoneController = TextEditingController();
   String? _idempotencyKey;
   // LIL-122 : date/heure choisies pour les commandes preorder (madeToOrder).
   // Null tant que le client n'a pas ouvert le picker.
@@ -74,6 +84,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   void dispose() {
     _noteController.dispose();
     _phoneController.dispose();
+    _momoPhoneController.dispose();
     _promoController.dispose();
     super.dispose();
   }
@@ -688,6 +699,51 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           method: 'AIRTEL_MONEY',
           label: 'Airtel Money',
           color: Colors.red.shade600,
+        ),
+        const SizedBox(height: 16),
+        _buildMomoPhoneField(),
+      ],
+    );
+  }
+
+  /// Numéro Mobile Money qui recevra la demande de paiement.
+  ///
+  /// Laissé vide, le téléphone de contact est utilisé — c'est le cas le plus
+  /// fréquent, et imposer une seconde saisie identique serait une friction de
+  /// plus sur un écran qui en compte déjà.
+  Widget _buildMomoPhoneField() {
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: _momoPhoneController,
+          keyboardType: TextInputType.phone,
+          decoration: InputDecoration(
+            labelText: 'Numéro Mobile Money (si différent)',
+            hintText: _phoneController.text.trim().isEmpty
+                ? '06 123 45 67'
+                : _phoneController.text.trim(),
+            prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
+            border: const OutlineInputBorder(),
+          ),
+          validator: (value) {
+            final input = (value ?? '').trim();
+            // Champ facultatif : vide = on paie avec le numéro de contact.
+            if (input.isEmpty) return null;
+            final valid = ref
+                .read(paymentServiceProvider)
+                .validatePhoneNumber(input);
+            return valid ? null : 'Numéro Mobile Money congolais invalide';
+          },
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'La demande de paiement arrivera sur ce numéro. Laissez vide pour '
+          'utiliser votre numéro de contact.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
         ),
       ],
     );
@@ -1360,13 +1416,48 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       return;
     }
 
-    // ─── 3. Instructions de virement, telles que renvoyées par le serveur ────
+    // ─── 3. Suite du parcours, selon le rail d'encaissement du serveur ───────
+    //
+    // Le mode vient du backend : basculer de pawaPay au virement manuel (ou
+    // l'inverse) ne doit pas demander une release sur les stores.
     if (!context.mounted) return;
+
+    if (payment.isSettled) {
+      // Commande intégralement réglée en points de fidélité : rien à payer.
+      ref.read(cartControllerProvider.notifier).clearCart();
+      context.goNamed(AppRoutes.orderSuccess.routeName);
+      return;
+    }
+
+    if (payment.isInteractive) {
+      // Le client valide sur son téléphone : on l'accompagne pendant l'attente.
+      // ⚠️ Le panier n'est PAS vidé ici — il ne l'est qu'à la confirmation. Le
+      // vider maintenant effacerait la sélection d'un client dont le paiement
+      // peut échouer.
+      context.goNamed(
+        AppRoutes.paymentPending.routeName,
+        pathParameters: {'paymentId': payment.paymentId},
+        extra: PaymentPendingArgs(
+          orderId: checkout.id,
+          amount: payment.amount > 0 ? payment.amount : checkout.total,
+          method: _selectedPaymentMethod,
+        ),
+      );
+      return;
+    }
+
+    // Mode manuel : instructions de virement, telles que renvoyées par le serveur.
     await _showPaymentInstructionsDialog(context, checkout, payment);
   }
 
-  /// Deux tentatives : l'appel est sûr à rejouer (le backend réutilise le
-  /// paiement PENDING existant au lieu de le refuser).
+  /// Deux tentatives : l'appel est **sûr à rejouer**.
+  ///
+  /// Le backend réutilise la ligne `Payment` PENDING existante — avec le MÊME
+  /// identifiant prestataire — au lieu d'en créer une seconde. Un rejeu ne peut
+  /// donc pas produire un second débit : le prestataire répond
+  /// `DUPLICATE_IGNORED`.
+  ///
+  /// Aucun montant n'est transmis : il vient de `order.total`, côté serveur.
   Future<PaymentResponse> _createPaymentWithRetry(Checkout checkout) async {
     final paymentService = ref.read(paymentServiceProvider);
     Object? lastError;
@@ -1375,8 +1466,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       try {
         return await paymentService.createPayment(
           orderId: checkout.id,
-          amount: checkout.total.toDouble(),
-          phoneNumber: _phoneController.text.trim(),
+          phoneNumber: _paymentPhone(),
+          method: _selectedPaymentMethod,
         );
       } catch (e) {
         lastError = e;
@@ -1386,6 +1477,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       }
     }
     throw lastError!;
+  }
+
+  /// Numéro qui paiera.
+  ///
+  /// Distinct du téléphone de contact quand le client en a saisi un : on paie
+  /// souvent depuis un autre appareil que celui qu'on donne au livreur.
+  String _paymentPhone() {
+    final momo = _momoPhoneController.text.trim();
+    return momo.isNotEmpty ? momo : _phoneController.text.trim();
   }
 
   /// Écran de reprise : la commande existe, le paiement n'a pas pu être

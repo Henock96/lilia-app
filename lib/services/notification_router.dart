@@ -107,6 +107,12 @@ class NotificationRouter {
 
   NotificationIntent _intentFor(String? type, Map<String, dynamic> data) {
     switch (type) {
+      // Encaissement confirmé : rien à proposer, mais la liste doit être
+      // rechargée — et l'écran d'attente s'en sert pour vérifier immédiatement
+      // plutôt que d'attendre son prochain sondage.
+      case 'payment_confirmed':
+        return NotificationIntent.none;
+
       case 'payment_failed':
       case 'payment_timeout':
         return NotificationIntent.retryPayment;
