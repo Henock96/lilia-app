@@ -276,6 +276,18 @@ class Restaurant {
   final List<Product> products;
   final Map<String, Category> categoriesMap;
 
+  /// Sections de la carte **déclarées par le vendeur**, déjà triées par
+  /// `displayOrder` côté serveur et filtrées sur `isActive`.
+  ///
+  /// Distinct de `categoriesMap`, qui est *dérivé des produits* : cette liste-ci
+  /// porte l'ordre voulu par le commerçant. Sans elle, l'écran de détail triait
+  /// les sections par ordre alphabétique — « Accompagnements » passait avant
+  /// « Les Grillades », qui est pourtant le cœur de l'offre.
+  ///
+  /// Vide si le backend ne l'a pas renvoyée : l'écran retombe alors sur
+  /// l'ancien comportement plutôt que d'afficher une carte sans sections.
+  final List<Category> categories;
+
   // Nouveaux champs
   final bool isOpen;
   final List<Specialty> specialties;
@@ -306,6 +318,7 @@ class Restaurant {
     this.photos = const [],
     required this.products,
     required this.categoriesMap,
+    this.categories = const [],
     this.isOpen = true,
     this.specialties = const [],
     this.operatingHours = const [],
@@ -353,6 +366,12 @@ class Restaurant {
       }
     }
 
+    // Sections déclarées par le vendeur (ordre serveur préservé).
+    final declaredCategories = (json['categories'] as List?)
+            ?.map((c) => Category.fromJson(c as Map<String, dynamic>))
+            .toList() ??
+        const <Category>[];
+
     // Parser les spécialités
     List<Specialty> specialties = [];
     if (json['specialties'] != null) {
@@ -386,6 +405,7 @@ class Restaurant {
       photos: GalleryImage.listFrom(json['photos']),
       products: products,
       categoriesMap: categoriesMap,
+      categories: declaredCategories,
       isOpen: (json['isOpen'] as bool?) ?? true,
       specialties: specialties,
       operatingHours: operatingHours,
@@ -413,16 +433,35 @@ class Restaurant {
   }
 }
 
+/// Section de la carte d'un vendeur.
+///
+/// Elle appartient à un commerce et à un seul : deux vendeurs peuvent avoir
+/// chacun leur « Boissons », et ce sont deux sections distinctes.
 class Category {
   final String id;
   final String name;
 
-  Category({required this.id, required this.name});
+  /// Ordre voulu par le vendeur. Le serveur trie déjà, ce champ sert de repli
+  /// si une liste est recomposée côté client.
+  final int displayOrder;
+
+  /// Une section inactive n'est jamais servie au client — le champ existe pour
+  /// que l'app ne se fie pas *uniquement* au filtrage serveur.
+  final bool isActive;
+
+  Category({
+    required this.id,
+    required this.name,
+    this.displayOrder = 0,
+    this.isActive = true,
+  });
 
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
       id: json['id'] as String,
       name: json['nom'] as String, // Correspond à 'nom' de votre JSON
+      displayOrder: (json['displayOrder'] as num?)?.toInt() ?? 0,
+      isActive: json['isActive'] as bool? ?? true,
     );
   }
 }

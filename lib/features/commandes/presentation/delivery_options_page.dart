@@ -5,6 +5,8 @@ import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' show LatLng;
+import 'package:lilia_app/features/address/presentation/pages/location_picker_page.dart';
 import 'package:lilia_app/features/quartiers/application/quartiers_controller.dart';
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/models/adresse.dart';
@@ -29,6 +31,11 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
   Adresse? _selectedAddress;
   bool _useNewAddress = false;
   final TextEditingController _newAddressController = TextEditingController();
+
+  /// Position posée sur la carte pour la nouvelle adresse saisie ici.
+  /// `null` = le client ne l'a pas fait ; la commande retombera sur le
+  /// centroïde du quartier, en `APPROXIMATE`.
+  PickedLocation? _newAddressLocation;
 
   double? _calculatedDeliveryFee;
 
@@ -413,11 +420,34 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
             controller: _newAddressController,
             decoration: InputDecoration(
               labelText: 'Nouvelle adresse',
-              hintText: 'Ex: 123 Rue de la Paix',
+              hintText: 'Ex: Rue Bayonne, près du marché',
               prefixIcon: const Icon(Icons.edit_location_outlined),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Même geste que dans « Mes adresses » : la position se pose sur une
+          // carte. Sans elle, la commande partira avec le centroïde du
+          // quartier — c'est livrable, mais le livreur devra appeler, et on le
+          // dit ici plutôt que de le laisser découvrir.
+          OutlinedButton.icon(
+            onPressed: _pickNewAddressLocation,
+            icon: Icon(
+              _newAddressLocation == null
+                  ? Icons.map_outlined
+                  : Icons.check_circle,
+              size: 18,
+              color: _newAddressLocation == null ? null : Colors.green,
+            ),
+            label: Text(
+              _newAddressLocation == null
+                  ? 'Placer sur la carte (recommandé)'
+                  : 'Position enregistrée — modifier',
+            ),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(44),
             ),
           ),
         ],
@@ -660,6 +690,26 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
     );
   }
 
+  Future<void> _pickNewAddressLocation() async {
+    final picked = await Navigator.of(context).push<PickedLocation>(
+      MaterialPageRoute(
+        builder: (_) => LocationPickerPage(
+          quartier: _selectedQuartier,
+          initialPosition: _newAddressLocation == null
+              ? null
+              : LatLng(
+                  _newAddressLocation!.latitude,
+                  _newAddressLocation!.longitude,
+                ),
+          initialLandmark: _newAddressLocation?.landmark,
+        ),
+      ),
+    );
+    if (picked != null && mounted) {
+      setState(() => _newAddressLocation = picked);
+    }
+  }
+
   Future<void> _calculateDeliveryFee() async {
     if (_restaurantId == null || _selectedQuartier == null) return;
 
@@ -720,6 +770,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
         newAddressRue: _useNewAddress
             ? _newAddressController.text.trim()
             : null,
+        newAddressLocation: _useNewAddress ? _newAddressLocation : null,
         deliveryFee: _isDelivery
             ? (_calculatedDeliveryFee ?? kDefaultDeliveryFee)
             : 0,
@@ -794,6 +845,11 @@ class DeliveryOptions {
   final Quartier? quartier;
   final Adresse? address;
   final String? newAddressRue;
+
+  /// Position posée sur la carte pour [newAddressRue]. `null` si le client a
+  /// sauté l'étape : l'adresse sera créée sans coordonnées et le serveur
+  /// retombera sur le centroïde du quartier.
+  final PickedLocation? newAddressLocation;
   final double deliveryFee;
 
   DeliveryOptions({
@@ -801,6 +857,7 @@ class DeliveryOptions {
     this.quartier,
     this.address,
     this.newAddressRue,
+    this.newAddressLocation,
     required this.deliveryFee,
   });
 }

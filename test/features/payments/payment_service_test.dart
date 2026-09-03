@@ -151,7 +151,7 @@ void main() {
       expect(pending.isTerminal, isFalse);
     });
 
-    test('affiche le message du serveur, jamais le code technique', () {
+    test('conserve code et message techniques pour les journaux', () {
       final s = PaymentStatusResponse.fromJson({
         'paymentId': 'p',
         'status': 'FAILED',
@@ -159,17 +159,9 @@ void main() {
         'failureMessage': 'Solde insuffisant sur votre compte.',
       });
 
-      expect(s.displayFailure, 'Solde insuffisant sur votre compte.');
-      // « PAYER_LIMIT_REACHED » n'apprend rien au client.
-      expect(s.displayFailure, isNot(contains('PAYER_LIMIT_REACHED')));
-    });
-
-    test('a toujours un message affichable, même sans motif', () {
-      final s = PaymentStatusResponse.fromJson({
-        'paymentId': 'p',
-        'status': 'FAILED',
-      });
-      expect(s.displayFailure, isNotEmpty);
+      // Les deux champs restent lisibles — ils appartiennent aux journaux.
+      expect(s.failureCode, 'PAYER_LIMIT_REACHED');
+      expect(s.failureMessage, 'Solde insuffisant sur votre compte.');
     });
   });
 }

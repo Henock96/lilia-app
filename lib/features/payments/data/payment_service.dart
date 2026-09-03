@@ -122,7 +122,12 @@ class PaymentStatusResponse {
   /// Code d'échec technique du prestataire — jamais affiché tel quel.
   final String? failureCode;
 
-  /// Motif rédigé par le serveur, celui-ci destiné au client.
+  /// Motif **brut de l'opérateur** — journaux et support uniquement.
+  ///
+  /// ⚠️ Ce champ portait autrefois la mention « rédigé par le serveur, destiné
+  /// au client ». C'était faux, et c'est cette phrase qui a fait afficher
+  /// « "Airtel_CG" did not specify a reason for this faliure » à un client.
+  /// Personne ne réécrit ce texte : il traverse pawaPay depuis l'opérateur.
   final String? failureMessage;
 
   PaymentStatusResponse({
@@ -138,14 +143,20 @@ class PaymentStatusResponse {
 
   bool get isTerminal => status != PaymentStatus.pending;
 
-  /// Message d'échec prêt à afficher.
+  /// ⚠️ `displayFailure` a été **supprimé**.
   ///
-  /// On préfère `failureMessage` (rédigé par le serveur) à `failureCode`
-  /// (`PAYER_LIMIT_REACHED`), qui n'apprend rien au client.
-  String get displayFailure =>
-      failureMessage ??
-      reason ??
-      'Le paiement n’a pas abouti. Vous pouvez réessayer.';
+  /// Il renvoyait `failureMessage` en supposant que le serveur l'avait rédigé
+  /// pour le client. C'était faux : ce champ porte le texte **brut de
+  /// l'opérateur**, que personne ne réécrit. Un client a réellement lu
+  /// « "Airtel_CG" did not specify a reason for this faliure », faute
+  /// d'orthographe comprise.
+  ///
+  /// Passer par `mapPaymentFailure(status:, failureCode:)`
+  /// (`domain/payment_failure.dart`), qui traduit depuis le **code** — stable et
+  /// énuméré — et n'invente jamais de cause quand l'opérateur n'en donne pas.
+  ///
+  /// `failureMessage` et `failureCode` restent exposés : ils appartiennent aux
+  /// journaux et au support, pas à l'écran.
 
   factory PaymentStatusResponse.fromJson(Map<String, dynamic> json) {
     return PaymentStatusResponse(
@@ -231,6 +242,31 @@ class PaymentService {
     } catch (e) {
       debugPrint('❌ Error checking payment status: $e');
       rethrow;
+    }
+  }
+
+  /// Dernière tentative d'encaissement d'une commande, ou `null`.
+  ///
+  /// Lecture pure : elle ne crée rien et ne relance aucune demande chez
+  /// l'opérateur. C'est ce qui permet à l'écran de commande de savoir qu'un
+  /// paiement est **déjà en cours** avant de proposer « Payer maintenant ».
+  ///
+  /// Sans elle, il fallait rejouer `POST /payments` pour connaître l'état —
+  /// une écriture, donc un risque de seconde sollicitation du téléphone du
+  /// client, pour une simple question.
+  Future<PaymentStatusResponse?> getPaymentForOrder(String orderId) async {
+    try {
+      final res = await _api.getJson('/payments/by-order/$orderId');
+      final data = res.data;
+      // `null` légitime : aucune tentative n'a encore été ouverte.
+      if (data is Map && data['data'] == null) return null;
+      return PaymentStatusResponse.fromJson(ApiResponse.mapOf(data));
+    } catch (e) {
+      // Ne jamais bloquer l'écran de commande sur cette lecture : à défaut
+      // d'information, on retombe sur le comportement précédent (bouton
+      // proposé), et le serveur reste le garde-fou contre le double débit.
+      debugPrint('⚠️ Statut de paiement de la commande $orderId indisponible : $e');
+      return null;
     }
   }
 

@@ -32,6 +32,12 @@ analyzer:
     # erreurs qui n'appartiennent pas au projet — `flutter analyze` en devenait
     # inexploitable. Répertoire gitignoré, régénéré à chaque build.
     - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 
 linter:
   # The lint rules applied to this project can be customized in the

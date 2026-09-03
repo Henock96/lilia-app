@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:flutter/foundation.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_error_handler.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
@@ -195,19 +196,36 @@ class AuthController extends _$AuthController {
         await notificationService.removeTokenFromServer();
       } catch (_) {}
 
-      // 2. Supprimer les données backend
+      // 2. Supprimer les données backend.
+      //
+      // ⚠️ L'échec n'est PLUS avalé. Le backend refuse la suppression en 409
+      // quand elle laisserait une transaction sans interlocuteur : commande en
+      // cours, boutique possédée, livraison en cours. L'ancien `catch` avalait
+      // ce refus puis supprimait quand même le compte Firebase — le client
+      // perdait définitivement l'accès à une commande qui était en train
+      // d'être livrée, et sa ligne restait ACTIVE en base. Un état qu'aucun
+      // écran ne pouvait plus rattraper.
+      //
+      // La règle : si le serveur dit non, on n'efface rien et on lui rend
+      // son message, qui nomme la commande ou la boutique en cause.
+      final userRepository = ref.read(userRepositoryProvider);
+      await userRepository.deleteAccount();
+
+      // 3. Supprimer le compte Firebase Auth.
+      //
+      // Le backend l'a normalement déjà fait (`deleteUserSafe`) : cet appel
+      // échouera donc souvent en `user-not-found`. C'est le succès, pas une
+      // erreur — le compte a bien disparu. On tolère ce seul code ; tout autre
+      // échec Firebase reste remonté.
+      final authRepository = ref.read(authRepositoryProvider);
       try {
-        final userRepository = ref.read(userRepositoryProvider);
-        await userRepository.deleteAccount();
-      } catch (e) {
+        await authRepository.deleteFirebaseAccount();
+      } on FirebaseAuthException catch (e) {
+        if (e.code != 'user-not-found') rethrow;
         if (kDebugMode) {
-          debugPrint('Backend deleteAccount error: $e');
+          debugPrint('Compte Firebase déjà supprimé par le backend — OK.');
         }
       }
-
-      // 3. Supprimer le compte Firebase Auth
-      final authRepository = ref.read(authRepositoryProvider);
-      await authRepository.deleteFirebaseAccount();
 
       // 4. Invalider tous les providers user-scoped
       ref.invalidate(cartControllerProvider);
@@ -222,6 +240,13 @@ class AuthController extends _$AuthController {
 
       state = const AsyncValue.data(null);
       return true;
+    } on ApiException catch (e, st) {
+      // 409 = refus métier motivé (commande en cours, boutique possédée,
+      // livraison en cours). Le message du serveur nomme le blocage : on
+      // l'affiche tel quel plutôt que de le remplacer par un générique qui
+      // n'apprendrait rien. Le compte reste intact des deux côtés.
+      state = AsyncValue.error(e.message, st);
+      return false;
     } on FirebaseAuthException catch (e, st) {
       if (e.code == 'requires-recent-login') {
         state = AsyncValue.error(

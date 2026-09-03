@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/payments/application/payment_status_controller.dart';
+import 'package:lilia_app/features/payments/data/payment_service.dart';
+import 'package:lilia_app/features/payments/domain/payment_failure.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
 import 'package:lilia_app/utils/currency.dart';
@@ -65,7 +67,7 @@ class _PaymentPendingPageState extends ConsumerState<PaymentPendingPage> {
         paymentStatusControllerProvider(widget.paymentId), (_, next) {
       if (next.phase == PaymentWaitPhase.succeeded) _onSucceeded();
       if (next.phase == PaymentWaitPhase.failed) {
-        _onFailed(next.failureMessage);
+        _onFailed(next.outcome, next.failureCode);
       }
     });
 
@@ -298,17 +300,32 @@ class _PaymentPendingPageState extends ConsumerState<PaymentPendingPage> {
     context.goNamed(AppRoutes.orderSuccess.routeName);
   }
 
-  Future<void> _onFailed(String? message) async {
+  /// Issue non aboutie — échec, annulation ou expiration.
+  ///
+  /// Le texte vient **toujours** de `mapPaymentFailure`, jamais du serveur : le
+  /// `failureMessage` qu'il renvoie est celui de l'opérateur, dans sa langue et
+  /// son style. C'est lui qui affichait « "Airtel_CG" did not specify a reason
+  /// for this faliure » au client.
+  Future<void> _onFailed(PaymentOutcome? outcome, String? failureCode) async {
     if (_navigated || !mounted) return;
     _navigated = true;
+
+    final message = mapPaymentFailure(
+      // L'écran ne distingue pas `failed` de `cancelled` au niveau du statut :
+      // c'est le code qui porte la nuance, et le mapper qui la rend.
+      status: outcome == PaymentOutcome.cancelled
+          ? PaymentStatus.cancelled
+          : PaymentStatus.failed,
+      failureCode: failureCode,
+    );
 
     final retry = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Paiement non abouti'),
+        title: Text(message.title),
         content: Text(
-          '${message ?? 'Le paiement n’a pas abouti.'}\n\n'
+          '${message.body}\n\n'
           'Votre commande est conservée : vous pouvez réessayer maintenant ou '
           'plus tard depuis « Mes commandes ».',
         ),
@@ -317,10 +334,11 @@ class _PaymentPendingPageState extends ConsumerState<PaymentPendingPage> {
             onPressed: () => Navigator.of(dialogContext).pop(false),
             child: const Text('Plus tard'),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Réessayer'),
-          ),
+          if (message.canRetry)
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Réessayer'),
+            ),
         ],
       ),
     );

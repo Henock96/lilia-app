@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:lilia_app/features/payments/data/payment_service.dart';
+import 'package:lilia_app/features/payments/domain/payment_failure.dart';
 
 part 'payment_status_controller.g.dart';
 
@@ -30,7 +31,8 @@ class PaymentWaitState {
   const PaymentWaitState({
     required this.phase,
     required this.elapsed,
-    this.failureMessage,
+    this.outcome,
+    this.failureCode,
   });
 
   final PaymentWaitPhase phase;
@@ -38,17 +40,28 @@ class PaymentWaitState {
   /// Temps écoulé depuis le début de l'attente — alimente le chronomètre.
   final Duration elapsed;
 
-  final String? failureMessage;
+  /// Issue métier, dérivée du statut serveur et du code d'échec.
+  ///
+  /// L'état ne transporte volontairement **aucun texte** : le message affiché
+  /// est produit par `mapPaymentFailure`, à l'affichage. Faire voyager une
+  /// chaîne ici, c'était laisser passer celle de l'opérateur.
+  final PaymentOutcome? outcome;
+
+  /// Code d'échec du prestataire — **pour les journaux et le mapper**, jamais
+  /// pour l'écran.
+  final String? failureCode;
 
   PaymentWaitState copyWith({
     PaymentWaitPhase? phase,
     Duration? elapsed,
-    String? failureMessage,
+    PaymentOutcome? outcome,
+    String? failureCode,
   }) =>
       PaymentWaitState(
         phase: phase ?? this.phase,
         elapsed: elapsed ?? this.elapsed,
-        failureMessage: failureMessage ?? this.failureMessage,
+        outcome: outcome ?? this.outcome,
+        failureCode: failureCode ?? this.failureCode,
       );
 }
 
@@ -125,15 +138,25 @@ class PaymentStatusController extends _$PaymentStatusController {
       if (_stopped) return;
 
       if (status.isTerminal) {
+        // Le détail technique part dans les journaux, jamais dans l'état.
+        if (status.status != PaymentStatus.success) {
+          debugPrint(
+            '💰 Paiement ${status.paymentId} terminé — statut ${status.status}, '
+            'code ${status.failureCode ?? "n/a"}, '
+            'message prestataire « ${status.failureMessage ?? "n/a"} »',
+          );
+        }
         _finish(
           PaymentWaitState(
             phase: status.status == PaymentStatus.success
                 ? PaymentWaitPhase.succeeded
                 : PaymentWaitPhase.failed,
             elapsed: elapsed,
-            failureMessage: status.status == PaymentStatus.success
-                ? null
-                : status.displayFailure,
+            outcome: outcomeOf(
+              status: status.status,
+              failureCode: status.failureCode,
+            ),
+            failureCode: status.failureCode,
           ),
         );
         return;
@@ -172,4 +195,19 @@ class PaymentStatusController extends _$PaymentStatusController {
     _timer?.cancel();
     await _poll();
   }
+}
+
+/// Dernière tentative d'encaissement d'une commande, ou `null`.
+///
+/// Sert à une seule chose, mais elle est importante : savoir si un paiement est
+/// **déjà en cours** avant de proposer « Payer maintenant ». Sans cette
+/// information, l'écran de commande offrait une reprise pendant qu'une demande
+/// attendait sur le téléphone du client — le geste exact qui invite au double
+/// paiement.
+///
+/// Lecture pure, non rafraîchie automatiquement : l'écran d'attente s'occupe du
+/// suivi actif. Ici, on veut l'état au moment où le client regarde sa commande.
+@riverpod
+Future<PaymentStatusResponse?> orderPayment(Ref ref, String orderId) {
+  return ref.read(paymentServiceProvider).getPaymentForOrder(orderId);
 }

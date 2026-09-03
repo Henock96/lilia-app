@@ -15,7 +15,6 @@ import 'package:lilia_app/models/restaurant.dart';
 import '../data/remote/banner_controller.dart';
 import '../data/remote/home_controller.dart';
 import '../data/remote/restaurant_controller.dart';
-import 'widgets/category_list_widget.dart';
 import 'widgets/popular_dishes_section.dart';
 import 'widgets/search_bar_widget.dart';
 import 'widgets/section_header.dart';
@@ -76,7 +75,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ref.invalidate(restaurantsListProvider);
             ref.invalidate(bannersListProvider);
             ref.invalidate(popularProductsProvider);
-            ref.invalidate(categoriesListProvider);
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -90,12 +88,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
                 const SizedBox(height: 16),
 
-                // 2. Categories horizontales
-                const CategoryListWidget(),
+                // Le rail « catégories » a été RETIRÉ (septembre 2026).
+                //
+                // Il affichait la table `Category`, alors globale, avec une
+                // icône devinée par correspondance de chaîne — et son `onTap`
+                // ne faisait qu'un log analytics : les chips ne menaient nulle
+                // part, y compris les quatre catégories vides de la production.
+                // Une catégorie appartient désormais à un vendeur ; la
+                // découverte transverse passe par `vendorType`, qui a sa propre
+                // navigation.
 
-                const SizedBox(height: 16),
-
-                // 3. Slider promotions (existant)
+                // 2. Slider promotions (existant)
                 _buildSimpleSlider(bannersAsync),
 
                 const SizedBox(height: 20),

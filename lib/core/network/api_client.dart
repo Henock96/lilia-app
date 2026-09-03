@@ -36,6 +36,26 @@ class ApiClient {
         baseUrl: baseUrl,
         connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 30),
+        headers: const {
+          // Capacité de paiement de CETTE version de l'application.
+          //
+          // `provider` signifie : « je sais conduire un encaissement piloté par
+          // le prestataire » — demande reçue sur le téléphone, écran d'attente,
+          // interrogation du statut jusqu'à l'issue (`PaymentPendingPage` +
+          // `PaymentStatusController`).
+          //
+          // Le serveur refuse d'ouvrir un tel encaissement à un client qui ne
+          // l'annonce pas (426). Les versions antérieures affichaient leur
+          // consigne de virement avec un numéro **vide** pendant que le
+          // prestataire sollicitait réellement le téléphone du client : leurs
+          // libellés sont compilés dans le binaire, aucune réponse serveur ne
+          // pouvait les rattraper.
+          //
+          // ⚠️ Ne jamais retirer cet en-tête sans retirer la garde serveur, et
+          // ne jamais l'ajouter à une version qui ne sait pas attendre le
+          // résultat : il déclencherait un vrai débit sans écran pour le suivre.
+          'X-Lilia-Payment-Flow': 'provider',
+        },
       ),
     );
     dio.interceptors.addAll([

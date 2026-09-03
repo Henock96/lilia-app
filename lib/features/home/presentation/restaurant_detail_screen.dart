@@ -95,9 +95,9 @@ class _RestaurantDetailScreenState
   }
 
   Widget _buildContent(Restaurant restaurant) {
-    final categories = _getUniqueCategories(restaurant.products);
+    final categories = _sectionNames(restaurant);
     final filteredProducts = _filterProducts(restaurant.products);
-    final productsByCategory = _groupByCategory(filteredProducts);
+    final productsByCategory = _groupByCategory(filteredProducts, categories);
 
     return CustomScrollView(
       slivers: [
@@ -282,14 +282,30 @@ class _RestaurantDetailScreenState
     }
   }
 
-  List<String> _getUniqueCategories(List<Product> products) {
-    final categories = <String>{};
-    for (var product in products) {
-      if (product.category?.name != null && product.category!.name.isNotEmpty) {
-        categories.add(product.category!.name);
-      }
+  /// Sections à afficher, **dans l'ordre voulu par le vendeur**.
+  ///
+  /// `restaurant.categories` arrive déjà trié par `displayOrder` et filtré sur
+  /// `isActive`. On n'en garde que celles qui contiennent au moins un produit :
+  /// une section vide promet au client un contenu qui n'existe pas.
+  ///
+  /// Repli sur les catégories dérivées des produits — triées par nom, faute de
+  /// mieux — si le backend ne fournit pas la liste (app récente, serveur
+  /// antérieur). C'était l'unique comportement jusqu'ici, et il expliquait que
+  /// « Accompagnements » sorte avant « Les Grillades ».
+  List<String> _sectionNames(Restaurant restaurant) {
+    final withProducts = restaurant.products
+        .map((p) => p.category?.name)
+        .whereType<String>()
+        .where((n) => n.isNotEmpty)
+        .toSet();
+
+    if (restaurant.categories.isNotEmpty) {
+      return restaurant.categories
+          .where((c) => c.isActive && withProducts.contains(c.name))
+          .map((c) => c.name)
+          .toList();
     }
-    return categories.toList()..sort();
+    return withProducts.toList()..sort();
   }
 
   List<Product> _filterProducts(List<Product> products) {
@@ -308,17 +324,32 @@ class _RestaurantDetailScreenState
     }).toList();
   }
 
-  Map<String, List<Product>> _groupByCategory(List<Product> products) {
+  /// Regroupe les produits en respectant l'ordre des sections.
+  ///
+  /// `LinkedHashMap` par construction en Dart : les clés sortent dans l'ordre
+  /// d'insertion, donc dans celui du vendeur. Un produit dont la section n'est
+  /// pas affichée (désactivée, ou absente de la liste déclarée) rejoint
+  /// « Autres » — il reste vendable, il ne doit pas disparaître.
+  Map<String, List<Product>> _groupByCategory(
+    List<Product> products,
+    List<String> sectionOrder,
+  ) {
     final grouped = <String, List<Product>>{};
+    for (final name in sectionOrder) {
+      grouped[name] = <Product>[];
+    }
+
     final uncategorized = <Product>[];
     for (var product in products) {
       final name = product.category?.name;
-      if (name != null && name.isNotEmpty) {
-        grouped.putIfAbsent(name, () => []).add(product);
+      if (name != null && grouped.containsKey(name)) {
+        grouped[name]!.add(product);
       } else {
         uncategorized.add(product);
       }
     }
+
+    grouped.removeWhere((_, items) => items.isEmpty);
     if (uncategorized.isNotEmpty) grouped['Autres'] = uncategorized;
     return grouped;
   }

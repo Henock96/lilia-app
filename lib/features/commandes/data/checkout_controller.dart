@@ -3,7 +3,6 @@ import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/commandes/data/order_repository.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/models/checkout.dart';
-import 'package:lilia_app/services/location_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'checkout_controller.g.dart';
@@ -13,6 +12,17 @@ class CheckoutController extends _$CheckoutController {
   @override
   FutureOr<void> build() {}
 
+  /// Passe la commande.
+  ///
+  /// ⚠️ Aucune coordonnée n'est envoyée ici, et c'est **délibéré**. Ce
+  /// contrôleur transmettait `locationService.lastPosition` — le GPS du
+  /// téléphone — dans `deliveryLatitude` / `deliveryLongitude`. Le serveur les
+  /// recopiait sur la commande : un client commandant depuis son bureau pour
+  /// une livraison à domicile envoyait le livreur au bureau.
+  ///
+  /// La destination se déduit désormais de [adresseId], résolue côté serveur
+  /// (`DeliveryDestinationService`). Ne pas rétablir l'envoi de coordonnées
+  /// ici : elles seraient ignorées, et la tentation de s'y fier reviendrait.
   Future<Checkout> placeOrder({
     String? adresseId,
     required String paymentMethod,
@@ -27,7 +37,6 @@ class CheckoutController extends _$CheckoutController {
     state = const AsyncLoading();
 
     try {
-      final pos = ref.read(locationServiceProvider).lastPosition;
       final orderRepository = ref.read(orderRepositoryProvider.notifier);
       final order = await orderRepository.createOrders(
         adresseId: adresseId,
@@ -38,8 +47,6 @@ class CheckoutController extends _$CheckoutController {
         promoCode: promoCode,
         useLoyaltyPoints: useLoyaltyPoints,
         idempotencyKey: idempotencyKey,
-        deliveryLatitude: pos?.latitude,
-        deliveryLongitude: pos?.longitude,
         scheduledFor: scheduledFor,
       );
 

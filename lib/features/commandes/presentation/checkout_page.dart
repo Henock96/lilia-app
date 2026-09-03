@@ -1335,6 +1335,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               .createAdresse(
                 rue: options.newAddressRue!,
                 quartierId: options.quartier?.id,
+                // La position posée sur la carte à l'étape précédente. Sans
+                // elle, l'adresse naît sans coordonnées et le serveur
+                // retombera sur le centroïde du quartier — jamais sur le GPS
+                // du téléphone, qui n'a rien à voir avec la destination.
+                latitude: options.newAddressLocation?.latitude,
+                longitude: options.newAddressLocation?.longitude,
+                landmark: options.newAddressLocation?.landmark,
               );
           finalAddressId = newAddress.id;
         } catch (e) {

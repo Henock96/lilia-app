@@ -13,6 +13,7 @@ import 'package:lilia_app/features/commandes/presentation/fullscreen_tracking_sc
 import 'package:lilia_app/features/commandes/presentation/progress_step.dart';
 import 'package:lilia_app/features/commandes/presentation/status_info.dart';
 import 'package:lilia_app/core/network/api_exception.dart';
+import 'package:lilia_app/features/payments/application/payment_status_controller.dart';
 import 'package:lilia_app/features/payments/data/payment_service.dart';
 import 'package:lilia_app/features/payments/presentation/payment_pending_args.dart';
 import 'package:lilia_app/models/order.dart';
@@ -162,7 +163,7 @@ class OrderDetailPage extends ConsumerWidget {
                 // commande dont le paiement avait échoué était un cul-de-sac :
                 // il fallait la repasser entièrement.
                 if (order.status == OrderStatus.enAttente) ...[
-                  _PayNowButton(order: order),
+                  _PaymentSection(order: order),
                   const SizedBox(height: 12),
                 ],
 
@@ -1606,6 +1607,107 @@ class _NotificationIntentBanner extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Arbitre entre « un paiement est en cours » et « vous pouvez payer ».
+///
+/// **Pourquoi ce widget existe.** Le bouton de reprise s'affichait dès que la
+/// commande était `EN_ATTENTE`, sans regarder s'il y avait déjà une tentative en
+/// cours. Le client voyait donc « Payer maintenant » pendant qu'une demande
+/// attendait sur son téléphone — l'invitation la plus directe au double
+/// paiement.
+///
+/// Le serveur protège l'argent de toute façon : il réutilise la tentative
+/// `PENDING` au lieu d'en ouvrir une seconde, et ne resollicite pas l'opérateur
+/// si la demande lui a déjà été soumise. Ce widget ne remplace pas cette
+/// garantie — il évite de proposer un geste que le serveur refusera.
+///
+/// En cas d'échec de la lecture, on retombe volontairement sur le bouton :
+/// mieux vaut un client qui peut payer (le serveur arbitrera) qu'un client
+/// bloqué par une requête de confort qui n'a pas abouti.
+class _PaymentSection extends ConsumerWidget {
+  const _PaymentSection({required this.order});
+
+  final Order order;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(orderPaymentProvider(order.id));
+
+    return async.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 12),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+      ),
+      error: (_, _) => _PayNowButton(order: order),
+      data: (payment) {
+        if (payment?.status == PaymentStatus.pending) {
+          return _PaymentInProgressCard(orderId: order.id);
+        }
+        return _PayNowButton(order: order);
+      },
+    );
+  }
+}
+
+/// Un paiement est en cours : on informe, on ne propose pas de recommencer.
+class _PaymentInProgressCard extends ConsumerWidget {
+  const _PaymentInProgressCard({required this.orderId});
+
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cs.secondaryContainer.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cs.secondary.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: cs.secondary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                'Paiement en cours',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Nous vérifions votre paiement. Cela peut prendre quelques '
+            'instants. Ne relancez pas le paiement : votre commande sera '
+            'confirmée dès que l’opérateur aura répondu.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => ref.invalidate(orderPaymentProvider(orderId)),
+              child: const Text('Vérifier maintenant'),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -78,15 +78,14 @@ class HomeRepository {
     }
   }
 
-  /// GET /categories
-  Future<List<Category>> getCategories() async {
-    final res = await _api.getJson('/categories');
-    // /categories double-enveloppé (`{ data: { data: [...], count } }`).
-    final data = ApiResponse.listOf(ApiResponse.mapOf(res.data));
-    return data
-        .map((j) => Category.fromJson(j as Map<String, dynamic>))
-        .toList();
-  }
+  // `getCategories()` a été SUPPRIMÉ (septembre 2026).
+  //
+  // `GET /categories` n'est plus une liste plateforme : la route est
+  // authentifiée et rend les sections **du vendeur appelant**. Un client n'a
+  // rien à y faire, et l'appeler renverrait désormais un 403.
+  //
+  // Les sections d'un vendeur arrivent avec son détail
+  // (`GET /vendors/:id`, champ `categories`), déjà triées et filtrées.
 }
 
 @Riverpod(keepAlive: true)

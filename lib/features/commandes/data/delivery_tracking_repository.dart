@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:lilia_app/models/location_precision.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../core/network/api_client.dart';
@@ -59,9 +60,20 @@ class DriverLocation {
   // ETA en minutes (event WS ou calcul backend).
   final int? etaMinutes;
 
-  // Destination = adresse client (depuis `order.deliveryLatitude/Longitude`).
+  // Destination = adresse client, résolue par le serveur à la commande
+  // (`order.deliveryLatitude/Longitude`). Ce n'est plus le GPS du téléphone.
   final double? destinationLatitude;
   final double? destinationLongitude;
+
+  /// Fiabilité de la destination, telle que figée sur la commande.
+  ///
+  /// Sans elle, un centroïde de quartier s'afficherait exactement comme un
+  /// point posé à la main — c'est ce que faisait la version précédente.
+  final LocationPrecision destinationPrecision;
+
+  /// Adresse lisible et repères du client, recopiés sur la commande.
+  final String? destinationAddress;
+  final String? destinationLandmark;
 
   // Restaurant (point de départ logique de la livraison).
   final String? restaurantNom;
@@ -81,6 +93,9 @@ class DriverLocation {
     this.etaMinutes,
     this.destinationLatitude,
     this.destinationLongitude,
+    this.destinationPrecision = LocationPrecision.unknown,
+    this.destinationAddress,
+    this.destinationLandmark,
     this.restaurantNom,
     this.restaurantLatitude,
     this.restaurantLongitude,
@@ -141,6 +156,11 @@ class DriverLocation {
       driverImageUrl: deliverer?['imageUrl'] as String?,
       destinationLatitude: (order?['deliveryLatitude'] as num?)?.toDouble(),
       destinationLongitude: (order?['deliveryLongitude'] as num?)?.toDouble(),
+      destinationPrecision: LocationPrecision.fromWire(
+        order?['deliveryPrecision'] as String?,
+      ),
+      destinationAddress: order?['deliveryAddress'] as String?,
+      destinationLandmark: order?['deliveryLandmark'] as String?,
       restaurantNom: restaurant?['nom'] as String?,
       restaurantLatitude: (restaurant?['latitude'] as num?)?.toDouble(),
       restaurantLongitude: (restaurant?['longitude'] as num?)?.toDouble(),
@@ -163,6 +183,9 @@ class DriverLocation {
       etaMinutes: event.eta,
       destinationLatitude: destinationLatitude,
       destinationLongitude: destinationLongitude,
+      destinationPrecision: destinationPrecision,
+      destinationAddress: destinationAddress,
+      destinationLandmark: destinationLandmark,
       restaurantNom: restaurantNom,
       restaurantLatitude: restaurantLatitude,
       restaurantLongitude: restaurantLongitude,

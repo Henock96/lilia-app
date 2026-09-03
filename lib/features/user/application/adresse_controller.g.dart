@@ -33,7 +33,7 @@ final class AdresseControllerProvider
   AdresseController create() => AdresseController();
 }
 
-String _$adresseControllerHash() => r'da4c7046d33cd2498448977afd0f83412b167661';
+String _$adresseControllerHash() => r'e15146fd313b76bec0b85e95abcc770962bb32f6';
 
 abstract class _$AdresseController extends $AsyncNotifier<List<Adresse>> {
   FutureOr<List<Adresse>> build();

@@ -102,7 +102,7 @@ final class PaymentStatusControllerProvider
 }
 
 String _$paymentStatusControllerHash() =>
-    r'e97dc418ed99bcea424dc0d406ea6d04158b1971';
+    r'94b3b4d98d81f60c127b139c8971ccab48fde422';
 
 /// Suit un paiement jusqu'à son issue.
 ///
@@ -193,4 +193,135 @@ abstract class _$PaymentStatusController extends $Notifier<PaymentWaitState> {
             >;
     return element.handleCreate(ref, () => build(_$args));
   }
+}
+
+/// Dernière tentative d'encaissement d'une commande, ou `null`.
+///
+/// Sert à une seule chose, mais elle est importante : savoir si un paiement est
+/// **déjà en cours** avant de proposer « Payer maintenant ». Sans cette
+/// information, l'écran de commande offrait une reprise pendant qu'une demande
+/// attendait sur le téléphone du client — le geste exact qui invite au double
+/// paiement.
+///
+/// Lecture pure, non rafraîchie automatiquement : l'écran d'attente s'occupe du
+/// suivi actif. Ici, on veut l'état au moment où le client regarde sa commande.
+
+@ProviderFor(orderPayment)
+final orderPaymentProvider = OrderPaymentFamily._();
+
+/// Dernière tentative d'encaissement d'une commande, ou `null`.
+///
+/// Sert à une seule chose, mais elle est importante : savoir si un paiement est
+/// **déjà en cours** avant de proposer « Payer maintenant ». Sans cette
+/// information, l'écran de commande offrait une reprise pendant qu'une demande
+/// attendait sur le téléphone du client — le geste exact qui invite au double
+/// paiement.
+///
+/// Lecture pure, non rafraîchie automatiquement : l'écran d'attente s'occupe du
+/// suivi actif. Ici, on veut l'état au moment où le client regarde sa commande.
+
+final class OrderPaymentProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<PaymentStatusResponse?>,
+          PaymentStatusResponse?,
+          FutureOr<PaymentStatusResponse?>
+        >
+    with
+        $FutureModifier<PaymentStatusResponse?>,
+        $FutureProvider<PaymentStatusResponse?> {
+  /// Dernière tentative d'encaissement d'une commande, ou `null`.
+  ///
+  /// Sert à une seule chose, mais elle est importante : savoir si un paiement est
+  /// **déjà en cours** avant de proposer « Payer maintenant ». Sans cette
+  /// information, l'écran de commande offrait une reprise pendant qu'une demande
+  /// attendait sur le téléphone du client — le geste exact qui invite au double
+  /// paiement.
+  ///
+  /// Lecture pure, non rafraîchie automatiquement : l'écran d'attente s'occupe du
+  /// suivi actif. Ici, on veut l'état au moment où le client regarde sa commande.
+  OrderPaymentProvider._({
+    required OrderPaymentFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'orderPaymentProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$orderPaymentHash();
+
+  @override
+  String toString() {
+    return r'orderPaymentProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<PaymentStatusResponse?> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<PaymentStatusResponse?> create(Ref ref) {
+    final argument = this.argument as String;
+    return orderPayment(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is OrderPaymentProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$orderPaymentHash() => r'69d15d55b4a5717639191c0b8580a13e984e9961';
+
+/// Dernière tentative d'encaissement d'une commande, ou `null`.
+///
+/// Sert à une seule chose, mais elle est importante : savoir si un paiement est
+/// **déjà en cours** avant de proposer « Payer maintenant ». Sans cette
+/// information, l'écran de commande offrait une reprise pendant qu'une demande
+/// attendait sur le téléphone du client — le geste exact qui invite au double
+/// paiement.
+///
+/// Lecture pure, non rafraîchie automatiquement : l'écran d'attente s'occupe du
+/// suivi actif. Ici, on veut l'état au moment où le client regarde sa commande.
+
+final class OrderPaymentFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<PaymentStatusResponse?>, String> {
+  OrderPaymentFamily._()
+    : super(
+        retry: null,
+        name: r'orderPaymentProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// Dernière tentative d'encaissement d'une commande, ou `null`.
+  ///
+  /// Sert à une seule chose, mais elle est importante : savoir si un paiement est
+  /// **déjà en cours** avant de proposer « Payer maintenant ». Sans cette
+  /// information, l'écran de commande offrait une reprise pendant qu'une demande
+  /// attendait sur le téléphone du client — le geste exact qui invite au double
+  /// paiement.
+  ///
+  /// Lecture pure, non rafraîchie automatiquement : l'écran d'attente s'occupe du
+  /// suivi actif. Ici, on veut l'état au moment où le client regarde sa commande.
+
+  OrderPaymentProvider call(String orderId) =>
+      OrderPaymentProvider._(argument: orderId, from: this);
+
+  @override
+  String toString() => r'orderPaymentProvider';
 }

@@ -623,3 +623,67 @@ firebase_auth-*/example/`), ce qui remontait 122 erreurs étrangères au projet.
    et dépendance réseau à un tiers.
 7. **Code mort** — `widgets/section/fallback_slider.dart` (widget vide jamais
    utilisé) supprimé.
+
+---
+
+## Adresse géolocalisée (1er septembre 2026)
+
+**Règle** : la destination d'une commande appartient à **l'adresse choisie**,
+jamais à la position du téléphone.
+
+`checkout_controller.placeOrder` **n'envoie plus aucune coordonnée**. Il lisait
+`locationService.lastPosition` — le GPS du téléphone au moment de payer — et le
+passait en `deliveryLatitude`/`deliveryLongitude` : commander depuis son bureau
+pour une livraison à domicile envoyait le livreur au bureau. La destination est
+résolue côté serveur depuis l'`adresseId`. **Ne pas rétablir l'envoi de
+coordonnées** : elles seraient ignorées, et la tentation de s'y fier reviendrait.
+
+### `LocationPickerPage`
+
+`features/address/presentation/pages/location_picker_page.dart` — repère **fixe
+au centre**, carte qui glisse dessous. Un marqueur qu'on fait glisser au doigt
+est masqué par ce doigt au moment de viser. Le repère est décalé d'une
+demi-hauteur pour que sa **pointe** tombe sur le centre géométrique, sans quoi
+le point enregistré est systématiquement au sud du point visé.
+
+Le bouton « Utiliser ma position » n'est qu'une **aide au cadrage** : le repère
+reste déplaçable, et c'est le centre final qui est confirmé. Sur Android 12+
+une autorisation « approximative » rend un point à 1–3 km — sans ce déplacement
+possible, l'adresse serait fausse sans que personne le sache.
+
+⚠️ **Aucun géocodage inverse.** Testé le 01/09 sur cinq points de Brazzaville :
+Google rend un Plus Code (`P6PV+J5`) trois fois sur cinq. La position est la
+donnée primaire, l'adresse textuelle reste celle que le client écrit.
+
+Le bouton de confirmation reste désactivé tant que le client n'a ni déplacé la
+carte ni utilisé son GPS : un tap distrait ne doit pas enregistrer le cadrage
+par défaut comme si c'était une adresse.
+
+### `LocationService` — ce qu'il n'est plus
+
+Plus d'initialisation au démarrage, plus de « dernière position connue ». Les
+deux se tenaient : la position mise en cache au lancement servait de destination.
+
+Il expose `currentPosition()` à la demande, avec un motif de refus explicite
+(`serviceDisabled` / `denied` / `deniedForever` / `timeout`) — le `catch (_) {}`
+précédent avalait tout, et le client ne savait jamais pourquoi rien ne marchait.
+Corollaire : la permission est demandée **au moment où elle sert**, sur un écran
+qui explique pourquoi, et non sur l'écran de démarrage.
+
+### Formulaire d'adresse
+
+Quartier **obligatoire** (il porte les frais de zone et le centroïde de repli),
+étape carte, champ de repères pour le livreur. « Congo » a disparu : toutes les
+livraisons y sont.
+
+Les adresses créées avant cette évolution affichent « Non située — appuyez pour
+la placer sur la carte » et se complètent via `PATCH /adresses/:id`.
+
+### `LocationPrecision`
+
+`models/location_precision.dart` — `exact` / `approximate` / `unknown`, miroir
+de l'enum Prisma. Toute valeur inconnue (y compris `null`) devient `unknown` :
+le repli fait **taire** la carte au lieu de la faire mentir.
+
+`driver_tracking_map` ne pose plus de marqueur sans position, et ne demande plus
+le GPS du client pour deviner sa propre destination.

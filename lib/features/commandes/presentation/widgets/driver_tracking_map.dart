@@ -1,42 +1,32 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:lilia_app/models/location_precision.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/delivery_tracking_repository.dart';
 
-const LatLng _kBrazzavilleCenter = LatLng(-4.2634, 15.2429);
+/// Cadrage de repli quand aucun point n'est connu — **jamais** un marqueur.
+///
+/// La distinction est le cœur de la correction de septembre 2026 : une carte
+/// centrée sur Brazzaville dit « je ne sais pas où regarder », un marqueur posé
+/// à Brazzaville dit « la livraison est ici ». La version précédente faisait la
+/// seconde chose, et pire encore : faute de coordonnées sur la commande, elle
+/// demandait le GPS **du client en train de regarder la carte** et l'étiquetait
+/// « Adresse de livraison ».
+const LatLng _kBrazzavilleFraming = LatLng(-4.2634, 15.2429);
 
-/// Résout les coords de destination pour la carte :
-/// - en priorité l'adresse client renvoyée par le backend (`order.deliveryLat/Lng`)
-/// - sinon le GPS actuel du client (avec permission)
-/// - sinon le centre de Brazzaville (fallback safe).
-Future<LatLng> _resolveClientDestination(DriverLocation location) async {
-  if (location.destinationLatitude != null &&
-      location.destinationLongitude != null) {
-    return LatLng(
-      location.destinationLatitude!,
-      location.destinationLongitude!,
-    );
+/// Destination de la course, ou `null`.
+///
+/// Une seule source : les coordonnées figées sur la commande par le serveur.
+/// Pas de repli, pas de GPS local, pas de point inventé — si le serveur ne
+/// sait pas, l'interface ne sait pas non plus et le dit.
+LatLng? _destinationOf(DriverLocation location) {
+  if (!location.destinationPrecision.hasPosition) return null;
+  if (location.destinationLatitude == null ||
+      location.destinationLongitude == null) {
+    return null;
   }
-  try {
-    var perm = await Geolocator.checkPermission();
-    if (perm == LocationPermission.denied) {
-      perm = await Geolocator.requestPermission();
-    }
-    if (perm == LocationPermission.denied ||
-        perm == LocationPermission.deniedForever) {
-      return _kBrazzavilleCenter;
-    }
-    final pos = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
-    );
-    return LatLng(pos.latitude, pos.longitude);
-  } catch (_) {
-    return _kBrazzavilleCenter;
-  }
+  return LatLng(location.destinationLatitude!, location.destinationLongitude!);
 }
 
 /// Construit les 3 markers de tracking (livreur / restaurant / destination
@@ -80,14 +70,23 @@ Set<Marker> _buildTrackingMarkers(
   }
 
   if (destination != null) {
+    final approximate = loc.destinationPrecision.needsWarning;
     markers.add(
       Marker(
         markerId: const MarkerId('destination'),
         position: destination,
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        icon: BitmapDescriptor.defaultMarkerWithHue(
+          // Un point approximatif ne porte pas la même couleur qu'un point
+          // posé : la nuance doit être lisible sans ouvrir l'infobulle.
+          approximate ? BitmapDescriptor.hueAzure : BitmapDescriptor.hueBlue,
+        ),
         infoWindow: InfoWindow(
-          title: 'Adresse de livraison',
-          snippet: detailed ? 'Vous' : null,
+          title: approximate
+              ? 'Zone de livraison (approximative)'
+              : 'Adresse de livraison',
+          snippet: approximate
+              ? 'Position au quartier'
+              : (detailed ? 'Vous' : null),
         ),
       ),
     );
@@ -129,7 +128,10 @@ LatLng _initialMapCenter(DriverLocation loc, LatLng? destination) {
       : (destination ??
             (loc.hasRestaurant
                 ? LatLng(loc.restaurantLatitude!, loc.restaurantLongitude!)
-                : _kBrazzavilleCenter));
+                // Dernier recours : on cadre la ville. Aucun marqueur n'y est
+                // posé, la carte montre seulement « quelque part à
+                // Brazzaville » — ce qui est exactement ce qu'on sait.
+                : _kBrazzavilleFraming));
 }
 
 class DriverTrackingMap extends ConsumerWidget {
@@ -323,43 +325,33 @@ class _TrackingMapView extends StatefulWidget {
 class _TrackingMapViewState extends State<_TrackingMapView> {
   GoogleMapController? _ctrl; // plein écran uniquement (recadrage)
   LatLng? _destination;
-  StreamSubscription<Position>? _posSub; // plein écran uniquement
 
   bool get _fullscreen => widget.fullscreen;
 
   @override
   void initState() {
     super.initState();
-    _initDestination();
+    // La destination est une donnée de la commande, connue immédiatement :
+    // plus d'appel asynchrone, plus de permission demandée, plus de flux GPS.
+    //
+    // L'ancienne version ouvrait un `getPositionStream` sur le téléphone du
+    // **client** dès que la commande n'avait pas de coordonnées, et déplaçait
+    // le marqueur « Adresse de livraison » à chaque pas qu'il faisait. Le
+    // serveur résolvant désormais la destination, il n'y a plus rien à
+    // deviner ici.
+    _destination = _destinationOf(widget.location);
+    if (_fullscreen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _fitBounds());
+    }
   }
 
-  Future<void> _initDestination() async {
-    final dest = await _resolveClientDestination(widget.location);
-    if (!mounted) return;
-    setState(() => _destination = dest);
-    if (!_fullscreen) return;
-
-    _fitBounds();
-    // Stream du GPS client uniquement si on n'a PAS de coords backend
-    // (sinon la destination est fixe = adresse de la commande).
-    if (widget.location.destinationLatitude == null) {
-      _posSub =
-          Geolocator.getPositionStream(
-            locationSettings: const LocationSettings(
-              accuracy: LocationAccuracy.high,
-              distanceFilter: 15,
-            ),
-          ).listen(
-            (p) {
-              if (!mounted) return;
-              setState(() => _destination = LatLng(p.latitude, p.longitude));
-            },
-            // GPS indisponible (permission refusée, simulateur sans position,
-            // perte de signal) : on garde la destination déjà résolue, pas de crash.
-            onError: (_) {},
-            cancelOnError: false,
-          );
-    }
+  @override
+  void didUpdateWidget(covariant _TrackingMapView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // La destination peut apparaître entre deux rafraîchissements : le premier
+    // appel HTTP peut précéder l'assignation du livreur.
+    final next = _destinationOf(widget.location);
+    if (next != _destination) setState(() => _destination = next);
   }
 
   void _fitBounds() {
@@ -399,7 +391,6 @@ class _TrackingMapViewState extends State<_TrackingMapView> {
 
   @override
   void dispose() {
-    _posSub?.cancel();
     _ctrl?.dispose();
     super.dispose();
   }
@@ -436,12 +427,23 @@ class _TrackingMapViewState extends State<_TrackingMapView> {
     );
 
     if (!_fullscreen) {
-      return SizedBox(height: 220, child: map);
+      return Column(
+        children: [
+          SizedBox(height: 220, child: map),
+          _DestinationNotice(location: loc),
+        ],
+      );
     }
 
     return Stack(
       children: [
         map,
+        Positioned(
+          bottom: 0,
+          left: 0,
+          right: 0,
+          child: _DestinationNotice(location: loc),
+        ),
         if (!loc.hasDriverPosition)
           Positioned(
             top: 16,
@@ -593,4 +595,51 @@ class _NoPositionPlaceholder extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// Dit au client ce que la carte montre vraiment.
+///
+/// Silencieux quand la destination est un point posé : il n'y a rien à
+/// signaler, et un bandeau permanent finirait par ne plus être lu. Il ne parle
+/// que dans les deux cas où la carte, seule, induirait en erreur — un marqueur
+/// approximatif, ou pas de marqueur du tout.
+class _DestinationNotice extends StatelessWidget {
+  const _DestinationNotice({required this.location});
+
+  final DriverLocation location;
+
+  @override
+  Widget build(BuildContext context) {
+    final precision = location.destinationPrecision;
+    if (precision == LocationPrecision.exact) return const SizedBox.shrink();
+
+    final cs = Theme.of(context).colorScheme;
+    final approximate = precision == LocationPrecision.approximate;
+
+    return Container(
+      width: double.infinity,
+      color: cs.surfaceContainerHighest,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      child: Row(
+        children: [
+          Icon(
+            approximate ? Icons.gps_not_fixed : Icons.gps_off,
+            size: 15,
+            color: cs.onSurfaceVariant,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              approximate
+                  ? 'Position approximative — le livreur vous appellera en '
+                        'arrivant dans le quartier.'
+                  : 'Adresse non située sur la carte — le livreur vous '
+                        'appellera.',
+              style: TextStyle(fontSize: 11.5, color: cs.onSurfaceVariant),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

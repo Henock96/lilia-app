@@ -28,13 +28,6 @@ Future<List<Product>> recommendations(Ref ref) async {
   return repo.getRecommendations(limit: 10);
 }
 
-/// Provider pour la liste des catégories
-@riverpod
-Future<List<Category>> categoriesList(Ref ref) async {
-  final repo = ref.watch(homeRepositoryProvider);
-  return repo.getCategories();
-}
-
 /// Provider pour les résultats de recherche
 @riverpod
 Future<SearchResult> searchResults(Ref ref, String query) async {

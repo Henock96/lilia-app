@@ -8,7 +8,6 @@ import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/common_widgets/connectivity_banner.dart';
 import 'package:lilia_app/routing/app_router.dart';
 import 'package:lilia_app/services/analytics_service.dart';
-import 'package:lilia_app/services/location_service.dart';
 import 'package:lilia_app/services/notification_service.dart';
 import 'package:lilia_app/theme/app_theme.dart';
 import 'package:lilia_app/theme/theme_mode_provider.dart';
@@ -19,10 +18,6 @@ import 'firebase_options.dart';
 
 final notificationInitializerProvider = FutureProvider<void>((ref) async {
   await ref.watch(notificationServiceProvider).init();
-});
-
-final locationInitializerProvider = FutureProvider<void>((ref) async {
-  await ref.watch(locationServiceProvider).init();
 });
 
 void main() async {
@@ -71,7 +66,6 @@ class MyApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
     ref.watch(notificationInitializerProvider);
-    ref.watch(locationInitializerProvider);
     ref.watch(userDataSynchronizerProvider);
     return ConnectivityWrapper(
       child: MaterialApp.router(
