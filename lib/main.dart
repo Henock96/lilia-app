@@ -19,7 +19,6 @@ import 'firebase_options.dart';
 final notificationInitializerProvider = FutureProvider<void>((ref) async {
   await ref.watch(notificationServiceProvider).init();
 });
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Cache mémoire images plafonné à 100 MB (LIL-37).
