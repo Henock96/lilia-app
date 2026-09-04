@@ -34,11 +34,7 @@ class _OrderSuccessPageState extends ConsumerState<OrderSuccessPage> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.check_circle_outline,
-                  color: cs.primary,
-                  size: 100,
-                ),
+                Icon(Icons.check_circle_outline, color: cs.primary, size: 100),
                 const SizedBox(height: 24),
                 const Text(
                   'Commande passée avec succès !',

@@ -46,11 +46,7 @@ class CartModeConflictDialog extends StatelessWidget {
     final incomingLabel = cartIsPreorder ? 'immédiat' : 'sur commande';
 
     return AlertDialog(
-      icon: Icon(
-        Icons.shopping_bag_outlined,
-        color: scheme.primary,
-        size: 32,
-      ),
+      icon: Icon(Icons.shopping_bag_outlined, color: scheme.primary, size: 32),
       title: const Text('Type de commande différent'),
       content: Column(
         mainAxisSize: MainAxisSize.min,

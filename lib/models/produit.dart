@@ -1,4 +1,4 @@
-
+import 'package:lilia_app/models/gallery_image.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/models/vendor_type.dart';
 
@@ -8,6 +8,9 @@ class Product {
   final String description;
   final double prixOriginal;
   final String? imageUrl;
+  // Galerie multi-images (ProductImage côté backend). Vide si l'API ne la
+  // renvoie pas encore ou si le produit n'a que l'imageUrl legacy.
+  final List<GalleryImage> images;
   final String restaurantId;
   // categoryId est nullable côté Prisma (String?) — vrai pour les nouveaux
   // produits HOME_COOK/BAKERY créés sans catégorie via admin web (LIL-117).
@@ -36,6 +39,7 @@ class Product {
     required this.description,
     required this.prixOriginal,
     this.imageUrl,
+    this.images = const [],
     required this.restaurantId,
     this.categoryId,
     this.category,
@@ -57,12 +61,25 @@ class Product {
 
   bool get isAvailable => stockRestant == null || stockRestant! > 0;
 
+  /// URLs à afficher dans le carrousel : la galerie si disponible, sinon
+  /// l'`imageUrl` legacy en fallback. Vide si aucune image.
+  List<String> get galleryUrls {
+    if (images.isNotEmpty) return [for (final img in images) img.url];
+    if (imageUrl != null && imageUrl!.trim().isNotEmpty) return [imageUrl!];
+    return const [];
+  }
+
+  /// Vignette pour les cartes de liste : cover de la galerie si disponible,
+  /// sinon l'`imageUrl` legacy. `null` si aucune image (→ placeholder).
+  String? get thumbnailUrl => galleryUrls.isNotEmpty ? galleryUrls.first : null;
+
   /// Vrai si le produit a une fenêtre horaire et que l'heure actuelle est
   /// dans cette fenêtre. Si pas de fenêtre, toujours vrai (pas de contrainte).
   bool get isWithinAvailabilityWindow {
     if (availableFrom == null || availableUntil == null) return true;
     final now = DateTime.now();
-    final current = '${now.hour.toString().padLeft(2, '0')}:'
+    final current =
+        '${now.hour.toString().padLeft(2, '0')}:'
         '${now.minute.toString().padLeft(2, '0')}';
     return current.compareTo(availableFrom!) >= 0 &&
         current.compareTo(availableUntil!) <= 0;
@@ -82,14 +99,17 @@ class Product {
         .toList();
 
     return Product(
-      id: json['id'],
-      name: json['nom'],
-      description: json['description'] ?? '',
+      id: json['id'] as String,
+      name: json['nom'] as String,
+      description: (json['description'] as String?) ?? '',
       prixOriginal: (json['prixOriginal'] as num).toDouble(),
-      imageUrl: json['imageUrl'],
-      restaurantId: json['restaurantId'],
+      imageUrl: json['imageUrl'] as String?,
+      images: GalleryImage.listFrom(json['images']),
+      restaurantId: json['restaurantId'] as String,
       categoryId: json['categoryId'] as String?,
-      category: json['category'] != null ? Category.fromJson(json['category']) : null,
+      category: json['category'] != null
+          ? Category.fromJson(json['category'] as Map<String, dynamic>)
+          : null,
       variants: variants,
       stockRestant: json['stockRestant'] as int?,
       orderCount: json['orderCount'] as int?,
@@ -103,7 +123,7 @@ class Product {
       stockMode: StockMode.fromString(json['stockMode'] as String?),
       ingredients: json['ingredients'] as String?,
       shelfLifeDays: json['shelfLifeDays'] as int?,
-      madeToOrder: json['madeToOrder'] ?? false,
+      madeToOrder: (json['madeToOrder'] as bool?) ?? false,
       availableFrom: json['availableFrom'] as String?,
       availableUntil: json['availableUntil'] as String?,
     );
@@ -116,18 +136,14 @@ class ProductVariant {
   final String? label;
   final double prix;
 
-  ProductVariant({
-    required this.id,
-    this.label,
-    required this.prix,
-  });
+  ProductVariant({required this.id, this.label, required this.prix});
 
   /// Label affichable — jamais null, fallback "Standard".
   String get displayLabel => label ?? 'Standard';
 
   factory ProductVariant.fromJson(Map<String, dynamic> json) {
     return ProductVariant(
-      id: json['id'],
+      id: json['id'] as String,
       label: json['label'] as String?,
       prix: (json['prix'] as num).toDouble(),
     );

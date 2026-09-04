@@ -33,13 +33,13 @@ final class FavoritesProvider
   Favorites create() => Favorites();
 }
 
-String _$favoritesHash() => r'5bc9dd05a9757927c5fee97e281c19e54e21fa49';
+String _$favoritesHash() => r'0c2516cdea933097658f6f087c5a969b89314100';
 
 abstract class _$Favorites extends $AsyncNotifier<List<Product>> {
   FutureOr<List<Product>> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<List<Product>>, List<Product>>;
     final element =
         ref.element
@@ -49,6 +49,6 @@ abstract class _$Favorites extends $AsyncNotifier<List<Product>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lilia_app/common_widgets/app_animations.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
 import 'package:lilia_app/features/favoris/application/restaurant_favorites_provider.dart';
 
 import '../../../models/produit.dart';
 import '../../../models/restaurant.dart';
+import 'package:lilia_app/utils/currency.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class FavorisPage extends ConsumerWidget {
   const FavorisPage({super.key});
@@ -74,7 +78,9 @@ class _ProductFavoritesTab extends ConsumerWidget {
           padding: const EdgeInsets.all(12),
           itemCount: products.length,
           itemBuilder: (context, index) {
-            return ProductCardFavoris(product: products[index]);
+            return ProductCardFavoris(
+              product: products[index],
+            ).staggeredIn(index < 6 ? index : 0);
           },
         );
       },
@@ -119,22 +125,13 @@ class ProductCardFavoris extends ConsumerWidget {
                 tag: 'favorite_${product.id}',
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10),
-                  child: product.imageUrl != null
-                      ? Image.network(
-                          product.imageUrl!,
+                  child: product.thumbnailUrl != null
+                      ? AppCachedImage(
+                          imageUrl: product.thumbnailUrl!,
                           width: 80,
                           height: 80,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => Container(
-                            width: 80,
-                            height: 80,
-                            color: cs.surfaceContainerHighest,
-                            child: Icon(
-                              Icons.fastfood,
-                              size: 36,
-                              color: cs.outline,
-                            ),
-                          ),
+                          errorIcon: Icons.fastfood,
                         )
                       : Container(
                           width: 80,
@@ -192,7 +189,7 @@ class ProductCardFavoris extends ConsumerWidget {
                     ],
                     const SizedBox(height: 4),
                     Text(
-                      '${getDisplayPrice().toStringAsFixed(0)} FCFA',
+                      formatPrice(getDisplayPrice()),
                       style: TextStyle(
                         color: cs.primary,
                         fontWeight: FontWeight.bold,
@@ -203,6 +200,7 @@ class ProductCardFavoris extends ConsumerWidget {
                 ),
               ),
               IconButton(
+                tooltip: 'Retirer des favoris',
                 icon: Icon(
                   isFavorite ? Icons.favorite : Icons.favorite_border,
                   color: isFavorite ? Colors.red : cs.outline,
@@ -269,7 +267,9 @@ class _RestaurantFavoritesTab extends ConsumerWidget {
           padding: const EdgeInsets.all(12),
           itemCount: restaurants.length,
           itemBuilder: (context, index) {
-            return _RestaurantFavoriteCard(restaurant: restaurants[index]);
+            return _RestaurantFavoriteCard(
+              restaurant: restaurants[index],
+            ).staggeredIn(index < 6 ? index : 0);
           },
         );
       },
@@ -312,23 +312,13 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(12),
                     ),
-                    child: restaurant.imageUrl != null
-                        ? Image.network(
-                            restaurant.imageUrl!,
+                    child: restaurant.thumbnailUrl != null
+                        ? AppCachedImage(
+                            imageUrl: restaurant.thumbnailUrl!,
                             height: 120,
                             width: double.infinity,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => Container(
-                              height: 120,
-                              color: cs.surfaceContainerHighest,
-                              child: Center(
-                                child: Icon(
-                                  Icons.restaurant,
-                                  size: 40,
-                                  color: cs.outline,
-                                ),
-                              ),
-                            ),
+                            errorIcon: Icons.restaurant,
                           )
                         : Container(
                             height: 120,
@@ -374,14 +364,8 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                         ref
                             .read(restaurantFavoritesProvider.notifier)
                             .remove(restaurant);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              '${restaurant.name} retire des favoris',
-                            ),
-                            behavior: SnackBarBehavior.floating,
-                            duration: const Duration(seconds: 2),
-                          ),
+                        context.showSnack(
+                          '${restaurant.name} retire des favoris',
                         );
                       },
                       child: Container(
@@ -492,7 +476,7 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          '${restaurant.fixedDeliveryFee.toStringAsFixed(0)} FCFA',
+                          formatPrice(restaurant.fixedDeliveryFee),
                           style: TextStyle(
                             fontSize: 12,
                             color: cs.onSurfaceVariant,

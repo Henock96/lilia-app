@@ -19,6 +19,10 @@ class AdresseController extends _$AdresseController {
     String ville = 'Brazzaville',
     String pays = 'Congo',
     String? quartierId,
+    double? latitude,
+    double? longitude,
+    String? landmark,
+    String? label,
   }) async {
     try {
       final adresseRepo = ref.read(adresseRepositoryProvider.notifier);
@@ -27,12 +31,34 @@ class AdresseController extends _$AdresseController {
         ville: ville,
         pays: pays,
         quartierId: quartierId,
+        latitude: latitude,
+        longitude: longitude,
+        landmark: landmark,
+        label: label,
       );
       ref.invalidateSelf(); // Rafraîchir la liste
       return adresse;
     } catch (e) {
       rethrow;
     }
+  }
+
+  /// Complète a posteriori la position d'une adresse existante.
+  Future<Adresse> updatePosition(
+    String adresseId, {
+    required double latitude,
+    required double longitude,
+    String? landmark,
+  }) async {
+    final adresseRepo = ref.read(adresseRepositoryProvider.notifier);
+    final adresse = await adresseRepo.updatePosition(
+      adresseId,
+      latitude: latitude,
+      longitude: longitude,
+      landmark: landmark,
+    );
+    ref.invalidateSelf();
+    return adresse;
   }
 
   Future<void> deleteAdresse(String adresseId) async {

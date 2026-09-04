@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lilia_app/common_widgets/app_animations.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 
 import '../../../features/cart/application/cart_controller.dart';
 import '../../../models/produit.dart';
@@ -11,6 +13,8 @@ import '../../../models/restaurant.dart';
 import '../../../routing/app_route_enum.dart';
 import '../../../services/analytics_service.dart';
 import '../data/remote/home_controller.dart';
+import 'package:lilia_app/utils/currency.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -64,6 +68,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         actions: [
           if (_searchController.text.isNotEmpty)
             IconButton(
+              tooltip: 'Fermer',
               onPressed: () {
                 _searchController.clear();
                 setState(() => _query = '');
@@ -131,7 +136,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
               const SizedBox(height: 8),
               ...results.restaurants.map(
-                (r) => _SearchRestaurantTile(restaurant: r),
+                (r) => _SearchRestaurantTile(restaurant: r).fadeSlideIn(),
               ),
               const SizedBox(height: 20),
             ],
@@ -145,7 +150,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              ...results.products.map((p) => _SearchProductTile(product: p)),
+              ...results.products.map(
+                (p) => _SearchProductTile(product: p).fadeSlideIn(),
+              ),
             ],
           ],
         );
@@ -186,13 +193,13 @@ class _SearchRestaurantTile extends StatelessWidget {
         },
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: restaurant.imageUrl != null
-              ? Image.network(
-                  restaurant.imageUrl!,
+          child: restaurant.thumbnailUrl != null
+              ? AppCachedImage(
+                  imageUrl: restaurant.thumbnailUrl!,
                   width: 50,
                   height: 50,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => _placeholderBox(
+                  errorWidget: _placeholderBox(
                     cs,
                     const Icon(Icons.restaurant, size: 24),
                   ),
@@ -280,13 +287,13 @@ class _SearchProductTile extends ConsumerWidget {
         },
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(8),
-          child: product.imageUrl != null
-              ? Image.network(
-                  product.imageUrl!,
+          child: product.thumbnailUrl != null
+              ? AppCachedImage(
+                  imageUrl: product.thumbnailUrl!,
                   width: 50,
                   height: 50,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => _placeholderBox(cs),
+                  errorWidget: _placeholderBox(cs),
                 )
               : _placeholderBox(cs),
         ),
@@ -307,7 +314,7 @@ class _SearchProductTile extends ConsumerWidget {
                 style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
               ),
             Text(
-              '${product.displayPrice.toStringAsFixed(0)} FCFA',
+              formatPrice(product.displayPrice),
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -321,12 +328,7 @@ class _SearchProductTile extends ConsumerWidget {
                 onTap: () {
                   final user = FirebaseAuth.instance.currentUser;
                   if (user == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Connectez-vous pour ajouter au panier'),
-                        behavior: SnackBarBehavior.floating,
-                      ),
-                    );
+                    context.showSnack('Connectez-vous pour ajouter au panier');
                     return;
                   }
                   if (product.variants.length > 1) {
@@ -385,19 +387,13 @@ class _SearchProductTile extends ConsumerWidget {
         .addItem(variantId: variant.id)
         .then((_) {
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('${product.name} ajouté au panier'),
-                duration: const Duration(seconds: 2),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+            context.showSnack('${product.name} ajouté au panier');
           }
         });
   }
 
   void _showVariantBottomSheet(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -453,7 +449,7 @@ class _SearchProductTile extends ConsumerWidget {
                           ),
                         ),
                         Text(
-                          '${variant.prix.toStringAsFixed(0)} FCFA',
+                          formatPrice(variant.prix),
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,

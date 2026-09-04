@@ -33,13 +33,13 @@ final class OrderRepositoryProvider
   OrderRepository create() => OrderRepository();
 }
 
-String _$orderRepositoryHash() => r'11335f8ddd8b62b8b882d5df33767a4fee17d53f';
+String _$orderRepositoryHash() => r'6d5b82398fa1e7b539f12f33c0ac065f95ac929d';
 
 abstract class _$OrderRepository extends $AsyncNotifier<void> {
   FutureOr<void> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<void>, void>;
     final element =
         ref.element
@@ -49,6 +49,6 @@ abstract class _$OrderRepository extends $AsyncNotifier<void> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

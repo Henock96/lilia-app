@@ -136,9 +136,11 @@ class AppTheme {
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: t.actionPrimary,
-          foregroundColor: Colors.white,
+          // Jamais `Colors.white` en dur : en thème sombre l'action est un
+          // orange clair sur lequel le blanc tombe à 2.84:1.
+          foregroundColor: t.textOnAction,
           disabledBackgroundColor: t.actionPrimary.withValues(alpha: 0.4),
-          disabledForegroundColor: Colors.white70,
+          disabledForegroundColor: t.textOnAction.withValues(alpha: 0.7),
           elevation: 0,
           shadowColor: Colors.transparent,
           shape: const StadiumBorder(),
@@ -261,7 +263,9 @@ class AppTheme {
             ? LiliaColors.charcoal600
             : LiliaColors.charcoal700,
         contentTextStyle: GoogleFonts.inter(fontSize: 14, color: Colors.white),
-        actionTextColor: t.actionPrimary,
+        // Le snackbar a un fond charcoal foncé dans les deux thèmes :
+        // `actionPrimary` (orange600 en clair) n'y donnait que 3.57:1.
+        actionTextColor: LiliaColors.orange300,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: LiliaRadius.mdAll),
       ),
@@ -286,7 +290,7 @@ class AppTheme {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
           (states) => states.contains(WidgetState.selected)
-              ? Colors.white
+              ? t.textOnAction
               : t.textMuted,
         ),
         trackColor: WidgetStateProperty.resolveWith(
@@ -304,7 +308,7 @@ class AppTheme {
               ? t.actionPrimary
               : Colors.transparent,
         ),
-        checkColor: WidgetStateProperty.all(Colors.white),
+        checkColor: WidgetStateProperty.all(t.textOnAction),
         side: BorderSide(color: t.border, width: 1.5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
@@ -368,7 +372,7 @@ class AppTheme {
       // ── FAB ─────────────────────────────────────────────────────────────
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: t.actionPrimary,
-        foregroundColor: Colors.white,
+        foregroundColor: t.textOnAction,
         elevation: 4,
         shape: const CircleBorder(),
       ),
@@ -385,7 +389,9 @@ class AppTheme {
 
   static const _lightColorScheme = ColorScheme(
     brightness: Brightness.light,
-    primary: LiliaColors.orange500,
+    // Aligné sur `LiliaSemantics.light.actionPrimary` : orange500 + blanc ne
+    // donnait que 3.67:1.
+    primary: LiliaColors.orange600,
     onPrimary: Colors.white,
     primaryContainer: LiliaColors.orange100,
     onPrimaryContainer: LiliaColors.orange700,
@@ -394,7 +400,8 @@ class AppTheme {
     secondaryContainer: LiliaColors.cream200,
     onSecondaryContainer: LiliaColors.charcoal700,
     tertiary: LiliaColors.green400,
-    onTertiary: Colors.white,
+    // Blanc sur green400 = 3.13:1. Un texte foncé donne 5.63:1.
+    onTertiary: LiliaColors.charcoal700,
     error: LiliaColors.red400,
     onError: Colors.white,
     surface: Colors.white,
@@ -412,7 +419,8 @@ class AppTheme {
   static const _darkColorScheme = ColorScheme(
     brightness: Brightness.dark,
     primary: LiliaColors.orange400,
-    onPrimary: Colors.white,
+    // orange400 est trop clair pour du blanc (2.84:1) — texte foncé : 6.20:1.
+    onPrimary: LiliaColors.charcoal700,
     primaryContainer: LiliaColors.orange700,
     onPrimaryContainer: LiliaColors.orange100,
     secondary: LiliaColors.blue300,
@@ -420,7 +428,7 @@ class AppTheme {
     secondaryContainer: LiliaColors.darkMuted,
     onSecondaryContainer: LiliaColors.charcoal200,
     tertiary: Color(0xFF4DC280),
-    onTertiary: Colors.white,
+    onTertiary: LiliaColors.charcoal700,
     error: LiliaColors.red300,
     onError: LiliaColors.charcoal700,
     surface: LiliaColors.darkSurface,

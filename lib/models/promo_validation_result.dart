@@ -37,9 +37,9 @@ class PromoValidationResult {
   String get discountLabel {
     switch (discountType) {
       case DiscountType.fixed:
-        return '-${discountAmount.toStringAsFixed(0)} FCFA';
+        return '-${discountAmount.toStringAsFixed(0)} XAF';
       case DiscountType.percent:
-        return '-${discountAmount.toStringAsFixed(0)} FCFA';
+        return '-${discountAmount.toStringAsFixed(0)} XAF';
       case DiscountType.freeDelivery:
         return 'Livraison gratuite';
     }

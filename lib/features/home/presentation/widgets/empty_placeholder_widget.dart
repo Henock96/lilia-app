@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/primary_button.dart';
 import 'package:lilia_app/constants/app_size.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
+
 /// Placeholder widget showing a message and CTA to go back to the home screen.
 class EmptyPlaceholderWidget extends StatelessWidget {
   const EmptyPlaceholderWidget({super.key, required this.message});
@@ -26,7 +27,7 @@ class EmptyPlaceholderWidget extends StatelessWidget {
             PrimaryButton(
               onPressed: () => context.goNamed(AppRoutes.home.routeName),
               text: "Aller à la page d'accueil",
-            )
+            ),
           ],
         ),
       ),

@@ -41,7 +41,9 @@ class NotificationsHistoryScreen extends ConsumerWidget {
                 title: Text(notification.title),
                 subtitle: Text(notification.body),
                 trailing: Text(
-                  DateFormat.Hm().format(notification.timestamp), // Heure:Minute
+                  DateFormat.Hm().format(
+                    notification.timestamp,
+                  ), // Heure:Minute
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               );

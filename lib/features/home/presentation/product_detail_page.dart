@@ -7,6 +7,10 @@ import 'package:share_plus/share_plus.dart';
 import '../../../models/produit.dart';
 import '../../../models/vendor_type.dart';
 import '../../cart/presentation/cart_mode_conflict_dialog.dart';
+import 'package:lilia_app/common_widgets/app_animations.dart';
+import 'package:lilia_app/common_widgets/image_gallery.dart';
+import 'package:lilia_app/utils/currency.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class ProductDetailPage extends ConsumerStatefulWidget {
   final Product product;
@@ -78,29 +82,19 @@ Prix: ${widget.product.prixOriginal.toStringAsFixed(0)} FCFA
 
 Téléchargez l'app Lilia Food pour commander !
 ''';
-    Share.share(
-      message,
-      subject: 'Découvrez ${widget.product.name} sur Lilia Food!',
+    SharePlus.instance.share(
+      ShareParams(
+        text: message,
+        subject: 'Découvrez ${widget.product.name} sur Lilia Food!',
+      ),
     );
   }
 
   Future<void> _addToCart() async {
     if (_selectedVariant == null && widget.product.variants.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.white),
-              SizedBox(width: 8),
-              Text('Veuillez sélectionner une variante'),
-            ],
-          ),
-          backgroundColor: Colors.orange,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
-        ),
+      context.showSnack(
+        'Veuillez sélectionner une variante',
+        type: SnackType.error,
       );
       return;
     }
@@ -125,48 +119,13 @@ Téléchargez l'app Lilia Food pour commander !
         restaurantId: widget.product.restaurantId,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            duration: const Duration(seconds: 1),
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '$_quantity x ${widget.product.name} ajouté au panier',
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
+        context.showSuccessSnack(
+          '$_quantity x ${widget.product.name} ajouté au panier',
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text(e.toString())),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        context.showErrorSnack(e.toString());
       }
     }
   }
@@ -202,7 +161,7 @@ Téléchargez l'app Lilia Food pour commander !
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // En-tête du produit
-                  _buildProductHeader(theme),
+                  _buildProductHeader(theme).fadeSlideIn(),
 
                   // Description
                   _buildDescription(),
@@ -227,7 +186,7 @@ Téléchargez l'app Lilia Food pour commander !
         ],
       ),
       // Bouton fixe en bas
-      bottomNavigationBar: _buildBottomBar(theme, cs),
+      bottomNavigationBar: _buildBottomBar(theme, cs).fadeSlideIn(dy: 0.5),
     );
   }
 
@@ -251,6 +210,7 @@ Téléchargez l'app Lilia Food pour commander !
           ],
         ),
         child: IconButton(
+          tooltip: 'Retour',
           icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
           onPressed: () => Navigator.pop(context),
         ),
@@ -269,6 +229,7 @@ Téléchargez l'app Lilia Food pour commander !
             ],
           ),
           child: IconButton(
+            tooltip: 'Retirer des favoris',
             icon: Icon(
               isFavorite ? Icons.favorite : Icons.favorite_border,
               color: isFavorite ? Colors.red : theme.colorScheme.onSurface,
@@ -296,6 +257,7 @@ Téléchargez l'app Lilia Food pour commander !
             ],
           ),
           child: IconButton(
+            tooltip: 'Partager',
             icon: Icon(
               Icons.share_outlined,
               color: theme.colorScheme.onSurface,
@@ -305,40 +267,10 @@ Téléchargez l'app Lilia Food pour commander !
         ),
       ],
       flexibleSpace: FlexibleSpaceBar(
-        background: Hero(
-          tag: widget.product.id,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              widget.product.imageUrl != null
-                  ? Image.network(
-                      widget.product.imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => _buildPlaceholderImage(),
-                    )
-                  : _buildPlaceholderImage(),
-              // Gradient en bas pour transition douce
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  height: 80,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.transparent,
-                        theme.colorScheme.surface.withValues(alpha: 0.8),
-                        theme.colorScheme.surface,
-                      ],
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
+        background: ImageGallery(
+          urls: widget.product.galleryUrls,
+          placeholder: _buildPlaceholderImage(),
+          heroTag: widget.product.id,
         ),
       ),
     );
@@ -409,7 +341,7 @@ Téléchargez l'app Lilia Food pour commander !
                   ],
                 ),
                 child: Text(
-                  '${_unitPrice.toStringAsFixed(0)} FCFA',
+                  formatPrice(_unitPrice),
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -523,11 +455,7 @@ Téléchargez l'app Lilia Food pour commander !
           children: [
             Row(
               children: [
-                Icon(
-                  Icons.menu_book_outlined,
-                  size: 18,
-                  color: scheme.primary,
-                ),
+                Icon(Icons.menu_book_outlined, size: 18, color: scheme.primary),
                 const SizedBox(width: 6),
                 Text(
                   'Détails produit',
@@ -565,7 +493,8 @@ Téléchargez l'app Lilia Food pour commander !
               _DetailRow(
                 icon: Icons.access_time,
                 label: 'Conservation',
-                value: '${p.shelfLifeDays} jour${p.shelfLifeDays! > 1 ? 's' : ''}',
+                value:
+                    '${p.shelfLifeDays} jour${p.shelfLifeDays! > 1 ? 's' : ''}',
                 accent: Colors.teal,
               ),
 
@@ -712,7 +641,7 @@ Téléchargez l'app Lilia Food pour commander !
                     ),
                     // Prix
                     Text(
-                      '${variant.prix.toStringAsFixed(0)} FCFA',
+                      formatPrice(variant.prix),
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
@@ -886,7 +815,7 @@ Téléchargez l'app Lilia Food pour commander !
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     child: Text(
-                      '${_currentPrice.toStringAsFixed(0)} FCFA',
+                      formatPrice(_currentPrice),
                       key: ValueKey<double>(_currentPrice),
                       style: TextStyle(
                         fontSize: 22,
@@ -993,10 +922,7 @@ class _DetailRow extends StatelessWidget {
               ],
             ),
           ),
-          if (trailing != null) ...[
-            const SizedBox(width: 8),
-            trailing!,
-          ],
+          if (trailing != null) ...[const SizedBox(width: 8), trailing!],
         ],
       ),
     );

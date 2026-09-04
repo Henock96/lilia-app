@@ -4,7 +4,7 @@ import 'package:iconsax/iconsax.dart';
 class AboutPage extends StatelessWidget {
   const AboutPage({super.key});
 
-  static const String _appVersion = '1.2.0';
+  static const String _appVersion = '1.2.3';
   static const String _appName = 'Lilia Food';
 
   @override
@@ -185,7 +185,7 @@ class AboutPage extends StatelessWidget {
   }) {
     Navigator.push(
       context,
-      MaterialPageRoute(
+      MaterialPageRoute<void>(
         builder: (context) => _TextDetailPage(title: title, content: content),
       ),
     );

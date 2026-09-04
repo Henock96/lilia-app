@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>79838517894-f7i2ke4ge16lhq6peh2t8nrdr2j4j35e.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.79838517894-f7i2ke4ge16lhq6peh2t8nrdr2j4j35e</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>79838517894-1s0str3cead49hulu7msrr2jdfsed18m.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyBA6a-vecaUYvvMviHFmxso4k8CcDC1GvU</string>
+	<key>GCM_SENDER_ID</key>
+	<string>79838517894</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.dreesis.lilia.liliaApp</string>
+	<key>PROJECT_ID</key>
+	<string>lilia-app-d8f6f</string>
+	<key>STORAGE_BUCKET</key>
+	<string>lilia-app-d8f6f.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:79838517894:ios:299f829e9ed19b05c08f07</string>
+</dict>
+</plist>

@@ -3,16 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
-import 'package:lilia_app/constants/app_constants.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' show LatLng;
+import 'package:lilia_app/features/address/presentation/pages/location_picker_page.dart';
 import 'package:lilia_app/features/quartiers/application/quartiers_controller.dart';
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/models/adresse.dart';
 import 'package:lilia_app/models/quartier.dart';
+import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/models/vendor_type.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 class DeliveryOptionsPage extends ConsumerStatefulWidget {
   const DeliveryOptionsPage({super.key});
@@ -29,7 +32,16 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
   bool _useNewAddress = false;
   final TextEditingController _newAddressController = TextEditingController();
 
+  /// Position posée sur la carte pour la nouvelle adresse saisie ici.
+  /// `null` = le client ne l'a pas fait ; la commande retombera sur le
+  /// centroïde du quartier, en `APPROXIMATE`.
+  PickedLocation? _newAddressLocation;
+
   double? _calculatedDeliveryFee;
+
+  /// Vrai quand les frais affichés sont un repli local et non la réponse de
+  /// `/quartiers/delivery-fee` : le montant final peut différer.
+  bool _deliveryFeeIsEstimate = false;
   bool _isCalculatingFee = false;
   String? _restaurantId;
 
@@ -62,6 +74,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
+          tooltip: 'Retour',
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.goNamed(AppRoutes.cart.routeName),
         ),
@@ -82,12 +95,12 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
           // LIL-131 : on charge le restaurant pour adapter l'UI au vendorType
           // (HOME_COOK n'a pas d'adresse physique → retrait masqué ; BAKERY,
           // HOME_COOK et BEVERAGE_SHOP affichent un badge en tête).
-          final restaurantAsync =
-              ref.watch(restaurantControllerProvider(_restaurantId!));
+          final restaurantAsync = ref.watch(
+            restaurantControllerProvider(_restaurantId!),
+          );
           final restaurant = restaurantAsync.value;
           // Si HOME_COOK, on force le mode livraison (le retrait n'a pas de sens).
-          if (restaurant?.vendorType == VendorType.HOME_COOK &&
-              !_isDelivery) {
+          if (restaurant?.vendorType == VendorType.HOME_COOK && !_isDelivery) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
                 setState(() {
@@ -211,80 +224,80 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
         border: Border.all(color: cs.outline),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
-        children: [
-          // Option Livraison
-          RadioListTile<bool>(
-            value: true,
-            groupValue: _isDelivery,
-            onChanged: (value) {
-              setState(() {
-                _isDelivery = value!;
-                _calculatedDeliveryFee = null;
-              });
-            },
-            title: const Text(
-              'Livraison a domicile',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            subtitle: const Text(
-              'Recevez votre commande chez vous',
-              style: TextStyle(fontSize: 13),
-            ),
-            secondary: Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: _isDelivery
-                    ? cs.primary.withValues(alpha: 0.1)
-                    : cs.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(
-                Icons.delivery_dining,
-                color: _isDelivery ? cs.primary : cs.outline,
-                size: 28,
-              ),
-            ),
-            activeColor: cs.primary,
-          ),
-          if (!hidePickup) ...[
-            Divider(height: 1, color: cs.outline),
-            // Option Retrait
+      // `groupValue`/`onChanged` sur RadioListTile sont dépréciés depuis
+      // Flutter 3.32 : c'est désormais l'ancêtre RadioGroup qui porte l'état du
+      // groupe. Les frais de livraison suivent le mode : inconnus (null, à
+      // recalculer selon le quartier) en livraison, nuls au retrait.
+      child: RadioGroup<bool>(
+        groupValue: _isDelivery,
+        onChanged: (value) {
+          if (value == null) return;
+          setState(() {
+            _isDelivery = value;
+            _calculatedDeliveryFee = value ? null : 0;
+          });
+        },
+        child: Column(
+          children: [
+            // Option Livraison
             RadioListTile<bool>(
-              value: false,
-              groupValue: _isDelivery,
-              onChanged: (value) {
-                setState(() {
-                  _isDelivery = value!;
-                  _calculatedDeliveryFee = 0;
-                });
-              },
-              title: Text(
-                pickupTitle,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+              value: true,
+              title: const Text(
+                'Livraison a domicile',
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
-              subtitle: Text(
-                'Pas de frais supplementaires',
-                style: TextStyle(fontSize: 13, color: Colors.green[600]),
+              subtitle: const Text(
+                'Recevez votre commande chez vous',
+                style: TextStyle(fontSize: 13),
               ),
               secondary: Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: !_isDelivery
-                      ? Colors.green.withValues(alpha: 0.1)
+                  color: _isDelivery
+                      ? cs.primary.withValues(alpha: 0.1)
                       : cs.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
-                  Icons.store,
-                  color: !_isDelivery ? Colors.green : cs.outline,
+                  Icons.delivery_dining,
+                  color: _isDelivery ? cs.primary : cs.outline,
                   size: 28,
                 ),
               ),
               activeColor: cs.primary,
             ),
+            if (!hidePickup) ...[
+              Divider(height: 1, color: cs.outline),
+              // Option Retrait
+              RadioListTile<bool>(
+                value: false,
+                title: Text(
+                  pickupTitle,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text(
+                  'Pas de frais supplementaires',
+                  style: TextStyle(fontSize: 13, color: Colors.green[600]),
+                ),
+                secondary: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: !_isDelivery
+                        ? Colors.green.withValues(alpha: 0.1)
+                        : cs.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.store,
+                    color: !_isDelivery ? Colors.green : cs.outline,
+                    size: 28,
+                  ),
+                ),
+                activeColor: cs.primary,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -407,11 +420,34 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
             controller: _newAddressController,
             decoration: InputDecoration(
               labelText: 'Nouvelle adresse',
-              hintText: 'Ex: 123 Rue de la Paix',
+              hintText: 'Ex: Rue Bayonne, près du marché',
               prefixIcon: const Icon(Icons.edit_location_outlined),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Même geste que dans « Mes adresses » : la position se pose sur une
+          // carte. Sans elle, la commande partira avec le centroïde du
+          // quartier — c'est livrable, mais le livreur devra appeler, et on le
+          // dit ici plutôt que de le laisser découvrir.
+          OutlinedButton.icon(
+            onPressed: _pickNewAddressLocation,
+            icon: Icon(
+              _newAddressLocation == null
+                  ? Icons.map_outlined
+                  : Icons.check_circle,
+              size: 18,
+              color: _newAddressLocation == null ? null : Colors.green,
+            ),
+            label: Text(
+              _newAddressLocation == null
+                  ? 'Placer sur la carte (recommandé)'
+                  : 'Position enregistrée — modifier',
+            ),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(44),
             ),
           ),
         ],
@@ -537,7 +573,11 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
   Widget _buildDeliveryFeeSummary(double subTotal) {
     final cs = Theme.of(context).colorScheme;
     final deliveryFee = _isDelivery ? (_calculatedDeliveryFee ?? 0) : 0.0;
-    final serviceFee = (subTotal * AppConstants.serviceFeeRate).roundToDouble();
+    // Taux servi par `/platform-settings` — plus de 8 % en dur : le taux est
+    // modifiable par l'admin et le serveur facture le sien.
+    final settings =
+        ref.watch(platformSettingsProvider).value ?? PlatformSettings.fallback;
+    final serviceFee = (subTotal * settings.serviceFeeRate).roundToDouble();
     final total = subTotal + deliveryFee + serviceFee;
 
     return Container(
@@ -554,7 +594,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
             children: [
               const Text('Sous-total', style: TextStyle(fontSize: 15)),
               Text(
-                '${subTotal.toStringAsFixed(0)} FCFA',
+                formatPrice(subTotal),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
@@ -583,17 +623,33 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                     ),
                 ],
               ),
-              Text(
-                _isDelivery
-                    ? (_calculatedDeliveryFee != null
-                          ? '${_calculatedDeliveryFee!.toStringAsFixed(0)} FCFA'
-                          : 'Selectionnez un quartier')
-                    : 'Gratuit',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: !_isDelivery ? Colors.green : null,
-                ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    _isDelivery
+                        ? (_calculatedDeliveryFee != null
+                              ? formatPrice(_calculatedDeliveryFee!)
+                              : 'Selectionnez un quartier')
+                        : 'Gratuit',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: !_isDelivery ? Colors.green : null,
+                    ),
+                  ),
+                  // Le calcul de zone a échoué : on affiche un repli, le
+                  // montant final peut différer. Le dire plutôt que de laisser
+                  // croire à un montant confirmé.
+                  if (_isDelivery && _deliveryFeeIsEstimate)
+                    Text(
+                      'Estimation — montant confirme a la commande',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
@@ -603,7 +659,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
             children: [
               const Text('Frais de service', style: TextStyle(fontSize: 15)),
               Text(
-                '${serviceFee.toStringAsFixed(0)} FCFA',
+                formatPrice(serviceFee),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
@@ -620,7 +676,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               Text(
-                '${total.toStringAsFixed(0)} FCFA',
+                formatPrice(total),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -632,6 +688,26 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _pickNewAddressLocation() async {
+    final picked = await Navigator.of(context).push<PickedLocation>(
+      MaterialPageRoute(
+        builder: (_) => LocationPickerPage(
+          quartier: _selectedQuartier,
+          initialPosition: _newAddressLocation == null
+              ? null
+              : LatLng(
+                  _newAddressLocation!.latitude,
+                  _newAddressLocation!.longitude,
+                ),
+          initialLandmark: _newAddressLocation?.landmark,
+        ),
+      ),
+    );
+    if (picked != null && mounted) {
+      setState(() => _newAddressLocation = picked);
+    }
   }
 
   Future<void> _calculateDeliveryFee() async {
@@ -650,11 +726,21 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
       );
       setState(() {
         _calculatedDeliveryFee = result.fee;
+        _deliveryFeeIsEstimate = false;
         _isCalculatingFee = false;
       });
     } catch (e) {
+      // Le calcul de zone a échoué (réseau instable — le cas nominal à
+      // Brazzaville). On retombe sur les frais fixes du vendeur, et à défaut
+      // sur le défaut serveur — l'ancienne valeur en dur de 500 FCFA était
+      // 500 FCFA sous le défaut backend, écart invisible pour le client.
+      final vendorFee = ref
+          .read(restaurantControllerProvider(_restaurantId!))
+          .value
+          ?.fixedDeliveryFee;
       setState(() {
-        _calculatedDeliveryFee = 500; // Valeur par défaut en cas d'erreur
+        _calculatedDeliveryFee = vendorFee ?? kDefaultDeliveryFee;
+        _deliveryFeeIsEstimate = true;
         _isCalculatingFee = false;
       });
     }
@@ -684,7 +770,10 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
         newAddressRue: _useNewAddress
             ? _newAddressController.text.trim()
             : null,
-        deliveryFee: _isDelivery ? (_calculatedDeliveryFee ?? 500) : 0,
+        newAddressLocation: _useNewAddress ? _newAddressLocation : null,
+        deliveryFee: _isDelivery
+            ? (_calculatedDeliveryFee ?? kDefaultDeliveryFee)
+            : 0,
       ),
     );
   }
@@ -756,6 +845,11 @@ class DeliveryOptions {
   final Quartier? quartier;
   final Adresse? address;
   final String? newAddressRue;
+
+  /// Position posée sur la carte pour [newAddressRue]. `null` si le client a
+  /// sauté l'étape : l'adresse sera créée sans coordonnées et le serveur
+  /// retombera sur le centroïde du quartier.
+  final PickedLocation? newAddressLocation;
   final double deliveryFee;
 
   DeliveryOptions({
@@ -763,6 +857,7 @@ class DeliveryOptions {
     this.quartier,
     this.address,
     this.newAddressRue,
+    this.newAddressLocation,
     required this.deliveryFee,
   });
 }

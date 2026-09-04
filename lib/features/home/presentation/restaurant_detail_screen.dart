@@ -1,33 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
+import 'package:lilia_app/common_widgets/image_gallery.dart';
 import 'package:lilia_app/services/analytics_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../models/menu.dart';
 import '../../../models/produit.dart';
 import '../../../models/restaurant.dart';
 import '../../../models/vendor_type.dart';
 import '../../../routing/app_route_enum.dart';
 import '../../cart/presentation/cart_mode_conflict_dialog.dart';
 import '../data/remote/restaurant_controller.dart';
-import 'widgets/menus_section.dart';
+import 'widgets/menu_card.dart';
 import 'widgets/vendor_type_badge.dart';
+import 'package:lilia_app/utils/currency.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 /// Écran de détail vendeur (LIL-117 — refonte UI).
 ///
 /// Layout :
-///   1. Hero image plein écran avec back/share/reviews/favoris floating
-///   2. Carte d'identité : nom, type vendeur, note, statut ouvert/fermé
-///   3. Story + spécialités/certifications/note de production (si VendorProfile)
+///   1. Hero image plein écran avec back/menus/share/reviews floating
+///      (l'icône menus n'apparaît que si le vendeur a des menus du jour actifs)
+///   2. Carte d'identité : statut ouvert/fermé + spécialités (même ligne) + note
+///   3. Story « À propos » pliable + certifications/note de production (si VendorProfile)
 ///   4. Quick info livraison (temps, frais, minimum)
 ///   5. Horaires (collapsible)
 ///   6. Bouton "Appeler"
-///   7. Menus du jour
-///   8. Search + tabs catégories
-///   9. Produits groupés par catégorie
+///   7. Search + tabs catégories
+///   8. Produits groupés par catégorie
 class RestaurantDetailScreen extends ConsumerStatefulWidget {
   final String restaurantId;
   final String restaurantName;
@@ -90,15 +95,17 @@ class _RestaurantDetailScreenState
   }
 
   Widget _buildContent(Restaurant restaurant) {
-    final categories = _getUniqueCategories(restaurant.products);
+    final categories = _sectionNames(restaurant);
     final filteredProducts = _filterProducts(restaurant.products);
-    final productsByCategory = _groupByCategory(filteredProducts);
+    final productsByCategory = _groupByCategory(filteredProducts, categories);
 
     return CustomScrollView(
       slivers: [
         // 1. Hero
         _VendorHeroAppBar(
           restaurant: restaurant,
+          hasMenus: restaurant.menus.isNotEmpty,
+          onMenus: () => _showMenusSheet(restaurant.menus),
           onShare: _shareRestaurant,
           onReviews: () => context.pushNamed(
             AppRoutes.reviews.routeName,
@@ -109,10 +116,8 @@ class _RestaurantDetailScreenState
           ),
         ),
 
-        // 2. Carte d'identité (titre, type, rating, statut)
-        SliverToBoxAdapter(
-          child: _VendorIdentityCard(restaurant: restaurant),
-        ),
+        // 2. Carte d'identité (statut ouvert/fermé + spécialités + note)
+        SliverToBoxAdapter(child: _VendorIdentityCard(restaurant: restaurant)),
 
         // 3. Story + profil enrichi (HOME_COOK/BAKERY surtout)
         if (restaurant.vendorProfile != null &&
@@ -121,16 +126,8 @@ class _RestaurantDetailScreenState
             child: _VendorProfileSection(profile: restaurant.vendorProfile!),
           ),
 
-        // 4. Spécialités (chips Specialty[])
-        if (restaurant.specialties.isNotEmpty)
-          SliverToBoxAdapter(
-            child: _SpecialtyChipsSection(specialties: restaurant.specialties),
-          ),
-
-        // 5. Quick info livraison
-        SliverToBoxAdapter(
-          child: _DeliveryInfoCard(restaurant: restaurant),
-        ),
+        // 4. Quick info livraison
+        SliverToBoxAdapter(child: _DeliveryInfoCard(restaurant: restaurant)),
 
         // 6. Horaires
         if (restaurant.operatingHours.isNotEmpty)
@@ -144,7 +141,8 @@ class _RestaurantDetailScreenState
           ),
 
         // 7. Appeler
-        if (restaurant.phoneNumber != null && restaurant.phoneNumber!.isNotEmpty)
+        if (restaurant.phoneNumber != null &&
+            restaurant.phoneNumber!.isNotEmpty)
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -167,12 +165,7 @@ class _RestaurantDetailScreenState
             ),
           ),
 
-        // 8. Menus du jour
-        SliverToBoxAdapter(
-          child: MenusSection(restaurantId: widget.restaurantId),
-        ),
-
-        // 9. Section produits — header
+        // 7. Section produits — header
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
@@ -192,7 +185,7 @@ class _RestaurantDetailScreenState
           ),
         ),
 
-        // 10. Search produit
+        // 8. Search produit
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
@@ -203,6 +196,7 @@ class _RestaurantDetailScreenState
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
+                        tooltip: 'Effacer',
                         icon: const Icon(Icons.clear),
                         onPressed: () {
                           _searchController.clear();
@@ -215,8 +209,9 @@ class _RestaurantDetailScreenState
                   borderSide: BorderSide.none,
                 ),
                 filled: true,
-                fillColor:
-                    Theme.of(context).colorScheme.surfaceContainerHighest,
+                fillColor: Theme.of(
+                  context,
+                ).colorScheme.surfaceContainerHighest,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 12,
@@ -228,7 +223,7 @@ class _RestaurantDetailScreenState
           ),
         ),
 
-        // 11. Onglets catégories
+        // 9. Onglets catégories
         if (categories.isNotEmpty)
           SliverToBoxAdapter(
             child: _CategoryTabs(
@@ -238,7 +233,7 @@ class _RestaurantDetailScreenState
             ),
           ),
 
-        // 12. Liste des produits
+        // 10. Liste des produits
         if (filteredProducts.isEmpty)
           const SliverToBoxAdapter(
             child: Padding(
@@ -248,8 +243,10 @@ class _RestaurantDetailScreenState
                   children: [
                     Icon(Icons.search_off, size: 48),
                     SizedBox(height: 16),
-                    Text('Aucun produit trouvé',
-                        style: TextStyle(fontSize: 16)),
+                    Text(
+                      'Aucun produit trouvé',
+                      style: TextStyle(fontSize: 16),
+                    ),
                   ],
                 ),
               ),
@@ -285,20 +282,37 @@ class _RestaurantDetailScreenState
     }
   }
 
-  List<String> _getUniqueCategories(List<Product> products) {
-    final categories = <String>{};
-    for (var product in products) {
-      if (product.category?.name != null && product.category!.name.isNotEmpty) {
-        categories.add(product.category!.name);
-      }
+  /// Sections à afficher, **dans l'ordre voulu par le vendeur**.
+  ///
+  /// `restaurant.categories` arrive déjà trié par `displayOrder` et filtré sur
+  /// `isActive`. On n'en garde que celles qui contiennent au moins un produit :
+  /// une section vide promet au client un contenu qui n'existe pas.
+  ///
+  /// Repli sur les catégories dérivées des produits — triées par nom, faute de
+  /// mieux — si le backend ne fournit pas la liste (app récente, serveur
+  /// antérieur). C'était l'unique comportement jusqu'ici, et il expliquait que
+  /// « Accompagnements » sorte avant « Les Grillades ».
+  List<String> _sectionNames(Restaurant restaurant) {
+    final withProducts = restaurant.products
+        .map((p) => p.category?.name)
+        .whereType<String>()
+        .where((n) => n.isNotEmpty)
+        .toSet();
+
+    if (restaurant.categories.isNotEmpty) {
+      return restaurant.categories
+          .where((c) => c.isActive && withProducts.contains(c.name))
+          .map((c) => c.name)
+          .toList();
     }
-    return categories.toList()..sort();
+    return withProducts.toList()..sort();
   }
 
   List<Product> _filterProducts(List<Product> products) {
     return products.where((product) {
       if (_searchQuery.isNotEmpty) {
-        final matches = product.name.toLowerCase().contains(_searchQuery) ||
+        final matches =
+            product.name.toLowerCase().contains(_searchQuery) ||
             product.description.toLowerCase().contains(_searchQuery);
         if (!matches) return false;
       }
@@ -310,44 +324,125 @@ class _RestaurantDetailScreenState
     }).toList();
   }
 
-  Map<String, List<Product>> _groupByCategory(List<Product> products) {
+  /// Regroupe les produits en respectant l'ordre des sections.
+  ///
+  /// `LinkedHashMap` par construction en Dart : les clés sortent dans l'ordre
+  /// d'insertion, donc dans celui du vendeur. Un produit dont la section n'est
+  /// pas affichée (désactivée, ou absente de la liste déclarée) rejoint
+  /// « Autres » — il reste vendable, il ne doit pas disparaître.
+  Map<String, List<Product>> _groupByCategory(
+    List<Product> products,
+    List<String> sectionOrder,
+  ) {
     final grouped = <String, List<Product>>{};
+    for (final name in sectionOrder) {
+      grouped[name] = <Product>[];
+    }
+
     final uncategorized = <Product>[];
     for (var product in products) {
       final name = product.category?.name;
-      if (name != null && name.isNotEmpty) {
-        grouped.putIfAbsent(name, () => []).add(product);
+      if (name != null && grouped.containsKey(name)) {
+        grouped[name]!.add(product);
       } else {
         uncategorized.add(product);
       }
     }
+
+    grouped.removeWhere((_, items) => items.isEmpty);
     if (uncategorized.isNotEmpty) grouped['Autres'] = uncategorized;
     return grouped;
   }
 
+  /// Affiche les menus du jour dans un bottom sheet. Les menus sont déjà
+  /// embarqués dans le vendeur (`restaurant.menus`) — aucune requête réseau.
+  void _showMenusSheet(List<MenuDuJour> menus) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.restaurant_menu, size: 22),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Menus du Jour',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Spacer(),
+                      Text(
+                        '${menus.length}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(
+                  height: 240,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: menus.length,
+                    itemBuilder: (context, index) {
+                      final menu = menus[index];
+                      return MenuCard(
+                        menu: menu,
+                        onTap: () {
+                          Navigator.of(sheetContext).pop();
+                          context.pushNamed(
+                            AppRoutes.menuDetail.routeName,
+                            extra: menu,
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _shareRestaurant() {
-    Share.share(
-      'Découvrez nos menus sur Lilia Food ! Commandez maintenant.',
-      subject: 'Vendeur ${widget.restaurantName}',
+    SharePlus.instance.share(
+      ShareParams(
+        text: 'Découvrez nos menus sur Lilia Food ! Commandez maintenant.',
+        subject: 'Vendeur ${widget.restaurantName}',
+      ),
     );
   }
 
   Future<void> _callRestaurant(String? phoneNumber) async {
     if (phoneNumber == null || phoneNumber.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Numéro de téléphone non disponible')),
-      );
+      context.showSnack('Numéro de téléphone non disponible');
       return;
     }
     final uri = Uri.parse('tel:$phoneNumber');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Impossible d\'ouvrir l\'application téléphone'),
-        ),
-      );
+      context.showSnack('Impossible d\'ouvrir l\'application téléphone');
     }
   }
 }
@@ -356,11 +451,15 @@ class _RestaurantDetailScreenState
 
 class _VendorHeroAppBar extends StatelessWidget {
   final Restaurant restaurant;
+  final bool hasMenus;
+  final VoidCallback onMenus;
   final VoidCallback onShare;
   final VoidCallback onReviews;
 
   const _VendorHeroAppBar({
     required this.restaurant,
+    required this.hasMenus,
+    required this.onMenus,
     required this.onShare,
     required this.onReviews,
   });
@@ -380,6 +479,9 @@ class _VendorHeroAppBar extends StatelessWidget {
         onTap: () => Navigator.of(context).pop(),
       ),
       actions: [
+        // Accès aux menus du jour — visible seulement si le vendeur en a.
+        if (hasMenus)
+          _circleButton(context, icon: Icons.restaurant_menu, onTap: onMenus),
         _circleButton(context, icon: Icons.share_outlined, onTap: onShare),
         _circleButton(
           context,
@@ -392,14 +494,14 @@ class _VendorHeroAppBar extends StatelessWidget {
         background: Stack(
           fit: StackFit.expand,
           children: [
-            if (restaurant.imageUrl != null)
-              Image.network(
-                restaurant.imageUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => _placeholder(scheme),
-              )
-            else
-              _placeholder(scheme),
+            ImageGallery(
+              urls: restaurant.galleryUrls,
+              placeholder: _placeholder(scheme),
+              heroTag: 'resto-img-${restaurant.id}',
+              // Nom + adresse superposés en bas → dots placés en haut.
+              indicatorAlignment: Alignment.topCenter,
+              indicatorPadding: const EdgeInsets.only(top: 70),
+            ),
             // Gradient en bas pour la lisibilité du nom + transition douce
             Positioned(
               bottom: 0,
@@ -475,11 +577,11 @@ class _VendorHeroAppBar extends StatelessWidget {
   }
 
   Widget _placeholder(ColorScheme scheme) => Container(
-        color: scheme.surfaceContainerHighest,
-        child: Center(
-          child: Icon(Icons.restaurant, size: 96, color: scheme.outline),
-        ),
-      );
+    color: scheme.surfaceContainerHighest,
+    child: Center(
+      child: Icon(Icons.restaurant, size: 96, color: scheme.outline),
+    ),
+  );
 
   Widget _circleButton(
     BuildContext context, {
@@ -514,76 +616,102 @@ class _VendorIdentityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final hasRating =
+        restaurant.averageRating != null && restaurant.averageRating! > 0;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              // Statut ouvert/fermé
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: restaurant.isOpen
-                      ? Colors.green.withValues(alpha: 0.1)
-                      : Colors.red.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: restaurant.isOpen ? Colors.green : Colors.red,
-                    width: 1,
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      restaurant.isOpen
-                          ? Icons.check_circle
-                          : Icons.cancel,
-                      color: restaurant.isOpen ? Colors.green : Colors.red,
-                      size: 14,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      restaurant.isOpen ? 'Ouvert' : 'Fermé',
-                      style: TextStyle(
-                        color: restaurant.isOpen ? Colors.green : Colors.red,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Spacer(),
-              // Rating + reviews
-              if (restaurant.averageRating != null &&
-                  restaurant.averageRating! > 0) ...[
-                const Icon(Icons.star_rounded, size: 18, color: Colors.amber),
-                const SizedBox(width: 2),
-                Text(
-                  restaurant.averageRating!.toStringAsFixed(1),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                if (restaurant.totalReviews != null)
-                  Text(
-                    ' (${restaurant.totalReviews})',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
+          // Statut ouvert/fermé + spécialités sur la même ligne (le Wrap
+          // passe à la ligne automatiquement si les chips débordent).
+          Expanded(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _statusChip(),
+                for (final s in restaurant.specialties)
+                  _specialtyChip(context, s),
               ],
-            ],
+            ),
           ),
+          if (hasRating) ...[const SizedBox(width: 8), _rating(context)],
+        ],
+      ),
+    );
+  }
+
+  Widget _statusChip() {
+    final open = restaurant.isOpen;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: (open ? Colors.green : Colors.red).withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: open ? Colors.green : Colors.red, width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            open ? Icons.check_circle : Icons.cancel,
+            color: open ? Colors.green : Colors.red,
+            size: 14,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            open ? 'Ouvert' : 'Fermé',
+            style: TextStyle(
+              color: open ? Colors.green : Colors.red,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _specialtyChip(BuildContext context, Specialty specialty) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: scheme.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Text(
+        specialty.name,
+        style: TextStyle(
+          fontSize: 12,
+          color: scheme.primary,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _rating(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      // Aligne visuellement la note avec la première ligne de chips.
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.star_rounded, size: 18, color: Colors.amber),
+          const SizedBox(width: 2),
+          Text(
+            restaurant.averageRating!.toStringAsFixed(1),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          if (restaurant.totalReviews != null)
+            Text(
+              ' (${restaurant.totalReviews})',
+              style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
+            ),
         ],
       ),
     );
@@ -592,14 +720,24 @@ class _VendorIdentityCard extends StatelessWidget {
 
 // ─── Profil enrichi (story + certifications + production note) ──────────────
 
-class _VendorProfileSection extends StatelessWidget {
+class _VendorProfileSection extends StatefulWidget {
   final VendorProfile profile;
 
   const _VendorProfileSection({required this.profile});
 
   @override
+  State<_VendorProfileSection> createState() => _VendorProfileSectionState();
+}
+
+class _VendorProfileSectionState extends State<_VendorProfileSection> {
+  // Story repliée par défaut : les produits restent rapidement accessibles.
+  bool _storyExpanded = false;
+
+  @override
   Widget build(BuildContext context) {
+    final profile = widget.profile;
     final scheme = Theme.of(context).colorScheme;
+    final hasStory = profile.story != null && profile.story!.isNotEmpty;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Container(
@@ -607,36 +745,47 @@ class _VendorProfileSection extends StatelessWidget {
         decoration: BoxDecoration(
           color: scheme.primary.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: scheme.primary.withValues(alpha: 0.18),
-          ),
+          border: Border.all(color: scheme.primary.withValues(alpha: 0.18)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (profile.story != null && profile.story!.isNotEmpty) ...[
-              Row(
-                children: [
-                  Icon(
-                    Icons.menu_book_outlined,
-                    size: 18,
-                    color: scheme.primary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'À propos',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+            if (hasStory) ...[
+              InkWell(
+                onTap: () => setState(() => _storyExpanded = !_storyExpanded),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.menu_book_outlined,
+                      size: 18,
                       color: scheme.primary,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 6),
+                    Text(
+                      'À propos',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: scheme.primary,
+                      ),
+                    ),
+                    const Spacer(),
+                    Icon(
+                      _storyExpanded ? Icons.expand_less : Icons.expand_more,
+                      size: 20,
+                      color: scheme.primary,
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 profile.story!,
                 style: const TextStyle(fontSize: 13.5, height: 1.45),
+                maxLines: _storyExpanded ? null : 2,
+                overflow: _storyExpanded
+                    ? TextOverflow.visible
+                    : TextOverflow.ellipsis,
               ),
             ],
             if (profile.certifications.isNotEmpty) ...[
@@ -755,48 +904,6 @@ class _ChipsRow extends StatelessWidget {
   }
 }
 
-// ─── Spécialités cuisine (Specialty[] séparé du VendorProfile) ─────────────
-
-class _SpecialtyChipsSection extends StatelessWidget {
-  final List<Specialty> specialties;
-
-  const _SpecialtyChipsSection({required this.specialties});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 6,
-        children: specialties
-            .map(
-              (s) => Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: scheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  s.name,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: scheme.primary,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-}
-
 // ─── Quick info livraison ──────────────────────────────────────────────────
 
 class _DeliveryInfoCard extends StatelessWidget {
@@ -822,7 +929,7 @@ class _DeliveryInfoCard extends StatelessWidget {
             label: 'Frais',
             value: restaurant.fixedDeliveryFee == 0
                 ? 'Gratuit'
-                : '${restaurant.fixedDeliveryFee.toStringAsFixed(0)} FCFA',
+                : formatPrice(restaurant.fixedDeliveryFee),
             color: Colors.green,
           ),
           const SizedBox(width: 10),
@@ -830,7 +937,7 @@ class _DeliveryInfoCard extends StatelessWidget {
             icon: Icons.shopping_bag_outlined,
             label: 'Minimum',
             value: restaurant.minimumOrderAmount > 0
-                ? '${restaurant.minimumOrderAmount.toStringAsFixed(0)} FCFA'
+                ? formatPrice(restaurant.minimumOrderAmount)
                 : 'Aucun',
             color: Colors.orange,
           ),
@@ -899,7 +1006,7 @@ class _InfoTile extends StatelessWidget {
 class _CategoryTabs extends StatelessWidget {
   final List<String> categories;
   final String? selectedCategory;
-  final Function(String?) onCategorySelected;
+  final void Function(String?) onCategorySelected;
 
   const _CategoryTabs({
     required this.categories,
@@ -921,8 +1028,9 @@ class _CategoryTabs extends StatelessWidget {
               label: const Text('Tous'),
               selected: selectedCategory == null,
               onSelected: (_) => onCategorySelected(null),
-              selectedColor:
-                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+              selectedColor: Theme.of(
+                context,
+              ).colorScheme.primary.withValues(alpha: 0.2),
               checkmarkColor: Theme.of(context).colorScheme.primary,
             ),
           ),
@@ -935,10 +1043,9 @@ class _CategoryTabs extends StatelessWidget {
                 onSelected: (_) => onCategorySelected(
                   selectedCategory == category ? null : category,
                 ),
-                selectedColor: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withValues(alpha: 0.2),
+                selectedColor: Theme.of(
+                  context,
+                ).colorScheme.primary.withValues(alpha: 0.2),
                 checkmarkColor: Theme.of(context).colorScheme.primary,
               ),
             ),
@@ -955,10 +1062,7 @@ class _CategorySection extends StatelessWidget {
   final String categoryName;
   final List<Product> products;
 
-  const _CategorySection({
-    required this.categoryName,
-    required this.products,
-  });
+  const _CategorySection({required this.categoryName, required this.products});
 
   @override
   Widget build(BuildContext context) {
@@ -978,13 +1082,9 @@ class _CategorySection extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 2,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color:
-                      Theme.of(context).colorScheme.surfaceContainerHighest,
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -1005,7 +1105,7 @@ class _CategorySection extends StatelessWidget {
                 extra: product,
               ),
               child: _ProductCard(product: product),
-            ),
+            ).fadeSlideIn(),
           ),
         ],
       ),
@@ -1030,190 +1130,198 @@ class _ProductCard extends ConsumerWidget {
     final available = product.isAvailable;
     final scheme = Theme.of(context).colorScheme;
 
-    return Opacity(
-      opacity: available ? 1.0 : 0.5,
-      child: Card(
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        elevation: 2,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              Stack(
-                children: [
-                  Container(
-                    width: 85,
-                    height: 85,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      color: scheme.surfaceContainerHighest,
-                      image: product.imageUrl != null
-                          ? DecorationImage(
-                              image: NetworkImage(product.imageUrl!),
-                              fit: BoxFit.cover,
+    return Semantics(
+      // Le badge « Épuisé » et l'opacité sont purement visuels : sans ce label,
+      // un lecteur d'écran présente un produit indisponible comme disponible.
+      label: available ? product.name : '${product.name}, épuisé',
+      enabled: available,
+      child: Opacity(
+        opacity: available ? 1.0 : 0.5,
+        child: Card(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 2,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Stack(
+                  children: [
+                    Container(
+                      width: 85,
+                      height: 85,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10),
+                        color: scheme.surfaceContainerHighest,
+                        image: product.imageUrl != null
+                            ? DecorationImage(
+                                image: NetworkImage(product.imageUrl!),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                      ),
+                      child: product.imageUrl == null
+                          ? Center(
+                              child: Icon(
+                                Icons.fastfood,
+                                size: 40,
+                                color: scheme.outline,
+                              ),
                             )
                           : null,
                     ),
-                    child: product.imageUrl == null
-                        ? Center(
-                            child: Icon(
-                              Icons.fastfood,
-                              size: 40,
-                              color: scheme.outline,
+                    if (!available)
+                      Positioned(
+                        top: 4,
+                        left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'Épuisé',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
                             ),
-                          )
-                        : null,
-                  ),
-                  if (!available)
-                    Positioned(
-                      top: 4,
-                      left: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
+                          ),
                         ),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(4),
+                      )
+                    else if (product.madeToOrder)
+                      Positioned(
+                        top: 4,
+                        left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.purple,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: const Text(
+                            'Sur commande',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-                        child: const Text(
-                          'Épuisé',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
+                      )
+                    else if (product.variants.length > 1)
+                      Positioned(
+                        top: 4,
+                        left: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '${product.variants.length} tailles',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
-                    )
-                  else if (product.madeToOrder)
-                    Positioned(
-                      top: 4,
-                      left: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.purple,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          'Sur commande',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    )
-                  else if (product.variants.length > 1)
-                    Positioned(
-                      top: 4,
-                      left: 4,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          '${product.variants.length} tailles',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      product.description,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '${getDisplayPrice().toStringAsFixed(0)} FCFA',
-                          style: TextStyle(
-                            color: available ? scheme.primary : Colors.grey,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        if (available)
-                          InkWell(
-                            onTap: () => _addToCart(context, ref),
-                            borderRadius: BorderRadius.circular(20),
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: scheme.primary,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: const Icon(
-                                Icons.add,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                            ),
-                          )
-                        else
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.red.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Text(
-                              'Épuisé',
-                              style: TextStyle(
-                                color: Colors.red,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        product.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        product.description,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            formatPrice(getDisplayPrice()),
+                            style: TextStyle(
+                              color: available ? scheme.primary : Colors.grey,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          if (available)
+                            InkWell(
+                              onTap: () => _addToCart(context, ref),
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: scheme.primary,
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: const Icon(
+                                  Icons.add,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                            )
+                          else
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text(
+                                'Épuisé',
+                                style: TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1222,12 +1330,7 @@ class _ProductCard extends ConsumerWidget {
 
   Future<void> _addToCart(BuildContext context, WidgetRef ref) async {
     if (product.variants.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Ce produit n\'a pas de variante sélectionnable.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      context.showSnack('Ce produit n\'a pas de variante sélectionnable.');
       return;
     }
     final variantId = product.variants.first.id;
@@ -1248,43 +1351,11 @@ class _ProductCard extends ConsumerWidget {
         restaurantId: product.restaurantId,
       );
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text('${product.name} ajouté au panier')),
-              ],
-            ),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            duration: const Duration(seconds: 1),
-          ),
-        );
+        context.showSuccessSnack('${product.name} ajouté au panier');
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 8),
-                Expanded(child: Text(e.toString())),
-              ],
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        context.showErrorSnack(e.toString());
       }
     }
   }
@@ -1308,8 +1379,9 @@ class _OperatingHoursSectionState extends State<_OperatingHoursSection> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final today = DayOfWeek.today;
-    final todayHours =
-        widget.operatingHours.where((h) => h.dayOfWeek == today).toList();
+    final todayHours = widget.operatingHours
+        .where((h) => h.dayOfWeek == today)
+        .toList();
     final sortedHours = List<OperatingHours>.from(widget.operatingHours)
       ..sort((a, b) => a.dayOfWeek.index.compareTo(b.dayOfWeek.index));
 
@@ -1326,8 +1398,7 @@ class _OperatingHoursSectionState extends State<_OperatingHoursSection> {
             onTap: () => setState(() => _expanded = !_expanded),
             borderRadius: BorderRadius.circular(12),
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               child: Row(
                 children: [
                   Container(
@@ -1357,8 +1428,8 @@ class _OperatingHoursSectionState extends State<_OperatingHoursSection> {
                         Text(
                           todayHours.isNotEmpty
                               ? todayHours.first.isClosed
-                                  ? 'Fermé aujourd\'hui'
-                                  : '${todayHours.first.openTime} - ${todayHours.first.closeTime}'
+                                    ? 'Fermé aujourd\'hui'
+                                    : '${todayHours.first.openTime} - ${todayHours.first.closeTime}'
                               : 'Non renseigné',
                           style: const TextStyle(
                             fontSize: 13,
@@ -1428,8 +1499,8 @@ class _OperatingHoursSectionState extends State<_OperatingHoursSection> {
                               color: hours.isClosed
                                   ? scheme.error
                                   : isToday
-                                      ? scheme.onSurface
-                                      : scheme.onSurfaceVariant,
+                                  ? scheme.onSurface
+                                  : scheme.onSurfaceVariant,
                             ),
                           ),
                         ),

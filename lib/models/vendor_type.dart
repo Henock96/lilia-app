@@ -6,6 +6,7 @@
 /// historique ; les autres types ont une UX adaptée côté client. ALCOHOL
 /// existe dans l'enum DB mais n'est jamais proposé côté UI (pivot lancement
 /// Lilia Food — pas de vente d'alcool, cf. memory `project-lilia-no-alcohol-initial`).
+library;
 
 enum VendorType {
   RESTAURANT,

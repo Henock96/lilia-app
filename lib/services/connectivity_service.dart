@@ -31,13 +31,17 @@ class ConnectivityService {
 
   void _updateConnectionStatus(List<ConnectivityResult> results) {
     // On est connecté si au moins une connexion est active (WiFi, mobile, etc.)
-    _isConnected = results.any((result) =>
-        result == ConnectivityResult.mobile ||
-        result == ConnectivityResult.wifi ||
-        result == ConnectivityResult.ethernet ||
-        result == ConnectivityResult.vpn);
+    _isConnected = results.any(
+      (result) =>
+          result == ConnectivityResult.mobile ||
+          result == ConnectivityResult.wifi ||
+          result == ConnectivityResult.ethernet ||
+          result == ConnectivityResult.vpn,
+    );
 
-    debugPrint('📡 État de connexion: ${_isConnected ? "Connecté" : "Déconnecté"}');
+    debugPrint(
+      '📡 État de connexion: ${_isConnected ? "Connecté" : "Déconnecté"}',
+    );
     if (!_controller.isClosed) {
       _controller.add(_isConnected);
     }

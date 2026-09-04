@@ -24,13 +24,45 @@ val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
     localProperties.load(FileInputStream(localPropertiesFile))
 }
+// La variable d'environnement sert aux machines qui n'ont pas de
+// `local.properties` — une CI, typiquement. Elle manquait ici alors que les
+// deux autres apps l'acceptaient : aucun pipeline ne pouvait produire la
+// release de `lilia-app`, il échouait sur la garde ci-dessous.
 val mapsApiKey: String =
-    (localProperties["MAPS_API_KEY"] as String?) ?: "YOUR_GOOGLE_MAPS_API_KEY"
+    (localProperties["MAPS_API_KEY"] as String?)
+        ?: providers.environmentVariable("MAPS_API_KEY").orNull
+        ?: "YOUR_GOOGLE_MAPS_API_KEY"
+
+// Refuse de produire un binaire de release sans vraie clé Maps.
+//
+// Le repli sur le gabarit était silencieux : `flutter build appbundle` sans
+// `local.properties` produisait un APK qui compile, s'installe, se lance — et
+// affiche une **carte grise** sans le moindre message. C'est exactement le
+// « ça marche en debug, pas en release » qu'on cherchait à expliquer.
+//
+// En debug on tolère l'absence (un développeur qui ne touche pas aux cartes
+// n'a pas à réclamer une clé) ; en release on casse le build, avec la marche
+// à suivre.
+gradle.taskGraph.whenReady {
+    val buildingRelease = allTasks.any { task ->
+        task.name.contains("Release") &&
+            (task.name.startsWith("assemble") || task.name.startsWith("bundle"))
+    }
+    if (buildingRelease && mapsApiKey == "YOUR_GOOGLE_MAPS_API_KEY") {
+        throw GradleException(
+            "Clé Google Maps absente : ajoutez `MAPS_API_KEY=<clé>` dans " +
+                "android/local.properties (fichier gitignoré), ou exportez " +
+                "MAPS_API_KEY. Sans elle, le binaire de release affiche une carte grise " +
+                "sans aucune erreur."
+        )
+    }
+}
+
 
 android {
     namespace = "com.dreesis.lilia.lilia_app"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "27.0.12077973"
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         // Flag to enable support for the new language APIs
@@ -82,20 +114,9 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.3")
 
     // Firebase dependencies
-    implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
+    implementation(platform("com.google.firebase:firebase-bom:34.18.0"))
     implementation("com.google.firebase:firebase-messaging")
     implementation("com.google.firebase:firebase-analytics")
-}
-dependencies {
-  // Import the Firebase BoM
-  implementation(platform("com.google.firebase:firebase-bom:34.12.0"))
-
-  // TODO: Add the dependencies for Firebase products you want to use
-  // When using the BoM, don't specify versions in Firebase dependencies
-  implementation("com.google.firebase:firebase-analytics")
-
-  // Add the dependencies for any other desired Firebase products
-  // https://firebase.google.com/docs/android/setup#available-libraries
 }
 flutter {
     source = "../.."

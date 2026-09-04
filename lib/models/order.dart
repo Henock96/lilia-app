@@ -65,6 +65,8 @@ class Order {
   final OrderRestaurant restaurant;
   final List<OrderItem> items;
   final bool isDelivery; // Mode de livraison
+  final bool isPreorder; // Commande programmée (précommande)
+  final DateTime? scheduledFor; // Créneau de réception choisi (précommande)
 
   Order({
     required this.id,
@@ -83,6 +85,8 @@ class Order {
     required this.restaurant,
     required this.items,
     this.isDelivery = true,
+    this.isPreorder = false,
+    this.scheduledFor,
   });
 
   Order copyWith({
@@ -102,6 +106,8 @@ class Order {
     OrderRestaurant? restaurant,
     List<OrderItem>? items,
     bool? isDelivery,
+    bool? isPreorder,
+    DateTime? scheduledFor,
   }) {
     return Order(
       id: id ?? this.id,
@@ -120,6 +126,8 @@ class Order {
       restaurant: restaurant ?? this.restaurant,
       items: items ?? this.items,
       isDelivery: isDelivery ?? this.isDelivery,
+      isPreorder: isPreorder ?? this.isPreorder,
+      scheduledFor: scheduledFor ?? this.scheduledFor,
     );
   }
 
@@ -149,6 +157,12 @@ class Order {
       isDelivery: json['isDelivery'] is bool
           ? json['isDelivery'] as bool
           : true,
+      isPreorder: json['isPreorder'] is bool
+          ? json['isPreorder'] as bool
+          : false,
+      scheduledFor: json['scheduledFor'] != null
+          ? DateTime.tryParse(json['scheduledFor'].toString())
+          : null,
     );
   }
 }

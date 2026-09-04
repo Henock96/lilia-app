@@ -48,7 +48,7 @@ final class CartRepositoryProvider
   }
 }
 
-String _$cartRepositoryHash() => r'9dfca47f47d15cd4df54dcebdcf009d9816ce953';
+String _$cartRepositoryHash() => r'd545f0d663c15a12b117be01e3d2b15ae6a7286f';
 
 @ProviderFor(CartController)
 final cartControllerProvider = CartControllerProvider._();
@@ -80,7 +80,7 @@ abstract class _$CartController extends $StreamNotifier<Cart?> {
   Stream<Cart?> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<Cart?>, Cart?>;
     final element =
         ref.element
@@ -90,6 +90,6 @@ abstract class _$CartController extends $StreamNotifier<Cart?> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

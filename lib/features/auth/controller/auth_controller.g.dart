@@ -33,13 +33,13 @@ final class AuthControllerProvider
   AuthController create() => AuthController();
 }
 
-String _$authControllerHash() => r'dc40610328c0671d30fa9d06054cffba8a41c6b5';
+String _$authControllerHash() => r'b7e3f5f68428e1d04e2f2fd1220c524f388e5471';
 
 abstract class _$AuthController extends $StreamNotifier<AppUser?> {
   Stream<AppUser?> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<AppUser?>, AppUser?>;
     final element =
         ref.element
@@ -49,6 +49,6 @@ abstract class _$AuthController extends $StreamNotifier<AppUser?> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

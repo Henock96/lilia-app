@@ -34,13 +34,13 @@ final class UserDataSynchronizerProvider
 }
 
 String _$userDataSynchronizerHash() =>
-    r'61916d2940333174b151f04122f240ee2c71ee9b';
+    r'63acfe298f2fb3d62783d19c03c0974349e5ed9f';
 
 abstract class _$UserDataSynchronizer extends $AsyncNotifier<void> {
   FutureOr<void> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<void>, void>;
     final element =
         ref.element
@@ -50,6 +50,6 @@ abstract class _$UserDataSynchronizer extends $AsyncNotifier<void> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

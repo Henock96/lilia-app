@@ -73,7 +73,7 @@ final class DriverLocationControllerProvider
 }
 
 String _$driverLocationControllerHash() =>
-    r'15a89410e6617ef9e1e5a4294e7b869830b51878';
+    r'6d1cdbe329135e8c2e5027eea71e5a6304aa00da';
 
 /// Controller qui combine WebSocket temps réel + HTTP initial.
 ///
@@ -132,7 +132,7 @@ abstract class _$DriverLocationController
   FutureOr<DriverLocation?> build(String orderId);
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<DriverLocation?>, DriverLocation?>;
     final element =
         ref.element
@@ -142,6 +142,6 @@ abstract class _$DriverLocationController
               Object?,
               Object?
             >;
-    element.handleCreate(ref, () => build(_$args));
+    return element.handleCreate(ref, () => build(_$args));
   }
 }

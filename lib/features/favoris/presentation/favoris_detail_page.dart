@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
 import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class FavorisDetailPage extends ConsumerStatefulWidget {
   final Product product;
@@ -46,6 +48,7 @@ class _FavorisDetailPageState extends ConsumerState<FavorisDetailPage> {
         title: Text(widget.product.name),
         actions: [
           IconButton(
+            tooltip: 'Retirer des favoris',
             icon: Icon(
               isFavorite ? Icons.favorite : Icons.favorite_border,
               color: isFavorite ? Colors.red : Colors.black,
@@ -73,25 +76,13 @@ class _FavorisDetailPageState extends ConsumerState<FavorisDetailPage> {
                     child: Hero(
                       tag:
                           'favorite_${widget.product.id}', // Unique tag for favorites
-                      child: widget.product.imageUrl != null
-                          ? Image.network(
-                              widget.product.imageUrl!,
+                      child: widget.product.thumbnailUrl != null
+                          ? AppCachedImage(
+                              imageUrl: widget.product.thumbnailUrl!,
                               height: 250,
                               width: double.infinity,
                               fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  height: 250,
-                                  color: Colors.grey[200],
-                                  child: const Center(
-                                    child: Icon(
-                                      Icons.fastfood,
-                                      size: 80,
-                                      color: Colors.grey,
-                                    ),
-                                  ),
-                                );
-                              },
+                              errorIcon: Icons.fastfood,
                             )
                           : Container(
                               height: 250,
@@ -175,24 +166,15 @@ class _FavorisDetailPageState extends ConsumerState<FavorisDetailPage> {
                 onPressed: () {
                   if (_selectedVariant == null &&
                       widget.product.variants.isNotEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Veuillez sélectionner une variante!'),
-                      ),
-                    );
+                    context.showSnack('Veuillez sélectionner une variante!');
                     return;
                   }
                   final variantId = _selectedVariant!.id;
                   ref
                       .read(cartControllerProvider.notifier)
                       .addItem(variantId: variantId, quantity: _quantity);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        '${widget.product.name} a été ajouté au panier.',
-                      ),
-                      duration: const Duration(seconds: 2),
-                    ),
+                  context.showSnack(
+                    '${widget.product.name} a été ajouté au panier.',
                   );
                 },
                 style: ElevatedButton.styleFrom(

@@ -1,124 +1,94 @@
 import 'dart:convert';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
-import 'package:http/http.dart' as http;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../../../constants/app_constants.dart';
+import '../../../../core/network/api_client.dart';
+import '../../../../core/network/api_exception.dart';
 import '../../../../models/produit.dart';
 import '../../../../models/restaurant.dart';
 import '../../../../models/search_result.dart';
 import '../../../../utils/api_response.dart';
+import '../../../../utils/json_isolate.dart';
 
 part 'home_repo.g.dart';
 
-class HomeRepository {
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+// Parsers top-level (décodage + mapping) déportables sur isolate via
+// [parseJson] quand le payload dépasse le seuil. Cf. utils/json_isolate.dart.
+List<Product> _parseProducts(String body) {
+  final List<dynamic> data = json.decode(body)['data'] as List<dynamic>;
+  return data.map((j) => Product.fromJson(j as Map<String, dynamic>)).toList();
+}
 
-  Future<String?> _getIdToken() async {
-    final user = _firebaseAuth.currentUser;
-    return await user?.getIdToken();
-  }
+List<RestaurantSummary> _parsePopularRestaurants(String body) {
+  final List<dynamic> data = json.decode(body)['data'] as List<dynamic>;
+  return data
+      .map((j) => RestaurantSummary.fromJson(j as Map<String, dynamic>))
+      .toList();
+}
+
+SearchResult _parseSearchResult(String body) =>
+    SearchResult.fromJson(ApiResponse.mapOf(json.decode(body)));
+
+class HomeRepository {
+  final ApiClient _api;
+
+  HomeRepository(this._api);
 
   /// GET /products/popular?limit=10
   Future<List<Product>> getPopularProducts({int limit = 10}) async {
-    try {
-      final response = await http.get(
-        Uri.parse('${AppConstants.baseUrl}/products/popular?limit=$limit'),
-      );
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body)['data'];
-        return data.map((j) => Product.fromJson(j)).toList();
-      }
-      throw Exception('Failed to load popular products: ${response.statusCode}');
-    } catch (e) {
-      throw Exception('Failed to connect to the server: $e');
-    }
+    final body = await _api.getText(
+      '/products/popular',
+      query: {'limit': '$limit'},
+    );
+    return parseJson(body, _parseProducts);
   }
 
   /// GET /restaurants/popular?limit=6
   Future<List<RestaurantSummary>> getPopularRestaurants({int limit = 6}) async {
-    try {
-      final response = await http.get(
-        Uri.parse('${AppConstants.baseUrl}/restaurants/popular?limit=$limit'),
-      );
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body)['data'];
-        return data.map((j) => RestaurantSummary.fromJson(j)).toList();
-      }
-      throw Exception('Failed to load popular restaurants: ${response.statusCode}');
-    } catch (e) {
-      throw Exception('Failed to connect to the server: $e');
-    }
+    final body = await _api.getText(
+      '/restaurants/popular',
+      query: {'limit': '$limit'},
+    );
+    return parseJson(body, _parsePopularRestaurants);
   }
 
   /// GET /products/search?q=...
   Future<SearchResult> search(String query) async {
-    try {
-      final response = await http.get(
-        Uri.parse(
-          '${AppConstants.baseUrl}/products/search?q=${Uri.encodeComponent(query)}',
-        ),
-      );
-      if (response.statusCode == 200) {
-        // Tolère objet plat OU `{ data: {...} }` (api-contract-v2).
-        return SearchResult.fromJson(ApiResponse.mapOf(json.decode(response.body)));
-      }
-      throw Exception('Failed to search: ${response.statusCode}');
-    } catch (e) {
-      throw Exception('Failed to connect to the server: $e');
-    }
+    // Tolère objet plat OU `{ data: {...} }` (api-contract-v2).
+    final body = await _api.getText('/products/search', query: {'q': query});
+    return parseJson(body, _parseSearchResult);
   }
 
   /// GET /products/recommendations (authentifié)
   Future<List<Product>> getRecommendations({int limit = 10}) async {
     try {
-      final token = await _getIdToken();
-      if (token == null) return [];
-
-      final response = await http.get(
-        Uri.parse('${AppConstants.baseUrl}/products/recommendations?limit=$limit'),
-        headers: {'Authorization': 'Bearer $token'},
+      final body = await _api.getText(
+        '/products/recommendations',
+        query: {'limit': '$limit'},
       );
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body)['data'];
-        return data.map((j) => Product.fromJson(j)).toList();
-      }
+      return parseJson(body, _parseProducts);
+    } on ApiException catch (e) {
       // Recommandations = feature non bloquante : on dégrade en liste vide,
       // mais on trace l'erreur en debug au lieu de l'avaler totalement (C12).
       if (kDebugMode) {
-        debugPrint('getRecommendations: HTTP ${response.statusCode}');
-      }
-      return [];
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('getRecommendations failed: ${e.runtimeType}');
+        debugPrint('getRecommendations failed: ${e.message}');
       }
       return [];
     }
   }
 
-  /// GET /categories
-  Future<List<Category>> getCategories() async {
-    try {
-      final response = await http.get(
-        Uri.parse('${AppConstants.baseUrl}/categories'),
-      );
-      if (response.statusCode == 200) {
-        // /categories double-enveloppé (`{ data: { data: [...], count } }`).
-        final decoded = json.decode(response.body);
-        final data = ApiResponse.listOf(ApiResponse.mapOf(decoded));
-        return data.map((j) => Category.fromJson(j as Map<String, dynamic>)).toList();
-      }
-      throw Exception('Failed to load categories: ${response.statusCode}');
-    } catch (e) {
-      throw Exception('Failed to connect to the server: $e');
-    }
-  }
+  // `getCategories()` a été SUPPRIMÉ (septembre 2026).
+  //
+  // `GET /categories` n'est plus une liste plateforme : la route est
+  // authentifiée et rend les sections **du vendeur appelant**. Un client n'a
+  // rien à y faire, et l'appeler renverrait désormais un 403.
+  //
+  // Les sections d'un vendeur arrivent avec son détail
+  // (`GET /vendors/:id`, champ `categories`), déjà triées et filtrées.
 }
 
 @Riverpod(keepAlive: true)
 HomeRepository homeRepository(Ref ref) {
-  return HomeRepository();
+  return HomeRepository(ref.watch(apiClientProvider));
 }

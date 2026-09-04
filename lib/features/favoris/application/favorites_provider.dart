@@ -23,7 +23,10 @@ class Favorites extends _$Favorites {
   List<Product> _getFavorites() {
     final favoritesJson = _prefs.getStringList(_kFavoritesKey) ?? [];
     return favoritesJson
-        .map((jsonString) => Product.fromJson(jsonDecode(jsonString)))
+        .map(
+          (jsonString) =>
+              Product.fromJson(jsonDecode(jsonString) as Map<String, dynamic>),
+        )
         .toList();
   }
 
@@ -45,8 +48,9 @@ class Favorites extends _$Favorites {
 
   Future<void> remove(Product product) async {
     final currentFavorites = await future;
-    final updatedFavorites =
-        currentFavorites.where((p) => p.id != product.id).toList();
+    final updatedFavorites = currentFavorites
+        .where((p) => p.id != product.id)
+        .toList();
     await _setFavorites(updatedFavorites);
   }
 
@@ -64,6 +68,7 @@ extension ProductJson on Product {
       'description': description,
       'prixOriginal': prixOriginal,
       'imageUrl': imageUrl,
+      'images': images.map((i) => i.toJson()).toList(),
       'restaurantId': restaurantId,
       'categoryId': categoryId,
       'category': category?.toJson(),
@@ -82,19 +87,12 @@ extension ProductJson on Product {
 
 extension CategoryJson on Category {
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'nom': name,
-    };
+    return {'id': id, 'nom': name};
   }
 }
 
 extension ProductVariantJson on ProductVariant {
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'label': label,
-      'prix': prix,
-    };
+    return {'id': id, 'label': label, 'prix': prix};
   }
 }

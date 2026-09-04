@@ -4,7 +4,8 @@
 
 import 'dart:convert';
 
-Restaurant restaurantFromMap(String str) => Restaurant.fromMap(json.decode(str));
+Restaurant restaurantFromMap(String str) =>
+    Restaurant.fromMap(json.decode(str) as Map<String, dynamic>);
 
 String restaurantToMap(Restaurant data) => json.encode(data.toMap());
 
@@ -41,29 +42,38 @@ class Restaurant {
     DateTime? createdAt,
     DateTime? updatedAt,
     List<Product>? products,
-  }) =>
-      Restaurant(
-        id: id ?? this.id,
-        nom: nom ?? this.nom,
-        adresse: adresse ?? this.adresse,
-        phone: phone ?? this.phone,
-        imageUrl: imageUrl ?? this.imageUrl,
-        ownerId: ownerId ?? this.ownerId,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        products: products ?? this.products,
-      );
+  }) => Restaurant(
+    id: id ?? this.id,
+    nom: nom ?? this.nom,
+    adresse: adresse ?? this.adresse,
+    phone: phone ?? this.phone,
+    imageUrl: imageUrl ?? this.imageUrl,
+    ownerId: ownerId ?? this.ownerId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    products: products ?? this.products,
+  );
 
   factory Restaurant.fromMap(Map<String, dynamic> json) => Restaurant(
-    id: json["id"],
-    nom: json["nom"],
-    adresse: json["adresse"],
-    phone: json["phone"],
-    imageUrl: json["imageUrl"],
-    ownerId: json["ownerId"],
-    createdAt: json["createdAt"] == null ? null : DateTime.parse(json["createdAt"]),
-    updatedAt: json["updatedAt"] == null ? null : DateTime.parse(json["updatedAt"]),
-    products: json["products"] == null ? [] : List<Product>.from(json["products"]!.map((x) => Product.fromMap(x))),
+    id: json["id"] as String?,
+    nom: json["nom"] as String?,
+    adresse: json["adresse"] as String?,
+    phone: json["phone"] as String?,
+    imageUrl: json["imageUrl"] as String?,
+    ownerId: json["ownerId"] as String?,
+    createdAt: json["createdAt"] == null
+        ? null
+        : DateTime.parse(json["createdAt"] as String),
+    updatedAt: json["updatedAt"] == null
+        ? null
+        : DateTime.parse(json["updatedAt"] as String),
+    products: json["products"] == null
+        ? []
+        : List<Product>.from(
+            (json["products"] as List<dynamic>).map(
+              (x) => Product.fromMap(x as Map<String, dynamic>),
+            ),
+          ),
   );
 
   Map<String, dynamic> toMap() => {
@@ -75,7 +85,9 @@ class Restaurant {
     "ownerId": ownerId,
     "createdAt": createdAt?.toIso8601String(),
     "updatedAt": updatedAt?.toIso8601String(),
-    "products": products == null ? [] : List<dynamic>.from(products!.map((x) => x.toMap())),
+    "products": products == null
+        ? <dynamic>[]
+        : List<dynamic>.from(products!.map((x) => x.toMap())),
   };
 }
 
@@ -118,33 +130,44 @@ class Product {
     DateTime? updatedAt,
     Category? category,
     List<Variant>? variants,
-  }) =>
-      Product(
-        id: id ?? this.id,
-        nom: nom ?? this.nom,
-        description: description ?? this.description,
-        imageUrl: imageUrl ?? this.imageUrl,
-        prixOriginal: prixOriginal ?? this.prixOriginal,
-        restaurantId: restaurantId ?? this.restaurantId,
-        categoryId: categoryId ?? this.categoryId,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-        category: category ?? this.category,
-        variants: variants ?? this.variants,
-      );
+  }) => Product(
+    id: id ?? this.id,
+    nom: nom ?? this.nom,
+    description: description ?? this.description,
+    imageUrl: imageUrl ?? this.imageUrl,
+    prixOriginal: prixOriginal ?? this.prixOriginal,
+    restaurantId: restaurantId ?? this.restaurantId,
+    categoryId: categoryId ?? this.categoryId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+    category: category ?? this.category,
+    variants: variants ?? this.variants,
+  );
 
   factory Product.fromMap(Map<String, dynamic> json) => Product(
-    id: json["id"],
-    nom: json["nom"],
-    description: json["description"],
-    imageUrl: json["imageUrl"],
-    prixOriginal: json["prixOriginal"],
-    restaurantId: json["restaurantId"],
-    categoryId: json["categoryId"],
-    createdAt: json["createdAt"] == null ? null : DateTime.parse(json["createdAt"]),
-    updatedAt: json["updatedAt"] == null ? null : DateTime.parse(json["updatedAt"]),
-    category: json["category"] == null ? null : Category.fromMap(json["category"]),
-    variants: json["variants"] == null ? [] : List<Variant>.from(json["variants"]!.map((x) => Variant.fromMap(x))),
+    id: json["id"] as String?,
+    nom: json["nom"] as String?,
+    description: json["description"] as String?,
+    imageUrl: json["imageUrl"] as String?,
+    prixOriginal: json["prixOriginal"] as int?,
+    restaurantId: json["restaurantId"] as String?,
+    categoryId: json["categoryId"] as String?,
+    createdAt: json["createdAt"] == null
+        ? null
+        : DateTime.parse(json["createdAt"] as String),
+    updatedAt: json["updatedAt"] == null
+        ? null
+        : DateTime.parse(json["updatedAt"] as String),
+    category: json["category"] == null
+        ? null
+        : Category.fromMap(json["category"] as Map<String, dynamic>),
+    variants: json["variants"] == null
+        ? []
+        : List<Variant>.from(
+            (json["variants"] as List<dynamic>).map(
+              (x) => Variant.fromMap(x as Map<String, dynamic>),
+            ),
+          ),
   );
 
   Map<String, dynamic> toMap() => {
@@ -158,7 +181,9 @@ class Product {
     "createdAt": createdAt?.toIso8601String(),
     "updatedAt": updatedAt?.toIso8601String(),
     "category": category?.toMap(),
-    "variants": variants == null ? [] : List<dynamic>.from(variants!.map((x) => x.toMap())),
+    "variants": variants == null
+        ? <dynamic>[]
+        : List<dynamic>.from(variants!.map((x) => x.toMap())),
   };
 }
 
@@ -168,31 +193,29 @@ class Category {
   DateTime? createdAt;
   DateTime? updatedAt;
 
-  Category({
-    this.id,
-    this.nom,
-    this.createdAt,
-    this.updatedAt,
-  });
+  Category({this.id, this.nom, this.createdAt, this.updatedAt});
 
   Category copyWith({
     String? id,
     String? nom,
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) =>
-      Category(
-        id: id ?? this.id,
-        nom: nom ?? this.nom,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+  }) => Category(
+    id: id ?? this.id,
+    nom: nom ?? this.nom,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
 
   factory Category.fromMap(Map<String, dynamic> json) => Category(
-    id: json["id"],
-    nom: json["nom"],
-    createdAt: json["createdAt"] == null ? null : DateTime.parse(json["createdAt"]),
-    updatedAt: json["updatedAt"] == null ? null : DateTime.parse(json["updatedAt"]),
+    id: json["id"] as String?,
+    nom: json["nom"] as String?,
+    createdAt: json["createdAt"] == null
+        ? null
+        : DateTime.parse(json["createdAt"] as String),
+    updatedAt: json["updatedAt"] == null
+        ? null
+        : DateTime.parse(json["updatedAt"] as String),
   );
 
   Map<String, dynamic> toMap() => {
@@ -227,23 +250,26 @@ class Variant {
     String? productId,
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) =>
-      Variant(
-        id: id ?? this.id,
-        label: label ?? this.label,
-        prix: prix ?? this.prix,
-        productId: productId ?? this.productId,
-        createdAt: createdAt ?? this.createdAt,
-        updatedAt: updatedAt ?? this.updatedAt,
-      );
+  }) => Variant(
+    id: id ?? this.id,
+    label: label ?? this.label,
+    prix: prix ?? this.prix,
+    productId: productId ?? this.productId,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
 
   factory Variant.fromMap(Map<String, dynamic> json) => Variant(
-    id: json["id"],
-    label: json["label"],
-    prix: json["prix"],
-    productId: json["productId"],
-    createdAt: json["createdAt"] == null ? null : DateTime.parse(json["createdAt"]),
-    updatedAt: json["updatedAt"] == null ? null : DateTime.parse(json["updatedAt"]),
+    id: json["id"] as String?,
+    label: json["label"] as String?,
+    prix: json["prix"] as int?,
+    productId: json["productId"] as String?,
+    createdAt: json["createdAt"] == null
+        ? null
+        : DateTime.parse(json["createdAt"] as String),
+    updatedAt: json["updatedAt"] == null
+        ? null
+        : DateTime.parse(json["updatedAt"] as String),
   );
 
   Map<String, dynamic> toMap() => {

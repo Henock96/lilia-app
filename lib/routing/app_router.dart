@@ -4,6 +4,8 @@ import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart
 import 'package:lilia_app/services/analytics_service.dart';
 import 'package:lilia_app/features/cart/presentation/cart_screen.dart';
 import 'package:lilia_app/features/commandes/presentation/checkout_page.dart';
+import 'package:lilia_app/features/payments/presentation/payment_pending_args.dart';
+import 'package:lilia_app/features/payments/presentation/payment_pending_page.dart';
 import 'package:lilia_app/features/commandes/presentation/delivery_options_page.dart';
 import 'package:lilia_app/features/commandes/presentation/commande_page.dart';
 import 'package:lilia_app/features/commandes/presentation/order_success_page.dart';
@@ -74,6 +76,12 @@ GoRouter router(Ref ref) {
       // Si l'onboarding est complété et on est sur la page d'onboarding
       if (onboardingCompleted && isOnboardingPage) {
         return AppRoutes.signIn.path;
+      }
+
+      // Ne pas tenter de rediriger pendant le chargement initial de l'authentification
+      // pour éviter le clignotement / flash vers la page de connexion.
+      if (authState.isLoading) {
+        return null;
       }
 
       // Gère les différents états de l'AsyncValue pour l'authentification
@@ -199,9 +207,9 @@ GoRouter router(Ref ref) {
                       return MaterialPage(
                         child: RestaurantDetailScreen(
                           restaurantId: restaurantId,
-                          restaurantName: extra["restaurantName"] is String
-                              ? extra["restaurantName"]
-                              : 'Votre Restaurant',
+                          restaurantName:
+                              extra["restaurantName"] as String? ??
+                              'Votre Restaurant',
                         ),
                       );
                     },
@@ -282,6 +290,32 @@ GoRouter router(Ref ref) {
                 pageBuilder: (context, state) =>
                     const MaterialPage(child: CommandePage()),
                 routes: [
+                  // ⚠️ Déclarée AVANT `:orderId` : go_router évalue les routes
+                  // dans l'ordre, et `:orderId` capterait sinon
+                  // `/commandes/paiement/...` en croyant lire un identifiant.
+                  GoRoute(
+                    path: AppRoutes.paymentPending.path,
+                    name: AppRoutes.paymentPending.routeName,
+                    pageBuilder: (context, state) {
+                      final paymentId = state.pathParameters['paymentId']!;
+                      final extra = state.extra;
+                      // Arrivée par lien profond ou reprise après tuerie du
+                      // processus : sans le contexte du paiement, on renvoie sur
+                      // la liste des commandes plutôt que d'afficher un écran
+                      // d'attente vide.
+                      if (extra is! PaymentPendingArgs) {
+                        return const MaterialPage(child: CommandePage());
+                      }
+                      return MaterialPage(
+                        child: PaymentPendingPage(
+                          paymentId: paymentId,
+                          orderId: extra.orderId,
+                          amount: extra.amount,
+                          method: extra.method,
+                        ),
+                      );
+                    },
+                  ),
                   GoRoute(
                     path:
                         ':orderId', // Paramètre de chemin pour l'ID de la commande

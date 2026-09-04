@@ -9,47 +9,6 @@ part of 'firebase_auth_repository.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 
-@ProviderFor(httpClient)
-final httpClientProvider = HttpClientProvider._();
-
-final class HttpClientProvider
-    extends $FunctionalProvider<http.Client, http.Client, http.Client>
-    with $Provider<http.Client> {
-  HttpClientProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'httpClientProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$httpClientHash();
-
-  @$internal
-  @override
-  $ProviderElement<http.Client> $createElement($ProviderPointer pointer) =>
-      $ProviderElement(pointer);
-
-  @override
-  http.Client create(Ref ref) {
-    return httpClient(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(http.Client value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<http.Client>(value),
-    );
-  }
-}
-
-String _$httpClientHash() => r'8c21f22632338286954dc297d3cf423520492f98';
-
 @ProviderFor(authRepository)
 final authRepositoryProvider = AuthRepositoryProvider._();
 
@@ -97,7 +56,7 @@ final class AuthRepositoryProvider
   }
 }
 
-String _$authRepositoryHash() => r'7dceeaa712a59a31ee810a7bc5a26ea8b69bd47e';
+String _$authRepositoryHash() => r'a489468a1a631c6d71d7ae5a76b34e764f755f62';
 
 @ProviderFor(firebaseAuth)
 final firebaseAuthProvider = FirebaseAuthProvider._();

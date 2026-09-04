@@ -33,13 +33,13 @@ final class PromoRepositoryProvider
   PromoRepository create() => PromoRepository();
 }
 
-String _$promoRepositoryHash() => r'02b37ab88a993588cc22548309f23f080694cc43';
+String _$promoRepositoryHash() => r'9296392c9be69b683e3f3cc9b844a93da1fbb664';
 
 abstract class _$PromoRepository extends $AsyncNotifier<void> {
   FutureOr<void> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<void>, void>;
     final element =
         ref.element
@@ -49,6 +49,6 @@ abstract class _$PromoRepository extends $AsyncNotifier<void> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

@@ -34,13 +34,13 @@ final class QuartiersRepositoryProvider
 }
 
 String _$quartiersRepositoryHash() =>
-    r'bc4b757a1ac99f00da5c97c99f03b340d5877b3d';
+    r'9675522a11d6428fdbf9a3984defc6d5e8bd212d';
 
 abstract class _$QuartiersRepository extends $AsyncNotifier<void> {
   FutureOr<void> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<void>, void>;
     final element =
         ref.element
@@ -50,6 +50,6 @@ abstract class _$QuartiersRepository extends $AsyncNotifier<void> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

@@ -40,7 +40,7 @@ abstract class _$DraftOrdersNotifier extends $AsyncNotifier<List<DraftOrder>> {
   FutureOr<List<DraftOrder>> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref as $Ref<AsyncValue<List<DraftOrder>>, List<DraftOrder>>;
     final element =
@@ -51,6 +51,6 @@ abstract class _$DraftOrdersNotifier extends $AsyncNotifier<List<DraftOrder>> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

@@ -143,50 +143,6 @@ final class RecommendationsProvider
 
 String _$recommendationsHash() => r'993cbc5d9cd55ab11279ba9e4121058622fee06d';
 
-/// Provider pour la liste des catégories
-
-@ProviderFor(categoriesList)
-final categoriesListProvider = CategoriesListProvider._();
-
-/// Provider pour la liste des catégories
-
-final class CategoriesListProvider
-    extends
-        $FunctionalProvider<
-          AsyncValue<List<Category>>,
-          List<Category>,
-          FutureOr<List<Category>>
-        >
-    with $FutureModifier<List<Category>>, $FutureProvider<List<Category>> {
-  /// Provider pour la liste des catégories
-  CategoriesListProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'categoriesListProvider',
-        isAutoDispose: true,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$categoriesListHash();
-
-  @$internal
-  @override
-  $FutureProviderElement<List<Category>> $createElement(
-    $ProviderPointer pointer,
-  ) => $FutureProviderElement(pointer);
-
-  @override
-  FutureOr<List<Category>> create(Ref ref) {
-    return categoriesList(ref);
-  }
-}
-
-String _$categoriesListHash() => r'77b983d17dbdd6e7bc7aaa721ce2972ceecc4f8c';
-
 /// Provider pour les résultats de recherche
 
 @ProviderFor(searchResults)

@@ -1,9 +1,10 @@
-﻿import 'dart:math';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
@@ -11,17 +12,24 @@ import 'package:lilia_app/features/cart/application/draft_orders_provider.dart';
 import 'package:lilia_app/features/commandes/data/checkout_controller.dart';
 import 'package:lilia_app/features/commandes/presentation/delivery_options_page.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
+import 'package:lilia_app/features/payments/data/payment_service.dart';
+import 'package:lilia_app/features/payments/presentation/payment_pending_args.dart';
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
+import 'package:lilia_app/features/commandes/domain/checkout_estimate.dart';
+import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 import 'package:lilia_app/services/analytics_service.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
-import '../../../constants/app_constants.dart';
 import '../../../models/cart.dart';
+import '../../../models/checkout.dart';
 import '../../../models/promo_validation_result.dart';
 import '../../../models/restaurant.dart';
 import '../../../models/vendor_type.dart';
 import '../data/promo_repository.dart';
+import 'package:lilia_app/utils/currency.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
   final DeliveryOptions? deliveryOptions;
@@ -44,6 +52,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   String? _promoError;
   bool _useLoyaltyPoints = false;
   String _selectedPaymentMethod = 'MTN_MOMO';
+
+  /// Numéro Mobile Money qui paiera, distinct du téléphone de contact.
+  ///
+  /// Le même champ servait aux deux. Or on paie souvent depuis un autre
+  /// téléphone que celui qu'on donne au livreur (numéro de la maison, du
+  /// conjoint) — et avec un prestataire qui envoie réellement une demande, se
+  /// tromper de numéro n'est plus une coquille sur un papier, c'est un paiement
+  /// qui n'arrive pas.
+  final TextEditingController _momoPhoneController = TextEditingController();
   String? _idempotencyKey;
   // LIL-122 : date/heure choisies pour les commandes preorder (madeToOrder).
   // Null tant que le client n'a pas ouvert le picker.
@@ -67,6 +84,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   void dispose() {
     _noteController.dispose();
     _phoneController.dispose();
+    _momoPhoneController.dispose();
     _promoController.dispose();
     super.dispose();
   }
@@ -87,11 +105,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final cartAsync = ref.watch(cartControllerProvider);
     final checkoutState = ref.watch(checkoutControllerProvider);
     final userProfileAsync = ref.watch(userProfileProvider);
+    final settingsAsync = ref.watch(platformSettingsProvider);
 
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
+          tooltip: 'Retour',
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.goNamed(AppRoutes.deliveryOptions.routeName),
         ),
@@ -107,20 +127,41 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             return const Center(child: Text('Votre panier est vide'));
           }
 
-          final double subTotal = cart.totalPrice;
-          final double deliveryFee =
-              _promoResult?.newDeliveryFee ?? options.deliveryFee;
-          final double serviceFee = (subTotal * AppConstants.serviceFeeRate)
-              .roundToDouble();
-          final double discountAmount = _promoResult?.discountAmount ?? 0;
+          // Estimation affichée avant commande. Le montant réellement dû est
+          // celui de la commande créée par le serveur (`order.total`), repris
+          // tel quel dans la modale de paiement : ce bloc ne sert qu'à donner
+          // au client un ordre de grandeur cohérent.
+          //
+          // Les paramètres viennent de `/platform-settings` et non plus de
+          // constantes en dur : le jour où l'admin passe la commission de 8 à
+          // 10 %, l'estimation suit sans release mobile.
+          final settings = settingsAsync.value ?? PlatformSettings.fallback;
+          final estimate = CheckoutEstimate.compute(
+            subTotal: cart.totalPrice,
+            deliveryFee: _promoResult?.newDeliveryFee ?? options.deliveryFee,
+            promoDiscount: _promoResult?.discountAmount ?? 0,
+            loyaltyPoints: userProfileAsync.value?.loyaltyPoints ?? 0,
+            useLoyaltyPoints: _useLoyaltyPoints,
+            settings: settings,
+          );
           final int userPoints = userProfileAsync.value?.loyaltyPoints ?? 0;
-          final double loyaltyDiscount = userPoints * 5.0;
-          final double total =
-              subTotal +
-              deliveryFee +
-              serviceFee -
-              discountAmount -
-              (_useLoyaltyPoints ? loyaltyDiscount : 0);
+          // Réduction réellement applicable si le client active ses points —
+          // affichée avant l'activation du switch. On montrait auparavant la
+          // valeur brute du solde, qui pouvait dépasser le montant dû.
+          final double potentialLoyaltyDiscount = CheckoutEstimate.compute(
+            subTotal: cart.totalPrice,
+            deliveryFee: _promoResult?.newDeliveryFee ?? options.deliveryFee,
+            promoDiscount: _promoResult?.discountAmount ?? 0,
+            loyaltyPoints: userPoints,
+            useLoyaltyPoints: true,
+            settings: settings,
+          ).loyaltyDiscount;
+          final double subTotal = estimate.subTotal;
+          final double deliveryFee = estimate.deliveryFee;
+          final double serviceFee = estimate.serviceFee;
+          final double discountAmount = estimate.promoDiscount;
+          final double loyaltyDiscount = estimate.loyaltyDiscount;
+          final double total = estimate.total;
           final String restaurantId = cart.items.first.product.restaurantId;
 
           // Analytics: début du checkout (une seule fois)
@@ -134,8 +175,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
           // LIL-131 : on watch le restaurant pour le bandeau vendor + adapter
           // les libellés (ex: "Préparée par boulangerie X").
-          final restaurantAsync =
-              ref.watch(restaurantControllerProvider(restaurantId));
+          final restaurantAsync = ref.watch(
+            restaurantControllerProvider(restaurantId),
+          );
           final restaurant = restaurantAsync.value;
 
           return SingleChildScrollView(
@@ -194,14 +236,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   const SizedBox(height: 24),
 
                   // === SECTION POINTS DE FIDELITE ===
-                  if (userPoints >= 100) ...[
+                  if (userPoints >= settings.loyaltyMinRedemption) ...[
                     _buildSectionTitle('Points de fidelite'),
                     const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.amber[50],
+                    Material(
+                      color: Colors.amber[50],
+                      clipBehavior: Clip.antiAlias,
+                      shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
+                        side: BorderSide(
                           color: Colors.amber.withValues(alpha: 0.4),
                         ),
                       ),
@@ -213,7 +256,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                           style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         subtitle: Text(
-                          'Reduction de ${loyaltyDiscount.toStringAsFixed(0)} FCFA',
+                          'Reduction de ${formatPrice(potentialLoyaltyDiscount)}',
                           style: TextStyle(color: Colors.amber[800]),
                         ),
                         secondary: const Icon(Icons.stars, color: Colors.amber),
@@ -246,7 +289,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     loyaltyDiscount: loyaltyDiscount,
                     total: total,
                     options: options,
-                  ),
+                  ).fadeSlideIn(),
                   const SizedBox(height: 24),
 
                   // === SECTION PAIEMENT ===
@@ -269,12 +312,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
-                      onPressed: checkoutState.isLoading ||
+                      onPressed:
+                          checkoutState.isLoading ||
                               (cart.isPreorderCart && _scheduledFor == null)
                           ? null
-                          : () => _showPaymentInstructions(
+                          : () => _startPaymentFlow(
                               context,
-                              total,
                               options,
                               restaurantId,
                             ),
@@ -456,8 +499,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               ),
               if (!hasSlot)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.orange.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
@@ -476,10 +521,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           const SizedBox(height: 4),
           Text(
             'Minimum 24h à l\'avance, maximum 7 jours.',
-            style: TextStyle(
-              fontSize: 11,
-              color: scheme.onSurfaceVariant,
-            ),
+            style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 10),
           OutlinedButton.icon(
@@ -658,6 +700,51 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           label: 'Airtel Money',
           color: Colors.red.shade600,
         ),
+        const SizedBox(height: 16),
+        _buildMomoPhoneField(),
+      ],
+    );
+  }
+
+  /// Numéro Mobile Money qui recevra la demande de paiement.
+  ///
+  /// Laissé vide, le téléphone de contact est utilisé — c'est le cas le plus
+  /// fréquent, et imposer une seconde saisie identique serait une friction de
+  /// plus sur un écran qui en compte déjà.
+  Widget _buildMomoPhoneField() {
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextFormField(
+          controller: _momoPhoneController,
+          keyboardType: TextInputType.phone,
+          decoration: InputDecoration(
+            labelText: 'Numéro Mobile Money (si différent)',
+            hintText: _phoneController.text.trim().isEmpty
+                ? '06 123 45 67'
+                : _phoneController.text.trim(),
+            prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
+            border: const OutlineInputBorder(),
+          ),
+          validator: (value) {
+            final input = (value ?? '').trim();
+            // Champ facultatif : vide = on paie avec le numéro de contact.
+            if (input.isEmpty) return null;
+            final valid = ref
+                .read(paymentServiceProvider)
+                .validatePhoneNumber(input);
+            return valid ? null : 'Numéro Mobile Money congolais invalide';
+          },
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'La demande de paiement arrivera sur ce numéro. Laissez vide pour '
+          'utiliser votre numéro de contact.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+        ),
       ],
     );
   }
@@ -785,6 +872,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               ),
             ),
             IconButton(
+              tooltip: 'Fermer',
               icon: const Icon(Icons.close, size: 20),
               color: Theme.of(context).colorScheme.onSurfaceVariant,
               onPressed: () {
@@ -960,7 +1048,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         ),
                       ),
                       Text(
-                        '${((menuInfo?.prix ?? 0) * quantite).toStringAsFixed(0)} FCFA',
+                        formatPrice(((menuInfo?.prix ?? 0) * quantite)),
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -999,7 +1087,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     ),
                   ),
                   Text(
-                    '${(item.quantite * item.variant.prix).toStringAsFixed(0)} FCFA',
+                    formatPrice((item.quantite * item.variant.prix)),
                     style: const TextStyle(fontSize: 14),
                   ),
                 ],
@@ -1026,7 +1114,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             children: [
               const Text('Frais de service', style: TextStyle(fontSize: 15)),
               Text(
-                '${serviceFee.toStringAsFixed(0)} FCFA',
+                formatPrice(serviceFee),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
@@ -1109,7 +1197,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               Text(
-                '${total.toStringAsFixed(0)} FCFA',
+                formatPrice(total),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -1148,7 +1236,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            '${originalDeliveryFee.toStringAsFixed(0)} FCFA',
+            formatPrice(originalDeliveryFee),
             style: TextStyle(
               fontSize: 14,
               decoration: TextDecoration.lineThrough,
@@ -1169,7 +1257,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
 
     return Text(
-      '${deliveryFee.toStringAsFixed(0)} FCFA',
+      formatPrice(deliveryFee),
       style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
     );
   }
@@ -1180,7 +1268,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       children: [
         Text(label, style: const TextStyle(fontSize: 15)),
         Text(
-          '${value.toStringAsFixed(0)} FCFA',
+          formatPrice(value),
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
         ),
       ],
@@ -1201,12 +1289,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Commande enregistree pour plus tard'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      context.showSnack('Commande enregistree pour plus tard');
 
       // Depiler checkout et delivery-options du tab panier
       // pour que le retour au tab panier affiche le CartScreen
@@ -1216,32 +1299,28 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       context.goNamed(AppRoutes.draftOrders.routeName);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      context.showErrorSnack('Erreur: $e');
     }
   }
 
-  Future<void> _showPaymentInstructions(
+  /// Tunnel de paiement, en trois temps.
+  ///
+  /// L'ordre historique était inversé : la modale d'instructions était affichée
+  /// **avant** la création de la commande et du paiement, avec un numéro et un
+  /// montant calculés côté client. Conséquences : le numéro Airtel affiché
+  /// était un placeholder, le montant pouvait diverger de celui facturé, et un
+  /// échec de `POST /payments` était avalé — le client payait un virement que
+  /// l'admin ne pouvait rattacher à rien.
+  ///
+  /// Désormais : commande → paiement → instructions issues du serveur.
+  Future<void> _startPaymentFlow(
     BuildContext context,
-    double total,
     DeliveryOptions options,
     String restaurantId,
   ) async {
     if (!_formKey.currentState!.validate()) {
-      // Montrer un feedback si le formulaire n'est pas valide
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Veuillez remplir le numero de telephone'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red,
-          ),
-        );
+        context.showErrorSnack('Veuillez remplir le numero de telephone');
       }
       return;
     }
@@ -1250,13 +1329,19 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     String? finalAddressId;
     if (options.isDelivery) {
       if (options.newAddressRue != null) {
-        // Créer une nouvelle adresse
         try {
           final newAddress = await ref
               .read(adresseControllerProvider.notifier)
               .createAdresse(
                 rue: options.newAddressRue!,
                 quartierId: options.quartier?.id,
+                // La position posée sur la carte à l'étape précédente. Sans
+                // elle, l'adresse naît sans coordonnées et le serveur
+                // retombera sur le centroïde du quartier — jamais sur le GPS
+                // du téléphone, qui n'a rien à voir avec la destination.
+                latitude: options.newAddressLocation?.latitude,
+                longitude: options.newAddressLocation?.longitude,
+                landmark: options.newAddressLocation?.landmark,
               );
           finalAddressId = newAddress.id;
         } catch (e) {
@@ -1274,22 +1359,238 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       }
     }
 
+    // ─── 1. Créer la commande ────────────────────────────────────────────────
+    final Checkout checkout;
+    try {
+      checkout = await ref
+          .read(checkoutControllerProvider.notifier)
+          .placeOrder(
+            adresseId: finalAddressId,
+            paymentMethod: _selectedPaymentMethod,
+            isDelivery: options.isDelivery,
+            note: _noteController.text.trim().isEmpty
+                ? null
+                : _noteController.text.trim(),
+            contactPhone: _phoneController.text.trim().isEmpty
+                ? null
+                : _phoneController.text.trim(),
+            promoCode: _promoResult?.code,
+            idempotencyKey: _getOrCreateIdempotencyKey(),
+            useLoyaltyPoints: _useLoyaltyPoints,
+            scheduledFor: _scheduledFor,
+          );
+    } catch (e) {
+      AnalyticsService.logOrderFailed(
+        errorMessage: e.toString(),
+        paymentMethod: _selectedPaymentMethod,
+        isDelivery: options.isDelivery,
+      );
+      if (!context.mounted) return;
+      _showOrderError(context, e);
+      return;
+    }
+
+    // Nouvelle clé pour la prochaine commande.
+    _idempotencyKey = null;
+
+    AnalyticsService.logOrderCreated(
+      orderId: checkout.id,
+      total: checkout.total.toDouble(),
+      paymentMethod: _selectedPaymentMethod,
+      isDelivery: options.isDelivery,
+      restaurantId: restaurantId,
+      itemCount: checkout.items.length,
+    );
+
+    // ─── 2. Créer le paiement — bloquant, car il porte les instructions ──────
+    final PaymentResponse payment;
+    try {
+      payment = await _createPaymentWithRetry(checkout);
+    } catch (e, st) {
+      // Sans ligne `Payment`, la commande n'apparaît pas dans l'écran admin
+      // « Paiements à confirmer » : un virement du client ne serait rattachable
+      // à rien. On ne masque plus l'échec derrière un `debugPrint`.
+      await Sentry.captureException(
+        e,
+        stackTrace: st,
+        withScope: (scope) => scope.setContexts('checkout', {
+          'orderId': checkout.id,
+          'paymentMethod': _selectedPaymentMethod,
+        }),
+      );
+      if (!context.mounted) return;
+      await _showPaymentRecoveryDialog(context, checkout);
+      return;
+    }
+
+    // ─── 3. Suite du parcours, selon le rail d'encaissement du serveur ───────
+    //
+    // Le mode vient du backend : basculer de pawaPay au virement manuel (ou
+    // l'inverse) ne doit pas demander une release sur les stores.
     if (!context.mounted) return;
 
+    if (payment.isSettled) {
+      // Commande intégralement réglée en points de fidélité : rien à payer.
+      ref.read(cartControllerProvider.notifier).clearCart();
+      context.goNamed(AppRoutes.orderSuccess.routeName);
+      return;
+    }
+
+    if (payment.isInteractive) {
+      // Le client valide sur son téléphone : on l'accompagne pendant l'attente.
+      // ⚠️ Le panier n'est PAS vidé ici — il ne l'est qu'à la confirmation. Le
+      // vider maintenant effacerait la sélection d'un client dont le paiement
+      // peut échouer.
+      context.goNamed(
+        AppRoutes.paymentPending.routeName,
+        pathParameters: {'paymentId': payment.paymentId},
+        extra: PaymentPendingArgs(
+          orderId: checkout.id,
+          amount: payment.amount > 0 ? payment.amount : checkout.total,
+          method: _selectedPaymentMethod,
+        ),
+      );
+      return;
+    }
+
+    // Mode manuel : instructions de virement, telles que renvoyées par le serveur.
+    await _showPaymentInstructionsDialog(context, checkout, payment);
+  }
+
+  /// Deux tentatives : l'appel est **sûr à rejouer**.
+  ///
+  /// Le backend réutilise la ligne `Payment` PENDING existante — avec le MÊME
+  /// identifiant prestataire — au lieu d'en créer une seconde. Un rejeu ne peut
+  /// donc pas produire un second débit : le prestataire répond
+  /// `DUPLICATE_IGNORED`.
+  ///
+  /// Aucun montant n'est transmis : il vient de `order.total`, côté serveur.
+  Future<PaymentResponse> _createPaymentWithRetry(Checkout checkout) async {
+    final paymentService = ref.read(paymentServiceProvider);
+    Object? lastError;
+
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        return await paymentService.createPayment(
+          orderId: checkout.id,
+          phoneNumber: _paymentPhone(),
+          method: _selectedPaymentMethod,
+        );
+      } catch (e) {
+        lastError = e;
+        if (attempt == 0) {
+          await Future<void>.delayed(const Duration(seconds: 2));
+        }
+      }
+    }
+    throw lastError!;
+  }
+
+  /// Numéro qui paiera.
+  ///
+  /// Distinct du téléphone de contact quand le client en a saisi un : on paie
+  /// souvent depuis un autre appareil que celui qu'on donne au livreur.
+  String _paymentPhone() {
+    final momo = _momoPhoneController.text.trim();
+    return momo.isNotEmpty ? momo : _phoneController.text.trim();
+  }
+
+  /// Écran de reprise : la commande existe, le paiement n'a pas pu être
+  /// enregistré. On ne laisse pas le client devant des instructions de paiement
+  /// qui ne mènent nulle part.
+  Future<void> _showPaymentRecoveryDialog(
+    BuildContext context,
+    Checkout checkout,
+  ) async {
+    final cs = Theme.of(context).colorScheme;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.info_outline, color: cs.tertiary),
+            const SizedBox(width: 8),
+            const Expanded(child: Text('Commande enregistrée')),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Votre commande n°${checkout.id.substring(checkout.id.length - 6).toUpperCase()} '
+              'a bien été créée, mais nous n\'avons pas pu préparer les instructions '
+              'de paiement.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Ne faites aucun virement pour l\'instant. Réessayez, ou retrouvez '
+              'la commande dans « Mes commandes » pour finaliser le paiement.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              ref.read(cartControllerProvider.notifier).clearCart();
+              context.goNamed(AppRoutes.commandes.routeName);
+            },
+            child: const Text('Voir mes commandes'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              try {
+                final payment = await _createPaymentWithRetry(checkout);
+                if (!context.mounted) return;
+                await _showPaymentInstructionsDialog(
+                  context,
+                  checkout,
+                  payment,
+                );
+              } catch (e) {
+                if (!context.mounted) return;
+                await _showPaymentRecoveryDialog(context, checkout);
+              }
+            },
+            child: const Text('Réessayer'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Modale d'instructions. Numéro, montant et référence viennent **tous** du
+  /// backend : rien n'est recalculé ni codé en dur ici.
+  Future<void> _showPaymentInstructionsDialog(
+    BuildContext context,
+    Checkout checkout,
+    PaymentResponse payment,
+  ) async {
     final isMtn = _selectedPaymentMethod == 'MTN_MOMO';
-    final paymentPhoneNumber = isMtn
-        ? AppConstants.mtnMomoPaymentNumber
-        : AppConstants.airtelMoneyPaymentNumber;
-    final methodLabel = isMtn ? 'MTN Mobile Money' : 'Airtel Money';
+    final instructions = payment.instructions;
+
+    // Le montant fait autorité côté serveur (`order.total`), pas côté client.
+    final amountDue = instructions?.amount ?? checkout.total.toDouble();
+    final paymentPhoneNumber = instructions?.phone ?? '';
+    final methodLabel =
+        instructions?.methodLabel ??
+        (isMtn ? 'MTN Mobile Money' : 'Airtel Money');
+    final reference = instructions?.reference ?? payment.referenceId;
+
     final dialogIsDark = Theme.of(context).brightness == Brightness.dark;
     final rawMethodColor = isMtn ? Colors.amber.shade700 : Colors.red.shade600;
     final methodColor = dialogIsDark
         ? Color.lerp(rawMethodColor, Colors.white, 0.45)!
         : rawMethodColor;
 
-    if (!context.mounted) return;
-
-    showDialog(
+    await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
@@ -1308,9 +1609,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             children: [
               Icon(Icons.payment, color: methodColor, size: 24),
               const SizedBox(width: 8),
-              const Text(
-                'Instructions de paiement',
-                style: TextStyle(fontSize: 18),
+              const Expanded(
+                child: Text(
+                  'Instructions de paiement',
+                  style: TextStyle(fontSize: 18),
+                ),
               ),
             ],
           ),
@@ -1324,79 +1627,135 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   style: const TextStyle(fontSize: 14),
                 ),
                 const SizedBox(height: 16),
-                // Numéro de paiement
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: cardBg,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: cardBorder),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Numero $methodLabel',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: cs.onSurfaceVariant,
-                            ),
+                // Numéro de paiement — fourni par le backend
+                Semantics(
+                  label: 'Numéro $methodLabel : $paymentPhoneNumber',
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: cardBorder),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Numero $methodLabel',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: cs.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                paymentPhoneNumber,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: cs.onSurface,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            paymentPhoneNumber,
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: cs.onSurface,
-                            ),
-                          ),
-                        ],
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.copy, color: methodColor),
-                        onPressed: () {
-                          Clipboard.setData(
-                            ClipboardData(text: paymentPhoneNumber),
-                          );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Numero copie!'),
-                              duration: Duration(seconds: 2),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.copy, color: methodColor),
+                          tooltip: 'Copier le numéro',
+                          onPressed: () {
+                            Clipboard.setData(
+                              ClipboardData(text: paymentPhoneNumber),
+                            );
+                            context.showSnack('Numero copie!');
+                          },
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
-                // Montant
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.green.withValues(alpha: 0.15)
-                        : Colors.green.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      const Text('Montant: ', style: TextStyle(fontSize: 14)),
-                      Text(
-                        '${total.toStringAsFixed(0)} FCFA',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.green,
+                // Montant — celui de la commande créée, pas un recalcul client
+                Semantics(
+                  label: 'Montant à envoyer : ${formatPrice(amountDue)}',
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.green.withValues(alpha: 0.15)
+                          : Colors.green.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Text('Montant: ', style: TextStyle(fontSize: 14)),
+                        Text(
+                          formatPrice(amountDue),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
+                if (reference.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  // Référence : seul moyen fiable pour l'admin de rapprocher un
+                  // virement d'une commande. Elle n'était jamais affichée.
+                  Semantics(
+                    label: 'Référence de paiement : $reference',
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: cs.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Reference a rappeler',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: cs.onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  reference,
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.2,
+                                    color: cs.onSurface,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.copy, color: methodColor),
+                            tooltip: 'Copier la référence',
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(text: reference));
+                              context.showSnack('Reference copiee!');
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 16),
                 // Instructions USSD
                 Container(
@@ -1473,59 +1832,20 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Annuler'),
+              // La commande existe déjà : « Plus tard » ne l'annule pas, elle
+              // reste payable depuis « Mes commandes » jusqu'à expiration.
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                ref.read(cartControllerProvider.notifier).clearCart();
+                context.goNamed(AppRoutes.commandes.routeName);
+              },
+              child: const Text('Plus tard'),
             ),
             ElevatedButton(
-              onPressed: () async {
-                try {
-                  final checkout = await ref
-                      .read(checkoutControllerProvider.notifier)
-                      .placeOrder(
-                        adresseId: finalAddressId,
-                        paymentMethod: _selectedPaymentMethod,
-                        isDelivery: options.isDelivery,
-                        note: _noteController.text.trim().isEmpty
-                            ? null
-                            : _noteController.text.trim(),
-                        contactPhone: _phoneController.text.trim().isEmpty
-                            ? null
-                            : _phoneController.text.trim(),
-                        promoCode: _promoResult?.code,
-                        idempotencyKey: _getOrCreateIdempotencyKey(),
-                        useLoyaltyPoints: _useLoyaltyPoints,
-                        scheduledFor: _scheduledFor,
-                      );
-
-                  // Reset key so a new order gets a new key
-                  _idempotencyKey = null;
-
-                  // Analytics: commande réussie
-                  AnalyticsService.logOrderCreated(
-                    orderId: checkout.id,
-                    total: total,
-                    paymentMethod: _selectedPaymentMethod,
-                    isDelivery: options.isDelivery,
-                    restaurantId: restaurantId,
-                    itemCount: checkout.items.length,
-                  );
-
-                  if (!context.mounted) return;
-                  Navigator.of(dialogContext).pop();
-                  ref.read(cartControllerProvider.notifier).clearCart();
-                  context.goNamed(AppRoutes.orderSuccess.routeName);
-                } catch (e) {
-                  // Analytics: commande échouée
-                  AnalyticsService.logOrderFailed(
-                    errorMessage: e.toString(),
-                    paymentMethod: _selectedPaymentMethod,
-                    isDelivery: options.isDelivery,
-                  );
-
-                  if (!context.mounted) return;
-                  Navigator.of(dialogContext).pop();
-                  _showOrderError(context, e);
-                }
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                ref.read(cartControllerProvider.notifier).clearCart();
+                context.goNamed(AppRoutes.orderSuccess.routeName);
               },
               style: ElevatedButton.styleFrom(backgroundColor: methodColor),
               child: const Padding(
@@ -1585,7 +1905,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       title = 'Session expirée';
     }
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

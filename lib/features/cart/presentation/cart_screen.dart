@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:lilia_app/common_widgets/app_animations.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
@@ -11,6 +14,7 @@ import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/services/analytics_service.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -60,9 +64,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       await ref.read(cartControllerProvider.notifier).clearCart();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-        );
+        context.showErrorSnack(e.toString());
       }
     } finally {
       if (mounted) setState(() => _isClearing = false);
@@ -124,11 +126,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                       ...menuGroups.entries.map((entry) {
                         final menuId = entry.key;
                         final groupItems = entry.value;
-                        return MenuCartCard(menuId: menuId, items: groupItems);
+                        return MenuCartCard(
+                          menuId: menuId,
+                          items: groupItems,
+                        ).fadeSlideIn();
                       }),
                       // Items individuels
                       ...individualItems.map(
-                        (item) => CartItemCard(item: item),
+                        (item) => CartItemCard(item: item).fadeSlideIn(),
                       ),
                     ],
                   ),
@@ -237,9 +242,7 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
           .updateMenuQuantity(menuId: widget.menuId, quantity: newQuantity);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-        );
+        context.showErrorSnack(e.toString());
       }
     } finally {
       if (mounted) {
@@ -256,9 +259,7 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
           .removeMenu(menuId: widget.menuId);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-        );
+        context.showErrorSnack(e.toString());
         setState(() => _isLoading = false);
       }
     }
@@ -283,11 +284,7 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
               color: cs.primary.withValues(alpha: 0.1),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.restaurant_menu,
-                    size: 20,
-                    color: cs.primary,
-                  ),
+                  Icon(Icons.restaurant_menu, size: 20, color: cs.primary),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
@@ -327,23 +324,12 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(6),
                       child: item.product.imageUrl != null
-                          ? Image.network(
-                              item.product.imageUrl!,
+                          ? AppCachedImage(
+                              imageUrl: item.product.imageUrl!,
                               width: 40,
                               height: 40,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  width: 40,
-                                  height: 40,
-                                  color: cs.surfaceContainerHighest,
-                                  child: Icon(
-                                    Icons.fastfood,
-                                    size: 18,
-                                    color: cs.outline,
-                                  ),
-                                );
-                              },
+                              errorIcon: Icons.fastfood,
                             )
                           : Container(
                               width: 40,
@@ -409,6 +395,7 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
                     )
                   else ...[
                     IconButton(
+                      tooltip: 'Diminuer la quantité',
                       icon: const Icon(Icons.remove_circle_outline),
                       onPressed: _isLoading
                           ? null
@@ -416,12 +403,14 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
                     ),
                     Text('$_quantity', style: const TextStyle(fontSize: 18)),
                     IconButton(
+                      tooltip: 'Augmenter la quantité',
                       icon: const Icon(Icons.add_circle_outline),
                       onPressed: _isLoading
                           ? null
                           : () => _updateQuantity(_quantity + 1),
                     ),
                     IconButton(
+                      tooltip: 'Supprimer',
                       icon: const Icon(Icons.delete, color: Colors.red),
                       onPressed: _isLoading ? null : _removeMenu,
                     ),
@@ -459,9 +448,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
           );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-        );
+        context.showErrorSnack(e.toString());
       }
     } finally {
       if (mounted) {
@@ -478,9 +465,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
           .removeItem(cartItemId: widget.item.id);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString()), backgroundColor: Colors.red),
-        );
+        context.showErrorSnack(e.toString());
         setState(() => _isLoading = false);
       }
     }
@@ -500,22 +485,12 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: widget.item.product.imageUrl != null
-                    ? Image.network(
-                        widget.item.product.imageUrl!,
+                    ? AppCachedImage(
+                        imageUrl: widget.item.product.imageUrl!,
                         width: 60,
                         height: 60,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            width: 60,
-                            height: 60,
-                            color: cs.surfaceContainerHighest,
-                            child: Icon(
-                              Icons.fastfood,
-                              color: cs.outline,
-                            ),
-                          );
-                        },
+                        errorIcon: Icons.fastfood,
                       )
                     : Container(
                         width: 60,
@@ -539,7 +514,10 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                     const SizedBox(height: 4),
                     Text(
                       widget.item.variant.label,
-                      style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+                      style: TextStyle(
+                        color: cs.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -570,6 +548,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                 Row(
                   children: [
                     IconButton(
+                      tooltip: 'Diminuer la quantité',
                       icon: const Icon(Icons.remove_circle_outline),
                       onPressed: _isLoading
                           ? null
@@ -580,12 +559,14 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                       style: const TextStyle(fontSize: 18),
                     ),
                     IconButton(
+                      tooltip: 'Augmenter la quantité',
                       icon: const Icon(Icons.add_circle_outline),
                       onPressed: _isLoading
                           ? null
                           : () => _updateQuantity(widget.item.quantite + 1),
                     ),
                     IconButton(
+                      tooltip: 'Supprimer',
                       icon: const Icon(Icons.delete, color: Colors.red),
                       onPressed: _isLoading ? null : _removeItem,
                     ),
@@ -611,7 +592,11 @@ class _EmptyCartWithSuggestions extends ConsumerWidget {
       child: Column(
         children: [
           const SizedBox(height: 60),
-          Icon(Iconsax.shopping_bag, size: 80, color: theme.colorScheme.onSurfaceVariant),
+          Icon(
+            Iconsax.shopping_bag,
+            size: 80,
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
           const SizedBox(height: 16),
           Text(
             'Votre panier est vide',
@@ -624,7 +609,10 @@ class _EmptyCartWithSuggestions extends ConsumerWidget {
           const SizedBox(height: 8),
           Text(
             'Ajoutez des plats pour commencer',
-            style: TextStyle(fontSize: 14, color: theme.colorScheme.onSurfaceVariant),
+            style: TextStyle(
+              fontSize: 14,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 20),
           ElevatedButton.icon(
@@ -678,7 +666,9 @@ class _EmptyCartWithSuggestions extends ConsumerWidget {
             },
             loading: () => Padding(
               padding: const EdgeInsets.all(32),
-              child: CircularProgressIndicator(color: theme.colorScheme.primary),
+              child: CircularProgressIndicator(
+                color: theme.colorScheme.primary,
+              ),
             ),
             error: (_, _) => const SizedBox.shrink(),
           ),
@@ -720,12 +710,12 @@ class _SuggestionTile extends ConsumerWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: product.imageUrl != null
-                      ? Image.network(
-                          product.imageUrl!,
+                      ? AppCachedImage(
+                          imageUrl: product.imageUrl!,
                           width: 60,
                           height: 60,
                           fit: BoxFit.cover,
-                          errorBuilder: (ctx, _, _) => _buildPlaceholder(ctx),
+                          errorWidget: _buildPlaceholder(context),
                         )
                       : _buildPlaceholder(context),
                 ),
@@ -757,7 +747,7 @@ class _SuggestionTile extends ConsumerWidget {
                       ],
                       const SizedBox(height: 4),
                       Text(
-                        '${product.displayPrice.toStringAsFixed(0)} FCFA',
+                        formatPrice(product.displayPrice),
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
@@ -824,12 +814,7 @@ class _SuggestionTile extends ConsumerWidget {
   void _handleAddToCart(BuildContext context, WidgetRef ref) {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Connectez-vous pour ajouter au panier'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      context.showSnack('Connectez-vous pour ajouter au panier');
       return;
     }
 
@@ -852,31 +837,19 @@ class _SuggestionTile extends ConsumerWidget {
         .addItem(variantId: variant.id)
         .then((_) {
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('${product.name} ajoute au panier'),
-                duration: const Duration(seconds: 2),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+            context.showSuccessSnack('${product.name} ajouté au panier');
           }
         })
-        .catchError((e) {
+        .catchError((Object e) {
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Erreur: $e'),
-                backgroundColor: Colors.red,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
+            context.showErrorSnack('Erreur: $e');
           }
         });
   }
 
   void _showVariantBottomSheet(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -928,7 +901,7 @@ class _SuggestionTile extends ConsumerWidget {
                           style: const TextStyle(fontSize: 14),
                         ),
                         Text(
-                          '${variant.prix.toStringAsFixed(0)} FCFA',
+                          formatPrice(variant.prix),
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,

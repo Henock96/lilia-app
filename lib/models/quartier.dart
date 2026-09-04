@@ -3,11 +3,7 @@ class Quartier {
   final String nom;
   final String ville;
 
-  Quartier({
-    required this.id,
-    required this.nom,
-    required this.ville,
-  });
+  Quartier({required this.id, required this.nom, required this.ville});
 
   factory Quartier.fromJson(Map<String, dynamic> json) {
     return Quartier(
@@ -18,11 +14,7 @@ class Quartier {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'nom': nom,
-      'ville': ville,
-    };
+    return {'id': id, 'nom': nom, 'ville': ville};
   }
 
   @override

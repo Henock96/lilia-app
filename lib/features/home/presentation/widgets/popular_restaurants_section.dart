@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 
 import '../../../../models/restaurant.dart';
 import '../../../../routing/app_route_enum.dart';
@@ -127,13 +128,13 @@ class _PopularRestaurantCard extends StatelessWidget {
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(12),
                     ),
-                    child: restaurant.imageUrl != null
-                        ? Image.network(
-                            restaurant.imageUrl!,
+                    child: restaurant.thumbnailUrl != null
+                        ? AppCachedImage(
+                            imageUrl: restaurant.thumbnailUrl!,
                             height: 100,
                             width: double.infinity,
                             fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => _buildPlaceholder(),
+                            errorWidget: _buildPlaceholder(),
                           )
                         : _buildPlaceholder(),
                   ),

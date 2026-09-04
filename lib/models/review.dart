@@ -33,9 +33,11 @@ class Review {
           ? ReviewUser.fromJson(json['user'] as Map<String, dynamic>)
           : ReviewUser(id: ''),
       createdAt:
-          DateTime.tryParse(json['createdAt'] as String? ?? '') ?? DateTime.now(),
+          DateTime.tryParse(json['createdAt'] as String? ?? '') ??
+          DateTime.now(),
       updatedAt:
-          DateTime.tryParse(json['updatedAt'] as String? ?? '') ?? DateTime.now(),
+          DateTime.tryParse(json['updatedAt'] as String? ?? '') ??
+          DateTime.now(),
     );
   }
 
@@ -59,11 +61,7 @@ class ReviewUser {
   final String? nom;
   final String? imageUrl;
 
-  ReviewUser({
-    required this.id,
-    this.nom,
-    this.imageUrl,
-  });
+  ReviewUser({required this.id, this.nom, this.imageUrl});
 
   factory ReviewUser.fromJson(Map<String, dynamic> json) {
     return ReviewUser(
@@ -74,11 +72,7 @@ class ReviewUser {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'nom': nom,
-      'imageUrl': imageUrl,
-    };
+    return {'id': id, 'nom': nom, 'imageUrl': imageUrl};
   }
 }
 

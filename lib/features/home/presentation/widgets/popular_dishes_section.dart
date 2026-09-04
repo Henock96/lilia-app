@@ -2,6 +2,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lilia_app/common_widgets/app_animations.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 import '../../../../features/cart/application/cart_controller.dart';
 import '../../../../models/produit.dart';
@@ -9,6 +12,7 @@ import '../../../../routing/app_route_enum.dart';
 import '../../../../services/analytics_service.dart';
 import '../../data/remote/home_controller.dart';
 import 'shimmer_box.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 class PopularDishesSection extends ConsumerWidget {
   const PopularDishesSection({super.key});
@@ -27,7 +31,9 @@ class PopularDishesSection extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             itemCount: dishes.length,
             itemBuilder: (context, index) {
-              return _DishCard(product: dishes[index]);
+              return _DishCard(
+                product: dishes[index],
+              ).fadeScaleIn(delay: AppMotion.stagger * index.clamp(0, 5));
             },
           ),
         );
@@ -93,171 +99,177 @@ class _DishCard extends ConsumerWidget {
     final theme = Theme.of(context);
     final isAvailable = product.isAvailable;
 
-    return GestureDetector(
-      onTap: () {
-        AnalyticsService.logPopularDishTap(
-          productId: product.id,
-          productName: product.name,
-        );
-        context.pushNamed(
-          AppRoutes.productDetail.routeName,
-          extra: product,
-        );
-      },
-      child: Container(
-        width: 160,
-        margin: const EdgeInsets.symmetric(horizontal: 6),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.12)),
-        ),
-        child: Opacity(
-          opacity: isAvailable ? 1.0 : 0.5,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Image du plat
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(12),
-                    ),
-                    child: product.imageUrl != null
-                        ? Image.network(
-                            product.imageUrl!,
-                            height: 110,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => _buildPlaceholder(),
-                          )
-                        : _buildPlaceholder(),
-                  ),
-                  // Badge social proof
-                  if (product.orderCount != null && product.orderCount! > 10)
-                    Positioned(
-                      top: 6,
-                      left: 6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.local_fire_department,
-                              color: Colors.white,
-                              size: 12,
-                            ),
-                            const SizedBox(width: 2),
-                            Text(
-                              '${product.orderCount}+ fois',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
+    return Semantics(
+      button: true,
+      // L'indisponibilité n'était portée que par `Opacity(0.5)` et un badge
+      // rouge : muette pour TalkBack / VoiceOver.
+      label: isAvailable ? product.name : '${product.name}, épuisé',
+      enabled: isAvailable,
+      child: GestureDetector(
+        onTap: () {
+          AnalyticsService.logPopularDishTap(
+            productId: product.id,
+            productName: product.name,
+          );
+          context.pushNamed(AppRoutes.productDetail.routeName, extra: product);
+        },
+        child: Container(
+          width: 160,
+          margin: const EdgeInsets.symmetric(horizontal: 6),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: theme.colorScheme.outline.withValues(alpha: 0.12),
+            ),
+          ),
+          child: Opacity(
+            opacity: isAvailable ? 1.0 : 0.5,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Image du plat
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(12),
                       ),
+                      child: product.thumbnailUrl != null
+                          ? AppCachedImage(
+                              imageUrl: product.thumbnailUrl!,
+                              height: 110,
+                              width: double.infinity,
+                              fit: BoxFit.cover,
+                              errorWidget: _buildPlaceholder(),
+                            )
+                          : _buildPlaceholder(),
                     ),
-                  // Badge epuise
-                  if (!isAvailable)
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Text(
-                          'Epuise',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
+                    // Badge social proof
+                    if (product.orderCount != null && product.orderCount! > 10)
+                      Positioned(
+                        top: 6,
+                        left: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.orange,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.local_fire_department,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                '${product.orderCount}+ fois',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ),
-                ],
-              ),
-              // Infos du plat
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        product.name,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
+                    // Badge epuise
+                    if (!isAvailable)
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Text(
+                            'Epuise',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 2),
-                      if (product.restaurantName != null)
+                  ],
+                ),
+                // Infos du plat
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          product.restaurantName!,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: theme.colorScheme.onSurfaceVariant,
+                          product.name,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      const Spacer(),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
+                        const SizedBox(height: 2),
+                        if (product.restaurantName != null)
                           Text(
-                            '${product.displayPrice.toStringAsFixed(0)} FCFA',
+                            product.restaurantName!,
                             style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: theme.colorScheme.primary,
+                              fontSize: 11,
+                              color: theme.colorScheme.onSurfaceVariant,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          if (isAvailable)
-                            GestureDetector(
-                              onTap: () => _handleAddToCart(context, ref),
-                              child: Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.primary,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.add,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
+                        const Spacer(),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              formatPrice(product.displayPrice),
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.primary,
                               ),
                             ),
-                        ],
-                      ),
-                    ],
+                            if (isAvailable)
+                              GestureDetector(
+                                onTap: () => _handleAddToCart(context, ref),
+                                child: Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.primary,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.add,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -282,12 +294,7 @@ class _DishCard extends ConsumerWidget {
     // Verifier l'authentification
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Connectez-vous pour ajouter au panier'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      context.showSnack('Connectez-vous pour ajouter au panier');
       return;
     }
 
@@ -311,31 +318,20 @@ class _DishCard extends ConsumerWidget {
         .read(cartControllerProvider.notifier)
         .addItem(variantId: variant.id)
         .then((_) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${product.name} ajouté au panier'),
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    }).catchError((e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Erreur: $e'),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    });
+          if (context.mounted) {
+            context.showSuccessSnack('${product.name} ajouté au panier');
+          }
+        })
+        .catchError((Object e) {
+          if (context.mounted) {
+            context.showErrorSnack('Erreur: $e');
+          }
+        });
   }
 
   void _showVariantBottomSheet(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -350,20 +346,15 @@ class _DishCard extends ConsumerWidget {
               // En-tete avec image et nom
               Row(
                 children: [
-                  if (product.imageUrl != null)
+                  if (product.thumbnailUrl != null)
                     ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: Image.network(
-                        product.imageUrl!,
+                      child: AppCachedImage(
+                        imageUrl: product.thumbnailUrl!,
                         width: 50,
                         height: 50,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => Container(
-                          width: 50,
-                          height: 50,
-                          color: Theme.of(ctx).colorScheme.surfaceContainerHighest,
-                          child: Icon(Icons.fastfood, size: 24, color: Theme.of(ctx).colorScheme.outline),
-                        ),
+                        errorIcon: Icons.fastfood,
                       ),
                     ),
                   const SizedBox(width: 12),
@@ -412,7 +403,9 @@ class _DishCard extends ConsumerWidget {
                     ),
                     margin: const EdgeInsets.only(bottom: 6),
                     decoration: BoxDecoration(
-                      border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.2)),
+                      border: Border.all(
+                        color: theme.colorScheme.outline.withValues(alpha: 0.2),
+                      ),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
@@ -423,7 +416,7 @@ class _DishCard extends ConsumerWidget {
                           style: const TextStyle(fontSize: 14),
                         ),
                         Text(
-                          '${variant.prix.toStringAsFixed(0)} FCFA',
+                          formatPrice(variant.prix),
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.bold,

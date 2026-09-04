@@ -3,16 +3,15 @@ import 'dart:convert';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:lilia_app/constants/app_constants.dart';
-import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
+import 'package:lilia_app/core/network/api_client.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
 import 'package:lilia_app/features/notifications/data/notification_model.dart';
 import 'package:lilia_app/firebase_options.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:http/http.dart' as http;
+import 'notification_router.dart';
 
 part 'notification_service.g.dart';
 
@@ -66,8 +65,7 @@ class NotificationService {
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
-  final FirebaseAuthenticationRepository _authRepository;
-  final http.Client _httpClient;
+  final ApiClient _api;
   final Ref _ref;
 
   // 🔥 AJOUT: Stream controllers pour éviter les erreurs de Subject fermé
@@ -79,19 +77,16 @@ class NotificationService {
   Timer? _ordersInvalidationDebounce;
   // Flag pour savoir si le service a été dispose
   bool _isDisposed = false;
-  NotificationService(this._authRepository, this._httpClient, this._ref);
+  NotificationService(this._api, this._ref);
 
   String? fcmToken;
 
   /// Invalide `userOrdersProvider` au plus une fois par fenêtre de 600 ms.
   void _invalidateUserOrdersDebounced() {
     _ordersInvalidationDebounce?.cancel();
-    _ordersInvalidationDebounce = Timer(
-      const Duration(milliseconds: 600),
-      () {
-        if (!_isDisposed) _ref.invalidate(userOrdersProvider);
-      },
-    );
+    _ordersInvalidationDebounce = Timer(const Duration(milliseconds: 600), () {
+      if (!_isDisposed) _ref.invalidate(userOrdersProvider);
+    });
   }
 
   Future<void> _requestPermission() async {
@@ -113,6 +108,23 @@ class NotificationService {
     } else {
       debugPrint('User declined or has not accepted permission');
     }
+
+    // iOS : sans ceci, AUCUNE notification ne s'affiche app au premier plan.
+    // `UNUserNotificationCenter` n'a qu'un seul delegate et Firebase Messaging
+    // se l'attribue (swizzling activé par défaut) — le `willPresentNotification`
+    // de flutter_local_notifications n'est donc jamais appelé et le
+    // `_localNotifications.show()` s'exécute sans rien afficher. Cet appel dit
+    // au delegate de Firebase de présenter lui-même la notification distante.
+    // Sans effet sur Android, où `onMessage` n'affiche jamais rien tout seul :
+    // là c'est bien la notification locale qui fait le travail (cf.
+    // `_showLocalNotification`).
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      await _fcm.setForegroundNotificationPresentationOptions(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    }
   }
 
   void _setupMessageHandlers() {
@@ -122,12 +134,9 @@ class NotificationService {
       RemoteMessage message,
     ) {
       debugPrint('Message opened from background: ${message.data}');
-      if (message.data.containsKey('orderId')) {
-        final orderId = message.data['orderId'] as String;
-        // Mettre à jour l'état pour déclencher une navigation ou un rafraîchissement
-        _ref.read(latestUpdatedOrderIdProvider.notifier).state = orderId;
-        _invalidateUserOrdersDebounced();
-      }
+      // Ouverture depuis la notification = geste explicite : le routeur
+      // autorise alors la navigation.
+      _handleNotificationData(message.data, trigger: NotificationTrigger.tap);
     });
     // Gère les messages lorsque l'application est au premier plan
     _onMessageSubscription = FirebaseMessaging.onMessage.listen((
@@ -151,11 +160,7 @@ class NotificationService {
             .read(notificationHistoryProvider.notifier)
             .addNotification(notification);
 
-        if (message.data.containsKey('orderId')) {
-          final orderId = message.data['orderId'] as String;
-          _ref.read(latestUpdatedOrderIdProvider.notifier).state = orderId;
-          _invalidateUserOrdersDebounced();
-        }
+        _handleNotificationData(message.data);
       }
     });
   }
@@ -216,7 +221,7 @@ class NotificationService {
       try {
         final data = jsonDecode(response.payload!);
         debugPrint('Local notification tapped with payload: $data');
-        _handleNotificationData(data);
+        _handleNotificationData(data as Map<String, dynamic>);
       } catch (e) {
         debugPrint('Error parsing notification payload: $e');
       }
@@ -224,13 +229,30 @@ class NotificationService {
   }
 
   // 4. Centraliser la logique de traitement des données
-  void _handleNotificationData(Map<String, dynamic> data) {
-    // FCM transmet toujours les valeurs `data` sous forme de String.
-    // Cast null-safe pour ne pas crasher si la clé est absente / mal typée.
-    final orderId = data['orderId'];
-    if (orderId is String && orderId.isNotEmpty) {
-      _ref.read(latestUpdatedOrderIdProvider.notifier).state = orderId;
+  //
+  // Le routage vit dans `NotificationRouter` (pur, testé) : ce service ne fait
+  // qu'appliquer la décision. Avant, il posait `latestUpdatedOrderIdProvider`
+  // et rechargeait, quel que soit l'événement — une livraison terminée, un
+  // paiement échoué et une annulation déclenchaient la même chose.
+  void _handleNotificationData(
+    Map<String, dynamic> data, {
+    NotificationTrigger trigger = NotificationTrigger.foreground,
+  }) {
+    final action = const NotificationRouter().resolve(data, trigger: trigger);
+
+    if (action.orderId != null) {
+      _ref.read(latestUpdatedOrderIdProvider.notifier).state = action.orderId;
+    }
+    if (action.refresh == NotificationTarget.orders) {
       _invalidateUserOrdersDebounced();
+    }
+    if (action.intent != NotificationIntent.none && action.orderId != null) {
+      // L'écran de détail lit cette intention pour proposer la bonne suite :
+      // noter le livreur, reprendre un paiement, expliquer un incident.
+      _ref.read(pendingNotificationIntentProvider.notifier).state = (
+        orderId: action.orderId!,
+        intent: action.intent,
+      );
     }
   }
 
@@ -238,6 +260,12 @@ class NotificationService {
   void _showLocalNotification(RemoteMessage message) {
     final notification = message.notification;
     if (notification == null) return;
+
+    // Sur iOS, `setForegroundNotificationPresentationOptions` (cf.
+    // `_requestPermission`) fait présenter la notification distante par le
+    // système : en afficher une locale en plus la ferait apparaître EN DOUBLE.
+    // Android, lui, n'affiche rien de lui-même au premier plan.
+    if (defaultTargetPlatform == TargetPlatform.iOS) return;
 
     const AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
@@ -319,16 +347,7 @@ class NotificationService {
 
       await _requestPermission();
 
-      try {
-        fcmToken = await _fcm.getToken();
-      } on FirebaseException catch (e) {
-        if (e.code == 'apns-token-not-set') {
-          // iOS simulator: APNS unavailable, push notifications won't work
-          debugPrint('⚠️ APNS not available (simulator?), skipping FCM token');
-        } else {
-          rethrow;
-        }
-      }
+      fcmToken = await _fetchFcmToken();
 
       if (fcmToken != null) {
         debugPrint('FCM token obtained.');
@@ -354,24 +373,55 @@ class NotificationService {
       final initialMessage = await _fcm.getInitialMessage();
       if (initialMessage != null) {
         debugPrint('App opened from terminated state via notification');
-        _handleNotificationData(initialMessage.data);
+        _handleNotificationData(
+          initialMessage.data,
+          trigger: NotificationTrigger.tap,
+        );
       }
     } catch (e) {
       debugPrint('Error initializing notification service: $e');
     }
   }
 
+  /// Récupère le token FCM en attendant d'abord le token APNS sur iOS.
+  ///
+  /// L'enregistrement APNS est **asynchrone** : au premier lancement, il n'est
+  /// pas encore terminé quand `init()` s'exécute. Appeler `getToken()` tout de
+  /// suite lève `apns-token-not-set`, et l'ancienne version abandonnait
+  /// définitivement — l'app restait sans token FCM pour toute la session, donc
+  /// sans aucun push. On laisse donc APNS le temps de répondre.
+  ///
+  /// Renvoie `null` quand APNS est réellement indisponible (simulateur iOS).
+  Future<String?> _fetchFcmToken({
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    var attempt = 0;
+
+    while (DateTime.now().isBefore(deadline)) {
+      attempt++;
+      try {
+        return await _fcm.getToken();
+      } on FirebaseException catch (e) {
+        if (e.code != 'apns-token-not-set') rethrow;
+        // APNS pas encore prêt : on retente jusqu'à l'échéance.
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      }
+    }
+
+    debugPrint(
+      '⚠️ Token APNS indisponible après $attempt tentatives '
+      '(${timeout.inSeconds}s). Simulateur iOS, ou entitlement '
+      '`aps-environment` absent de la config de build. Aucun push ne sera reçu.',
+    );
+    return null;
+  }
+
   // 8. Amélioration de registerTokenOnServer avec retry
   Future<void> registerTokenOnServer({int maxRetries = 5}) async {
     // Essayer d'obtenir le token si pas encore disponible (ex: init() appelé avant connexion)
-    if (fcmToken == null) {
-      try {
-        fcmToken = await _fcm.getToken();
-      } on FirebaseException catch (e) {
-        if (e.code == 'apns-token-not-set') return;
-        rethrow;
-      }
-    }
+    // `_fetchFcmToken` absorbe `apns-token-not-set` et renvoie null.
+    fcmToken ??= await _fetchFcmToken();
     if (fcmToken == null) {
       debugPrint('FCM Token is null, cannot register on server.');
       return;
@@ -381,38 +431,12 @@ class NotificationService {
       // Stoppe les retries si le service a été disposé entre-temps (C23).
       if (_isDisposed) return;
       try {
-        final idToken = await _authRepository.getIdToken();
-        if (idToken == null) {
-          debugPrint(
-            'Firebase ID Token is null, cannot authenticate to server.',
-          );
-          return;
-        }
-
-        final url = Uri.parse(
-          '${AppConstants.baseUrl}/notifications/register-token',
+        await _api.postJson(
+          '/notifications/register-token',
+          body: {'token': fcmToken},
         );
-
-        final response = await _httpClient
-            .post(
-              url,
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer $idToken',
-              },
-              body: jsonEncode({'token': fcmToken}),
-            )
-            .timeout(const Duration(seconds: 15));
-
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          debugPrint('FCM Token registered successfully on the server.');
-          return; // Succès, sortir de la boucle
-        } else {
-          debugPrint(
-            'Failed to register FCM token (attempt $attempt/$maxRetries). '
-            'Status: ${response.statusCode}, Body: ${response.body}',
-          );
-        }
+        debugPrint('FCM Token registered successfully on the server.');
+        return; // Succès, sortir de la boucle
       } catch (e) {
         debugPrint(
           'Error registering FCM token (attempt $attempt/$maxRetries): $e',
@@ -422,7 +446,7 @@ class NotificationService {
           debugPrint('Max retries reached. Failed to register FCM token.');
         } else {
           // Backoff borné (5s, 10s, 15s, 20s) — évite le blocage ~4 min (C7).
-          await Future.delayed(Duration(seconds: attempt * 5));
+          await Future<void>.delayed(Duration(seconds: attempt * 5));
         }
       }
     }
@@ -436,32 +460,8 @@ class NotificationService {
     }
 
     try {
-      final idToken = await _authRepository.getIdToken();
-      if (idToken == null) {
-        debugPrint('Firebase ID Token is null, cannot remove FCM token.');
-        return;
-      }
-
-      final url = Uri.parse('${AppConstants.baseUrl}/notifications/token');
-
-      final response = await _httpClient
-          .delete(
-            url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $idToken',
-            },
-            body: jsonEncode({'token': fcmToken}),
-          )
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        debugPrint('FCM Token removed successfully from the server.');
-      } else {
-        debugPrint(
-          'Failed to remove FCM token. Status: ${response.statusCode}, Body: ${response.body}',
-        );
-      }
+      await _api.deleteJson('/notifications/token', body: {'token': fcmToken});
+      debugPrint('FCM Token removed successfully from the server.');
     } catch (e) {
       debugPrint('Error removing FCM token from server: $e');
     }
@@ -502,8 +502,17 @@ class NotificationService {
           priority: Priority.high,
         );
 
+    // Sans bloc `iOS`, flutter_local_notifications n'affiche rien sur iOS : ce
+    // bouton de test paraissait donc cassé alors que seul l'affichage manquait.
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
     const NotificationDetails platformDetails = NotificationDetails(
       android: androidDetails,
+      iOS: iosDetails,
     );
 
     await _localNotifications.show(
@@ -517,9 +526,7 @@ class NotificationService {
 
 @Riverpod(keepAlive: true)
 NotificationService notificationService(Ref ref) {
-  final authRepository = ref.watch(authRepositoryProvider);
-  final httpClient = ref.watch(httpClientProvider);
-  final service = NotificationService(authRepository, httpClient, ref);
+  final service = NotificationService(ref.watch(apiClientProvider), ref);
 
   // 🔥 IMPORTANT: Nettoyer le service quand le provider est dispose
   ref.onDispose(() {
@@ -539,3 +546,4 @@ extension RefExtensions on Ref {
     }
   }
 }
+

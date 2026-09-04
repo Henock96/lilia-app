@@ -7,6 +7,7 @@ import 'package:lilia_app/features/reviews/presentation/widgets/star_rating.dart
 import 'package:lilia_app/features/reviews/presentation/screens/write_review_screen.dart';
 
 import '../../../../models/review.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class ReviewsScreen extends ConsumerWidget {
   final String restaurantId;
@@ -226,7 +227,7 @@ class ReviewsScreen extends ConsumerWidget {
   }
 
   void _deleteReview(BuildContext context, WidgetRef ref, String reviewId) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Supprimer l\'avis'),
@@ -245,9 +246,7 @@ class ReviewsScreen extends ConsumerWidget {
                 ref.invalidate(restaurantStatsProvider(restaurantId));
                 ref.invalidate(canReviewProvider(restaurantId));
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Avis supprimé')),
-                  );
+                  context.showSnack('Avis supprimé');
                 }
               } catch (e) {
                 if (context.mounted) {

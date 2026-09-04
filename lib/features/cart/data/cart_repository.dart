@@ -1,10 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import 'package:lilia_app/constants/app_constants.dart';
+import 'package:lilia_app/core/network/api_client.dart';
+import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/models/cart.dart';
 
 /// Exception personnalisée pour les erreurs de panier
@@ -19,16 +16,11 @@ class CartException implements Exception {
 }
 
 class CartRepository {
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+  final ApiClient _api;
   final _cartStreamController = StreamController<Cart?>.broadcast();
   bool _isClosed = false; // Flag pour savoir si le controller est fermé
 
-  CartRepository();
-
-  dynamic _decodeBody(http.Response response) {
-    if (response.bodyBytes.isEmpty) return null;
-    return jsonDecode(utf8.decode(response.bodyBytes));
-  }
+  CartRepository(this._api);
 
   Map<String, dynamic>? _asMap(dynamic value) {
     return value is Map<String, dynamic> ? value : null;
@@ -42,24 +34,58 @@ class CartRepository {
     return map;
   }
 
-  Cart? _cartFromResponse(http.Response response) {
-    final data = _unwrapDataMap(_decodeBody(response));
-    return data == null ? null : Cart.fromJson(data);
+  Cart? _cartFromData(dynamic data) {
+    final map = _unwrapDataMap(data);
+    return map == null ? null : Cart.fromJson(map);
   }
 
-  String _messageFromResponse(http.Response response, String fallback) {
-    try {
-      final body = _asMap(_decodeBody(response));
-      final message = body?['message'];
-      if (message is List) return message.join('. ');
-      if (message is String && message.isNotEmpty) return message;
-    } catch (_) {}
-    return fallback;
-  }
-
-  Future<String?> _getIdToken() async {
-    final user = _firebaseAuth.currentUser;
-    return await user?.getIdToken();
+  /// Mappe une [ApiException] (parsing centralisé) vers une [CartException]
+  /// en conservant les codes/messages attendus par l'UI panier.
+  CartException _toCartException(
+    ApiException e, {
+    required String fallback,
+    String fallbackCode = 'UNKNOWN_ERROR',
+    String? notFound,
+    bool useBackendMessageOn400 = false,
+  }) {
+    switch (e.kind) {
+      case ApiErrorKind.network:
+        return CartException(
+          'Pas de connexion internet. Vérifiez votre connexion.',
+          code: 'NO_INTERNET',
+        );
+      case ApiErrorKind.timeout:
+        return CartException(
+          'La requête a pris trop de temps. Vérifiez votre connexion.',
+          code: 'TIMEOUT',
+        );
+      case ApiErrorKind.unauthorized:
+        return CartException(
+          'Utilisateur non authentifié.',
+          code: 'UNAUTHENTICATED',
+        );
+      case ApiErrorKind.server:
+        return CartException(
+          'Erreur du serveur. Veuillez réessayer plus tard.',
+          code: 'SERVER_ERROR',
+        );
+      case ApiErrorKind.client:
+      case ApiErrorKind.unknown:
+        final status = e.statusCode;
+        if (status == 400 && useBackendMessageOn400) {
+          return CartException(e.message, code: 'INVALID_DATA');
+        }
+        if (status == 403) {
+          return CartException(
+            'Cette commande ne vous appartient pas.',
+            code: 'FORBIDDEN',
+          );
+        }
+        if (status == 404 && notFound != null) {
+          return CartException(notFound, code: 'NOT_FOUND');
+        }
+        return CartException(fallback, code: fallbackCode);
+    }
   }
 
   Stream<Cart?> watchCart() => _cartStreamController.stream;
@@ -87,28 +113,17 @@ class CartRepository {
       return;
     }
 
-    final token = await _getIdToken();
-    if (token == null) {
-      _safeAdd(null);
-      return;
-    }
-
     try {
-      final response = await http
-          .get(
-            Uri.parse('${AppConstants.baseUrl}/cart'),
-            headers: {'Authorization': 'Bearer $token'},
-          )
-          .timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        _safeAdd(_cartFromResponse(response));
-      } else {
+      final res = await _api.getJson('/cart');
+      _safeAdd(_cartFromData(res.data));
+    } on ApiException catch (e, stackTrace) {
+      // Invité ou session expirée → panier vide (pas d'erreur affichée).
+      if (e.kind == ApiErrorKind.unauthorized) {
         _safeAdd(null);
+      } else {
+        debugPrint('Error in getCart: ${e.message}');
+        _safeAddError(e, stackTrace);
       }
-    } catch (e, stackTrace) {
-      debugPrint('Error in getCart: $e');
-      _safeAddError(e, stackTrace);
     }
   }
 
@@ -117,77 +132,21 @@ class CartRepository {
     required int quantity,
     int maxRetries = 2,
   }) async {
-    final token = await _getIdToken();
-    if (token == null) {
-      throw CartException(
-        'Utilisateur non authentifié.',
-        code: 'UNAUTHENTICATED',
-      );
-    }
-
     try {
-      final response = await http
-          .post(
-            Uri.parse('${AppConstants.baseUrl}/cart/add'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode({'variantId': variantId, 'quantite': quantity}),
-          )
-          .timeout(
-            const Duration(seconds: 30),
-            onTimeout: () {
-              throw TimeoutException(
-                'La requête a pris trop de temps. Vérifiez votre connexion.',
-              );
-            },
-          );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        debugPrint('✅ Item added to cart successfully');
-        await getCart();
-      } else if (response.statusCode == 400) {
-        throw CartException(
-          _messageFromResponse(
-            response,
-            'Données invalides. Veuillez réessayer.',
-          ),
-          code: 'INVALID_DATA',
-        );
-      } else if (response.statusCode == 404) {
-        throw CartException('Produit non trouvé.', code: 'NOT_FOUND');
-      } else if (response.statusCode >= 500) {
-        throw CartException(
-          'Erreur du serveur. Veuillez réessayer plus tard.',
-          code: 'SERVER_ERROR',
-        );
-      } else {
-        throw CartException(
-          'Erreur: ${response.statusCode}',
-          code: 'UNKNOWN_ERROR',
-        );
-      }
-    } on SocketException {
-      debugPrint('📡 No internet connection');
-      throw CartException(
-        'Pas de connexion internet. Vérifiez votre connexion.',
-        code: 'NO_INTERNET',
+      await _api.postJson(
+        '/cart/add',
+        body: {'variantId': variantId, 'quantite': quantity},
       );
-    } on TimeoutException {
-      debugPrint('⏱️ Request timeout');
-      throw CartException(
-        'La requête a pris trop de temps. Vérifiez votre connexion.',
-        code: 'TIMEOUT',
-      );
-    } catch (e) {
-      debugPrint('❌ Error adding to cart: $e');
-      if (e is CartException) {
-        rethrow;
-      }
-      throw CartException(
-        'Une erreur est survenue: ${e.toString()}',
-        code: 'UNKNOWN',
+      debugPrint('✅ Item added to cart successfully');
+      await getCart();
+    } on ApiException catch (e) {
+      debugPrint('❌ Error adding to cart: ${e.message}');
+      throw _toCartException(
+        e,
+        fallback: 'Une erreur est survenue.',
+        fallbackCode: 'UNKNOWN',
+        notFound: 'Produit non trouvé.',
+        useBackendMessageOn400: true,
       );
     }
   }
@@ -196,86 +155,35 @@ class CartRepository {
     required String cartItemId,
     required int quantity,
   }) async {
-    final token = await _getIdToken();
-    if (token == null) {
-      throw CartException(
-        'Utilisateur non authentifié.',
-        code: 'UNAUTHENTICATED',
-      );
-    }
-
     if (quantity == 0) {
       await removeItem(cartItemId: cartItemId);
       return;
     }
 
     try {
-      final response = await http
-          .patch(
-            Uri.parse('${AppConstants.baseUrl}/cart/items/$cartItemId'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode({'quantite': quantity}),
-          )
-          .timeout(const Duration(seconds: 30));
-
-      if (response.statusCode == 200) {
-        await getCart();
-      } else {
-        throw CartException(
-          'Impossible de mettre à jour la quantité.',
-          code: 'UPDATE_FAILED',
-        );
-      }
-    } on SocketException {
-      throw CartException('Pas de connexion internet.', code: 'NO_INTERNET');
-    } on TimeoutException {
-      throw CartException('La requête a pris trop de temps.', code: 'TIMEOUT');
-    } catch (e) {
-      if (e is CartException) rethrow;
-      throw CartException(
-        'Erreur lors de la mise à jour: ${e.toString()}',
-        code: 'UNKNOWN',
+      await _api.patchJson(
+        '/cart/items/$cartItemId',
+        body: {'quantite': quantity},
+      );
+      await getCart();
+    } on ApiException catch (e) {
+      throw _toCartException(
+        e,
+        fallback: 'Impossible de mettre à jour la quantité.',
+        fallbackCode: 'UPDATE_FAILED',
       );
     }
   }
 
   Future<void> removeItem({required String cartItemId}) async {
-    final token = await _getIdToken();
-    if (token == null) {
-      throw CartException(
-        'Utilisateur non authentifié.',
-        code: 'UNAUTHENTICATED',
-      );
-    }
-
     try {
-      final response = await http
-          .delete(
-            Uri.parse('${AppConstants.baseUrl}/cart/items/$cartItemId'),
-            headers: {'Authorization': 'Bearer $token'},
-          )
-          .timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        await getCart();
-      } else {
-        throw CartException(
-          'Impossible de supprimer l\'article.',
-          code: 'DELETE_FAILED',
-        );
-      }
-    } on SocketException {
-      throw CartException('Pas de connexion internet.', code: 'NO_INTERNET');
-    } on TimeoutException {
-      throw CartException('La requête a pris trop de temps.', code: 'TIMEOUT');
-    } catch (e) {
-      if (e is CartException) rethrow;
-      throw CartException(
-        'Erreur lors de la suppression: ${e.toString()}',
-        code: 'UNKNOWN',
+      await _api.deleteJson('/cart/items/$cartItemId');
+      await getCart();
+    } on ApiException catch (e) {
+      throw _toCartException(
+        e,
+        fallback: 'Impossible de supprimer l\'article.',
+        fallbackCode: 'DELETE_FAILED',
       );
     }
   }
@@ -285,61 +193,19 @@ class CartRepository {
     required String menuId,
     required int quantity,
   }) async {
-    final token = await _getIdToken();
-    if (token == null) {
-      throw CartException(
-        'Utilisateur non authentifié.',
-        code: 'UNAUTHENTICATED',
-      );
-    }
-
     try {
-      final response = await http
-          .post(
-            Uri.parse('${AppConstants.baseUrl}/cart/add-menu'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode({'menuId': menuId, 'quantite': quantity}),
-          )
-          .timeout(const Duration(seconds: 30));
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        _safeAdd(_cartFromResponse(response));
-      } else if (response.statusCode == 400) {
-        throw CartException(
-          _messageFromResponse(response, 'Impossible d\'ajouter le menu.'),
-          code: 'INVALID_DATA',
-        );
-      } else if (response.statusCode == 404) {
-        throw CartException('Menu non trouvé.', code: 'NOT_FOUND');
-      } else if (response.statusCode >= 500) {
-        throw CartException(
-          'Erreur du serveur. Veuillez réessayer plus tard.',
-          code: 'SERVER_ERROR',
-        );
-      } else {
-        throw CartException(
-          'Erreur: ${response.statusCode}',
-          code: 'UNKNOWN_ERROR',
-        );
-      }
-    } on SocketException {
-      throw CartException(
-        'Pas de connexion internet. Vérifiez votre connexion.',
-        code: 'NO_INTERNET',
+      final res = await _api.postJson(
+        '/cart/add-menu',
+        body: {'menuId': menuId, 'quantite': quantity},
       );
-    } on TimeoutException {
-      throw CartException(
-        'La requête a pris trop de temps. Vérifiez votre connexion.',
-        code: 'TIMEOUT',
-      );
-    } catch (e) {
-      if (e is CartException) rethrow;
-      throw CartException(
-        'Une erreur est survenue: ${e.toString()}',
-        code: 'UNKNOWN',
+      _safeAdd(_cartFromData(res.data));
+    } on ApiException catch (e) {
+      throw _toCartException(
+        e,
+        fallback: 'Une erreur est survenue.',
+        fallbackCode: 'UNKNOWN',
+        notFound: 'Menu non trouvé.',
+        useBackendMessageOn400: true,
       );
     }
   }
@@ -349,126 +215,50 @@ class CartRepository {
     required String menuId,
     required int quantity,
   }) async {
-    final token = await _getIdToken();
-    if (token == null) {
-      throw CartException(
-        'Utilisateur non authentifié.',
-        code: 'UNAUTHENTICATED',
-      );
-    }
-
     if (quantity == 0) {
       await removeMenu(menuId: menuId);
       return;
     }
 
     try {
-      final response = await http
-          .patch(
-            Uri.parse('${AppConstants.baseUrl}/cart/menus/$menuId'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-            body: jsonEncode({'quantite': quantity}),
-          )
-          .timeout(const Duration(seconds: 30));
-
-      if (response.statusCode == 200) {
-        _safeAdd(_cartFromResponse(response));
-      } else {
-        throw CartException(
-          'Impossible de mettre à jour la quantité du menu.',
-          code: 'UPDATE_FAILED',
-        );
-      }
-    } on SocketException {
-      throw CartException('Pas de connexion internet.', code: 'NO_INTERNET');
-    } on TimeoutException {
-      throw CartException('La requête a pris trop de temps.', code: 'TIMEOUT');
-    } catch (e) {
-      if (e is CartException) rethrow;
-      throw CartException(
-        'Erreur lors de la mise à jour: ${e.toString()}',
-        code: 'UNKNOWN',
+      final res = await _api.patchJson(
+        '/cart/menus/$menuId',
+        body: {'quantite': quantity},
+      );
+      _safeAdd(_cartFromData(res.data));
+    } on ApiException catch (e) {
+      throw _toCartException(
+        e,
+        fallback: 'Impossible de mettre à jour la quantité du menu.',
+        fallbackCode: 'UPDATE_FAILED',
       );
     }
   }
 
   /// Supprime un menu complet du panier
   Future<void> removeMenu({required String menuId}) async {
-    final token = await _getIdToken();
-    if (token == null) {
-      throw CartException(
-        'Utilisateur non authentifié.',
-        code: 'UNAUTHENTICATED',
-      );
-    }
-
     try {
-      final response = await http
-          .delete(
-            Uri.parse('${AppConstants.baseUrl}/cart/menus/$menuId'),
-            headers: {'Authorization': 'Bearer $token'},
-          )
-          .timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        _safeAdd(_cartFromResponse(response));
-      } else {
-        throw CartException(
-          'Impossible de supprimer le menu.',
-          code: 'DELETE_FAILED',
-        );
-      }
-    } on SocketException {
-      throw CartException('Pas de connexion internet.', code: 'NO_INTERNET');
-    } on TimeoutException {
-      throw CartException('La requête a pris trop de temps.', code: 'TIMEOUT');
-    } catch (e) {
-      if (e is CartException) rethrow;
-      throw CartException(
-        'Erreur lors de la suppression: ${e.toString()}',
-        code: 'UNKNOWN',
+      final res = await _api.deleteJson('/cart/menus/$menuId');
+      _safeAdd(_cartFromData(res.data));
+    } on ApiException catch (e) {
+      throw _toCartException(
+        e,
+        fallback: 'Impossible de supprimer le menu.',
+        fallbackCode: 'DELETE_FAILED',
       );
     }
   }
 
   /// Vide tout le panier via l'API backend
   Future<void> clearAllItems() async {
-    final token = await _getIdToken();
-    if (token == null) {
-      throw CartException(
-        'Utilisateur non authentifié.',
-        code: 'UNAUTHENTICATED',
-      );
-    }
-
     try {
-      final response = await http
-          .delete(
-            Uri.parse('${AppConstants.baseUrl}/cart/clear'),
-            headers: {'Authorization': 'Bearer $token'},
-          )
-          .timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        _safeAdd(null);
-      } else {
-        throw CartException(
-          'Impossible de vider le panier.',
-          code: 'CLEAR_FAILED',
-        );
-      }
-    } on SocketException {
-      throw CartException('Pas de connexion internet.', code: 'NO_INTERNET');
-    } on TimeoutException {
-      throw CartException('La requête a pris trop de temps.', code: 'TIMEOUT');
-    } catch (e) {
-      if (e is CartException) rethrow;
-      throw CartException(
-        'Erreur lors du vidage du panier: ${e.toString()}',
-        code: 'UNKNOWN',
+      await _api.deleteJson('/cart/clear');
+      _safeAdd(null);
+    } on ApiException catch (e) {
+      throw _toCartException(
+        e,
+        fallback: 'Impossible de vider le panier.',
+        fallbackCode: 'CLEAR_FAILED',
       );
     }
   }
@@ -478,82 +268,24 @@ class CartRepository {
   Future<Map<String, dynamic>> reorderFromOrder({
     required String orderId,
   }) async {
-    final token = await _getIdToken();
-    if (token == null) {
-      throw CartException(
-        'Utilisateur non authentifié.',
-        code: 'UNAUTHENTICATED',
-      );
-    }
-
     try {
-      final response = await http
-          .post(
-            Uri.parse('${AppConstants.baseUrl}/orders/$orderId/reorder'),
-            headers: {'Authorization': 'Bearer $token'},
-          )
-          .timeout(
-            const Duration(seconds: 30),
-            onTimeout: () {
-              throw TimeoutException(
-                'La requête a pris trop de temps. Vérifiez votre connexion.',
-              );
-            },
-          );
+      final res = await _api.postJson('/orders/$orderId/reorder');
+      final data = _asMap(res.data) ?? <String, dynamic>{};
+      final result = _asMap(data['data']) ?? data;
+      debugPrint('Order reordered successfully');
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final decoded = _decodeBody(response);
-        final data = _asMap(decoded) ?? <String, dynamic>{};
-        final result = _asMap(data['data']) ?? data;
-        debugPrint('Order reordered successfully');
+      // Rafraîchir le panier
+      await getCart();
 
-        // Rafraîchir le panier
-        await getCart();
-
-        return result;
-      } else if (response.statusCode == 400) {
-        throw CartException(
-          _messageFromResponse(response, 'Erreur lors de la recommande.'),
-          code: 'INVALID_DATA',
-        );
-      } else if (response.statusCode == 403) {
-        throw CartException(
-          'Cette commande ne vous appartient pas.',
-          code: 'FORBIDDEN',
-        );
-      } else if (response.statusCode == 404) {
-        throw CartException('Commande non trouvée.', code: 'NOT_FOUND');
-      } else if (response.statusCode >= 500) {
-        throw CartException(
-          'Erreur du serveur. Veuillez réessayer plus tard.',
-          code: 'SERVER_ERROR',
-        );
-      } else {
-        throw CartException(
-          'Erreur: ${response.statusCode}',
-          code: 'UNKNOWN_ERROR',
-        );
-      }
-    } on SocketException {
-      debugPrint('📡 No internet connection');
-      throw CartException(
-        'Pas de connexion internet. Vérifiez votre connexion.',
-        code: 'NO_INTERNET',
-      );
-    } on TimeoutException {
-      debugPrint('⏱️ Request timeout');
-      throw CartException(
-        'La requête a pris trop de temps. Vérifiez votre connexion.',
-        code: 'TIMEOUT',
-      );
-    } catch (e) {
-      debugPrint('❌ Error reordering: $e');
-      if (e is CartException) {
-        rethrow;
-      }
-      throw CartException(
-        'Une erreur est survenue: ${e.toString()}',
-        code: 'UNKNOWN',
+      return result;
+    } on ApiException catch (e) {
+      debugPrint('❌ Error reordering: ${e.message}');
+      throw _toCartException(
+        e,
+        fallback: 'Une erreur est survenue.',
+        fallbackCode: 'UNKNOWN',
+        notFound: 'Commande non trouvée.',
+        useBackendMessageOn400: true,
       );
     }
   }

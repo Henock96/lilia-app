@@ -147,8 +147,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
 
               // Bottom section
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 24,
+                ),
                 child: Column(
                   children: [
                     // Dot indicators
@@ -317,11 +319,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
                   ),
                 ],
               ),
-              child: Icon(
-                _mainIcon(index),
-                size: 72,
-                color: Colors.white,
-              ),
+              child: Icon(_mainIcon(index), size: 72, color: Colors.white),
             ),
 
             // Floating elements specific to each page
@@ -346,7 +344,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
   }
 
   List<Widget> _buildFloatingElements(
-      int index, _PageData data, double floatValue) {
+    int index,
+    _PageData data,
+    double floatValue,
+  ) {
     switch (index) {
       case 0:
         return _buildFoodElements(data, floatValue);

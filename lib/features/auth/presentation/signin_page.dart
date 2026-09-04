@@ -5,6 +5,8 @@ import 'package:lilia_app/constants/app_size.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 
 import '../controller/auth_controller.dart';
+import 'package:lilia_app/utils/snackbar.dart';
+import 'package:lilia_app/features/auth/presentation/phone_collection_sheet.dart';
 
 class SignInPage extends ConsumerWidget {
   const SignInPage({super.key});
@@ -13,12 +15,7 @@ class SignInPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.listen(authControllerProvider, (prev, state) {
       if (state.hasError && !state.isLoading) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${state.error}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        context.showErrorSnack('${state.error}');
       }
     });
 
@@ -145,11 +142,7 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
             .read(authControllerProvider.notifier)
             .sendPasswordResetEmailWithEmail(result);
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Un e-mail de réinitialisation a été envoyé.'),
-          ),
-        );
+        context.showSnack('Un e-mail de réinitialisation a été envoyé.');
       } catch (e) {
         if (!context.mounted) return;
         ScaffoldMessenger.of(
@@ -169,6 +162,7 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           TextFormField(
+            key: const Key('signin_email'),
             controller: _emailController,
             decoration: const InputDecoration(
               labelText: 'Email',
@@ -186,12 +180,14 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
           ),
           gapH20,
           TextFormField(
+            key: const Key('signin_password'),
             controller: _passwordController,
             obscureText: _obscurePassword,
             decoration: InputDecoration(
               labelText: 'Mot de Passe',
               prefixIcon: const Icon(Icons.lock_outline),
               suffixIcon: IconButton(
+                tooltip: 'Masquer le mot de passe',
                 icon: Icon(
                   _obscurePassword
                       ? Icons.visibility_off_outlined
@@ -216,6 +212,7 @@ class _SignInFormState extends ConsumerState<_SignInForm> {
           ),
           gapH16,
           ElevatedButton(
+            key: const Key('signin_submit'),
             onPressed: state.isLoading ? null : _signIn,
             child: state.isLoading
                 ? const SizedBox(
@@ -262,11 +259,13 @@ class _SocialLogins extends ConsumerWidget {
     return OutlinedButton.icon(
       onPressed: () async {
         await ref.read(authControllerProvider.notifier).signInWithGoogle();
+        final auth = ref.read(authControllerProvider);
+        if (!auth.hasError && context.mounted) {
+          // Numero absent du token Google => proposer de le saisir (skippable).
+          await maybePromptPhoneNumber(context, ref);
+        }
       },
-      icon: Image.asset(
-        'assets/images/google_logo.png',
-        height: 24.0,
-      ),
+      icon: Image.asset('assets/images/google_logo.png', height: 24.0),
       label: Text(
         'Se connecter avec Google',
         style: TextStyle(color: cs.onSurface),
@@ -296,7 +295,11 @@ class _SignUpNavigation extends StatelessWidget {
           onPressed: () => context.goNamed(AppRoutes.signUp.routeName),
           child: Text(
             "S'inscrire",
-            style: TextStyle(color: cs.primary, fontSize: 14, fontWeight: FontWeight.w600),
+            style: TextStyle(
+              color: cs.primary,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],

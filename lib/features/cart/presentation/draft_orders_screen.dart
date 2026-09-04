@@ -5,6 +5,8 @@ import 'package:iconsax/iconsax.dart';
 import 'package:lilia_app/features/cart/application/draft_orders_provider.dart';
 import 'package:lilia_app/models/draft_order.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
+import 'package:lilia_app/utils/currency.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class DraftOrdersScreen extends ConsumerWidget {
   const DraftOrdersScreen({super.key});
@@ -98,22 +100,11 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
           .read(draftOrdersProvider.notifier)
           .restoreDraft(widget.draft.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Articles remis dans le panier'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      context.showSnack('Articles remis dans le panier');
       context.goNamed(AppRoutes.cart.routeName);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      context.showErrorSnack('Erreur: $e');
       setState(() => _isRestoring = false);
     }
   }
@@ -278,7 +269,7 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${draft.totalPrice.toStringAsFixed(0)} FCFA',
+                        formatPrice(draft.totalPrice),
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,

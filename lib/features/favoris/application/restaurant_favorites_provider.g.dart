@@ -35,14 +35,14 @@ final class RestaurantFavoritesProvider
 }
 
 String _$restaurantFavoritesHash() =>
-    r'068d46055c381373053110ba88565c9290d01934';
+    r'ecf1d6054db17c0bca2de807a3ffcf3357bc3a53';
 
 abstract class _$RestaurantFavorites
     extends $AsyncNotifier<List<RestaurantSummary>> {
   FutureOr<List<RestaurantSummary>> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref =
         this.ref
             as $Ref<
@@ -60,7 +60,7 @@ abstract class _$RestaurantFavorites
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }
 

@@ -1,8 +1,15 @@
+import 'package:lilia_app/models/gallery_image.dart';
+import 'package:lilia_app/models/menu.dart';
 import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/models/vendor_type.dart';
 
-/// Enum des jours de la semaine
+/// Enum des jours de la semaine.
+///
+/// Les valeurs sont en majuscules parce qu'elles sont sérialisées telles quelles
+/// vers l'enum Prisma `DayOfWeek` du backend (`e.name == value` plus bas) :
+/// les renommer casserait le parsing des horaires d'ouverture.
 enum DayOfWeek {
+  // ignore_for_file: constant_identifier_names
   LUNDI,
   MARDI,
   MERCREDI,
@@ -91,12 +98,14 @@ class OperatingHours {
 
   factory OperatingHours.fromJson(Map<String, dynamic> json) {
     return OperatingHours(
-      id: json['id'] ?? '',
-      restaurantId: json['restaurantId'] ?? '',
-      dayOfWeek: DayOfWeek.fromString(json['dayOfWeek'] ?? 'LUNDI'),
-      openTime: json['openTime'] ?? '08:00',
-      closeTime: json['closeTime'] ?? '22:00',
-      isClosed: json['isClosed'] ?? false,
+      id: (json['id'] as String?) ?? '',
+      restaurantId: (json['restaurantId'] as String?) ?? '',
+      dayOfWeek: DayOfWeek.fromString(
+        (json['dayOfWeek'] as String?) ?? 'LUNDI',
+      ),
+      openTime: (json['openTime'] as String?) ?? '08:00',
+      closeTime: (json['closeTime'] as String?) ?? '22:00',
+      isClosed: (json['isClosed'] as bool?) ?? false,
     );
   }
 }
@@ -109,7 +118,7 @@ class Specialty {
   Specialty({required this.id, required this.name});
 
   factory Specialty.fromJson(Map<String, dynamic> json) {
-    return Specialty(id: json['id'], name: json['name']);
+    return Specialty(id: json['id'] as String, name: json['name'] as String);
   }
 }
 
@@ -138,13 +147,11 @@ class VendorProfile {
   factory VendorProfile.fromJson(Map<String, dynamic> json) {
     return VendorProfile(
       story: json['story'] as String?,
-      certifications: (json['certifications'] as List?)
-              ?.map((e) => e as String)
-              .toList() ??
+      certifications:
+          (json['certifications'] as List?)?.map((e) => e as String).toList() ??
           const [],
-      specialties: (json['specialties'] as List?)
-              ?.map((e) => e as String)
-              .toList() ??
+      specialties:
+          (json['specialties'] as List?)?.map((e) => e as String).toList() ??
           const [],
       productionNote: json['productionNote'] as String?,
     );
@@ -152,12 +159,22 @@ class VendorProfile {
 }
 
 /// Modèle simplifié pour la liste des restaurants (sans les produits)
+/// Frais de livraison de repli, aligné sur le défaut Prisma
+/// (`Restaurant.fixedDeliveryFee @default(1000)`).
+///
+/// Le client utilisait 500 FCFA en dur : quand le calcul de zone échouait, il
+/// affichait 500 FCFA de moins que ce que le serveur allait facturer, sans le
+/// moindre signal.
+const double kDefaultDeliveryFee = 1000;
+
 class RestaurantSummary {
   final String id;
   final String name;
   final String address;
   final String? phoneNumber;
   final String? imageUrl;
+  // Galerie photos du vendeur (VendorPhoto côté backend).
+  final List<GalleryImage> photos;
   final String? description;
   final double? averageRating;
   final int? totalReviews;
@@ -181,6 +198,7 @@ class RestaurantSummary {
     required this.address,
     this.phoneNumber,
     this.imageUrl,
+    this.photos = const [],
     this.description,
     this.averageRating,
     this.totalReviews,
@@ -189,7 +207,7 @@ class RestaurantSummary {
     this.estimatedDeliveryTimeMin = 15,
     this.estimatedDeliveryTimeMax = 30,
     this.minimumOrderAmount = 0,
-    this.fixedDeliveryFee = 500,
+    this.fixedDeliveryFee = kDefaultDeliveryFee,
     this.vendorType = VendorType.RESTAURANT,
     this.acceptsPreorders = false,
     this.preorderLeadHours,
@@ -202,34 +220,46 @@ class RestaurantSummary {
   /// Retourne les spécialités formatées (ex: "Pizza, Burger, Sushi")
   String get specialtiesFormatted => specialties.map((s) => s.name).join(', ');
 
+  /// Vignette pour les cartes de liste : cover de la galerie photos si
+  /// disponible, sinon l'`imageUrl` legacy. `null` si aucune image.
+  String? get thumbnailUrl {
+    if (photos.isNotEmpty) return photos.first.url;
+    if (imageUrl != null && imageUrl!.trim().isNotEmpty) return imageUrl;
+    return null;
+  }
+
   factory RestaurantSummary.fromJson(Map<String, dynamic> json) {
     // Parser les spécialités
     List<Specialty> specialties = [];
     if (json['specialties'] != null) {
       specialties = (json['specialties'] as List)
-          .map((s) => Specialty.fromJson(s))
+          .map((s) => Specialty.fromJson(s as Map<String, dynamic>))
           .toList();
     }
 
     return RestaurantSummary(
-      id: json['id'],
-      name: json['nom'],
-      address: json['adresse'],
-      phoneNumber: json['phone'],
-      imageUrl: json['imageUrl'],
-      description: json['description'],
+      id: json['id'] as String,
+      name: json['nom'] as String,
+      address: json['adresse'] as String,
+      phoneNumber: json['phone'] as String?,
+      imageUrl: json['imageUrl'] as String?,
+      photos: GalleryImage.listFrom(json['photos']),
+      description: json['description'] as String?,
       averageRating: json['averageRating'] != null
           ? (json['averageRating'] as num).toDouble()
           : null,
       totalReviews: json['totalReviews'] as int?,
-      isOpen: json['isOpen'] ?? true,
+      isOpen: (json['isOpen'] as bool?) ?? true,
       specialties: specialties,
-      estimatedDeliveryTimeMin: json['estimatedDeliveryTimeMin'] ?? 15,
-      estimatedDeliveryTimeMax: json['estimatedDeliveryTimeMax'] ?? 30,
+      estimatedDeliveryTimeMin:
+          (json['estimatedDeliveryTimeMin'] as int?) ?? 15,
+      estimatedDeliveryTimeMax:
+          (json['estimatedDeliveryTimeMax'] as int?) ?? 30,
       minimumOrderAmount: (json['minimumOrderAmount'] as num?)?.toDouble() ?? 0,
-      fixedDeliveryFee: (json['fixedDeliveryFee'] as num?)?.toDouble() ?? 500,
+      fixedDeliveryFee:
+          (json['fixedDeliveryFee'] as num?)?.toDouble() ?? kDefaultDeliveryFee,
       vendorType: VendorType.fromString(json['vendorType'] as String?),
-      acceptsPreorders: json['acceptsPreorders'] ?? false,
+      acceptsPreorders: (json['acceptsPreorders'] as bool?) ?? false,
       preorderLeadHours: json['preorderLeadHours'] as int?,
     );
   }
@@ -241,8 +271,22 @@ class Restaurant {
   final String address;
   final String? phoneNumber;
   final String? imageUrl;
+  // Galerie photos du vendeur (VendorPhoto côté backend).
+  final List<GalleryImage> photos;
   final List<Product> products;
   final Map<String, Category> categoriesMap;
+
+  /// Sections de la carte **déclarées par le vendeur**, déjà triées par
+  /// `displayOrder` côté serveur et filtrées sur `isActive`.
+  ///
+  /// Distinct de `categoriesMap`, qui est *dérivé des produits* : cette liste-ci
+  /// porte l'ordre voulu par le commerçant. Sans elle, l'écran de détail triait
+  /// les sections par ordre alphabétique — « Accompagnements » passait avant
+  /// « Les Grillades », qui est pourtant le cœur de l'offre.
+  ///
+  /// Vide si le backend ne l'a pas renvoyée : l'écran retombe alors sur
+  /// l'ancien comportement plutôt que d'afficher une carte sans sections.
+  final List<Category> categories;
 
   // Nouveaux champs
   final bool isOpen;
@@ -261,37 +305,56 @@ class Restaurant {
   final int? preorderLeadHours;
   final VendorProfile? vendorProfile;
 
+  // Menus du jour actifs embarqués dans `GET /vendors/:id` (clé `menuDuJour`).
+  // Évite une 2e requête `/menus/active` sur l'écran de détail vendeur.
+  final List<MenuDuJour> menus;
+
   Restaurant({
     required this.id,
     required this.name,
     required this.address,
     this.phoneNumber,
     this.imageUrl,
+    this.photos = const [],
     required this.products,
     required this.categoriesMap,
+    this.categories = const [],
     this.isOpen = true,
     this.specialties = const [],
     this.operatingHours = const [],
     this.estimatedDeliveryTimeMin = 15,
     this.estimatedDeliveryTimeMax = 30,
     this.minimumOrderAmount = 0,
-    this.fixedDeliveryFee = 500,
+    this.fixedDeliveryFee = kDefaultDeliveryFee,
     this.averageRating,
     this.totalReviews,
     this.vendorType = VendorType.RESTAURANT,
     this.acceptsPreorders = false,
     this.preorderLeadHours,
     this.vendorProfile,
+    this.menus = const [],
   });
 
   /// Retourne le temps de livraison formaté
   String get deliveryTimeFormatted =>
       '$estimatedDeliveryTimeMin-$estimatedDeliveryTimeMax min';
 
+  /// URLs à afficher dans le carrousel d'en-tête : la galerie photos si
+  /// disponible, sinon l'`imageUrl` legacy en fallback.
+  List<String> get galleryUrls {
+    if (photos.isNotEmpty) return [for (final p in photos) p.url];
+    if (imageUrl != null && imageUrl!.trim().isNotEmpty) return [imageUrl!];
+    return const [];
+  }
+
+  /// Vignette pour les cartes de liste : cover de la galerie si disponible,
+  /// sinon l'`imageUrl` legacy. `null` si aucune image (→ placeholder).
+  String? get thumbnailUrl => galleryUrls.isNotEmpty ? galleryUrls.first : null;
+
   factory Restaurant.fromJson(Map<String, dynamic> json) {
     var productsList = (json['products'] as List?) ?? [];
     List<Product> products = productsList
-        .map((i) => Product.fromJson(i))
+        .map((i) => Product.fromJson(i as Map<String, dynamic>))
         .toList();
 
     // Construire une map de catégories à partir des produits
@@ -303,11 +366,17 @@ class Restaurant {
       }
     }
 
+    // Sections déclarées par le vendeur (ordre serveur préservé).
+    final declaredCategories = (json['categories'] as List?)
+            ?.map((c) => Category.fromJson(c as Map<String, dynamic>))
+            .toList() ??
+        const <Category>[];
+
     // Parser les spécialités
     List<Specialty> specialties = [];
     if (json['specialties'] != null) {
       specialties = (json['specialties'] as List)
-          .map((s) => Specialty.fromJson(s))
+          .map((s) => Specialty.fromJson(s as Map<String, dynamic>))
           .toList();
     }
 
@@ -315,49 +384,84 @@ class Restaurant {
     List<OperatingHours> operatingHours = [];
     if (json['operatingHours'] != null) {
       operatingHours = (json['operatingHours'] as List)
-          .map((h) => OperatingHours.fromJson(h))
+          .map((h) => OperatingHours.fromJson(h as Map<String, dynamic>))
+          .toList();
+    }
+
+    // Menus du jour actifs embarqués (clé relation Prisma `menuDuJour`).
+    List<MenuDuJour> menus = [];
+    if (json['menuDuJour'] != null) {
+      menus = (json['menuDuJour'] as List)
+          .map((m) => MenuDuJour.fromJson(m as Map<String, dynamic>))
           .toList();
     }
 
     return Restaurant(
-      id: json['id'],
-      name: json['nom'],
-      address: json['adresse'],
-      phoneNumber: json['phone'],
-      imageUrl: json['imageUrl'],
+      id: json['id'] as String,
+      name: json['nom'] as String,
+      address: json['adresse'] as String,
+      phoneNumber: json['phone'] as String?,
+      imageUrl: json['imageUrl'] as String?,
+      photos: GalleryImage.listFrom(json['photos']),
       products: products,
       categoriesMap: categoriesMap,
-      isOpen: json['isOpen'] ?? true,
+      categories: declaredCategories,
+      isOpen: (json['isOpen'] as bool?) ?? true,
       specialties: specialties,
       operatingHours: operatingHours,
-      estimatedDeliveryTimeMin: json['estimatedDeliveryTimeMin'] ?? 15,
-      estimatedDeliveryTimeMax: json['estimatedDeliveryTimeMax'] ?? 30,
+      estimatedDeliveryTimeMin:
+          (json['estimatedDeliveryTimeMin'] as int?) ?? 15,
+      estimatedDeliveryTimeMax:
+          (json['estimatedDeliveryTimeMax'] as int?) ?? 30,
       minimumOrderAmount: (json['minimumOrderAmount'] as num?)?.toDouble() ?? 0,
-      fixedDeliveryFee: (json['fixedDeliveryFee'] as num?)?.toDouble() ?? 500,
+      fixedDeliveryFee:
+          (json['fixedDeliveryFee'] as num?)?.toDouble() ?? kDefaultDeliveryFee,
       averageRating: json['averageRating'] != null
           ? (json['averageRating'] as num).toDouble()
           : null,
       totalReviews: json['totalReviews'] as int?,
       vendorType: VendorType.fromString(json['vendorType'] as String?),
-      acceptsPreorders: json['acceptsPreorders'] ?? false,
+      acceptsPreorders: (json['acceptsPreorders'] as bool?) ?? false,
       preorderLeadHours: json['preorderLeadHours'] as int?,
       vendorProfile: json['vendorProfile'] != null
-          ? VendorProfile.fromJson(json['vendorProfile'] as Map<String, dynamic>)
+          ? VendorProfile.fromJson(
+              json['vendorProfile'] as Map<String, dynamic>,
+            )
           : null,
+      menus: menus,
     );
   }
 }
 
+/// Section de la carte d'un vendeur.
+///
+/// Elle appartient à un commerce et à un seul : deux vendeurs peuvent avoir
+/// chacun leur « Boissons », et ce sont deux sections distinctes.
 class Category {
   final String id;
   final String name;
 
-  Category({required this.id, required this.name});
+  /// Ordre voulu par le vendeur. Le serveur trie déjà, ce champ sert de repli
+  /// si une liste est recomposée côté client.
+  final int displayOrder;
+
+  /// Une section inactive n'est jamais servie au client — le champ existe pour
+  /// que l'app ne se fie pas *uniquement* au filtrage serveur.
+  final bool isActive;
+
+  Category({
+    required this.id,
+    required this.name,
+    this.displayOrder = 0,
+    this.isActive = true,
+  });
 
   factory Category.fromJson(Map<String, dynamic> json) {
     return Category(
-      id: json['id'],
-      name: json['nom'], // Correspond à 'nom' de votre JSON
+      id: json['id'] as String,
+      name: json['nom'] as String, // Correspond à 'nom' de votre JSON
+      displayOrder: (json['displayOrder'] as num?)?.toInt() ?? 0,
+      isActive: json['isActive'] as bool? ?? true,
     );
   }
 }

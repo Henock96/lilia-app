@@ -1,34 +1,27 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:lilia_app/constants/app_constants.dart';
+import 'package:lilia_app/core/network/api_client.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../../models/banner.dart';
 
 part 'banner_repo.g.dart';
 
 class BannerRepository {
+  final ApiClient _api;
+
+  BannerRepository(this._api);
+
   Future<List<AppBanner>> getActiveBanners({String? restaurantId}) async {
-    try {
-      String url = '${AppConstants.baseUrl}/banners';
-      if (restaurantId != null) {
-        url += '?restaurantId=$restaurantId';
-      }
-
-      final response = await http.get(Uri.parse(url));
-
-      if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body)["data"];
-        return data.map((json) => AppBanner.fromJson(json)).toList();
-      } else {
-        throw Exception('Failed to load banners: ${response.statusCode}');
-      }
-    } catch (e) {
-      throw Exception('Failed to connect to the server: $e');
-    }
+    final res = await _api.getJson(
+      '/banners',
+      query: {if (restaurantId != null) 'restaurantId': restaurantId},
+    );
+    final data = (res.data as Map<String, dynamic>)['data'] as List<dynamic>;
+    return data
+        .map((json) => AppBanner.fromJson(json as Map<String, dynamic>))
+        .toList();
   }
 }
 
 @Riverpod(keepAlive: true)
 BannerRepository bannerRepository(Ref ref) {
-  return BannerRepository();
+  return BannerRepository(ref.watch(apiClientProvider));
 }

@@ -33,13 +33,13 @@ final class AdresseRepositoryProvider
   AdresseRepository create() => AdresseRepository();
 }
 
-String _$adresseRepositoryHash() => r'5fb64aac98d25c6900505abfae5237ba9b37e55f';
+String _$adresseRepositoryHash() => r'daf1624d9e28f68dea6f38048e12d8a4ffc2cf9d';
 
 abstract class _$AdresseRepository extends $AsyncNotifier<void> {
   FutureOr<void> build();
   @$mustCallSuper
   @override
-  void runBuild() {
+  WhenComplete runBuild() {
     final ref = this.ref as $Ref<AsyncValue<void>, void>;
     final element =
         ref.element
@@ -49,6 +49,6 @@ abstract class _$AdresseRepository extends $AsyncNotifier<void> {
               Object?,
               Object?
             >;
-    element.handleCreate(ref, build);
+    return element.handleCreate(ref, build);
   }
 }

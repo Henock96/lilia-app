@@ -1,6 +1,8 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lilia_app/common_widgets/app_animations.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/home/presentation/widgets/section/banner_shimmer.dart';
@@ -13,7 +15,6 @@ import 'package:lilia_app/models/restaurant.dart';
 import '../data/remote/banner_controller.dart';
 import '../data/remote/home_controller.dart';
 import '../data/remote/restaurant_controller.dart';
-import 'widgets/category_list_widget.dart';
 import 'widgets/popular_dishes_section.dart';
 import 'widgets/search_bar_widget.dart';
 import 'widgets/section_header.dart';
@@ -58,7 +59,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       appBar: AppBar(
         elevation: 0,
         centerTitle: true,
-        title: const Text('Lilia Food'),
+        title: const Text(
+          'Lilia Food',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         actions: [
           _buildNotificationButton(notificationHistory),
           const SizedBox(width: 8),
@@ -71,7 +75,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ref.invalidate(restaurantsListProvider);
             ref.invalidate(bannersListProvider);
             ref.invalidate(popularProductsProvider);
-            ref.invalidate(categoriesListProvider);
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -85,12 +88,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
                 const SizedBox(height: 16),
 
-                // 2. Categories horizontales
-                const CategoryListWidget(),
+                // Le rail « catégories » a été RETIRÉ (septembre 2026).
+                //
+                // Il affichait la table `Category`, alors globale, avec une
+                // icône devinée par correspondance de chaîne — et son `onTap`
+                // ne faisait qu'un log analytics : les chips ne menaient nulle
+                // part, y compris les quatre catégories vides de la production.
+                // Une catégorie appartient désormais à un vendeur ; la
+                // découverte transverse passe par `vendorType`, qui a sa propre
+                // navigation.
 
-                const SizedBox(height: 16),
-
-                // 3. Slider promotions (existant)
+                // 2. Slider promotions (existant)
                 _buildSimpleSlider(bannersAsync),
 
                 const SizedBox(height: 20),
@@ -156,9 +164,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         isLabelVisible: notifications.isNotEmpty,
         backgroundColor: Colors.red,
         child: IconButton(
+          tooltip: 'Notifications',
           onPressed: () {
             Navigator.of(context).push(
-              MaterialPageRoute(
+              MaterialPageRoute<void>(
                 builder: (context) => const NotificationsHistoryScreen(),
               ),
             );
@@ -167,10 +176,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         ),
       ),
       loading: () => const IconButton(
+        tooltip: 'Notifications',
         onPressed: null,
         icon: Icon(Icons.notifications_outlined),
       ),
       error: (_, _) => const IconButton(
+        tooltip: 'Notifications',
         onPressed: null,
         icon: Icon(Icons.notifications_outlined, color: Colors.red),
       ),
@@ -183,11 +194,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         if (apiBanners.isNotEmpty) {
           return _buildSliderContent(
             itemCount: apiBanners.length,
-            imageBuilder: (index) => Image.network(
-              apiBanners[index].imageUrl,
+            imageBuilder: (index) => AppCachedImage(
+              imageUrl: apiBanners[index].imageUrl,
               fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) =>
-                  Image.asset('assets/images/banner.png', fit: BoxFit.cover),
+              errorWidget: Image.asset(
+                'assets/images/banner.png',
+                fit: BoxFit.cover,
+              ),
             ),
             titleBuilder: (index) => apiBanners[index].title,
             hasTitle: (index) =>
@@ -339,10 +352,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           itemCount: restaurants.length,
           itemBuilder: (context, index) {
             final restaurant = restaurants[index];
+            // Entrée en cascade pour les premières cartes (visibles d'emblée) ;
+            // au-delà, simple fondu/glissé au scroll (évite les longs délais).
             return RestaurantCard(
               restaurant: restaurant,
               restaurantId: restaurant.id,
-            );
+            ).staggeredIn(index < 6 ? index : 0);
           },
         );
       },

@@ -11,12 +11,14 @@ part 'tracking_socket_service.g.dart';
 
 /// Position du livreur reçue via WebSocket.
 class DriverPositionEvent {
+  final String? orderId;
   final double lat;
   final double lng;
   final int? eta;
   final DateTime timestamp;
 
   const DriverPositionEvent({
+    this.orderId,
     required this.lat,
     required this.lng,
     this.eta,
@@ -25,11 +27,14 @@ class DriverPositionEvent {
 
   factory DriverPositionEvent.fromJson(Map<String, dynamic> json) {
     return DriverPositionEvent(
+      orderId: json['orderId'] as String?,
       lat: (json['lat'] as num).toDouble(),
       lng: (json['lng'] as num).toDouble(),
       eta: (json['eta'] as num?)?.toInt(),
       timestamp: json['timestamp'] != null
-          ? DateTime.fromMillisecondsSinceEpoch((json['timestamp'] as num).toInt())
+          ? DateTime.fromMillisecondsSinceEpoch(
+              (json['timestamp'] as num).toInt(),
+            )
           : DateTime.now(),
     );
   }
@@ -38,8 +43,8 @@ class DriverPositionEvent {
 /// Service Socket.io qui écoute le namespace `/tracking` du backend.
 ///
 /// Events reçus :
-///   - `driver:position` { lat, lng, eta, timestamp }  → position GPS du livreur
-///   - `order:status`    { status }                    → changement de statut commande
+///   - `driver:position` { orderId?, lat, lng, eta, timestamp } → position GPS du livreur
+///   - `order:status`    { orderId?, status }                  → changement de statut commande
 ///
 /// Pattern : un seul socket réutilisé pour toute la session.
 /// Le caller s'abonne à une commande via `watch(orderId)` et reçoit les events
@@ -91,17 +96,27 @@ class TrackingSocketService {
             _socket!.emit('order:watch', {'orderId': orderId});
           }
         })
-        ..onDisconnect((reason) => debugPrint('[Tracking WS] disconnected: $reason'))
+        ..onDisconnect(
+          (reason) => debugPrint('[Tracking WS] disconnected: $reason'),
+        )
         ..onConnectError((e) => debugPrint('[Tracking WS] connect error: $e'))
         ..onError((e) => debugPrint('[Tracking WS] error: $e'))
         ..on('driver:position', (data) {
           if (data is! Map) return;
           try {
-            final event = DriverPositionEvent.fromJson(Map<String, dynamic>.from(data));
-            // Le payload ne contient pas l'orderId — broadcast à tous les watchers
-            // (en pratique le client ne watch qu'une commande à la fois)
-            for (final ctrl in _positionStreams.values) {
-              if (!ctrl.isClosed) ctrl.add(event);
+            final event = DriverPositionEvent.fromJson(
+              Map<String, dynamic>.from(data),
+            );
+            // Si le backend fournit l'orderId, router uniquement vers le watcher correspondant
+            if (event.orderId != null &&
+                _positionStreams.containsKey(event.orderId)) {
+              final ctrl = _positionStreams[event.orderId];
+              if (ctrl != null && !ctrl.isClosed) ctrl.add(event);
+            } else {
+              // Repli rétrocompatible si orderId est omis par le serveur
+              for (final ctrl in _positionStreams.values) {
+                if (!ctrl.isClosed) ctrl.add(event);
+              }
             }
           } catch (e) {
             debugPrint('[Tracking WS] parse position error: $e');
@@ -110,9 +125,18 @@ class TrackingSocketService {
         ..on('order:status', (data) {
           if (data is! Map) return;
           final status = data['status'] as String?;
+          final orderId = data['orderId'] as String?;
           if (status == null) return;
-          for (final ctrl in _statusStreams.values) {
-            if (!ctrl.isClosed) ctrl.add(status);
+
+          // Si le backend fournit l'orderId, router uniquement vers le watcher correspondant
+          if (orderId != null && _statusStreams.containsKey(orderId)) {
+            final ctrl = _statusStreams[orderId];
+            if (ctrl != null && !ctrl.isClosed) ctrl.add(status);
+          } else {
+            // Repli rétrocompatible si orderId est omis par le serveur
+            for (final ctrl in _statusStreams.values) {
+              if (!ctrl.isClosed) ctrl.add(status);
+            }
           }
         });
 
@@ -126,7 +150,9 @@ class TrackingSocketService {
 
   /// S'abonne à une commande. Retourne deux streams (position + statut).
   /// Le caller doit appeler `unwatch(orderId)` quand il n'a plus besoin.
-  ({Stream<DriverPositionEvent> position, Stream<String> status}) watch(String orderId) {
+  ({Stream<DriverPositionEvent> position, Stream<String> status}) watch(
+    String orderId,
+  ) {
     final posCtrl = _positionStreams.putIfAbsent(
       orderId,
       () => StreamController<DriverPositionEvent>.broadcast(),

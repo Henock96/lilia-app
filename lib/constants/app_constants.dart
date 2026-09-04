@@ -15,8 +15,15 @@ class AppConstants {
 
   static const String trackingNamespace = '/tracking';
 
-  // Numéros de paiement Lilia (à configurer avec les vrais numéros)
-  static const String mtnMomoPaymentNumber = '06 745 46 10';
-  static const String airtelMoneyPaymentNumber = '05 555 00 01';
-  static const double serviceFeeRate = 0.08;
+  // Les numéros d'encaissement Mobile Money et le taux de commission ne sont
+  // volontairement plus ici : ils viennent du serveur.
+  //
+  //  • numéro et montant à payer   → `POST /payments` (`instructions.phone`,
+  //    `instructions.amount`), donc modifiables par variable Render sans
+  //    release mobile ;
+  //  • taux de commission / fidélité → `GET /platform-settings`
+  //    (`platformSettingsProvider`).
+  //
+  // Les coder en dur laissait notamment un numéro Airtel placeholder
+  // ('05 555 00 01') affiché aux clients en production.
 }

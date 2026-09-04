@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/models/menu.dart';
+import 'package:lilia_app/utils/currency.dart';
 
 class MenuCard extends StatelessWidget {
   final MenuDuJour menu;
   final VoidCallback onTap;
 
-  const MenuCard({
-    super.key,
-    required this.menu,
-    required this.onTap,
-  });
+  const MenuCard({super.key, required this.menu, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -31,23 +29,14 @@ class MenuCard extends StatelessWidget {
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(12),
                 ),
-                child: menu.imageUrl != null && menu.imageUrl!.isNotEmpty
-                    ? Image.network(
-                        menu.imageUrl!,
+                child:
+                    menu.thumbnailUrl != null && menu.thumbnailUrl!.isNotEmpty
+                    ? AppCachedImage(
+                        imageUrl: menu.thumbnailUrl!,
                         height: 110,
                         width: double.infinity,
                         fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            height: 120,
-                            color: Colors.grey[300],
-                            child: const Icon(
-                              Icons.restaurant_menu,
-                              size: 50,
-                              color: Colors.grey,
-                            ),
-                          );
-                        },
+                        errorIcon: Icons.restaurant_menu,
                       )
                     : Container(
                         height: 120,
@@ -80,10 +69,7 @@ class MenuCard extends StatelessWidget {
                     // Nom du restaurant
                     Text(
                       menu.restaurant.nom,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -93,7 +79,7 @@ class MenuCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          '${menu.prix.toStringAsFixed(0)} FCFA',
+                          formatPrice(menu.prix),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,

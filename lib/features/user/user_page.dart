@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +11,7 @@ import 'package:lilia_app/theme/theme_mode_provider.dart';
 
 import '../../common_widgets/build_error_state.dart';
 import 'presentation/pages/about_page.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class UserPage extends ConsumerWidget {
   const UserPage({super.key});
@@ -72,7 +73,9 @@ class UserPage extends ConsumerWidget {
                                     ),
                                     child: CircleAvatar(
                                       radius: 55,
-                                      backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                                      backgroundColor: theme
+                                          .colorScheme
+                                          .surfaceContainerHighest,
                                       backgroundImage: user.imageUrl != null
                                           ? NetworkImage(user.imageUrl!)
                                           : null,
@@ -80,7 +83,9 @@ class UserPage extends ConsumerWidget {
                                           ? Icon(
                                               Iconsax.user,
                                               size: 50,
-                                              color: theme.colorScheme.onSurfaceVariant,
+                                              color: theme
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
                                             )
                                           : null,
                                     ),
@@ -194,7 +199,7 @@ class UserPage extends ConsumerWidget {
                               onTap: () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(
+                                  MaterialPageRoute<void>(
                                     builder: (context) =>
                                         const EditProfilePage(),
                                   ),
@@ -236,7 +241,7 @@ class UserPage extends ConsumerWidget {
                           onTap: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(
+                              MaterialPageRoute<void>(
                                 builder: (context) => const AboutPage(),
                               ),
                             );
@@ -286,6 +291,26 @@ class UserPage extends ConsumerWidget {
                         ),
                       ),
 
+                      const SizedBox(height: 12),
+
+                      // Bouton Suppression de compte (Conformité App Store / RGPD)
+                      TextButton.icon(
+                        onPressed: () =>
+                            _showDeleteAccountConfirmationDialog(context, ref),
+                        icon: Icon(
+                          Iconsax.trash,
+                          size: 16,
+                          color: Theme.of(context).colorScheme.error.withValues(alpha: 0.8),
+                        ),
+                        label: Text(
+                          'Supprimer mon compte',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Theme.of(context).colorScheme.error.withValues(alpha: 0.8),
+                          ),
+                        ),
+                      ),
+
                       const SizedBox(height: 24),
                     ],
                   ),
@@ -304,7 +329,7 @@ class UserPage extends ConsumerWidget {
   }
 
   void _showLogoutConfirmationDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -338,6 +363,74 @@ class UserPage extends ConsumerWidget {
               onPressed: () async {
                 Navigator.of(context).pop();
                 await ref.read(authControllerProvider.notifier).signOut();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteAccountConfirmationDialog(
+    BuildContext context,
+    WidgetRef ref,
+  ) {
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        final errorColor = Theme.of(context).colorScheme.error;
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          title: Row(
+            children: [
+              Icon(Iconsax.trash, color: errorColor),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('Supprimer mon compte ?')),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Cette action est irréversible. Vos informations personnelles, adresses, points de fidélité et commandes seront définitivement supprimés.',
+                style: TextStyle(fontSize: 14),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Voulez-vous vraiment continuer ?',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: errorColor,
+                ),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Annuler'),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: errorColor,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Supprimer définitivement'),
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                final ok = await ref
+                    .read(authControllerProvider.notifier)
+                    .deleteAccount();
+                if (!ok && context.mounted) {
+                  final error = ref.read(authControllerProvider).asError?.error;
+                  if (error != null) {
+                    context.showErrorSnack(error.toString());
+                  }
+                }
               },
             ),
           ],
@@ -606,106 +699,101 @@ class _ReferralCard extends ConsumerWidget {
         final purpleDisplay = isDark ? const Color(0xFFCB93F5) : purpleLight;
 
         return Container(
-        decoration: BoxDecoration(
-          color: cs.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: purpleDisplay.withValues(alpha: 0.25)),
-        ),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.card_giftcard, color: purpleDisplay, size: 22),
-                const SizedBox(width: 8),
-                Text(
-                  'Parrainage',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: purpleDisplay,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Mon code de parrainage',
-              style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
-            ),
-            const SizedBox(height: 6),
-            GestureDetector(
-              onTap: () {
-                Clipboard.setData(ClipboardData(text: stats.referralCode));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text('Code copie !'),
-                    backgroundColor: purpleDisplay,
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
-                decoration: BoxDecoration(
-                  color: purpleDisplay.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: purpleDisplay.withValues(alpha: 0.35),
-                  ),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      stats.referralCode,
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 4,
-                        color: purpleDisplay,
-                      ),
+          decoration: BoxDecoration(
+            color: cs.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: purpleDisplay.withValues(alpha: 0.25)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.card_giftcard, color: purpleDisplay, size: 22),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Parrainage',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: purpleDisplay,
                     ),
-                    Icon(Icons.copy, color: purpleDisplay, size: 20),
-                  ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Mon code de parrainage',
+                style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+              ),
+              const SizedBox(height: 6),
+              GestureDetector(
+                onTap: () {
+                  Clipboard.setData(ClipboardData(text: stats.referralCode));
+                  context.showSuccessSnack('Code copie !');
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: purpleDisplay.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: purpleDisplay.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        stats.referralCode,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 4,
+                          color: purpleDisplay,
+                        ),
+                      ),
+                      Icon(Icons.copy, color: purpleDisplay, size: 20),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _StatBadge(
-                  label: 'Parraines',
-                  value: '${stats.totalReferrals}',
-                  accentColor: purpleDisplay,
-                  cs: cs,
-                ),
-                const SizedBox(width: 12),
-                _StatBadge(
-                  label: 'Recompenses',
-                  value: '${stats.rewardedReferrals}',
-                  accentColor: purpleDisplay,
-                  cs: cs,
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: purpleDisplay.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  _StatBadge(
+                    label: 'Parraines',
+                    value: '${stats.totalReferrals}',
+                    accentColor: purpleDisplay,
+                    cs: cs,
+                  ),
+                  const SizedBox(width: 12),
+                  _StatBadge(
+                    label: 'Recompenses',
+                    value: '${stats.rewardedReferrals}',
+                    accentColor: purpleDisplay,
+                    cs: cs,
+                  ),
+                ],
               ),
-              child: Text(
-                'Parrainez un ami: +500 pts pour vous, +200 pts pour lui a sa 1ere commande',
-                style: TextStyle(fontSize: 11, color: purpleDisplay),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: purpleDisplay.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Parrainez un ami: +500 pts pour vous, +200 pts pour lui a sa 1ere commande',
+                  style: TextStyle(fontSize: 11, color: purpleDisplay),
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         );
       },
       loading: () => const SizedBox.shrink(),

@@ -9,6 +9,36 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+# Active les règles Riverpod (provider_dependencies, unsupported_provider_value,
+# avoid_manual_providers_as_generated_provider_dependency…). `riverpod_lint`
+# était déclaré dans pubspec.yaml mais, faute de cette section, aucune de ses
+# règles ne s'exécutait — alors que l'app compte une bonne part de providers
+# générés, précisément ce que ces règles couvrent.
+plugins:
+  riverpod_lint: ^3.1.4
+
+analyzer:
+  # Modes stricts : attrapent une catégorie entière de bugs de typage que
+  # l'analyse par défaut laisse passer (casts implicites depuis `dynamic`,
+  # inférence silencieuse en `dynamic`, génériques bruts).
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+
+  exclude:
+    # Le checkout SwiftPM des plugins atterrit sous build/ (ex.
+    # build/macos/SourcePackages/firebase_auth-*/example/) et remontait 122
+    # erreurs qui n'appartiennent pas au projet — `flutter analyze` en devenait
+    # inexploitable. Répertoire gitignoré, régénéré à chaque build.
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`

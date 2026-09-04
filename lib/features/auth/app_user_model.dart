@@ -1,4 +1,4 @@
-﻿import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../models/adresse.dart';
 
@@ -31,18 +31,23 @@ class AppUser {
 
   static AppUser? fromFirebaseUser(User? user) {
     if (user == null) return null;
-    return AppUser(uid: user.uid, email: user.email, displayName: user.displayName, emailVerified: user.emailVerified);
+    return AppUser(
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      emailVerified: user.emailVerified,
+    );
   }
 
   factory AppUser.fromJson(Map<String, dynamic> json) {
     return AppUser(
-      id: json['id'],
-      uid: json['firebaseUid'],
-      email: json['email'],
-      nom: json['nom'],
-      phone: json['phone'],
-      imageUrl: json['imageUrl'],
-      referralCode: json['referralCode'],
+      id: json['id'] as String?,
+      uid: json['firebaseUid'] as String,
+      email: json['email'] as String?,
+      nom: json['nom'] as String?,
+      phone: json['phone'] as String?,
+      imageUrl: json['imageUrl'] as String?,
+      referralCode: json['referralCode'] as String?,
       loyaltyPoints: (json['loyaltyPoints'] as num?)?.toInt() ?? 0,
     );
   }

@@ -1,12 +1,11 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:http/http.dart' as http;
-import 'package:lilia_app/constants/app_constants.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../../core/network/api_client.dart';
+import '../../../core/network/api_exception.dart';
 import '../app_user_model.dart';
 
 part 'firebase_auth_repository.g.dart';
@@ -14,12 +13,12 @@ part 'firebase_auth_repository.g.dart';
 class FirebaseAuthenticationRepository {
   final FirebaseAuth _firebaseAuth;
   final GoogleSignIn _googleSignIn;
-  final http.Client _client;
+  final ApiClient _api;
 
   FirebaseAuthenticationRepository(
     this._firebaseAuth,
     this._googleSignIn,
-    this._client,
+    this._api,
   );
 
   AppUser? get currentUser => _convertUser(_firebaseAuth.currentUser);
@@ -48,22 +47,15 @@ class FirebaseAuthenticationRepository {
     final user = userCredential.user;
     if (user != null) {
       try {
-        final idToken = await user.getIdToken();
-        await _client
-            .post(
-              Uri.parse('${AppConstants.baseUrl}/users/sync'),
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer $idToken',
-              },
-              body: jsonEncode({'firebaseUid': user.uid, 'email': user.email}),
-            )
-            .timeout(const Duration(seconds: 8));
-      } catch (e) {
+        await _api.postJson(
+          '/users/sync',
+          body: {'firebaseUid': user.uid, 'email': user.email},
+        );
+      } on ApiException catch (e) {
         // Sync best-effort (met à jour lastLogin) : non bloquant pour la
         // connexion, mais on trace l'échec en debug au lieu de l'avaler (C19).
         if (kDebugMode) {
-          debugPrint('Background /users/sync failed: ${e.runtimeType}');
+          debugPrint('Background /users/sync failed: ${e.kind}');
         }
       }
     }
@@ -87,31 +79,24 @@ class FirebaseAuthenticationRepository {
       throw Exception("La création de l'utilisateur a échoué.");
     }
     // Étape 3: Sauvegarder les informations dans notre backend
-    final idToken = await user.getIdToken();
-    final url = Uri.parse('${AppConstants.baseUrl}/users/sync');
-
-    final response = await _client.post(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $idToken',
-      },
-      body: jsonEncode({
-        'firebaseUid': user.uid,
-        'email': email,
-        'nom': name,
-        'telephone': phone,
-        if (referralCode != null && referralCode.isNotEmpty)
-          'referralCode': referralCode,
-      }),
-    );
-
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      // Si le backend échoue, nous devrions peut-être supprimer l'utilisateur de Firebase
-      // pour éviter un état incohérent. Pour l'instant, nous lançons une exception.
+    try {
+      await _api.postJson(
+        '/users/sync',
+        body: {
+          'firebaseUid': user.uid,
+          'email': email,
+          'nom': name,
+          'telephone': phone,
+          if (referralCode != null && referralCode.isNotEmpty)
+            'referralCode': referralCode,
+        },
+      );
+    } on ApiException catch (e) {
+      // Si le backend échoue, on supprime l'utilisateur Firebase pour éviter
+      // un état incohérent.
       await user.delete();
       throw Exception(
-        'Échec de la sauvegarde des informations utilisateur sur le backend: ${response.body}',
+        'Échec de la sauvegarde des informations utilisateur sur le backend: ${e.message}',
       );
     }
   }
@@ -149,72 +134,48 @@ class FirebaseAuthenticationRepository {
       throw Exception("La connexion Google a échoué.");
     }
 
+    final isNewUser = userCred.additionalUserInfo?.isNewUser ?? false;
+
     // Étape 8: Synchroniser avec le backend
     // Note: Le backend utilise UPSERT donc gère inscription ET connexion
     try {
-      final firebaseIdToken = await user.getIdToken();
-      final url = Uri.parse('${AppConstants.baseUrl}/users/sync');
-
       if (kDebugMode) {
         debugPrint('Synchronizing Google user with backend...');
       }
 
-      final response = await _client
-          .post(
-            url,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer $firebaseIdToken',
-            },
-            body: jsonEncode({
-              'firebaseUid': user.uid,
-              'email': user.email,
-              'nom': user.displayName,
-              'telephone': user.phoneNumber,
-            }),
-          )
-          .timeout(const Duration(seconds: 10));
-
-      if (kDebugMode) {
-        debugPrint('Backend sync response status: ${response.statusCode}');
-      }
-
-      // Accepter 200 (utilisateur existant/mis à jour) et 201 (nouvel utilisateur créé)
-      if (response.statusCode != 201 && response.statusCode != 200) {
-        if (kDebugMode) {
-          debugPrint('Backend sync failed with status ${response.statusCode}');
-        }
-        // Supprimer l'utilisateur Firebase seulement si le backend échoue
-        await user.delete();
-        throw Exception(
-          'Échec de la synchronisation avec le backend (${response.statusCode}): ${response.body}',
-        );
-      }
+      await _api.postJson(
+        '/users/sync',
+        body: {
+          'firebaseUid': user.uid,
+          'email': user.email,
+          'nom': user.displayName,
+          'telephone': user.phoneNumber,
+        },
+      );
 
       if (kDebugMode) {
         debugPrint('User successfully synchronized with backend');
       }
-    } on http.ClientException catch (e) {
-      // Erreur réseau
+    } on ApiException catch (e) {
       if (kDebugMode) {
-        debugPrint('Network error during backend sync: $e');
+        debugPrint('Backend sync failed: ${e.kind} ${e.statusCode}');
       }
-      await user.delete();
-      throw Exception('Erreur réseau: Impossible de se connecter au serveur');
-    } on TimeoutException catch (e) {
-      // Timeout
-      if (kDebugMode) {
-        debugPrint('Timeout during backend sync: $e');
+      // Supprimer l'utilisateur Firebase UNIQUEMENT s'il s'agit d'une nouvelle inscription
+      // pour éviter de détruire le compte d'un utilisateur existant (C-AUTH-1).
+      if (isNewUser) {
+        await user.delete();
       }
-      await user.delete();
-      throw Exception('Le serveur ne répond pas. Veuillez réessayer.');
-    } catch (e) {
-      // Autre erreur
-      if (kDebugMode) {
-        debugPrint('Unexpected error during backend sync: $e');
+      if (e.kind == ApiErrorKind.network) {
+        throw Exception('Erreur réseau: Impossible de se connecter au serveur');
       }
-      await user.delete();
-      rethrow;
+      if (e.kind == ApiErrorKind.timeout) {
+        throw Exception('Le serveur ne répond pas. Veuillez réessayer.');
+      }
+      if (isNewUser) {
+        throw Exception(
+          'Échec de la synchronisation avec le backend (${e.statusCode}).',
+        );
+      }
     }
     return AppUser.fromFirebaseUser(user);
   }
@@ -228,6 +189,17 @@ class FirebaseAuthenticationRepository {
       return true;
     } on Exception {
       return false;
+    }
+  }
+
+  /// Supprime le compte utilisateur Firebase et déconnecte les services associés.
+  Future<void> deleteFirebaseAccount() async {
+    try {
+      await _googleSignIn.disconnect();
+    } catch (_) {}
+    final user = _firebaseAuth.currentUser;
+    if (user != null) {
+      await user.delete();
     }
   }
 
@@ -269,17 +241,15 @@ class FirebaseAuthenticationRepository {
   }
 }
 
-@riverpod
-http.Client httpClient(Ref ref) {
-  return http.Client();
-}
-
 @Riverpod(keepAlive: true)
 FirebaseAuthenticationRepository authRepository(Ref ref) {
   final auth = ref.watch(firebaseAuthProvider);
   final google = ref.watch(googleSignInProvider);
-  final client = ref.watch(httpClientProvider);
-  return FirebaseAuthenticationRepository(auth, google, client);
+  return FirebaseAuthenticationRepository(
+    auth,
+    google,
+    ref.watch(apiClientProvider),
+  );
 }
 
 @Riverpod(keepAlive: true)

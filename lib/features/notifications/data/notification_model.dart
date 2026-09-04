@@ -28,16 +28,18 @@ class AppNotification {
 
   factory AppNotification.fromMap(Map<String, dynamic> map) {
     return AppNotification(
-      id: map['id'] ?? '',
-      title: map['title'] ?? '',
-      body: map['body'] ?? '',
-      timestamp: DateTime.parse(map['timestamp']),
-      payload: Map<String, dynamic>.from(map['payload'] ?? {}),
+      id: (map['id'] as String?) ?? '',
+      title: (map['title'] as String?) ?? '',
+      body: (map['body'] as String?) ?? '',
+      timestamp: DateTime.parse(map['timestamp'] as String),
+      payload: Map<String, dynamic>.from(
+        (map['payload'] as Map<dynamic, dynamic>?) ?? {},
+      ),
     );
   }
 
   String toJson() => json.encode(toMap());
 
   factory AppNotification.fromJson(String source) =>
-      AppNotification.fromMap(json.decode(source));
+      AppNotification.fromMap(json.decode(source) as Map<String, dynamic>);
 }
