@@ -8,6 +8,7 @@ import 'package:lilia_app/features/payments/application/payment_status_controlle
 import 'package:lilia_app/features/payments/data/payment_service.dart';
 import 'package:lilia_app/features/payments/domain/payment_failure.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
+import 'package:lilia_app/services/analytics_service.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
 import 'package:lilia_app/utils/currency.dart';
 
@@ -292,6 +293,28 @@ class _PaymentPendingPageState extends ConsumerState<PaymentPendingPage> {
   void _onSucceeded() {
     if (_navigated || !mounted) return;
     _navigated = true;
+
+    // ── `payment_success` ────────────────────────────────────────────────────
+    //
+    // **Le seul émetteur de l'application.** Il ne part pas parce que cet écran
+    // s'affiche, ni parce que le client a saisi son code : il part parce que
+    // `PaymentStatusController` a lu `SUCCESS` sur `GET /payments/:id/status`,
+    // c'est-à-dire parce que le prestataire l'a confirmé au serveur — par le
+    // webhook, l'interrogation ou le cron de réconciliation.
+    //
+    // C'est la même autorité que celle qui fait passer la commande en `PAYER`.
+    // Un push FCM ne suffit pas et n'est d'ailleurs pas utilisé comme tel : il
+    // ne fait que déclencher une vérification immédiate.
+    //
+    // Unique par `paymentId` : le détail de la commande observe le même
+    // paiement, et le client peut revenir sur cet écran.
+    AnalyticsService.trackPaymentSuccess(
+      paymentId: widget.paymentId,
+      orderId: widget.orderId,
+      paymentMethod: widget.method,
+      amount: widget.amount,
+    );
+
     // Le panier n'est vidé qu'ICI, sur une confirmation serveur. Le vider au
     // départ du paiement effaçait la sélection d'un client dont le paiement
     // pouvait échouer.
@@ -309,6 +332,15 @@ class _PaymentPendingPageState extends ConsumerState<PaymentPendingPage> {
   Future<void> _onFailed(PaymentOutcome? outcome, String? failureCode) async {
     if (_navigated || !mounted) return;
     _navigated = true;
+
+    // Échec confirmé par le serveur. Seule la **catégorie** part : le
+    // `failureMessage` du prestataire est un texte libre, dans sa langue, qu'on
+    // ne montre déjà pas au client.
+    AnalyticsService.trackPaymentFailed(
+      orderId: widget.orderId,
+      paymentMethod: widget.method,
+      failureKind: outcome?.name ?? 'unknown',
+    );
 
     final message = mapPaymentFailure(
       // L'écran ne distingue pas `failed` de `cancelled` au niveau du statut :

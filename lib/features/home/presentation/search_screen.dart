@@ -102,10 +102,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     return resultsAsync.when(
       data: (results) {
-        AnalyticsService.logSearchFromHome(
-          query: _query,
-          resultCount: results.restaurants.length + results.products.length,
-        );
+        // ⚠️ Aucun événement de recherche ici, et pour deux raisons.
+        //
+        // L'appel précédent envoyait `query` — le texte saisi par le client,
+        // que le contrat interdit d'envoyer (contenu libre : il contient
+        // régulièrement un nom, parfois un numéro).
+        //
+        // Il était de surcroît placé dans un `build` : chaque reconstruction de
+        // l'écran — clavier, thème, arrivée d'une réponse — le renvoyait.
         if (results.isEmpty) {
           return Center(
             child: Column(
@@ -376,16 +380,20 @@ class _SearchProductTile extends ConsumerWidget {
   }
 
   void _addToCart(BuildContext context, WidgetRef ref, ProductVariant variant) {
-    AnalyticsService.logAddToCartFromHome(
-      productId: product.id,
-      productName: product.name,
-      source: 'search',
-      price: variant.prix,
-    );
     ref
         .read(cartControllerProvider.notifier)
         .addItem(variantId: variant.id)
         .then((_) {
+          // `add_to_cart` **après** acceptation par le serveur : il refuse un
+          // produit épuisé ou un vendeur fermé, et compter le geste ferait
+          // apparaître des ajouts qui n'ont jamais eu lieu.
+          AnalyticsService.trackAddToCart(
+            productId: product.id,
+            productName: product.name,
+            restaurantId: product.restaurantId,
+            price: variant.prix,
+            quantity: 1,
+          );
           if (context.mounted) {
             context.showSnack('${product.name} ajouté au panier');
           }

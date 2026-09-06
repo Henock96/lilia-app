@@ -73,13 +73,10 @@ class _RecommendationCard extends ConsumerWidget {
       label: isAvailable ? product.name : '${product.name}, épuisé',
       enabled: isAvailable,
       child: GestureDetector(
-        onTap: () {
-          AnalyticsService.logRecommendationTap(
-            productId: product.id,
-            productName: product.name,
-          );
-          context.pushNamed(AppRoutes.productDetail.routeName, extra: product);
-        },
+        // Aucun événement ici : ce geste **ouvre** la fiche produit, qui
+        // émet `product_view`.
+        onTap: () =>
+            context.pushNamed(AppRoutes.productDetail.routeName, extra: product),
         child: Container(
           width: 160,
           margin: const EdgeInsets.symmetric(horizontal: 6),
@@ -261,16 +258,20 @@ class _RecommendationCard extends ConsumerWidget {
   }
 
   void _addToCart(BuildContext context, WidgetRef ref, ProductVariant variant) {
-    AnalyticsService.logAddToCartFromHome(
-      productId: product.id,
-      productName: product.name,
-      source: 'recommendations',
-      price: variant.prix,
-    );
     ref
         .read(cartControllerProvider.notifier)
         .addItem(variantId: variant.id)
         .then((_) {
+          // `add_to_cart` **après** acceptation par le serveur : il refuse un
+          // produit épuisé ou un vendeur fermé, et compter le geste ferait
+          // apparaître des ajouts qui n'ont jamais eu lieu.
+          AnalyticsService.trackAddToCart(
+            productId: product.id,
+            productName: product.name,
+            restaurantId: product.restaurantId,
+            price: variant.prix,
+            quantity: 1,
+          );
           if (context.mounted) {
             context.showSuccessSnack('${product.name} ajouté au panier');
           }

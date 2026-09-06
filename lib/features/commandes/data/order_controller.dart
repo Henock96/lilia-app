@@ -49,7 +49,7 @@ class UserOrders extends _$UserOrders {
   Future<void> cancelOrder(String orderId) async {
     final orderRepository = ref.read(orderRepositoryProvider.notifier);
     await orderRepository.cancelOrder(orderId);
-    AnalyticsService.logOrderCancelled(orderId: orderId);
+    AnalyticsService.trackOrderCancelled(orderId: orderId);
 
     // Reflète immédiatement l'annulation dans l'état local : sans ça, l'UI ne
     // se rebuild qu'au prochain refresh manuel. On passe le statut à ANNULER

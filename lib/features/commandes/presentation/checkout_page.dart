@@ -46,7 +46,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _promoController = TextEditingController();
 
-  bool _analyticsLogged = false;
   PromoValidationResult? _promoResult;
   bool _promoLoading = false;
   String? _promoError;
@@ -164,14 +163,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           final double total = estimate.total;
           final String restaurantId = cart.items.first.product.restaurantId;
 
-          // Analytics: début du checkout (une seule fois)
-          if (!_analyticsLogged) {
-            _analyticsLogged = true;
-            AnalyticsService.logBeginCheckout(
-              total: total,
-              isDelivery: options.isDelivery,
-            );
-          }
+          // ⚠️ Plus aucun `begin_checkout` ici.
+          //
+          // Il était émis depuis `build`, protégé par un simple booléen
+          // d'instance : suffisant contre les reconstructions, inopérant dès
+          // que l'écran est quitté puis rouvert — ce qui arrive à chaque
+          // correction d'adresse. Il est désormais émis sur le bouton
+          // « Passer la commande » du panier, où le web émet le sien.
 
           // LIL-131 : on watch le restaurant pour le bandeau vendor + adapter
           // les libellés (ex: "Préparée par boulangerie X").
@@ -1380,10 +1378,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             scheduledFor: _scheduledFor,
           );
     } catch (e) {
-      AnalyticsService.logOrderFailed(
-        errorMessage: e.toString(),
+      // Catégorie d'échec seulement : `e.toString()` transportait le message du
+      // serveur, donc du texte libre susceptible de contenir un numéro ou une
+      // référence de transaction.
+      AnalyticsService.trackOrderFailed(
         paymentMethod: _selectedPaymentMethod,
-        isDelivery: options.isDelivery,
+        failureKind: 'checkout_rejected',
       );
       if (!context.mounted) return;
       _showOrderError(context, e);
@@ -1393,12 +1393,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     // Nouvelle clé pour la prochaine commande.
     _idempotencyKey = null;
 
-    AnalyticsService.logOrderCreated(
+    // `order_created` — la commande **existe** : le serveur a rendu son
+    // identifiant et son montant. Ni le clic sur le bouton, ni l'arrivée sur un
+    // écran de confirmation : le checkout échoue régulièrement (panier sous le
+    // minimum du vendeur, produit épuisé, vendeur fermé).
+    AnalyticsService.trackOrderCreated(
       orderId: checkout.id,
-      total: checkout.total.toDouble(),
-      paymentMethod: _selectedPaymentMethod,
-      isDelivery: options.isDelivery,
-      restaurantId: restaurantId,
+      amount: checkout.total,
       itemCount: checkout.items.length,
     );
 
@@ -1418,10 +1419,25 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           'paymentMethod': _selectedPaymentMethod,
         }),
       );
+      AnalyticsService.trackOrderFailed(
+        paymentMethod: _selectedPaymentMethod,
+        failureKind: 'payment_open_failed',
+      );
       if (!context.mounted) return;
       await _showPaymentRecoveryDialog(context, checkout);
       return;
     }
+
+    // `payment_started` — une tentative d'encaissement existe côté serveur.
+    // Unique par `paymentId` : les deux essais de `_createPaymentWithRetry`
+    // rendent la **même** ligne `Payment` (le backend réutilise celle qui est
+    // PENDING), donc un seul paiement lancé — ce qui est la vérité.
+    AnalyticsService.trackPaymentStarted(
+      paymentId: payment.paymentId,
+      orderId: checkout.id,
+      paymentMethod: _selectedPaymentMethod,
+      amount: payment.amount > 0 ? payment.amount : checkout.total,
+    );
 
     // ─── 3. Suite du parcours, selon le rail d'encaissement du serveur ───────
     //
@@ -1431,6 +1447,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     if (payment.isSettled) {
       // Commande intégralement réglée en points de fidélité : rien à payer.
+      //
+      // Le serveur a marqué l'encaissement `SUCCESS` à la création — c'est bien
+      // une confirmation de la source de vérité, pas une supposition d'écran.
+      // Sans cet appel, ces commandes apparaîtraient comme des paiements lancés
+      // et jamais aboutis.
+      AnalyticsService.trackPaymentSuccess(
+        paymentId: payment.paymentId,
+        orderId: checkout.id,
+        paymentMethod: _selectedPaymentMethod,
+        amount: payment.amount > 0 ? payment.amount : checkout.total,
+      );
       ref.read(cartControllerProvider.notifier).clearCart();
       context.goNamed(AppRoutes.orderSuccess.routeName);
       return;
