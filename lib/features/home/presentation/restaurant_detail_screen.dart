@@ -1127,7 +1127,9 @@ class _ProductCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final available = product.isAvailable;
+    // `isOrderable` = en vente ET en stock. Le getter `isAvailable` d'avant
+    // ne regardait que le stock et masquait le champ du serveur (fix S-3).
+    final available = product.isOrderable;
     final scheme = Theme.of(context).colorScheme;
 
     return Semantics(

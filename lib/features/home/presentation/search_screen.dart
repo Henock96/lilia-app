@@ -323,7 +323,7 @@ class _SearchProductTile extends ConsumerWidget {
             ),
           ],
         ),
-        trailing: product.isAvailable
+        trailing: product.isOrderable
             ? GestureDetector(
                 onTap: () {
                   final user = FirebaseAuth.instance.currentUser;

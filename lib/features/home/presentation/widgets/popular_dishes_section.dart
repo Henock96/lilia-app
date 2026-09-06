@@ -97,7 +97,7 @@ class _DishCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final isAvailable = product.isAvailable;
+    final isAvailable = product.isOrderable;
 
     return Semantics(
       button: true,

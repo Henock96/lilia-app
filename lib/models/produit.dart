@@ -18,6 +18,18 @@ class Product {
   final Category? category;
   final List<ProductVariant> variants;
   final int? stockRestant;
+  /// Décision du vendeur : « ce produit est-il proposé à la vente ? »
+  ///
+  /// ⚠️ À ne pas confondre avec le stock. « Retiré de la vente » et « épuisé »
+  /// sont deux notions distinctes que le backend a séparées en août 2026
+  /// (fix M2) — la première est un choix, la seconde une conséquence. Ce champ
+  /// était **ignoré** par cette classe, recouvert par un getter `isAvailable`
+  /// dérivé du seul stock (fix S-3).
+  ///
+  /// `true` par défaut : les réponses antérieures au champ ne le portent pas,
+  /// et un produit servi sans lui est en vente — sinon il n'aurait pas été
+  /// servi.
+  final bool isAvailable;
   final int? orderCount;
   final String? restaurantName;
   final String? restaurantImageUrl;
@@ -45,6 +57,7 @@ class Product {
     this.category,
     required this.variants,
     this.stockRestant,
+    this.isAvailable = true,
     this.orderCount,
     this.restaurantName,
     this.restaurantImageUrl,
@@ -59,7 +72,21 @@ class Product {
     this.availableUntil,
   });
 
-  bool get isAvailable => stockRestant == null || stockRestant! > 0;
+  /// Reste-t-il des unités ? `null` = illimité, `0` = épuisé.
+  ///
+  /// Ce getter s'appelait `isAvailable` et **masquait le champ du serveur** du
+  /// même nom : la disponibilité déclarée par le vendeur n'était jamais lue.
+  /// Sans conséquence visible sur cette app — `GET /products` filtre déjà
+  /// `isAvailable: true`, donc le client ne voit jamais un produit retiré —
+  /// mais c'était un piège : le jour où une route servirait le contraire,
+  /// l'écran aurait affiché « disponible » sur un produit retiré de la vente.
+  bool get isInStock => stockRestant == null || stockRestant! > 0;
+
+  /// Commandable **maintenant** : en vente ET en stock.
+  ///
+  /// C'est la question que posent les écrans. La poser en un seul endroit
+  /// évite que chacun en recompose sa propre version — et en oublie la moitié.
+  bool get isOrderable => isAvailable && isInStock;
 
   /// URLs à afficher dans le carrousel : la galerie si disponible, sinon
   /// l'`imageUrl` legacy en fallback. Vide si aucune image.
@@ -112,6 +139,7 @@ class Product {
           : null,
       variants: variants,
       stockRestant: json['stockRestant'] as int?,
+      isAvailable: (json['isAvailable'] as bool?) ?? true,
       orderCount: json['orderCount'] as int?,
       restaurantName: json['restaurant']?['nom'] as String?,
       restaurantImageUrl: json['restaurant']?['imageUrl'] as String?,
