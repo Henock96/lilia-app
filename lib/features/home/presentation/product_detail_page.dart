@@ -31,7 +31,13 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage>
   @override
   void initState() {
     super.initState();
-    if (widget.product.variants.isNotEmpty) {
+    // Sélection d'office **uniquement** s'il n'y a qu'un format : il n'y a
+    // alors rien à choisir. Au-delà, on laisse `null` — la fiche annonce
+    // « À partir de X » et le bouton demande de choisir. L'ancienne version
+    // retenait `variants.first`, c'est-à-dire la première ligne rendue par
+    // PostgreSQL : un format arbitraire, qui changeait après une édition du
+    // produit.
+    if (widget.product.variants.length == 1) {
       _selectedVariant = widget.product.variants.first;
     }
 
@@ -57,19 +63,16 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage>
     super.dispose();
   }
 
-  double get _currentPrice {
-    if (_selectedVariant != null) {
-      return _selectedVariant!.prix * _quantity;
-    }
-    return widget.product.prixOriginal * _quantity;
-  }
+  /// Prix unitaire retenu : celui du format choisi, sinon le **prix d'appel**.
+  ///
+  /// ⚠️ Le repli était `prixOriginal`, qui n'est pas ce qui est facturé : c'est
+  /// le prix de référence du produit, pas celui d'un format. Sur un produit à
+  /// trois tailles dont la moins chère vaut 1 000 et dont `prixOriginal` vaut
+  /// 2 500, la fiche annonçait 2 500 tant que rien n'était sélectionné — un
+  /// montant qu'aucun panier n'aurait jamais porté.
+  double get _unitPrice => _selectedVariant?.prix ?? widget.product.startingPrice;
 
-  double get _unitPrice {
-    if (_selectedVariant != null) {
-      return _selectedVariant!.prix;
-    }
-    return widget.product.prixOriginal;
-  }
+  double get _currentPrice => _unitPrice * _quantity;
 
   void _shareProduct(BuildContext context) {
     final String message =
@@ -78,7 +81,7 @@ Découvrez ${widget.product.name} sur Lilia Food !
 
 ${widget.product.description}
 
-Prix: ${widget.product.prixOriginal.toStringAsFixed(0)} FCFA
+Prix : ${formatPrice(widget.product.startingPrice)}
 
 Téléchargez l'app Lilia Food pour commander !
 ''';
@@ -88,6 +91,32 @@ Téléchargez l'app Lilia Food pour commander !
         subject: 'Découvrez ${widget.product.name} sur Lilia Food!',
       ),
     );
+  }
+
+  /// Pourquoi l'ajout au panier est-il impossible ? `null` s'il est possible.
+  ///
+  /// Aucune règle n'est recalculée ici : `product.unavailability` relaie le
+  /// verdict du serveur (`availableNow`, `isAvailable`, `stockRestant`), et
+  /// `restaurantIsOpen` vient de la réponse. On ne fait que traduire.
+  String? get _blockedReason {
+    final p = widget.product;
+    if (p.restaurantIsOpen == false) return 'Boutique fermée';
+    switch (p.unavailability) {
+      case ProductUnavailability.epuise:
+        return 'Épuisé';
+      case ProductUnavailability.retire:
+        return 'Indisponible';
+      case ProductUnavailability.horsCreneau:
+        return p.availableFrom != null && p.availableUntil != null
+            ? 'Disponible de ${p.availableFrom} à ${p.availableUntil}'
+            : 'Hors créneau de vente';
+      case null:
+        break;
+    }
+    if (p.variants.length > 1 && _selectedVariant == null) {
+      return 'Choisissez un format';
+    }
+    return null;
   }
 
   Future<void> _addToCart() async {
@@ -833,23 +862,33 @@ Téléchargez l'app Lilia Food pour commander !
               flex: 2,
               child: ScaleTransition(
                 scale: _scaleAnimation,
+                // ⚠️ Ce bouton n'était **jamais** désactivé : ni le stock, ni
+                // `isAvailable`, ni la fenêtre horaire, ni la fermeture de la
+                // boutique ne l'arrêtaient. Le client appuyait, attendait, et
+                // recevait un refus du serveur — quand le site, lui, le grisait
+                // en disant pourquoi. Le backend protégeait bien la commande ;
+                // c'est l'expérience qui divergeait.
                 child: ElevatedButton(
-                  onPressed: _addToCart,
+                  onPressed: _blockedReason == null ? _addToCart : null,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: cs.primary,
                     foregroundColor: cs.onPrimary,
+                    disabledBackgroundColor: cs.surfaceContainerHighest,
+                    disabledForegroundColor: cs.onSurfaceVariant,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
                     elevation: 0,
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.shopping_cart_outlined, size: 22),
-                      SizedBox(width: 8),
-                      Text('Ajouter au panier'),
+                      const Icon(Icons.shopping_cart_outlined, size: 22),
+                      const SizedBox(width: 8),
+                      // Dire POURQUOI : « désactivé » sans raison ressemble à
+                      // une panne de l'application.
+                      Text(_blockedReason ?? 'Ajouter au panier'),
                     ],
                   ),
                 ),

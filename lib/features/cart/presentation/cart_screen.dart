@@ -299,7 +299,7 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
                           ),
                         ),
                         Text(
-                          '${menuInfo?.prix.toStringAsFixed(0) ?? '0'} FCFA',
+                          menuInfo == null ? '—' : formatPrice(menuInfo.prix),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
@@ -377,7 +377,7 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
                   if (_quantity > 1)
                     Expanded(
                       child: Text(
-                        'Sous-total: ${(menuInfo!.prix * _quantity).toStringAsFixed(0)} FCFA',
+                        'Sous-total : ${formatPrice(menuInfo!.prix * _quantity)}',
                         style: TextStyle(
                           fontSize: 12,
                           color: cs.onSurfaceVariant,
@@ -521,12 +521,12 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${widget.item.variant.prix} FCFA',
+                      formatPrice(widget.item.variant.prix),
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     if (widget.item.quantite > 1)
                       Text(
-                        'Sous-total: ${(widget.item.variant.prix * widget.item.quantite)} FCFA',
+                        'Sous-total : ${formatPrice(widget.item.variant.prix * widget.item.quantite)}',
                         style: TextStyle(
                           fontSize: 11,
                           color: cs.onSurfaceVariant,

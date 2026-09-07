@@ -320,7 +320,7 @@ class RestaurantCard extends ConsumerWidget {
                               ),
                               const SizedBox(width: 4),
                               Text(
-                                'Min. ${restaurant.minimumOrderAmount.toStringAsFixed(0)} FCFA',
+                                'Min. ${formatPrice(restaurant.minimumOrderAmount)}',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: theme.colorScheme.onSurfaceVariant,

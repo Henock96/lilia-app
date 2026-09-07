@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/utils/currency.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -614,7 +615,7 @@ class _LoyaltyCardState extends ConsumerState<_LoyaltyCard> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Valeur: ${(user.loyaltyPoints * 5)} FCFA de reduction (min. 100 pts)',
+              'Valeur : ${formatPrice(user.loyaltyPoints * 5)} de réduction (min. 100 pts)',
               style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
             if (_showHistory) ...[

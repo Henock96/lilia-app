@@ -229,7 +229,7 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
                             ),
                           ),
                           Text(
-                            '${item.variant.prix * item.quantite} FCFA',
+                            formatPrice(item.variant.prix * item.quantite),
                             style: TextStyle(
                               fontSize: 12,
                               color: theme.colorScheme.onSurfaceVariant,

@@ -1178,7 +1178,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   ],
                 ),
                 Text(
-                  '- ${loyaltyDiscount.toStringAsFixed(0)} FCFA',
+                  '- ${formatPrice(loyaltyDiscount)}',
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,

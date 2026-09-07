@@ -95,9 +95,9 @@ class _RestaurantDetailScreenState
   }
 
   Widget _buildContent(Restaurant restaurant) {
-    final categories = _sectionNames(restaurant);
+    final sections = _sections(restaurant);
     final filteredProducts = _filterProducts(restaurant.products);
-    final productsByCategory = _groupByCategory(filteredProducts, categories);
+    final productsByCategory = _groupByCategory(filteredProducts, sections);
 
     return CustomScrollView(
       slivers: [
@@ -224,10 +224,10 @@ class _RestaurantDetailScreenState
         ),
 
         // 9. Onglets catégories
-        if (categories.isNotEmpty)
+        if (sections.isNotEmpty)
           SliverToBoxAdapter(
             child: _CategoryTabs(
-              categories: categories,
+              categories: sections,
               selectedCategory: _selectedCategory,
               onCategorySelected: (c) => setState(() => _selectedCategory = c),
             ),
@@ -288,24 +288,30 @@ class _RestaurantDetailScreenState
   /// `isActive`. On n'en garde que celles qui contiennent au moins un produit :
   /// une section vide promet au client un contenu qui n'existe pas.
   ///
-  /// Repli sur les catégories dérivées des produits — triées par nom, faute de
-  /// mieux — si le backend ne fournit pas la liste (app récente, serveur
-  /// antérieur). C'était l'unique comportement jusqu'ici, et il expliquait que
-  /// « Accompagnements » sorte avant « Les Grillades ».
-  List<String> _sectionNames(Restaurant restaurant) {
+  /// ⚠️ Le rapprochement se fait par **identifiant**, plus par nom. Comparer
+  /// `product.category?.name` à des chaînes donnait le même résultat la plupart
+  /// du temps — le `slug` garantit l'unicité du nom par vendeur — mais renommer
+  /// une section pendant qu'un client a l'écran ouvert faisait basculer tous ses
+  /// produits dans « Autres ». Un identifiant ne bouge pas, un libellé si. Le
+  /// site groupait déjà par `categoryId` : c'est l'application qui divergeait.
+  ///
+  /// Repli sur les catégories dérivées des produits si le backend ne fournit pas
+  /// la liste (app récente, serveur antérieur). C'était l'unique comportement
+  /// jusqu'ici, et il expliquait que « Accompagnements » sorte avant
+  /// « Les Grillades ».
+  List<Category> _sections(Restaurant restaurant) {
     final withProducts = restaurant.products
-        .map((p) => p.category?.name)
+        .map((p) => p.categoryId)
         .whereType<String>()
-        .where((n) => n.isNotEmpty)
         .toSet();
 
     if (restaurant.categories.isNotEmpty) {
       return restaurant.categories
-          .where((c) => c.isActive && withProducts.contains(c.name))
-          .map((c) => c.name)
+          .where((c) => c.isActive && withProducts.contains(c.id))
           .toList();
     }
-    return withProducts.toList()..sort();
+    return restaurant.categoriesMap.values.toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
   }
 
   List<Product> _filterProducts(List<Product> products) {
@@ -316,8 +322,7 @@ class _RestaurantDetailScreenState
             product.description.toLowerCase().contains(_searchQuery);
         if (!matches) return false;
       }
-      if (_selectedCategory != null &&
-          product.category?.name != _selectedCategory) {
+      if (_selectedCategory != null && product.categoryId != _selectedCategory) {
         return false;
       }
       return true;
@@ -330,19 +335,23 @@ class _RestaurantDetailScreenState
   /// d'insertion, donc dans celui du vendeur. Un produit dont la section n'est
   /// pas affichée (désactivée, ou absente de la liste déclarée) rejoint
   /// « Autres » — il reste vendable, il ne doit pas disparaître.
+  ///
+  /// ⚠️ Le libellé est « Autres », pas « Autres plats » : le site disait
+  /// « Autres plats », ce qui est simplement faux sur une boulangerie ou une
+  /// boutique de boissons. Les deux plateformes disent désormais la même chose.
   Map<String, List<Product>> _groupByCategory(
     List<Product> products,
-    List<String> sectionOrder,
+    List<Category> sections,
   ) {
-    final grouped = <String, List<Product>>{};
-    for (final name in sectionOrder) {
-      grouped[name] = <Product>[];
-    }
+    final byId = {for (final s in sections) s.id: s.name};
+    final grouped = <String, List<Product>>{
+      for (final s in sections) s.name: <Product>[],
+    };
 
     final uncategorized = <Product>[];
-    for (var product in products) {
-      final name = product.category?.name;
-      if (name != null && grouped.containsKey(name)) {
+    for (final product in products) {
+      final name = byId[product.categoryId];
+      if (name != null) {
         grouped[name]!.add(product);
       } else {
         uncategorized.add(product);
@@ -350,7 +359,7 @@ class _RestaurantDetailScreenState
     }
 
     grouped.removeWhere((_, items) => items.isEmpty);
-    if (uncategorized.isNotEmpty) grouped['Autres'] = uncategorized;
+    if (uncategorized.isNotEmpty) grouped[kUncategorizedLabel] = uncategorized;
     return grouped;
   }
 
@@ -1004,7 +1013,11 @@ class _InfoTile extends StatelessWidget {
 // ─── Onglets catégories ────────────────────────────────────────────────────
 
 class _CategoryTabs extends StatelessWidget {
-  final List<String> categories;
+  /// Sections telles que le vendeur les a ordonnées. On porte l'objet entier —
+  /// pas seulement son libellé — parce que la sélection se fait par
+  /// **identifiant** : deux sections peuvent partager un nom au fil d'un
+  /// renommage, un identifiant reste unique.
+  final List<Category> categories;
   final String? selectedCategory;
   final void Function(String?) onCategorySelected;
 
@@ -1038,10 +1051,10 @@ class _CategoryTabs extends StatelessWidget {
             (category) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: 4),
               child: FilterChip(
-                label: Text(category),
-                selected: selectedCategory == category,
+                label: Text(category.name),
+                selected: selectedCategory == category.id,
                 onSelected: (_) => onCategorySelected(
-                  selectedCategory == category ? null : category,
+                  selectedCategory == category.id ? null : category.id,
                 ),
                 selectedColor: Theme.of(
                   context,
@@ -1120,10 +1133,11 @@ class _ProductCard extends ConsumerWidget {
 
   const _ProductCard({required this.product});
 
-  double getDisplayPrice() {
-    if (product.variants.isNotEmpty) return product.variants.first.prix;
-    return product.prixOriginal;
-  }
+  // ⚠️ Cette méthode rendait `variants.first.prix`. L'ordre des variantes
+  // n'étant pas garanti côté serveur, le prix affiché pouvait changer après une
+  // simple édition du produit. La règle vit maintenant dans le modèle, partagée
+  // avec le web : le prix d'appel, annoncé « À partir de » s'il y a plusieurs
+  // formats.
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1187,9 +1201,14 @@ class _ProductCard extends ConsumerWidget {
                             color: Colors.red,
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Text(
-                            'Épuisé',
-                            style: TextStyle(
+                          // « Épuisé », « Indisponible » et « Hors créneau »
+                          // sont trois informations différentes : une rupture du
+                          // jour, une décision du vendeur, un horaire. Les
+                          // confondre dit au client d'attendre demain quand il
+                          // devrait revenir à 6 h.
+                          child: Text(
+                            product.unavailability?.badge ?? 'Épuisé',
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -1274,7 +1293,11 @@ class _ProductCard extends ConsumerWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            formatPrice(getDisplayPrice()),
+                            // « À partir de X » dès qu'il y a plusieurs
+                            // formats : annoncer le prix de l'un sans dire
+                            // lequel est une promesse qu'on ne tient pas au
+                            // panier. Même règle que le web.
+                            product.priceLabel,
                             style: TextStyle(
                               color: available ? scheme.primary : Colors.grey,
                               fontWeight: FontWeight.bold,
@@ -1308,9 +1331,9 @@ class _ProductCard extends ConsumerWidget {
                                 color: Colors.red.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(20),
                               ),
-                              child: const Text(
-                                'Épuisé',
-                                style: TextStyle(
+                              child: Text(
+                                product.unavailability?.badge ?? 'Épuisé',
+                                style: const TextStyle(
                                   color: Colors.red,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
@@ -1330,9 +1353,29 @@ class _ProductCard extends ConsumerWidget {
     );
   }
 
+  /// Ajout rapide depuis la carte.
+  ///
+  /// ⚠️ **Un produit à plusieurs formats n'est pas ajouté ici.** La méthode
+  /// prenait `variants.first`, c'est-à-dire la première ligne rendue par
+  /// PostgreSQL — un format arbitraire, qui pouvait changer après une édition du
+  /// produit. Le client commandait « Petite » ou « Grande » selon l'humeur du
+  /// tas, sans jamais l'avoir choisi.
+  ///
+  /// On ouvre donc la fiche, où le choix est explicite. C'est le même parti que
+  /// le site, dont le bouton reste inactif tant qu'aucun format n'est
+  /// sélectionné.
+  /// Ouvre la fiche produit, où le format se choisit.
+  void _openDetail(BuildContext context) {
+    context.pushNamed(AppRoutes.productDetail.routeName, extra: product);
+  }
+
   Future<void> _addToCart(BuildContext context, WidgetRef ref) async {
     if (product.variants.isEmpty) {
       context.showSnack('Ce produit n\'a pas de variante sélectionnable.');
+      return;
+    }
+    if (product.variants.length > 1) {
+      _openDetail(context);
       return;
     }
     final variantId = product.variants.first.id;

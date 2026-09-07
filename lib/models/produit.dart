@@ -1,6 +1,38 @@
 import 'package:lilia_app/models/gallery_image.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/models/vendor_type.dart';
+import 'package:lilia_app/utils/availability_window.dart';
+import 'package:lilia_app/utils/currency.dart';
+
+/// Libellé de la section fourre-tout d'une carte.
+///
+/// Le site disait « Autres plats » et l'application « Autres ». Sur une
+/// boulangerie ou une boutique de boissons, « plats » est simplement faux : un
+/// croissant n'est pas un plat. Un seul mot, juste partout — miroir de
+/// `UNCATEGORIZED_LABEL` côté web.
+const String kUncategorizedLabel = 'Autres';
+
+/// Cause d'indisponibilité d'un produit, telle que l'interface doit la dire.
+///
+/// Trois valeurs, parce que ce sont les trois seules qui appellent une conduite
+/// différente du client : attendre demain, chercher ailleurs, revenir à l'heure.
+enum ProductUnavailability {
+  /// Épuisé pour aujourd'hui (`stockRestant == 0`).
+  epuise,
+
+  /// Retiré de la vente par le vendeur (`isAvailable == false`).
+  retire,
+
+  /// Hors de sa fenêtre horaire (`availableNow == false`).
+  horsCreneau;
+
+  /// Libellé court, pour un badge sur une carte produit.
+  String get badge => switch (this) {
+    ProductUnavailability.epuise => 'Épuisé',
+    ProductUnavailability.retire => 'Indisponible',
+    ProductUnavailability.horsCreneau => 'Hors créneau',
+  };
+}
 
 class Product {
   final String id;
@@ -45,6 +77,19 @@ class Product {
   final String? availableFrom; // HH:mm
   final String? availableUntil; // HH:mm
 
+  /// **Verdict horaire du serveur** — « ce produit est-il vendable à cette
+  /// heure ? », calculé par `isWithinAvailabilityWindow` côté backend, celle-là
+  /// même qu'applique le checkout pour accepter ou refuser.
+  ///
+  /// `null` quand la réponse est antérieure au champ : on retombe alors sur le
+  /// calcul local, qui applique **la même règle** (voir
+  /// [AvailabilityWindow.contains]).
+  ///
+  /// ⚠️ Périssable : une réponse en cache plus de quelques minutes annoncera
+  /// « disponible » après la fermeture de la fenêtre. C'est la raison du TTL
+  /// posé sur le cache de la carte.
+  final bool? availableNow;
+
   Product({
     required this.id,
     required this.name,
@@ -70,6 +115,7 @@ class Product {
     this.madeToOrder = false,
     this.availableFrom,
     this.availableUntil,
+    this.availableNow,
   });
 
   /// Reste-t-il des unités ? `null` = illimité, `0` = épuisé.
@@ -82,11 +128,28 @@ class Product {
   /// l'écran aurait affiché « disponible » sur un produit retiré de la vente.
   bool get isInStock => stockRestant == null || stockRestant! > 0;
 
-  /// Commandable **maintenant** : en vente ET en stock.
+  /// Commandable **maintenant** : en vente, en stock, **et dans son créneau**.
   ///
-  /// C'est la question que posent les écrans. La poser en un seul endroit
-  /// évite que chacun en recompose sa propre version — et en oublie la moitié.
-  bool get isOrderable => isAvailable && isInStock;
+  /// C'est la question que posent les écrans. La poser en un seul endroit évite
+  /// que chacun en recompose sa propre version — et en oublie la moitié : la
+  /// fenêtre horaire manquait ici, si bien qu'une viennoiserie « 06:00 → 11:00 »
+  /// restait proposée à 15 h, jusqu'au refus du serveur au checkout.
+  bool get isOrderable =>
+      isAvailable && isInStock && isWithinAvailabilityWindow;
+
+  /// Pourquoi ce produit n'est-il pas commandable ? `null` s'il l'est.
+  ///
+  /// Miroir de `unavailabilityReason` côté serveur, réduit à ce que l'interface
+  /// a besoin de distinguer. Les causes ne sont pas interchangeables : « épuisé »
+  /// est une conséquence des ventes du jour, « retiré » une décision du vendeur,
+  /// « hors créneau » un horaire. Un même mot pour les trois tromperait le
+  /// client sur ce qu'il peut faire.
+  ProductUnavailability? get unavailability {
+    if (!isAvailable) return ProductUnavailability.retire;
+    if (!isInStock) return ProductUnavailability.epuise;
+    if (!isWithinAvailabilityWindow) return ProductUnavailability.horsCreneau;
+    return null;
+  }
 
   /// URLs à afficher dans le carrousel : la galerie si disponible, sinon
   /// l'`imageUrl` legacy en fallback. Vide si aucune image.
@@ -100,23 +163,77 @@ class Product {
   /// sinon l'`imageUrl` legacy. `null` si aucune image (→ placeholder).
   String? get thumbnailUrl => galleryUrls.isNotEmpty ? galleryUrls.first : null;
 
-  /// Vrai si le produit a une fenêtre horaire et que l'heure actuelle est
-  /// dans cette fenêtre. Si pas de fenêtre, toujours vrai (pas de contrainte).
+  /// Le produit est-il dans sa fenêtre de vente **maintenant** ?
+  ///
+  /// ## Le serveur décide, ce getter ne fait que le relayer
+  ///
+  /// `availableNow` est calculé par le backend avec `isWithinAvailabilityWindow`
+  /// — la fonction même qu'applique le checkout pour accepter ou refuser une
+  /// commande. Quand le champ est présent, on le lit et on s'arrête là.
+  ///
+  /// ## Le repli, et pourquoi l'ancien était faux
+  ///
+  /// La version précédente **recalculait toujours** la règle, avec deux erreurs :
+  ///
+  /// ```dart
+  /// final now = DateTime.now();                        // fuseau de l'appareil
+  /// return current.compareTo(availableFrom!) >= 0 &&
+  ///        current.compareTo(availableUntil!) <= 0;    // ✗ minuit
+  /// ```
+  ///
+  /// 1. une fenêtre « 22:00 → 02:00 » était **toujours fausse** : à 23:00,
+  ///    `"23:00" <= "02:00"` ne tient pas. Un bar de nuit n'était jamais
+  ///    commandable ;
+  /// 2. l'heure venait de l'appareil, quand le serveur raisonne en heure de
+  ///    Brazzaville (UTC+1).
+  ///
+  /// C'est exactement la divergence corrigée côté serveur en août — 17
+  /// combinaisons sur 49 — réapparue côté client. Le repli existe encore, pour
+  /// les réponses antérieures au champ, mais il applique désormais **la même
+  /// règle**, testée sur le même tableau de cas que le backend
+  /// (`test/models/availability_window_test.dart`).
   bool get isWithinAvailabilityWindow {
-    if (availableFrom == null || availableUntil == null) return true;
-    final now = DateTime.now();
-    final current =
-        '${now.hour.toString().padLeft(2, '0')}:'
-        '${now.minute.toString().padLeft(2, '0')}';
-    return current.compareTo(availableFrom!) >= 0 &&
-        current.compareTo(availableUntil!) <= 0;
+    if (availableNow != null) return availableNow!;
+    return AvailabilityWindow.contains(
+      from: availableFrom,
+      until: availableUntil,
+    );
   }
 
-  /// Prix d'affichage (premier variant ou prix original)
-  double get displayPrice {
-    if (variants.isNotEmpty) return variants.first.prix;
-    return prixOriginal;
+  /// **Prix d'appel** : le format le moins cher.
+  ///
+  /// ⚠️ Ce getter rendait `variants.first.prix`. Or l'ordre des variantes
+  /// n'était pas garanti — les `include` du backend n'avaient aucun `orderBy`,
+  /// et PostgreSQL déplace une ligne mise à jour dans son tas. Le « premier »
+  /// format changeait donc tout seul après une édition du produit, et avec lui
+  /// le prix affiché. Le serveur trie maintenant par prix croissant, mais on ne
+  /// s'y fie pas : on prend explicitement le minimum, pour que la règle reste
+  /// vraie servie par un backend antérieur.
+  ///
+  /// Règle **identique** à `startingPrice` côté web (`@lilia/utils`).
+  double get startingPrice {
+    final prices = variants.map((v) => v.prix).where((p) => p > 0);
+    return prices.isEmpty
+        ? prixOriginal
+        : prices.reduce((a, b) => a < b ? a : b);
   }
+
+  /// Vrai dès que le produit a plusieurs prix distincts — donc que le prix
+  /// affiché doit être annoncé comme un « à partir de ».
+  bool get hasPriceRange => variants.map((v) => v.prix).toSet().length > 1;
+
+  /// Libellé du prix au catalogue — miroir de `priceLabel` côté web.
+  ///
+  /// Annoncer le prix d'un format sans dire lequel est une promesse qu'on ne
+  /// tient pas au panier.
+  String get priceLabel => hasPriceRange
+      ? 'À partir de ${formatPrice(startingPrice)}'
+      : formatPrice(startingPrice);
+
+  /// @Deprecated — conservé le temps que les appelants migrent vers
+  /// [startingPrice]. Il rendait `variants.first.prix`, c'est-à-dire un prix
+  /// non déterministe (voir ci-dessus).
+  double get displayPrice => startingPrice;
 
   factory Product.fromJson(Map<String, dynamic> json) {
     // variants peut être absent ou null pour certains produits — fallback []
@@ -154,6 +271,9 @@ class Product {
       madeToOrder: (json['madeToOrder'] as bool?) ?? false,
       availableFrom: json['availableFrom'] as String?,
       availableUntil: json['availableUntil'] as String?,
+      // Absent des réponses antérieures à septembre 2026 : `null` fait
+      // retomber `isWithinAvailabilityWindow` sur le calcul local.
+      availableNow: json['availableNow'] as bool?,
     );
   }
 }
