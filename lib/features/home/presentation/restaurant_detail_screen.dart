@@ -57,7 +57,11 @@ class _RestaurantDetailScreenState
   @override
   void initState() {
     super.initState();
-    AnalyticsService.logRestaurantViewed(
+    // `restaurant_view` dans `initState`, jamais dans `build` : un `build` est
+    // rejoué à chaque changement d'état et produirait dix consultations pour
+    // une. Un retour puis une réouverture de la fiche est en revanche une
+    // seconde consultation réelle, et doit compter.
+    AnalyticsService.trackRestaurantView(
       restaurantId: widget.restaurantId,
       restaurantName: widget.restaurantName,
     );
@@ -1388,12 +1392,12 @@ class _ProductCard extends ConsumerWidget {
         productName: product.name,
       );
       if (!added) return;
-      AnalyticsService.logAddToCart(
+      AnalyticsService.trackAddToCart(
         productId: product.id,
         productName: product.name,
+        restaurantId: product.restaurantId,
         price: product.variants.first.prix,
         quantity: 1,
-        restaurantId: product.restaurantId,
       );
       if (context.mounted) {
         context.showSuccessSnack('${product.name} ajouté au panier');

@@ -49,10 +49,11 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage>
       CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
     );
 
-    // Analytics: produit consulté
-    AnalyticsService.logProductViewed(
+    // `product_view` dans `initState` : la fiche a été ouverte, donc consultée.
+    AnalyticsService.trackProductView(
       productId: widget.product.id,
       productName: widget.product.name,
+      restaurantId: widget.product.restaurantId,
       price: widget.product.prixOriginal,
     );
   }
@@ -139,13 +140,14 @@ Téléchargez l'app Lilia Food pour commander !
         quantity: _quantity,
       );
       if (!added) return; // Le client a annulé sur la modal de conflit
-      // Analytics: ajout au panier
-      AnalyticsService.logAddToCart(
+      // `add_to_cart` après acceptation serveur : `addToCartSafely` a rendu
+      // la main sans lever et sans annulation du client.
+      AnalyticsService.trackAddToCart(
         productId: widget.product.id,
         productName: widget.product.name,
+        restaurantId: widget.product.restaurantId,
         price: _unitPrice,
         quantity: _quantity,
-        restaurantId: widget.product.restaurantId,
       );
       if (mounted) {
         context.showSuccessSnack(

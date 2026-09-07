@@ -18,6 +18,7 @@ import 'package:lilia_app/features/payments/data/payment_service.dart';
 import 'package:lilia_app/features/payments/presentation/payment_pending_args.dart';
 import 'package:lilia_app/models/order.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
+import 'package:lilia_app/services/analytics_service.dart';
 
 import '../../../models/order_item.dart';
 import '../../cart/application/cart_controller.dart';
@@ -1796,7 +1797,31 @@ class _PayNowButtonState extends ConsumerState<_PayNowButton> {
 
       if (!mounted) return;
 
+      // `payment_started` — une nouvelle tentative d'encaissement existe.
+      // Unique par `paymentId` : si le serveur a réutilisé une tentative
+      // PENDING existante, c'est le même identifiant et l'événement ne repart
+      // pas ; une vraie seconde tentative, elle, compte — c'est l'écart avec
+      // `payment_success` qui mesure les échecs d'opérateur.
+      AnalyticsService.trackPaymentStarted(
+        paymentId: payment.paymentId,
+        orderId: widget.order.id,
+        paymentMethod: choice.method,
+        amount: payment.amount > 0
+            ? payment.amount
+            : widget.order.total.round(),
+      );
+
       if (payment.isSettled) {
+        // Le serveur annonce l'encaissement déjà réglé — c'est sa vérité, pas
+        // une supposition d'écran.
+        AnalyticsService.trackPaymentSuccess(
+          paymentId: payment.paymentId,
+          orderId: widget.order.id,
+          paymentMethod: choice.method,
+          amount: payment.amount > 0
+              ? payment.amount
+              : widget.order.total.round(),
+        );
         ref.invalidate(userOrdersProvider);
         context.showSnack('Commande déjà réglée.');
         return;

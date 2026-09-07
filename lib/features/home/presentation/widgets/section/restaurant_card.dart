@@ -136,7 +136,7 @@ class RestaurantCard extends ConsumerWidget {
                               ref
                                   .read(restaurantFavoritesProvider.notifier)
                                   .toggleFavorite(restaurant);
-                              AnalyticsService.logFavoriteToggle(
+                              AnalyticsService.trackFavoriteToggle(
                                 restaurantId: restaurant.id,
                                 restaurantName: restaurant.name,
                                 isFavorite: !isFavorite,

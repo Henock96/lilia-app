@@ -28,8 +28,23 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   void initState() {
     super.initState();
     // Rafraîchir le panier quand on ouvre l'écran
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(cartControllerProvider.notifier).refresh();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(cartControllerProvider.notifier).refresh();
+      if (!mounted) return;
+
+      // `view_cart` une fois le panier **chargé**, et seulement s'il contient
+      // quelque chose.
+      //
+      // Ni dans `build` ni dans la branche `data:` de l'`AsyncValue` : les deux
+      // sont rejoués à chaque changement d'état de l'écran — suppression d'un
+      // article, changement de quantité, retour de l'application au premier
+      // plan — et produiraient plusieurs consultations pour une seule ouverture.
+      final cart = ref.read(cartControllerProvider).value;
+      if (cart == null) return;
+      AnalyticsService.trackViewCart(
+        itemCount: cart.totalItems,
+        cartTotal: cart.totalPrice,
+      );
     });
   }
 
@@ -184,6 +199,18 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                             ),
                             ElevatedButton(
                               onPressed: () {
+                                // `begin_checkout` — l'action délibérée qui
+                                // engage la commande, et non l'affichage d'un
+                                // écran. Sur le web, le panier et la saisie de
+                                // commande vivent sur la même page : mesurer
+                                // l'affichage rendrait cette étape égale à
+                                // `view_cart` d'un côté et pas de l'autre, et
+                                // les deux tunnels cesseraient d'être
+                                // comparables.
+                                AnalyticsService.trackBeginCheckout(
+                                  itemCount: cartState.value!.totalItems,
+                                  cartTotal: cartState.value!.totalPrice,
+                                );
                                 context.goNamed(
                                   AppRoutes.deliveryOptions.routeName,
                                 );
@@ -826,16 +853,20 @@ class _SuggestionTile extends ConsumerWidget {
   }
 
   void _addToCart(BuildContext context, WidgetRef ref, ProductVariant variant) {
-    AnalyticsService.logAddToCartFromHome(
-      productId: product.id,
-      productName: product.name,
-      source: 'empty_cart_suggestion',
-      price: variant.prix,
-    );
     ref
         .read(cartControllerProvider.notifier)
         .addItem(variantId: variant.id)
         .then((_) {
+          // `add_to_cart` **après** acceptation par le serveur : il refuse un
+          // produit épuisé ou un vendeur fermé, et compter le geste ferait
+          // apparaître des ajouts qui n'ont jamais eu lieu.
+          AnalyticsService.trackAddToCart(
+            productId: product.id,
+            productName: product.name,
+            restaurantId: product.restaurantId,
+            price: variant.prix,
+            quantity: 1,
+          );
           if (context.mounted) {
             context.showSuccessSnack('${product.name} ajouté au panier');
           }
