@@ -101,7 +101,14 @@ class FirebaseAuthenticationRepository {
     }
   }
 
-  Future<AppUser?> signInWithGoogle() async {
+  /// Connexion Google.
+  ///
+  /// [referralCode] n'est transmis qu'à la **création** du compte : le backend
+  /// ignore le code sur un compte existant, ce qui rend le changement de
+  /// parrain impossible. Le paramètre existait pour l'inscription par e-mail
+  /// mais pas ici — un filleul arrivé par Google n'était donc jamais rattaché
+  /// à son parrain, silencieusement.
+  Future<AppUser?> signInWithGoogle({String? referralCode}) async {
     // Étape 1: Initialiser GoogleSignIn si nécessaire
     await _googleSignIn.initialize();
 
@@ -150,6 +157,11 @@ class FirebaseAuthenticationRepository {
           'email': user.email,
           'nom': user.displayName,
           'telephone': user.phoneNumber,
+          // Uniquement sur une inscription : sur une connexion, le serveur
+          // l'ignorerait de toute façon, et l'envoyer laisserait croire le
+          // contraire à la lecture.
+          if (isNewUser && referralCode != null && referralCode.isNotEmpty)
+            'referralCode': referralCode,
         },
       );
 

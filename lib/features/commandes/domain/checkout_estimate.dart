@@ -57,10 +57,24 @@ class CheckoutEstimate {
     var loyaltyPointsUsed = 0;
     var loyaltyDiscount = 0.0;
 
+    // ⚠️ Assiette des points : le **panier alimentaire**, pas le montant dû.
+    //
+    // Les points s'imputaient sur `subTotal + livraison + frais de service` ;
+    // ils finançaient donc la course du livreur et les frais de
+    // fonctionnement, deux postes réellement décaissés que le reversement
+    // vendeur ne compense pas. Ils ne réduisent plus que la nourriture, une
+    // fois la promo passée dessus.
+    //
+    // Miroir exact de `OrderCheckoutService` : un écart ici afficherait un
+    // total que le serveur ne facturerait pas.
+    final redeemableBase = (subTotal - promoDiscount)
+        .clamp(0, double.infinity)
+        .toDouble();
+
     // Le solde doit atteindre le minimum de rachat, sinon aucun point n'est
     // utilisable — même règle que `settings.loyaltyMinRedemption` côté serveur.
     if (useLoyaltyPoints && loyaltyPoints >= settings.loyaltyMinRedemption) {
-      final usablePoints = remaining ~/ settings.loyaltyPointValueXaf;
+      final usablePoints = redeemableBase ~/ settings.loyaltyPointValueXaf;
       loyaltyPointsUsed = loyaltyPoints < usablePoints
           ? loyaltyPoints
           : usablePoints;

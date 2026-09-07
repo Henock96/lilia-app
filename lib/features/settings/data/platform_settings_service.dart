@@ -12,32 +12,58 @@ part 'platform_settings_service.g.dart';
 /// versions installées continuaient d'afficher l'ancien montant sans aucun
 /// signal, alors que le serveur facturait le nouveau.
 ///
+/// ⚠️ Les valeurs de [PlatformSettings.fallback] servent **uniquement** quand
+/// `GET /platform-settings` est injoignable. Elles reprennent les `@default`
+/// du modèle Prisma, jamais une constante inventée côté client — et elles ne
+/// facturent rien : le montant dû est celui de la commande créée par le
+/// serveur.
+///
 /// Ces valeurs ne servent qu'à **estimer** avant checkout : le montant dû reste
 /// celui de la commande créée par le serveur.
 class PlatformSettings {
   final double serviceFeePercent;
-  final int loyaltyPointsPer100Xaf;
+
+  /// Forfait gagné par commande livrée. A remplacé `loyaltyPointsPer100Xaf` :
+  /// le gain n'est plus proportionnel au montant, une commande de 1 000 et une
+  /// de 20 000 FCFA rapportent la même chose.
+  final int loyaltyPointsPerOrder;
+
+  /// Valeur d'un point, en FCFA. **Seule** source autorisée pour convertir des
+  /// points en argent à l'écran — aucun `× 5` ni `× 50` ne doit subsister dans
+  /// une page.
   final int loyaltyPointValueXaf;
   final int loyaltyMinRedemption;
+
+  /// Points versés au parrain quand son filleul est livré pour la première
+  /// fois. Le filleul, lui, ne reçoit plus rien.
+  final int referrerBonusPoints;
+
   final bool maintenanceMode;
   final String? maintenanceMessage;
 
   const PlatformSettings({
     required this.serviceFeePercent,
-    required this.loyaltyPointsPer100Xaf,
+    required this.loyaltyPointsPerOrder,
     required this.loyaltyPointValueXaf,
     required this.loyaltyMinRedemption,
+    required this.referrerBonusPoints,
     this.maintenanceMode = false,
     this.maintenanceMessage,
   });
+
+  /// Convertit un nombre de points en FCFA. Point de passage **unique** :
+  /// c'est ce qui garantit qu'un changement de barème côté serveur se voit
+  /// partout dans l'application sans redéploiement.
+  int pointsToXaf(int points) => points * loyaltyPointValueXaf;
 
   /// Valeurs de repli, alignées sur les défauts Prisma. Utilisées tant que la
   /// requête n'a pas abouti (réseau instable) — jamais pour facturer.
   static const fallback = PlatformSettings(
     serviceFeePercent: 8,
-    loyaltyPointsPer100Xaf: 1,
-    loyaltyPointValueXaf: 5,
-    loyaltyMinRedemption: 100,
+    loyaltyPointsPerOrder: 1,
+    loyaltyPointValueXaf: 50,
+    loyaltyMinRedemption: 1,
+    referrerBonusPoints: 1,
   );
 
   /// Taux exploitable directement dans un produit (`0.08` pour 8 %).
@@ -48,15 +74,18 @@ class PlatformSettings {
       serviceFeePercent:
           (json['serviceFeePercent'] as num?)?.toDouble() ??
           fallback.serviceFeePercent,
-      loyaltyPointsPer100Xaf:
-          (json['loyaltyPointsPer100Xaf'] as num?)?.toInt() ??
-          fallback.loyaltyPointsPer100Xaf,
+      loyaltyPointsPerOrder:
+          (json['loyaltyPointsPerOrder'] as num?)?.toInt() ??
+          fallback.loyaltyPointsPerOrder,
       loyaltyPointValueXaf:
           (json['loyaltyPointValueXaf'] as num?)?.toInt() ??
           fallback.loyaltyPointValueXaf,
       loyaltyMinRedemption:
           (json['loyaltyMinRedemption'] as num?)?.toInt() ??
           fallback.loyaltyMinRedemption,
+      referrerBonusPoints:
+          (json['referrerBonusPoints'] as num?)?.toInt() ??
+          fallback.referrerBonusPoints,
       maintenanceMode: json['maintenanceMode'] as bool? ?? false,
       maintenanceMessage: json['maintenanceMessage'] as String?,
     );

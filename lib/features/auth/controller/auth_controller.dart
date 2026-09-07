@@ -104,12 +104,13 @@ class AuthController extends _$AuthController {
     }
   }
 
-  Future<void> signInWithGoogle() async {
+  /// [referralCode] n'a d'effet que si la connexion Google crée le compte.
+  Future<void> signInWithGoogle({String? referralCode}) async {
     state = const AsyncValue.loading();
     try {
       final googleUser = await ref
           .read(authRepositoryProvider)
-          .signInWithGoogle();
+          .signInWithGoogle(referralCode: referralCode);
       if (googleUser == null) {
         // L'utilisateur a annulé la connexion Google
         state = const AsyncValue.data(null);

@@ -53,6 +53,11 @@ class CheckoutController extends _$CheckoutController {
       ref.invalidate(cartControllerProvider);
       ref.invalidate(userOrdersProvider);
       ref.invalidate(userProfileProvider);
+      // Le solde ET son historique bougent au checkout : n'invalider que le
+      // profil laissait la carte fidélité afficher un solde à jour au-dessus
+      // d'un historique périmé.
+      ref.invalidate(loyaltyTransactionsProvider);
+      ref.invalidate(referralStatsProvider);
 
       state = const AsyncData(null);
       return order;

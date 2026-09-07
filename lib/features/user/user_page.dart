@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:lilia_app/features/auth/controller/auth_controller.dart';
+import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/features/user/edit_profile_page.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
@@ -538,6 +539,12 @@ class _LoyaltyCardState extends ConsumerState<_LoyaltyCard> {
   Widget build(BuildContext context) {
     final userAsync = ref.watch(userProfileProvider);
     final transactionsAsync = ref.watch(loyaltyTransactionsProvider);
+    // Le barème vient du serveur. Aucune conversion points → FCFA ne doit être
+    // écrite en dur ici : le jour où l'administrateur change la valeur du
+    // point, toutes les versions installées afficheraient encore l'ancienne.
+    final settings =
+        ref.watch(platformSettingsProvider).value ??
+        PlatformSettings.fallback;
 
     return userAsync.when(
       data: (user) => Container(
@@ -598,16 +605,19 @@ class _LoyaltyCardState extends ConsumerState<_LoyaltyCard> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Column(
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'points',
                       style: TextStyle(color: Colors.white70, fontSize: 14),
                     ),
                     Text(
-                      '= 1 pt par 100 FCFA',
-                      style: TextStyle(color: Colors.white60, fontSize: 11),
+                      '= ${settings.loyaltyPointsPerOrder} pt par commande livree',
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
@@ -615,7 +625,8 @@ class _LoyaltyCardState extends ConsumerState<_LoyaltyCard> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Valeur : ${formatPrice(user.loyaltyPoints * 5)} de réduction (min. 100 pts)',
+              'Valeur : ${formatPrice(settings.pointsToXaf(user.loyaltyPoints).toDouble())} de réduction '
+              '(min. ${settings.loyaltyMinRedemption} pt)',
               style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
             if (_showHistory) ...[
@@ -691,6 +702,9 @@ class _ReferralCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(referralStatsProvider);
+    final settings =
+        ref.watch(platformSettingsProvider).value ??
+        PlatformSettings.fallback;
 
     return statsAsync.when(
       data: (stats) {
@@ -789,7 +803,11 @@ class _ReferralCard extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  'Parrainez un ami: +500 pts pour vous, +200 pts pour lui a sa 1ere commande',
+                  // Le filleul ne recoit plus rien : seul le parrain est
+                  // recompense, et seulement quand la commande est LIVREE.
+                  'Parrainez un ami : +${settings.referrerBonusPoints} pt '
+                  '(${formatPrice(settings.pointsToXaf(settings.referrerBonusPoints).toDouble())}) '
+                  'des sa premiere commande livree',
                   style: TextStyle(fontSize: 11, color: purpleDisplay),
                 ),
               ),
