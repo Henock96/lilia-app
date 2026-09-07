@@ -339,6 +339,48 @@ class Restaurant {
   String get deliveryTimeFormatted =>
       '$estimatedDeliveryTimeMin-$estimatedDeliveryTimeMax min';
 
+  /// Même vendeur, catalogue complété.
+  ///
+  /// Sert à la complétion paginée : la carte servie par `GET /vendors/:id` est
+  /// bornée, les pages suivantes viennent de `GET /products`. Une copie plutôt
+  /// qu'une mutation, pour que l'objet reste immuable comme le reste du modèle.
+  ///
+  /// `categoriesMap` est **recalculé** à partir des nouveaux produits : c'est
+  /// une projection d'eux, pas une donnée du serveur. L'oublier laisserait la
+  /// carte connaître des sections dont elle n'a plus les produits, ou l'inverse.
+  Restaurant withProducts(List<Product> next) {
+    final map = <String, Category>{};
+    for (final p in next) {
+      final c = p.category;
+      if (c != null) map.putIfAbsent(c.id, () => c);
+    }
+    return Restaurant(
+      id: id,
+      name: name,
+      address: address,
+      phoneNumber: phoneNumber,
+      imageUrl: imageUrl,
+      photos: photos,
+      products: next,
+      categoriesMap: map,
+      categories: categories,
+      isOpen: isOpen,
+      specialties: specialties,
+      operatingHours: operatingHours,
+      estimatedDeliveryTimeMin: estimatedDeliveryTimeMin,
+      estimatedDeliveryTimeMax: estimatedDeliveryTimeMax,
+      minimumOrderAmount: minimumOrderAmount,
+      fixedDeliveryFee: fixedDeliveryFee,
+      averageRating: averageRating,
+      totalReviews: totalReviews,
+      vendorType: vendorType,
+      acceptsPreorders: acceptsPreorders,
+      preorderLeadHours: preorderLeadHours,
+      vendorProfile: vendorProfile,
+      menus: menus,
+    );
+  }
+
   /// URLs à afficher dans le carrousel d'en-tête : la galerie photos si
   /// disponible, sinon l'`imageUrl` legacy en fallback.
   List<String> get galleryUrls {

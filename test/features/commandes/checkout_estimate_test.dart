@@ -16,7 +16,8 @@ void main() {
     test('applique le taux servi par le backend, pas une constante', () {
       const custom = PlatformSettings(
         serviceFeePercent: 10,
-        loyaltyPointsPer100Xaf: 1,
+        loyaltyPointsPerOrder: 1,
+        referrerBonusPoints: 1,
         loyaltyPointValueXaf: 5,
         loyaltyMinRedemption: 100,
       );
@@ -63,7 +64,8 @@ void main() {
         useLoyaltyPoints: true,
         settings: const PlatformSettings(
           serviceFeePercent: 0,
-          loyaltyPointsPer100Xaf: 1,
+          loyaltyPointsPerOrder: 1,
+        referrerBonusPoints: 1,
           loyaltyPointValueXaf: 5,
           loyaltyMinRedemption: 100,
         ),
@@ -83,7 +85,8 @@ void main() {
         useLoyaltyPoints: true,
         settings: const PlatformSettings(
           serviceFeePercent: 0,
-          loyaltyPointsPer100Xaf: 1,
+          loyaltyPointsPerOrder: 1,
+        referrerBonusPoints: 1,
           loyaltyPointValueXaf: 5,
           loyaltyMinRedemption: 100,
         ),
@@ -103,7 +106,8 @@ void main() {
         useLoyaltyPoints: true,
         settings: const PlatformSettings(
           serviceFeePercent: 0,
-          loyaltyPointsPer100Xaf: 1,
+          loyaltyPointsPerOrder: 1,
+        referrerBonusPoints: 1,
           loyaltyPointValueXaf: 5,
           loyaltyMinRedemption: 100,
         ),
@@ -115,13 +119,25 @@ void main() {
     });
 
     test('aucun point utilisé sous le minimum de rachat', () {
+      // Le seuil par défaut est passé de 100 à 1 point : avec un forfait de
+      // 1 point par commande, exiger 100 points aurait imposé 100 commandes
+      // avant le premier usage. On force donc un seuil pour tester la règle
+      // elle-même, pas sa valeur du moment.
+      const strict = PlatformSettings(
+        serviceFeePercent: 8,
+        loyaltyPointsPerOrder: 1,
+        loyaltyPointValueXaf: 50,
+        loyaltyMinRedemption: 10,
+        referrerBonusPoints: 1,
+      );
+
       final e = CheckoutEstimate.compute(
         subTotal: 10000,
         deliveryFee: 0,
         promoDiscount: 0,
-        loyaltyPoints: 99, // minimum = 100
+        loyaltyPoints: 9, // minimum = 10
         useLoyaltyPoints: true,
-        settings: _settings,
+        settings: strict,
       );
 
       expect(e.loyaltyPointsUsed, 0);
@@ -152,7 +168,8 @@ void main() {
         useLoyaltyPoints: true,
         settings: const PlatformSettings(
           serviceFeePercent: 0,
-          loyaltyPointsPer100Xaf: 1,
+          loyaltyPointsPerOrder: 1,
+        referrerBonusPoints: 1,
           loyaltyPointValueXaf: 5,
           loyaltyMinRedemption: 100,
         ),
@@ -198,7 +215,8 @@ void main() {
       expect(
         const PlatformSettings(
           serviceFeePercent: 12.5,
-          loyaltyPointsPer100Xaf: 1,
+          loyaltyPointsPerOrder: 1,
+        referrerBonusPoints: 1,
           loyaltyPointValueXaf: 5,
           loyaltyMinRedemption: 100,
         ).serviceFeeRate,
@@ -210,8 +228,10 @@ void main() {
       final s = PlatformSettings.fromJson(<String, dynamic>{});
 
       expect(s.serviceFeePercent, 8);
-      expect(s.loyaltyPointValueXaf, 5);
-      expect(s.loyaltyMinRedemption, 100);
+      expect(s.loyaltyPointValueXaf, 50);
+      expect(s.loyaltyMinRedemption, 1);
+      expect(s.loyaltyPointsPerOrder, 1);
+      expect(s.referrerBonusPoints, 1);
       expect(s.maintenanceMode, isFalse);
     });
 
@@ -229,6 +249,101 @@ void main() {
       expect(s.loyaltyMinRedemption, 200);
       expect(s.maintenanceMode, isTrue);
       expect(s.maintenanceMessage, 'Maintenance en cours');
+    });
+  });
+
+  group('CheckoutEstimate — assiette des points (septembre 2026)', () {
+    // Les points s'imputaient sur `subTotal + livraison + frais de service`.
+    // Ils finançaient donc la course du livreur et le fonctionnement de la
+    // plateforme, deux postes réellement décaissés que le reversement vendeur
+    // ne compense pas. Ils ne réduisent plus que la nourriture.
+    test('les points ne paient PAS la livraison ni les frais de service', () {
+      final e = CheckoutEstimate.compute(
+        subTotal: 1000,
+        deliveryFee: 1000,
+        promoDiscount: 0,
+        loyaltyPoints: 100, // largement de quoi tout couvrir
+        useLoyaltyPoints: true,
+        settings: _settings, // 1 pt = 50 FCFA
+      );
+
+      // Assiette = 1000 FCFA de nourriture → 20 points au maximum.
+      expect(e.loyaltyPointsUsed, 20);
+      expect(e.loyaltyDiscount, 1000);
+      // Restent dus : livraison 1000 + frais de service 80.
+      expect(e.total, 1080);
+    });
+
+    test('la promo réduit l’assiette avant les points', () {
+      final e = CheckoutEstimate.compute(
+        subTotal: 1000,
+        deliveryFee: 0,
+        promoDiscount: 400,
+        loyaltyPoints: 100,
+        useLoyaltyPoints: true,
+        settings: _settings,
+      );
+
+      // Assiette = 1000 - 400 = 600 → 12 points.
+      expect(e.loyaltyPointsUsed, 12);
+      expect(e.loyaltyDiscount, 600);
+    });
+
+    test('le seuil de rachat vaut 1 point', () {
+      final e = CheckoutEstimate.compute(
+        subTotal: 1000,
+        deliveryFee: 0,
+        promoDiscount: 0,
+        loyaltyPoints: 1,
+        useLoyaltyPoints: true,
+        settings: _settings,
+      );
+
+      expect(e.loyaltyPointsUsed, 1);
+      expect(e.loyaltyDiscount, 50);
+    });
+
+    test('un solde nul n’ouvre aucune remise', () {
+      final e = CheckoutEstimate.compute(
+        subTotal: 1000,
+        deliveryFee: 0,
+        promoDiscount: 0,
+        loyaltyPoints: 0,
+        useLoyaltyPoints: true,
+        settings: _settings,
+      );
+
+      expect(e.loyaltyPointsUsed, 0);
+      expect(e.loyaltyDiscount, 0);
+    });
+
+    test('ne consomme jamais plus de points que l’assiette n’en absorbe', () {
+      final e = CheckoutEstimate.compute(
+        subTotal: 120, // 2 points absorbables (100 FCFA), pas 3
+        deliveryFee: 0,
+        promoDiscount: 0,
+        loyaltyPoints: 50,
+        useLoyaltyPoints: true,
+        settings: _settings,
+      );
+
+      expect(e.loyaltyPointsUsed, 2);
+      expect(e.loyaltyDiscount, 100);
+    });
+  });
+
+  group('PlatformSettings — conversion unique', () {
+    test('pointsToXaf suit le barème serveur, pas une constante', () {
+      const custom = PlatformSettings(
+        serviceFeePercent: 8,
+        loyaltyPointsPerOrder: 1,
+        loyaltyPointValueXaf: 75,
+        loyaltyMinRedemption: 1,
+        referrerBonusPoints: 1,
+      );
+
+      expect(custom.pointsToXaf(4), 300);
+      expect(_settings.pointsToXaf(4), 200);
     });
   });
 }

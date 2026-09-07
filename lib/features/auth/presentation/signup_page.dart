@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// `StateProvider` vit dans `legacy` depuis Riverpod 3 — même import que
+// `notification_providers.dart`.
+import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/constants/app_size.dart';
 
@@ -256,6 +259,15 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
                 Expanded(
                   child: TextFormField(
                     controller: _referralController,
+                    // Publié à chaque frappe : le bouton Google est un widget
+                    // frère, il ne voit pas ce contrôleur.
+                    onChanged: (value) {
+                      final code = value.trim().toUpperCase();
+                      ref
+                              .read(signupReferralCodeProvider.notifier)
+                              .state =
+                          code.isEmpty ? null : code;
+                    },
                     decoration: InputDecoration(
                       labelText: 'Code de parrainage (optionnel)',
                       border: InputBorder.none,
@@ -326,6 +338,14 @@ class _OrDivider extends StatelessWidget {
   }
 }
 
+/// Code de parrainage saisi sur l'écran d'inscription.
+///
+/// Il vit dans un provider parce que **deux widgets frères** en ont besoin :
+/// `_SignUpForm`, qui le saisit, et `_SocialLogins`, qui doit le transmettre
+/// si l'utilisateur choisit finalement Google. Sans ce partage, taper son code
+/// puis cliquer « S'inscrire avec Google » perdait le parrain en silence.
+final signupReferralCodeProvider = StateProvider<String?>((ref) => null);
+
 class _SocialLogins extends ConsumerWidget {
   const _SocialLogins();
 
@@ -334,7 +354,15 @@ class _SocialLogins extends ConsumerWidget {
     final cs = Theme.of(context).colorScheme;
     return OutlinedButton.icon(
       onPressed: () async {
-        await ref.read(authControllerProvider.notifier).signInWithGoogle();
+        // Le code saisi sur CET écran doit suivre, quel que soit le mode
+        // d'inscription choisi ensuite. Sans cela, un filleul qui tape son
+        // code puis clique « Continuer avec Google » perdait son parrain sans
+        // le savoir.
+        await ref
+            .read(authControllerProvider.notifier)
+            .signInWithGoogle(
+              referralCode: ref.read(signupReferralCodeProvider),
+            );
       },
       icon: Image.asset('assets/images/google_logo.png', height: 24.0),
       label: Text(

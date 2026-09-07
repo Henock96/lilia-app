@@ -31,7 +31,11 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   await initializeDateFormatting('fr_FR', null);
-  AnalyticsService.setUserProperties();
+  // Branche les collecteurs (Firebase + console en debug) et charge le
+  // stockage de déduplication des événements uniques. Après
+  // `Firebase.initializeApp()`, obligatoirement.
+  await AnalyticsService.init();
+  await AnalyticsService.setUserProperties();
 
   final container = ProviderContainer();
   await container.read(themeModeProvider.notifier).init();

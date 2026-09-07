@@ -54,7 +54,7 @@ class AuthController extends _$AuthController {
       await ref
           .read(authRepositoryProvider)
           .signInWithEmailAndPassword(email: email, password: password);
-      AnalyticsService.logLogin(method: 'email');
+      AnalyticsService.trackLogin(method: 'email');
     } on FirebaseAuthException catch (e, st) {
       final error = FirebaseAuthErrorHandler.handleException(e);
       final errorMessage = FirebaseAuthErrorHandler.getErrorMessage(error);
@@ -88,7 +88,7 @@ class AuthController extends _$AuthController {
             phone: phone,
             referralCode: referralCode,
           );
-      AnalyticsService.logSignUp(method: 'email');
+      AnalyticsService.trackSignUp(method: 'email');
     } on FirebaseAuthException catch (e, st) {
       final error = FirebaseAuthErrorHandler.handleException(e);
       final errorMessage = FirebaseAuthErrorHandler.getErrorMessage(error);
@@ -104,18 +104,19 @@ class AuthController extends _$AuthController {
     }
   }
 
-  Future<void> signInWithGoogle() async {
+  /// [referralCode] n'a d'effet que si la connexion Google crée le compte.
+  Future<void> signInWithGoogle({String? referralCode}) async {
     state = const AsyncValue.loading();
     try {
       final googleUser = await ref
           .read(authRepositoryProvider)
-          .signInWithGoogle();
+          .signInWithGoogle(referralCode: referralCode);
       if (googleUser == null) {
         // L'utilisateur a annulé la connexion Google
         state = const AsyncValue.data(null);
       } else {
         // Connexion réussie
-        AnalyticsService.logLogin(method: 'google');
+        AnalyticsService.trackLogin(method: 'google');
         state = AsyncValue.data(googleUser);
       }
     } catch (e, st) {

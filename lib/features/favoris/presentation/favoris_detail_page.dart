@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/utils/currency.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
@@ -107,7 +108,7 @@ class _FavorisDetailPageState extends ConsumerState<FavorisDetailPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '${_currentPrice.toStringAsFixed(1)} FCFA',
+                    formatPrice(_currentPrice),
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -135,7 +136,7 @@ class _FavorisDetailPageState extends ConsumerState<FavorisDetailPage> {
                         final isSelected = _selectedVariant?.id == variant.id;
                         return ChoiceChip(
                           label: Text(
-                            '${variant.displayLabel} (${variant.prix.toStringAsFixed(1)} FCFA)',
+                            '${variant.displayLabel} (${formatPrice(variant.prix)})',
                             style: TextStyle(
                               color: isSelected ? Colors.white : Colors.black87,
                             ),

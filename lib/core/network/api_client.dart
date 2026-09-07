@@ -7,6 +7,7 @@ import '../../features/auth/repository/firebase_auth_repository.dart';
 import 'api_exception.dart';
 import 'interceptors/auth_interceptor.dart';
 import 'interceptors/error_interceptor.dart';
+import 'interceptors/installation_interceptor.dart';
 import 'interceptors/retry_interceptor.dart';
 import 'network_observer.dart';
 
@@ -59,6 +60,11 @@ class ApiClient {
       ),
     );
     dio.interceptors.addAll([
+      // En premier : l'identifiant d'installation se lit dans le stockage
+      // local, donc de façon asynchrone. Il ne peut pas vivre dans
+      // `BaseOptions.headers`, construits avant que ce stockage ne soit prêt —
+      // la toute première requête, `POST /users/sync`, partirait sans lui.
+      InstallationInterceptor(),
       AuthInterceptor(
         dio,
         tokenProvider: tokenProvider,

@@ -388,7 +388,7 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
                           ),
                         ),
                         child: Text(
-                          'Ajouter - ${(menu.prix * _quantity).toStringAsFixed(0)} FCFA',
+                          'Ajouter — ${formatPrice(menu.prix * _quantity)}',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

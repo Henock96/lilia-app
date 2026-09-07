@@ -5,7 +5,6 @@ import 'package:lilia_app/common_widgets/app_cached_image.dart';
 
 import '../../../../models/restaurant.dart';
 import '../../../../routing/app_route_enum.dart';
-import '../../../../services/analytics_service.dart';
 import '../../data/remote/home_controller.dart';
 import 'shimmer_box.dart';
 import 'vendor_type_badge.dart';
@@ -91,11 +90,11 @@ class _PopularRestaurantCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      // Aucun événement ici : ce geste **ouvre** la fiche vendeur, qui émet
+      // `restaurant_view`. En émettre un second sous un autre nom compterait
+      // deux fois la même consultation — et `popular_restaurant_tap` n'a aucun
+      // équivalent web, donc rien à quoi se comparer.
       onTap: () {
-        AnalyticsService.logPopularRestaurantTap(
-          restaurantId: restaurant.id,
-          restaurantName: restaurant.name,
-        );
         context.goNamed(
           AppRoutes.restaurantDetail.routeName,
           pathParameters: {'id': restaurant.id},

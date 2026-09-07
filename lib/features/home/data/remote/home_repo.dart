@@ -67,7 +67,11 @@ class HomeRepository {
         '/products/recommendations',
         query: {'limit': '$limit'},
       );
-      return parseJson(body, _parseProducts);
+      // `await` requis : sans lui, la `Future` sort du `try` avant d'être
+      // résolue, donc l'`ApiException` ci-dessous n'est **jamais** attrapée —
+      // elle remonte à l'appelant, et la dégradation « liste vide » que ce
+      // bloc existe pour offrir ne se produit pas.
+      return await parseJson(body, _parseProducts);
     } on ApiException catch (e) {
       // Recommandations = feature non bloquante : on dégrade en liste vide,
       // mais on trace l'erreur en debug au lieu de l'avaler totalement (C12).
