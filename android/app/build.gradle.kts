@@ -56,6 +56,19 @@ gradle.taskGraph.whenReady {
                 "sans aucune erreur."
         )
     }
+
+    // Même raisonnement pour la signature : on casse au moment de fabriquer
+    // le binaire, pas au moment de configurer le projet. Un artefact de
+    // release signé avec la clé de debug est refusé par le Play Store — mieux
+    // vaut l'apprendre ici que sur la console de publication.
+    if (buildingRelease && !rootProject.file("key.properties").exists()) {
+        throw GradleException(
+            "Trousseau de signature absent : créez `android/key.properties` " +
+                "(fichier gitignoré) avec keyAlias, keyPassword, storeFile et " +
+                "storePassword. Sans lui, la release serait signée avec la clé " +
+                "de debug et refusée par le Play Store."
+        )
+    }
 }
 
 
@@ -90,19 +103,43 @@ android {
         // Injecte la clé Maps dans AndroidManifest (${MAPS_API_KEY}).
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
+    // Le trousseau de signature n'existe que sur les machines qui publient.
+    //
+    // Ces quatre lignes faisaient `keystoreProperties["keyAlias"] as String`
+    // sans garde : en l'absence de `key.properties`, le cast d'un `null`
+    // levait **à la configuration** de Gradle. Toute tâche échouait alors, y
+    // compris `assembleDebug` et `flutter run` — un développeur qui clone le
+    // dépôt ne pouvait pas lancer l'application, et le message ne parlait pas
+    // de signature. La garde `MAPS_API_KEY` juste au-dessus avait été écrite
+    // avec ce soin ; celle-ci manquait.
+    //
+    // Absent ⇒ pas de configuration de release. Le build de debug fonctionne,
+    // et c'est la garde de `buildTypes` ci-dessous qui refuse une release non
+    // signée, avec la marche à suivre.
+    val hasKeystore = keystorePropertiesFile.exists() &&
+        keystoreProperties["keyAlias"] != null &&
+        keystoreProperties["storeFile"] != null
+
     signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = keystoreProperties["storeFile"]?.let { file(it) }
-            storePassword = keystoreProperties["storePassword"] as String
+        if (hasKeystore) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = keystoreProperties["storeFile"]?.let { file(it) }
+                storePassword = keystoreProperties["storePassword"] as String
+            }
         }
     }
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("release")
+            // Sans trousseau, on laisse la signature de debug plutôt que de
+            // casser la configuration. Produire un binaire de release signé en
+            // debug serait pire s'il partait sur un store — d'où la garde
+            // explicite ci-dessous, qui arrête le build au moment de le
+            // fabriquer et non au moment de le configurer.
+            if (hasKeystore) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 }

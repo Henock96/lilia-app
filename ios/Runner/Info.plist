@@ -43,6 +43,15 @@
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Votre position est utilisée pour afficher les restaurants proches et permettre la livraison.</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>comgooglemaps</string>
+		<string>googlechromes</string>
+		<string>maps</string>
+		<string>tel</string>
+		<string>https</string>
+		<string>http</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

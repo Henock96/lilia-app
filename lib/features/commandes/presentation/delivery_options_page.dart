@@ -345,6 +345,30 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
   }
 
   Widget _buildAddressSection(List<Adresse> addresses) {
+    // Présélectionner l'adresse par défaut du client.
+    //
+    // Aucune ne l'était : le client devait rouvrir la même adresse à chaque
+    // commande, et un tap oublié bloquait le bouton « Continuer » sans dire
+    // pourquoi. On ne choisit que si rien n'est encore sélectionné — écraser
+    // un choix déjà fait serait pire que de ne rien présélectionner.
+    if (_selectedAddress == null && !_useNewAddress) {
+      final preferred = addresses.where((a) => a.isDefault).firstOrNull;
+      if (preferred != null) {
+        // Hors phase de construction : `setState` pendant un `build` lève.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || _selectedAddress != null || _useNewAddress) return;
+          setState(() {
+            _selectedAddress = preferred;
+            if (preferred.quartier != null &&
+                preferred.quartierId != _selectedQuartier?.id) {
+              _selectedQuartier = preferred.quartier;
+              _calculateDeliveryFee();
+            }
+          });
+        });
+      }
+    }
+
     // Afficher TOUTES les adresses, pas de filtre restrictif
     // Mais trier pour mettre en premier celles qui correspondent au quartier sélectionné
     final sortedAddresses = List<Adresse>.from(addresses);
@@ -559,6 +583,30 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                       ],
                     ],
                   ),
+
+                  // Fiabilité de la position.
+                  //
+                  // « Mes adresses » l'affichait, cet écran-ci non — alors que
+                  // c'est ici que le client choisit où sa commande sera livrée.
+                  // L'information arrivait donc partout sauf au moment où elle
+                  // sert : mieux vaut apprendre que le livreur devra appeler
+                  // avant de payer qu'en l'ayant au bout du fil.
+                  if (!adresse.hasPosition) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.gps_off, size: 13, color: cs.error),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            'Non située — le livreur sera guidé au quartier '
+                            'et devra vous appeler',
+                            style: TextStyle(fontSize: 11, color: cs.error),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

@@ -12,6 +12,10 @@ import 'package:lilia_app/features/notifications/presentation/notifications_hist
 import 'package:lilia_app/models/banner.dart';
 import 'package:lilia_app/models/restaurant.dart';
 
+import 'package:lilia_app/core/update/app_update_dialog.dart';
+import 'package:lilia_app/core/update/app_update_model.dart';
+import 'package:lilia_app/core/update/app_update_service.dart';
+
 import '../data/remote/banner_controller.dart';
 import '../data/remote/home_controller.dart';
 import '../data/remote/restaurant_controller.dart';
@@ -33,6 +37,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   bool get wantKeepAlive => true;
 
   int _currentSlide = 0;
+  bool _updateDialogShown = false;
   final CarouselSliderController _carouselController =
       CarouselSliderController();
 
@@ -46,6 +51,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     super.build(context);
+
+    // Vérification de mise à jour de l'application (bloquante ou optionnelle)
+    ref.listen<AsyncValue<AppUpdateInfo>>(appUpdateInfoProvider, (previous, next) {
+      next.whenData((info) async {
+        if (!mounted || _updateDialogShown) return;
+        final service = ref.read(appUpdateServiceProvider);
+
+        if (info.isMandatory) {
+          _updateDialogShown = true;
+          AppUpdateDialog.showMandatory(context, info, service);
+        } else if (info.isOptional) {
+          final versionKey =
+              info.latestAvailableVersion?.toString() ?? 'latest';
+          final shouldPrompt =
+              await service.shouldPromptOptionalUpdate(versionKey);
+          if (shouldPrompt && mounted && !_updateDialogShown) {
+            _updateDialogShown = true;
+            if (context.mounted) {
+              AppUpdateDialog.showOptional(context, info, service);
+            }
+          }
+        }
+      });
+    });
     // LIL-117 : on consomme désormais le marketplace /vendors avec filtre
     // par VendorType (chips au-dessus). vendorsList rebuild auto quand le
     // filtre change. /restaurants reste compatible mais on a tout en

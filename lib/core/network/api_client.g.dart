@@ -49,7 +49,7 @@ final class NetworkObserverProvider
   }
 }
 
-String _$networkObserverHash() => r'eec087b935475284b01f88e6d8ed68a3592f8b2c';
+String _$networkObserverHash() => r'3fa22a8ecb5503ff8c37fd3f8878a26d4b93c161';
 
 @ProviderFor(apiClient)
 final apiClientProvider = ApiClientProvider._();

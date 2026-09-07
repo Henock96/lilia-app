@@ -75,7 +75,7 @@ class ReviewRepository {
       'restaurantId': restaurantId,
       'rating': rating,
       if (comment != null && comment.isNotEmpty) 'comment': comment,
-      if (orderId != null) 'orderId': orderId,
+      'orderId': ?orderId,
     };
     final res = await _api.postJson('/reviews', body: body);
     return Review.fromJson(

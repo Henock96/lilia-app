@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -87,6 +89,29 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
 
   bool _locating = false;
 
+  /// `true` quand la carte n'a donné aucun signe de vie dans le délai imparti.
+  ///
+  /// ## Le mode de panne que ceci rattrape
+  ///
+  /// Le bouton de confirmation est verrouillé tant que le client n'a pas
+  /// déplacé la carte. C'est voulu — un tap distrait ne doit pas enregistrer
+  /// le cadrage par défaut. Mais si la carte ne s'affiche **pas** (clé Maps
+  /// invalide en release, Services Google Play absents ou périmés, quota
+  /// dépassé), il n'y a rien à déplacer : le verrou ne s'ouvre jamais, aucune
+  /// erreur n'est affichée, et le client se retrouve devant un rectangle gris
+  /// et un bouton grisé. Il ne peut plus enregistrer d'adresse du tout, et
+  /// rien ne lui dit pourquoi ni comment s'en sortir.
+  ///
+  /// Google Maps ne signale pas ces échecs à l'application. On les déduit donc
+  /// du silence, et on offre une issue plutôt qu'un cul-de-sac.
+  bool _mapSeemsBroken = false;
+
+  Timer? _mapWatchdog;
+
+  /// Au-delà, on considère que la carte ne viendra pas. Large : sur la 4G de
+  /// Brazzaville, les premières tuiles prennent parfois plusieurs secondes.
+  static const _mapWatchdogDelay = Duration(seconds: 10);
+
   @override
   void initState() {
     super.initState();
@@ -97,10 +122,28 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
     // Une position déjà enregistrée est un choix antérieur du client : la
     // reconfirmer sans la déplacer est légitime.
     _touched = widget.initialPosition != null;
+
+    if (!_touched) {
+      _mapWatchdog = Timer(_mapWatchdogDelay, () {
+        if (mounted && !_touched) setState(() => _mapSeemsBroken = true);
+      });
+    }
+  }
+
+  /// Le client a donné signe de vie : la carte fonctionne, on désarme.
+  void _markTouched() {
+    _mapWatchdog?.cancel();
+    if (!_touched || _mapSeemsBroken) {
+      setState(() {
+        _touched = true;
+        _mapSeemsBroken = false;
+      });
+    }
   }
 
   @override
   void dispose() {
+    _mapWatchdog?.cancel();
     _controller?.dispose();
     _landmarkController.dispose();
     super.dispose();
@@ -132,10 +175,8 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
       result.position!.latitude,
       result.position!.longitude,
     );
-    setState(() {
-      _center = target;
-      _touched = true;
-    });
+    setState(() => _center = target);
+    _markTouched();
     await _controller?.animateCamera(
       CameraUpdate.newLatLngZoom(target, _kStreetZoom),
     );
@@ -178,10 +219,20 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
                   // La caméra n'est jamais repositionnée par le code après ce
                   // point : la carte appartient au doigt du client.
                   onCameraMove: (position) => _center = position.target,
-                  onCameraMoveStarted: () {
-                    if (!_touched) setState(() => _touched = true);
-                  },
-                  myLocationEnabled: true,
+                  onCameraMoveStarted: _markTouched,
+                  // `false` volontairement.
+                  //
+                  // À `true`, le greffon réclame la permission de localisation
+                  // **dès l'ouverture** de la carte, avant que le client ait
+                  // touché quoi que ce soit — donc une demande système sans
+                  // contexte, à laquelle on répond « refuser » par réflexe. Or
+                  // le refus définitif d'Android ne se redemande pas.
+                  //
+                  // La permission est réclamée par « Utiliser ma position »,
+                  // qui est le geste qui l'explique. Le point bleu n'est de
+                  // toute façon pas nécessaire ici : ce qu'on pose, c'est
+                  // l'adresse de livraison, pas la position du téléphone.
+                  myLocationEnabled: false,
                   myLocationButtonEnabled: false,
                   zoomControlsEnabled: false,
                   mapToolbarEnabled: false,
@@ -223,7 +274,16 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
                   ),
                 ),
 
-                if (!_touched)
+                if (_mapSeemsBroken)
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    right: 16,
+                    child: _MapUnavailableNotice(
+                      onSkip: () => Navigator.of(context).pop(),
+                    ),
+                  )
+                else if (!_touched)
                   Positioned(
                     top: 16,
                     left: 16,
@@ -246,6 +306,65 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
             onConfirm: _confirm,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Ce qu'on affiche quand la carte n'est jamais venue.
+///
+/// Le message ne prétend pas savoir pourquoi — l'application ne le sait pas :
+/// Google Maps n'informe pas d'une clé invalide ni de Services Play absents.
+/// Il dit ce qui est observable, et surtout il **rend la main** : l'adresse
+/// reste enregistrable sans position, le serveur retombera sur le centroïde du
+/// quartier. Un cul-de-sac silencieux était la seule chose à ne pas laisser.
+class _MapUnavailableNotice extends StatelessWidget {
+  const _MapUnavailableNotice({required this.onSkip});
+
+  final VoidCallback onSkip;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Material(
+      elevation: 3,
+      borderRadius: BorderRadius.circular(12),
+      color: cs.errorContainer,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.map_outlined, size: 18, color: cs.onErrorContainer),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'La carte ne se charge pas. Vérifiez votre connexion, ou '
+                    'enregistrez votre adresse sans position — le livreur sera '
+                    'guidé à votre quartier et vous appellera.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: cs.onErrorContainer,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: onSkip,
+                style: TextButton.styleFrom(
+                  foregroundColor: cs.onErrorContainer,
+                ),
+                child: const Text('Continuer sans position'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

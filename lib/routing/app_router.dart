@@ -36,6 +36,8 @@ import '../models/menu.dart';
 import '../models/produit.dart';
 import 'app_route_enum.dart';
 
+import 'package:sentry_flutter/sentry_flutter.dart';
+
 part 'app_router.g.dart';
 
 final _key = GlobalKey<NavigatorState>();
@@ -52,7 +54,10 @@ GoRouter router(Ref ref) {
   return GoRouter(
     navigatorKey: _key,
     initialLocation: AppRoutes.home.path,
-    observers: [AnalyticsService.observer],
+    observers: [
+      AnalyticsService.observer,
+      SentryNavigatorObserver(),
+    ],
     // Le refreshListenable doit écouter le même flux pour déclencher la redirection.
     refreshListenable: GoRouterRefreshStream(
       ref.watch(authRepositoryProvider).authStateChanges(),

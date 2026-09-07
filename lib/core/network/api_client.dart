@@ -10,6 +10,7 @@ import 'interceptors/error_interceptor.dart';
 import 'interceptors/installation_interceptor.dart';
 import 'interceptors/retry_interceptor.dart';
 import 'network_observer.dart';
+import 'sentry_network_observer.dart';
 
 part 'api_client.g.dart';
 
@@ -170,7 +171,7 @@ class ApiClient {
 }
 
 @Riverpod(keepAlive: true)
-NetworkObserver networkObserver(Ref ref) => const NoopNetworkObserver();
+NetworkObserver networkObserver(Ref ref) => const SentryNetworkObserver();
 
 @Riverpod(keepAlive: true)
 ApiClient apiClient(Ref ref) {

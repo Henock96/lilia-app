@@ -68,7 +68,6 @@ class _AddressPageState extends ConsumerState<AddressPage> {
               itemBuilder: (context, index) {
                 return _AddressCard(
                   address: addresses[index],
-                  isFirst: index == 0,
                   onDelete: () =>
                       _showDeleteConfirmation(context, addresses[index]),
                 );
@@ -160,14 +159,36 @@ class _AddressPageState extends ConsumerState<AddressPage> {
 
 class _AddressCard extends ConsumerWidget {
   final Adresse address;
-  final bool isFirst;
   final VoidCallback onDelete;
 
-  const _AddressCard({
-    required this.address,
-    required this.isFirst,
-    required this.onDelete,
-  });
+  const _AddressCard({required this.address, required this.onDelete});
+
+  /// Désigne cette adresse comme adresse par défaut.
+  Future<void> _setDefault(BuildContext context, WidgetRef ref) async {
+    try {
+      await ref
+          .read(adresseControllerProvider.notifier)
+          .setDefault(address.id);
+      if (context.mounted) {
+        context.showSuccessSnack('Adresse principale mise à jour');
+      }
+    } catch (e) {
+      if (context.mounted) context.showErrorSnack('Erreur: $e');
+    }
+  }
+
+  /// Modifie le libellé et la rue.
+  Future<void> _edit(BuildContext context, WidgetRef ref) async {
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _EditAddressSheet(address: address),
+    );
+    if (saved == true && context.mounted) {
+      context.showSuccessSnack('Adresse modifiée');
+    }
+  }
 
   /// Rattrapage des adresses créées avant l'existence de la position.
   ///
@@ -179,8 +200,16 @@ class _AddressCard extends ConsumerWidget {
       MaterialPageRoute(
         builder: (_) => LocationPickerPage(
           quartier: address.quartier,
+          // Recadrer sur la position déjà connue plutôt que de repartir de la
+          // vue générale : corriger un point de quelques dizaines de mètres
+          // obligeait sinon à retrouver son quartier à la main.
+          initialPosition: address.hasPosition
+              ? LatLng(address.latitude!, address.longitude!)
+              : null,
           initialLandmark: address.landmark,
-          title: 'Situer « ${address.rue} »',
+          title: address.hasPosition
+              ? 'Corriger « ${address.displayLabel} »'
+              : 'Situer « ${address.displayLabel} »',
         ),
       ),
     );
@@ -197,7 +226,8 @@ class _AddressCard extends ConsumerWidget {
           );
       if (context.mounted) context.showSuccessSnack('Position enregistrée');
     } catch (e) {
-      if (context.mounted) context.showErrorSnack('Erreur: \$e');
+      // Le `\$` était échappé : le client lisait littéralement « Erreur: $e ».
+      if (context.mounted) context.showErrorSnack('Erreur: $e');
     }
   }
 
@@ -228,14 +258,14 @@ class _AddressCard extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isFirst
+                color: address.isDefault
                     ? cs.primary.withValues(alpha: 0.1)
                     : cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 Iconsax.location,
-                color: isFirst ? cs.primary : cs.onSurfaceVariant,
+                color: address.isDefault ? cs.primary : cs.onSurfaceVariant,
                 size: 24,
               ),
             ),
@@ -250,7 +280,7 @@ class _AddressCard extends ConsumerWidget {
                     children: [
                       Expanded(
                         child: Text(
-                          address.rue,
+                          address.displayLabel,
                           style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
@@ -259,7 +289,7 @@ class _AddressCard extends ConsumerWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (isFirst)
+                      if (address.isDefault)
                         Container(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 8,
@@ -282,6 +312,21 @@ class _AddressCard extends ConsumerWidget {
                         ),
                     ],
                   ),
+                  // La rue reste affichée sous le libellé quand le client en a
+                  // donné un : « Maison » situe dans la liste, « Rue Bayonne »
+                  // est ce que le livreur lira.
+                  if (address.displayLabel != address.rue) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      address.rue,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: cs.onSurfaceVariant,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Row(
                     children: [
@@ -325,16 +370,74 @@ class _AddressCard extends ConsumerWidget {
               ),
             ),
 
-            // Bouton supprimer
-            IconButton(
-              onPressed: onDelete,
-              icon: Icon(Iconsax.trash, color: Colors.red[300], size: 20),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.red[50],
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+            // Actions. La suppression était la seule offerte : corriger une
+            // faute de frappe imposait de supprimer puis recréer, ce qui
+            // faisait aussi perdre la position posée sur la carte.
+            PopupMenuButton<String>(
+              tooltip: 'Actions sur cette adresse',
+              icon: Icon(Icons.more_vert, color: cs.onSurfaceVariant),
+              onSelected: (value) {
+                switch (value) {
+                  case 'edit':
+                    _edit(context, ref);
+                  case 'locate':
+                    _locate(context, ref);
+                  case 'default':
+                    _setDefault(context, ref);
+                  case 'delete':
+                    onDelete();
+                }
+              },
+              itemBuilder: (_) => [
+                const PopupMenuItem(
+                  value: 'edit',
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.edit_outlined, size: 20),
+                    title: Text('Modifier'),
+                  ),
                 ),
-              ),
+                PopupMenuItem(
+                  value: 'locate',
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.map_outlined, size: 20),
+                    title: Text(
+                      address.hasPosition
+                          ? 'Corriger la position'
+                          : 'Placer sur la carte',
+                    ),
+                  ),
+                ),
+                if (!address.isDefault)
+                  const PopupMenuItem(
+                    value: 'default',
+                    child: ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.star_outline, size: 20),
+                      title: Text('Définir comme principale'),
+                    ),
+                  ),
+                PopupMenuItem(
+                  value: 'delete',
+                  child: ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(
+                      Iconsax.trash,
+                      size: 20,
+                      color: Colors.red[400],
+                    ),
+                    title: Text(
+                      'Supprimer',
+                      style: TextStyle(color: Colors.red[400]),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -365,6 +468,7 @@ class _AddAddressSheet extends ConsumerStatefulWidget {
 class _AddAddressSheetState extends ConsumerState<_AddAddressSheet> {
   final _formKey = GlobalKey<FormState>();
   final _rueController = TextEditingController();
+  final _labelController = TextEditingController();
 
   Quartier? _quartier;
   PickedLocation? _position;
@@ -373,6 +477,7 @@ class _AddAddressSheetState extends ConsumerState<_AddAddressSheet> {
   @override
   void dispose() {
     _rueController.dispose();
+    _labelController.dispose();
     super.dispose();
   }
 
@@ -408,6 +513,7 @@ class _AddAddressSheetState extends ConsumerState<_AddAddressSheet> {
             latitude: _position?.latitude,
             longitude: _position?.longitude,
             landmark: _position?.landmark,
+            label: _labelController.text.trim(),
           );
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -477,6 +583,25 @@ class _AddAddressSheetState extends ConsumerState<_AddAddressSheet> {
                   ],
                 ),
                 const SizedBox(height: 24),
+
+                // Libellé : le modèle, le dépôt et le DTO backend le portaient
+                // déjà tous les trois, seul le formulaire ne le proposait pas.
+                // Trois adresses au même quartier sont indiscernables sans lui.
+                TextFormField(
+                  controller: _labelController,
+                  textCapitalization: TextCapitalization.sentences,
+                  maxLength: 50,
+                  decoration: InputDecoration(
+                    labelText: 'Nom de l\'adresse (facultatif)',
+                    hintText: 'Ex : Maison, Bureau',
+                    counterText: '',
+                    prefixIcon: const Icon(Iconsax.tag),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
 
                 TextFormField(
                   controller: _rueController,
@@ -688,6 +813,247 @@ class _PrecisionChip extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Modification d'une adresse existante.
+///
+/// Une adresse enregistrée était **définitive** : le contrôleur n'exposait que
+/// `createAdresse`, `updatePosition` et `deleteAdresse`. Corriger une faute de
+/// frappe dans le nom de rue, ou changer un quartier choisi trop vite,
+/// obligeait à supprimer puis recréer — ce qui faisait aussi perdre la
+/// position déjà posée sur la carte, et le badge d'adresse principale.
+///
+/// La position n'est délibérément **pas** modifiable ici : elle se pose sur une
+/// carte, pas dans un champ texte. L'action « Corriger la position » du menu
+/// ouvre l'écran fait pour ça.
+class _EditAddressSheet extends ConsumerStatefulWidget {
+  const _EditAddressSheet({required this.address});
+
+  final Adresse address;
+
+  @override
+  ConsumerState<_EditAddressSheet> createState() => _EditAddressSheetState();
+}
+
+class _EditAddressSheetState extends ConsumerState<_EditAddressSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _rueController;
+  late final TextEditingController _labelController;
+
+  Quartier? _quartier;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _rueController = TextEditingController(text: widget.address.rue);
+    _labelController = TextEditingController(text: widget.address.label ?? '');
+    _quartier = widget.address.quartier;
+  }
+
+  @override
+  void dispose() {
+    _rueController.dispose();
+    _labelController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(adresseControllerProvider.notifier)
+          .updateAdresse(
+            widget.address.id,
+            rue: _rueController.text.trim(),
+            quartierId: _quartier?.id,
+            // Chaîne vide transmise volontairement : c'est ainsi qu'on efface
+            // un libellé dont on ne veut plus.
+            label: _labelController.text.trim(),
+          );
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      context.showErrorSnack('Erreur: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final quartiersAsync = ref.watch(quartiersListProvider);
+
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: cs.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: cs.outlineVariant,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: cs.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        Icons.edit_outlined,
+                        color: cs.primary,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Modifier l\'adresse',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                TextFormField(
+                  controller: _labelController,
+                  textCapitalization: TextCapitalization.sentences,
+                  maxLength: 50,
+                  decoration: InputDecoration(
+                    labelText: 'Nom de l\'adresse (facultatif)',
+                    hintText: 'Ex : Maison, Bureau',
+                    counterText: '',
+                    prefixIcon: const Icon(Iconsax.tag),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                TextFormField(
+                  controller: _rueController,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    labelText: 'Rue / Avenue / Repère',
+                    prefixIcon: const Icon(Iconsax.routing),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? 'Veuillez entrer une rue ou un repère'
+                      : null,
+                ),
+                const SizedBox(height: 16),
+
+                quartiersAsync.when(
+                  loading: () => const LinearProgressIndicator(),
+                  error: (_, _) => Text(
+                    'Quartiers indisponibles — réessayez',
+                    style: TextStyle(color: cs.error, fontSize: 13),
+                  ),
+                  data: (quartiers) {
+                    // L'objet quartier de l'adresse et celui de la liste sont
+                    // deux instances distinctes : sans cette résolution par
+                    // identifiant, le menu s'ouvrirait vide alors qu'un
+                    // quartier est bien enregistré.
+                    final selected = _quartier == null
+                        ? null
+                        : quartiers
+                              .where((q) => q.id == _quartier!.id)
+                              .firstOrNull;
+                    return DropdownButtonFormField<Quartier>(
+                      initialValue: selected,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: 'Quartier',
+                        prefixIcon: const Icon(Iconsax.building_3),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      items: quartiers
+                          .map(
+                            (q) => DropdownMenuItem(value: q, child: Text(q.nom)),
+                          )
+                          .toList(),
+                      onChanged: (value) => setState(() => _quartier = value),
+                      validator: (value) =>
+                          value == null ? 'Choisissez votre quartier' : null,
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // Le quartier porte les frais de zone : le changer change ce
+                // que coûtera la prochaine livraison. Le dire ici évite la
+                // surprise au checkout.
+                Text(
+                  'Le quartier détermine les frais de livraison.',
+                  style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: 24),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _saving ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _saving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text(
+                            'Enregistrer',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ),
+          ),
         ),
       ),
     );

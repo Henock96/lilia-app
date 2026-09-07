@@ -1,7 +1,7 @@
 name: lilia_app
 description: "Marketplace restaurants, cuisine fais maison, patisserie"
 
-version: 1.2.6+31
+version: 1.2.7+32
 
 environment:
   sdk: ^3.8.1

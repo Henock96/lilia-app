@@ -41,6 +41,16 @@ class PlatformSettings {
   final bool maintenanceMode;
   final String? maintenanceMessage;
 
+  /// Version minimale requise (en-dessous, mise à jour obligatoire / hard update).
+  final String? minAppVersion;
+
+  /// Dernière version disponible (en-dessous, mise à jour facultative / soft update).
+  final String? latestAppVersion;
+
+  final String? updateUrlAndroid;
+  final String? updateUrlIos;
+  final String? updateMessage;
+
   const PlatformSettings({
     required this.serviceFeePercent,
     required this.loyaltyPointsPerOrder,
@@ -49,6 +59,11 @@ class PlatformSettings {
     required this.referrerBonusPoints,
     this.maintenanceMode = false,
     this.maintenanceMessage,
+    this.minAppVersion,
+    this.latestAppVersion,
+    this.updateUrlAndroid,
+    this.updateUrlIos,
+    this.updateMessage,
   });
 
   /// Convertit un nombre de points en FCFA. Point de passage **unique** :
@@ -88,6 +103,11 @@ class PlatformSettings {
           fallback.referrerBonusPoints,
       maintenanceMode: json['maintenanceMode'] as bool? ?? false,
       maintenanceMessage: json['maintenanceMessage'] as String?,
+      minAppVersion: json['minAppVersion'] as String?,
+      latestAppVersion: json['latestAppVersion'] as String?,
+      updateUrlAndroid: json['updateUrlAndroid'] as String?,
+      updateUrlIos: json['updateUrlIos'] as String?,
+      updateMessage: json['updateMessage'] as String?,
     );
   }
 }

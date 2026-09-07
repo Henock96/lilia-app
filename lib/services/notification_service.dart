@@ -10,6 +10,7 @@ import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
 import 'package:lilia_app/features/notifications/data/notification_model.dart';
 import 'package:lilia_app/firebase_options.dart';
+import 'package:lilia_app/routing/app_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'notification_router.dart';
 
@@ -22,20 +23,20 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // 1. Initialiser Firebase pour l'isolate d'arrière-plan
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // 2. Créer et afficher une notification locale
-  // Cela garantit que l'utilisateur voit la notification même si l'application est terminée.
-  if (message.notification != null) {
+  // 2. Si le message est un data-only push (pas de bloc notification natif),
+  // on affiche une notification locale pour que l'utilisateur ne rate rien.
+  // Si `message.notification != null`, le SDK Android FCM l'affiche déjà nativement
+  // dans la barre d'état — en afficher une seconde créerait un doublon.
+  if (message.notification == null && message.data.containsKey('title')) {
     final FlutterLocalNotificationsPlugin localNotifications =
         FlutterLocalNotificationsPlugin();
 
-    // Initialisation pour Android
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/launcher_icon');
     const InitializationSettings initializationSettings =
         InitializationSettings(android: initializationSettingsAndroid);
     await localNotifications.initialize(settings: initializationSettings);
 
-    // Détails de la notification
     const AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
           'high_importance_channel',
@@ -50,13 +51,15 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       android: androidDetails,
     );
 
-    // Afficher la notification
+    final title = message.data['title']?.toString() ?? 'Lilia Food';
+    final body = message.data['body']?.toString() ?? '';
+
     await localNotifications.show(
-      id: message.notification.hashCode,
-      title: message.notification!.title,
-      body: message.notification!.body,
+      id: message.messageId.hashCode,
+      title: title,
+      body: body,
       notificationDetails: platformDetails,
-      payload: jsonEncode(message.data), // Transmettre les données
+      payload: jsonEncode(message.data),
     );
   }
 }
@@ -221,7 +224,10 @@ class NotificationService {
       try {
         final data = jsonDecode(response.payload!);
         debugPrint('Local notification tapped with payload: $data');
-        _handleNotificationData(data as Map<String, dynamic>);
+        _handleNotificationData(
+          data as Map<String, dynamic>,
+          trigger: NotificationTrigger.tap,
+        );
       } catch (e) {
         debugPrint('Error parsing notification payload: $e');
       }
@@ -231,9 +237,7 @@ class NotificationService {
   // 4. Centraliser la logique de traitement des données
   //
   // Le routage vit dans `NotificationRouter` (pur, testé) : ce service ne fait
-  // qu'appliquer la décision. Avant, il posait `latestUpdatedOrderIdProvider`
-  // et rechargeait, quel que soit l'événement — une livraison terminée, un
-  // paiement échoué et une annulation déclenchaient la même chose.
+  // qu'appliquer la décision.
   void _handleNotificationData(
     Map<String, dynamic> data, {
     NotificationTrigger trigger = NotificationTrigger.foreground,
@@ -253,6 +257,16 @@ class NotificationService {
         orderId: action.orderId!,
         intent: action.intent,
       );
+    }
+
+    // Navigation au clic sur la notification
+    if (action.route != null && action.route!.isNotEmpty) {
+      try {
+        final router = _ref.read(routerProvider);
+        router.push(action.route!);
+      } catch (e) {
+        debugPrint('Notification navigation error: $e');
+      }
     }
   }
 

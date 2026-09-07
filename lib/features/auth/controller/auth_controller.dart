@@ -9,7 +9,10 @@ import 'package:lilia_app/features/commandes/data/order_repository.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
 import 'package:lilia_app/features/favoris/application/restaurant_favorites_provider.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
+import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
+import 'package:lilia_app/features/user/data/adresse_repository.dart';
+import 'package:lilia_app/features/cart/application/draft_orders_provider.dart';
 import 'package:lilia_app/services/analytics_service.dart';
 import 'package:lilia_app/services/notification_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -145,6 +148,9 @@ class AuthController extends _$AuthController {
       ref.invalidate(userProfileProvider);
       ref.invalidate(referralStatsProvider);
       ref.invalidate(loyaltyTransactionsProvider);
+      ref.invalidate(adresseControllerProvider);
+      ref.invalidate(adresseRepositoryProvider);
+      ref.invalidate(draftOrdersProvider);
 
       return true;
     } on Exception {
@@ -238,6 +244,9 @@ class AuthController extends _$AuthController {
       ref.invalidate(userProfileProvider);
       ref.invalidate(referralStatsProvider);
       ref.invalidate(loyaltyTransactionsProvider);
+      ref.invalidate(adresseControllerProvider);
+      ref.invalidate(adresseRepositoryProvider);
+      ref.invalidate(draftOrdersProvider);
 
       state = const AsyncValue.data(null);
       return true;

@@ -46,15 +46,22 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
             // (contains user PII).
             debugPrint('Backend /users/me sync status: ${res.statusCode}');
           }
-          // Identifiant analytique : le CUID applicatif, résolu ici parce que
-          // c'est le seul endroit de l'application où il arrive de façon fiable
-          // à chaque ouverture de session.
-          //
-          // ⚠️ Surtout pas `firebaseUser.uid` ni le numéro de téléphone. L'UID
-          // Firebase n'est pas le même identifiant que celui du web (qui
-          // transmet `user.id`), et les parcours des deux plateformes ne se
-          // recolleraient pas. Le téléphone, lui, est une donnée personnelle.
-          AnalyticsService.identify(_internalUserId(res.data));
+          final internalId = _internalUserId(res.data);
+          if (internalId != null) {
+            await Sentry.configureScope(
+              (scope) => scope.setUser(
+                SentryUser(
+                  id: internalId,
+                  email: firebaseUser?.email,
+                  data: {
+                    'role': 'CLIENT',
+                    if (firebaseUser?.uid != null) 'firebaseUid': firebaseUser!.uid,
+                  },
+                ),
+              ),
+            );
+          }
+          AnalyticsService.identify(internalId);
         } on ApiException catch (e) {
           if (kDebugMode) {
             debugPrint('Backend sync error: ${e.kind}');

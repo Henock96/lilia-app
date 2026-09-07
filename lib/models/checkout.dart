@@ -4,6 +4,7 @@
 
 import 'dart:convert';
 
+import 'package:lilia_app/models/location_precision.dart';
 import 'package:lilia_app/utils/api_response.dart';
 
 Map<String, dynamic> _asMap(Object? value) =>
@@ -40,6 +41,11 @@ class Checkout {
   String? promoCode;
   String? notes;
   String? deliveryAddress; // Nullable pour le mode retrait
+  double? deliveryLatitude;
+  double? deliveryLongitude;
+  LocationPrecision deliveryPrecision;
+  String? deliveryLandmark;
+  String? contactPhone;
   String paymentMethod;
   String status;
   DateTime createdAt;
@@ -58,6 +64,11 @@ class Checkout {
     required this.total,
     this.promoCode,
     this.deliveryAddress, // Optionnel maintenant
+    this.deliveryLatitude,
+    this.deliveryLongitude,
+    this.deliveryPrecision = LocationPrecision.unknown,
+    this.deliveryLandmark,
+    this.contactPhone,
     required this.paymentMethod,
     required this.status,
     required this.createdAt,
@@ -79,6 +90,11 @@ class Checkout {
     String? promoCode,
     String? notes,
     String? deliveryAddress,
+    double? deliveryLatitude,
+    double? deliveryLongitude,
+    LocationPrecision? deliveryPrecision,
+    String? deliveryLandmark,
+    String? contactPhone,
     String? paymentMethod,
     String? status,
     DateTime? createdAt,
@@ -97,6 +113,11 @@ class Checkout {
     promoCode: promoCode ?? this.promoCode,
     notes: notes ?? this.notes,
     deliveryAddress: deliveryAddress ?? this.deliveryAddress,
+    deliveryLatitude: deliveryLatitude ?? this.deliveryLatitude,
+    deliveryLongitude: deliveryLongitude ?? this.deliveryLongitude,
+    deliveryPrecision: deliveryPrecision ?? this.deliveryPrecision,
+    deliveryLandmark: deliveryLandmark ?? this.deliveryLandmark,
+    contactPhone: contactPhone ?? this.contactPhone,
     paymentMethod: paymentMethod ?? this.paymentMethod,
     status: status ?? this.status,
     createdAt: createdAt ?? this.createdAt,
@@ -125,6 +146,17 @@ class Checkout {
     deliveryAddress: json["deliveryAddress"] is String
         ? json["deliveryAddress"] as String
         : null,
+    deliveryLatitude: (json["deliveryLatitude"] as num?)?.toDouble(),
+    deliveryLongitude: (json["deliveryLongitude"] as num?)?.toDouble(),
+    deliveryPrecision: LocationPrecision.fromWire(
+      json["deliveryPrecision"] as String?,
+    ),
+    deliveryLandmark: json["deliveryLandmark"] is String
+        ? json["deliveryLandmark"] as String
+        : null,
+    contactPhone: json["contactPhone"] is String
+        ? json["contactPhone"] as String
+        : null,
     paymentMethod: _asString(json["paymentMethod"]),
     status: _asString(json["status"]),
     createdAt: _asDate(json["createdAt"]),
@@ -147,6 +179,10 @@ class Checkout {
     "promoCode": promoCode,
     "notes": notes,
     "deliveryAddress": deliveryAddress,
+    if (deliveryLatitude != null) "deliveryLatitude": deliveryLatitude,
+    if (deliveryLongitude != null) "deliveryLongitude": deliveryLongitude,
+    if (deliveryLandmark != null) "deliveryLandmark": deliveryLandmark,
+    if (contactPhone != null) "contactPhone": contactPhone,
     "paymentMethod": paymentMethod,
     "status": status,
     "createdAt": createdAt.toIso8601String(),

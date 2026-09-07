@@ -60,8 +60,8 @@ class OrderRepository extends _$OrderRepository {
         'contactPhone': contactPhone,
       if (promoCode != null && promoCode.isNotEmpty) 'promoCode': promoCode,
       if (useLoyaltyPoints) 'useLoyaltyPoints': true,
-      if (deliveryLatitude != null) 'deliveryLatitude': deliveryLatitude,
-      if (deliveryLongitude != null) 'deliveryLongitude': deliveryLongitude,
+      'deliveryLatitude': ?deliveryLatitude,
+      'deliveryLongitude': ?deliveryLongitude,
       if (scheduledFor != null) ...{
         'isPreorder': true,
         'scheduledFor': scheduledFor.toUtc().toIso8601String(),

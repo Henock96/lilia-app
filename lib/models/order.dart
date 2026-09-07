@@ -1,3 +1,4 @@
+import 'package:lilia_app/models/location_precision.dart';
 import 'package:lilia_app/models/order_item.dart';
 
 Map<String, dynamic> _asMap(Object? value) =>
@@ -58,6 +59,12 @@ class Order {
   final double discountAmount;
   final double total;
   final String? deliveryAddress; // Nullable pour le mode retrait
+  final double? deliveryLatitude;
+  final double? deliveryLongitude;
+  final LocationPrecision deliveryPrecision;
+  final String? deliveryLandmark;
+  final String? notes;
+  final String? contactPhone;
   final String paymentMethod;
   final OrderStatus status; // Changé de String à OrderStatus
   final DateTime createdAt;
@@ -78,6 +85,12 @@ class Order {
     this.discountAmount = 0,
     required this.total,
     this.deliveryAddress, // Optionnel maintenant
+    this.deliveryLatitude,
+    this.deliveryLongitude,
+    this.deliveryPrecision = LocationPrecision.unknown,
+    this.deliveryLandmark,
+    this.notes,
+    this.contactPhone,
     required this.paymentMethod,
     required this.status,
     required this.createdAt,
@@ -99,6 +112,12 @@ class Order {
     double? discountAmount,
     double? total,
     String? deliveryAddress,
+    double? deliveryLatitude,
+    double? deliveryLongitude,
+    LocationPrecision? deliveryPrecision,
+    String? deliveryLandmark,
+    String? notes,
+    String? contactPhone,
     String? paymentMethod,
     OrderStatus? status,
     DateTime? createdAt,
@@ -119,6 +138,12 @@ class Order {
       discountAmount: discountAmount ?? this.discountAmount,
       total: total ?? this.total,
       deliveryAddress: deliveryAddress ?? this.deliveryAddress,
+      deliveryLatitude: deliveryLatitude ?? this.deliveryLatitude,
+      deliveryLongitude: deliveryLongitude ?? this.deliveryLongitude,
+      deliveryPrecision: deliveryPrecision ?? this.deliveryPrecision,
+      deliveryLandmark: deliveryLandmark ?? this.deliveryLandmark,
+      notes: notes ?? this.notes,
+      contactPhone: contactPhone ?? this.contactPhone,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       status: status ?? this.status,
       createdAt: createdAt ?? this.createdAt,
@@ -148,6 +173,18 @@ class Order {
       deliveryAddress: json['deliveryAddress'] is String
           ? json['deliveryAddress'] as String
           : null,
+      deliveryLatitude: (json['deliveryLatitude'] as num?)?.toDouble(),
+      deliveryLongitude: (json['deliveryLongitude'] as num?)?.toDouble(),
+      deliveryPrecision: LocationPrecision.fromWire(
+        json['deliveryPrecision'] as String?,
+      ),
+      deliveryLandmark: json['deliveryLandmark'] is String
+          ? json['deliveryLandmark'] as String
+          : null,
+      notes: json['notes'] is String ? json['notes'] as String : null,
+      contactPhone: json['contactPhone'] is String
+          ? json['contactPhone'] as String
+          : null,
       paymentMethod: _asString(json['paymentMethod']),
       status: _parseStatus(json['status'] as String?),
       createdAt: _asDate(json['createdAt']),
@@ -164,6 +201,37 @@ class Order {
           ? DateTime.tryParse(json['scheduledFor'].toString())
           : null,
     );
+  }
+
+  /// `true` si un marqueur peut être posé sur la carte pour cette commande.
+  ///
+  /// Exige les deux coordonnées **et** une précision qui ne soit pas
+  /// `unknown` : le serveur met `deliveryPrecision` à `UNKNOWN` quand il n'a
+  /// pas su résoudre la destination, et une paire de coordonnées résiduelle ne
+  /// doit pas suffire à faire croire le contraire. Un faux point est pire que
+  /// pas de point — on s'y rend.
+  bool get hasDeliveryCoordinates =>
+      deliveryLatitude != null &&
+      deliveryLongitude != null &&
+      deliveryPrecision.hasPosition;
+
+  /// `true` si la destination est connue mais seulement à l'échelle du
+  /// quartier. L'interface doit alors accompagner le point d'une réserve.
+  bool get deliveryNeedsWarning => deliveryPrecision.needsWarning;
+
+  /// Destination lisible par un humain, repères compris.
+  ///
+  /// Le texte et les repères sont deux informations distinctes et
+  /// complémentaires : « Rue Bayonne, Moungali » dit le secteur, « portail
+  /// bleu face à la pharmacie » dit la porte. On ne remplace jamais l'une par
+  /// l'autre.
+  String? get deliveryDescription {
+    final parts = [deliveryAddress, deliveryLandmark]
+        .map((p) => p?.trim())
+        .where((p) => p != null && p.isNotEmpty)
+        .cast<String>()
+        .toList();
+    return parts.isEmpty ? null : parts.join(' — ');
   }
 }
 

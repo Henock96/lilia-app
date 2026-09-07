@@ -18,9 +18,9 @@ import 'package:lilia_app/features/payments/data/payment_service.dart';
 import 'package:lilia_app/features/payments/presentation/payment_pending_args.dart';
 import 'package:lilia_app/models/order.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
-import 'package:lilia_app/services/analytics_service.dart';
-
+import '../../../models/location_precision.dart';
 import '../../../models/order_item.dart';
+import '../../../utils/map_launcher.dart';
 import '../../cart/application/cart_controller.dart';
 import '../data/order_controller.dart';
 import '../data/order_repository.dart';
@@ -28,6 +28,7 @@ import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 import '../../reviews/presentation/widgets/rate_driver_sheet.dart';
 import '../data/delivery_tracking_repository.dart';
+import '../../../services/analytics_service.dart';
 import '../../../services/notification_router.dart';
 import '../../notifications/application/notification_providers.dart';
 
@@ -617,6 +618,8 @@ class OrderDetailPage extends ConsumerWidget {
 
   Widget _buildDeliveryCard(BuildContext context, Order order) {
     final cs = Theme.of(context).colorScheme;
+    final isDelivery = order.isDelivery;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -628,36 +631,60 @@ class OrderDetailPage extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                order.isDelivery ? Iconsax.truck_fast : Iconsax.shop,
-                size: 20,
-                color: cs.onSurfaceVariant,
+              Row(
+                children: [
+                  Icon(
+                    isDelivery ? Iconsax.truck_fast : Iconsax.shop,
+                    size: 20,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    isDelivery ? 'Livraison' : 'Retrait en magasin',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Text(
-                order.isDelivery ? 'Livraison' : 'Retrait en magasin',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+              // `hasDeliveryCoordinates` et non un simple test de nullité :
+              // il exige aussi que le serveur ait qualifié la position. Des
+              // coordonnées résiduelles sur une destination `UNKNOWN`
+              // ouvriraient un itinéraire vers un point que personne n'a posé
+              // — et on s'y rendrait.
+              if (isDelivery && order.hasDeliveryCoordinates)
+                TextButton.icon(
+                  onPressed: () => MapLauncher.openNavigation(
+                    latitude: order.deliveryLatitude!,
+                    longitude: order.deliveryLongitude!,
+                    label: 'Livraison - Commande #${order.id.substring(0, 8)}',
+                    address: order.deliveryAddress,
+                  ),
+                  icon: const Icon(Icons.navigation_outlined, size: 16),
+                  label: const Text('Itinéraire', style: TextStyle(fontSize: 12)),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    visualDensity: VisualDensity.compact,
+                  ),
                 ),
-              ),
             ],
           ),
           const SizedBox(height: 16),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: order.isDelivery ? Colors.blue[50] : Colors.orange[50],
+                  color: isDelivery ? Colors.blue[50] : Colors.orange[50],
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  order.isDelivery ? Iconsax.location : Iconsax.shop,
-                  color: order.isDelivery
-                      ? Colors.blue[400]
-                      : Colors.orange[400],
+                  isDelivery ? Iconsax.location : Iconsax.shop,
+                  color: isDelivery ? Colors.blue[400] : Colors.orange[400],
                   size: 22,
                 ),
               ),
@@ -667,8 +694,8 @@ class OrderDetailPage extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      order.isDelivery
-                          ? 'Adresse de livraison'
+                      isDelivery
+                          ? 'Adresse de destination'
                           : 'Adresse du restaurant',
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
@@ -677,7 +704,7 @@ class OrderDetailPage extends ConsumerWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      order.isDelivery
+                      isDelivery
                           ? (order.deliveryAddress ?? 'Adresse non spécifiée')
                           : (order.restaurant.adresse ??
                                 'Adresse non disponible'),
@@ -686,6 +713,81 @@ class OrderDetailPage extends ConsumerWidget {
                         fontSize: 13,
                       ),
                     ),
+                    if (isDelivery &&
+                        order.deliveryLandmark != null &&
+                        order.deliveryLandmark!.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.info_outline, size: 14, color: cs.primary),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'Repère : ${order.deliveryLandmark}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: cs.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (order.notes != null && order.notes!.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Note : "${order.notes}"',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                    if (order.contactPhone != null &&
+                        order.contactPhone!.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Contact : ${order.contactPhone}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                    // Fiabilité de la destination, dans les trois cas.
+                    //
+                    // Seul `exact` était affiché : l'interface rassurait quand
+                    // tout allait bien et se taisait quand il y avait un
+                    // problème. Or c'est l'inverse qui est utile — un client
+                    // qui sait que le livreur va devoir l'appeler garde son
+                    // téléphone à portée, et peut encore situer son adresse.
+                    if (isDelivery) ...[
+                      const SizedBox(height: 6),
+                      switch (order.deliveryPrecision) {
+                        LocationPrecision.exact => _PrecisionLine(
+                          icon: Icons.gps_fixed,
+                          color: Colors.green.shade700,
+                          text: 'Position exacte enregistrée',
+                        ),
+                        LocationPrecision.approximate => _PrecisionLine(
+                          icon: Icons.gps_not_fixed,
+                          color: Colors.orange.shade800,
+                          text:
+                              'Position au quartier — le livreur vous '
+                              'appellera en arrivant',
+                        ),
+                        LocationPrecision.unknown => _PrecisionLine(
+                          icon: Icons.gps_off,
+                          color: cs.error,
+                          text:
+                              'Aucune position enregistrée — le livreur vous '
+                              'appellera',
+                        ),
+                      },
+                    ],
                   ],
                 ),
               ),
@@ -1977,4 +2079,40 @@ class _PayNowButtonState extends ConsumerState<_PayNowButton> {
       ),
     );
   }
+}
+
+/// Ligne « fiabilité de la destination », sous l'adresse de livraison.
+///
+/// Trois états, trois conduites différentes pour le client : ne rien faire,
+/// garder son téléphone à portée, ou compléter son adresse. Les confondre en
+/// un seul message — ou n'en afficher qu'un — revenait à ne rien dire.
+class _PrecisionLine extends StatelessWidget {
+  const _PrecisionLine({
+    required this.icon,
+    required this.color,
+    required this.text,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(icon, size: 12, color: color),
+      const SizedBox(width: 4),
+      Expanded(
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 11,
+            color: color,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    ],
+  );
 }

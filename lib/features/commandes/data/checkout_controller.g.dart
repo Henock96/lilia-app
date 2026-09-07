@@ -34,7 +34,7 @@ final class CheckoutControllerProvider
 }
 
 String _$checkoutControllerHash() =>
-    r'e94d2f979812646cd99ead4052aeb7ff48ec4eea';
+    r'88e4652377786971d8f4c18d5967330927967a16';
 
 abstract class _$CheckoutController extends $AsyncNotifier<void> {
   FutureOr<void> build();

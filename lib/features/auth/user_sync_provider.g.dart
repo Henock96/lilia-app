@@ -34,7 +34,7 @@ final class UserDataSynchronizerProvider
 }
 
 String _$userDataSynchronizerHash() =>
-    r'63acfe298f2fb3d62783d19c03c0974349e5ed9f';
+    r'bb115085541564dc436383f4578b62fdeeb6e8a3';
 
 abstract class _$UserDataSynchronizer extends $AsyncNotifier<void> {
   FutureOr<void> build();

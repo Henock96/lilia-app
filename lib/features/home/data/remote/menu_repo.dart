@@ -15,7 +15,7 @@ class MenuRepository {
   Future<List<MenuDuJour>> getActiveMenus({String? restaurantId}) async {
     final res = await _api.getJson(
       '/menus/active',
-      query: {if (restaurantId != null) 'restaurantId': restaurantId},
+      query: {'restaurantId': ?restaurantId},
     );
     // /menus/active est double-enveloppé par l'interceptor backend
     // (`{ data: { message, data: [...], count } }`). On déballe l'enveloppe

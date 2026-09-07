@@ -287,7 +287,7 @@ final class StaleForegroundStampProvider
 }
 
 String _$staleForegroundStampHash() =>
-    r'3cab9c77f5e76bffadcb098bd960b392c3e06a81';
+    r'2508a1298648a330e19227305de7dd9b8728e4e1';
 
 /// Horodatage qui ne change qu'aux reprises **tardives** de l'application.
 ///
