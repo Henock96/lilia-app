@@ -20,6 +20,7 @@ import 'widgets/menu_card.dart';
 import 'widgets/vendor_type_badge.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
+import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 
 /// Écran de détail vendeur (LIL-117 — refonte UI).
 ///
@@ -1382,23 +1383,15 @@ class _ProductCard extends ConsumerWidget {
       _openDetail(context);
       return;
     }
-    final variantId = product.variants.first.id;
     try {
       final added = await addToCartSafely(
         context: context,
         ref: ref,
-        variantId: variantId,
-        productMadeToOrder: product.madeToOrder,
-        productName: product.name,
+        preview: CartItemPreview.fromProduct(product, product.variants.first),
       );
       if (!added) return;
-      AnalyticsService.trackAddToCart(
-        productId: product.id,
-        productName: product.name,
-        restaurantId: product.restaurantId,
-        price: product.variants.first.prix,
-        quantity: 1,
-      );
+      // `add_to_cart` est déclenché par le contrôleur, à l'acceptation du
+      // serveur — ici, l'ajout n'est encore qu'optimiste.
       if (context.mounted) {
         context.showSuccessSnack('${product.name} ajouté au panier');
       }

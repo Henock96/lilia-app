@@ -11,6 +11,7 @@ import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/common_widgets/image_gallery.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
+import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 
 class ProductDetailPage extends ConsumerStatefulWidget {
   final Product product;
@@ -129,26 +130,17 @@ Téléchargez l'app Lilia Food pour commander !
       return;
     }
 
-    final variantId = _selectedVariant!.id;
     try {
       final added = await addToCartSafely(
         context: context,
         ref: ref,
-        variantId: variantId,
-        productMadeToOrder: widget.product.madeToOrder,
-        productName: widget.product.name,
+        preview: CartItemPreview.fromProduct(widget.product, _selectedVariant!),
         quantity: _quantity,
       );
       if (!added) return; // Le client a annulé sur la modal de conflit
-      // `add_to_cart` après acceptation serveur : `addToCartSafely` a rendu
-      // la main sans lever et sans annulation du client.
-      AnalyticsService.trackAddToCart(
-        productId: widget.product.id,
-        productName: widget.product.name,
-        restaurantId: widget.product.restaurantId,
-        price: _unitPrice,
-        quantity: _quantity,
-      );
+      // `add_to_cart` n'est plus déclenché ici : le rendu étant optimiste,
+      // cet endroit ne sait plus si le serveur a accepté. Le contrôleur le
+      // déclenche au retour de `POST /cart/add`.
       if (mounted) {
         context.showSuccessSnack(
           '$_quantity x ${widget.product.name} ajouté au panier',

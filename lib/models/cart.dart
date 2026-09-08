@@ -30,6 +30,20 @@ class Cart {
     required this.updatedAt,
   });
 
+  Cart copyWith({
+    String? id,
+    String? userId,
+    List<CartItem>? items,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => Cart(
+    id: id ?? this.id,
+    userId: userId ?? this.userId,
+    items: items ?? this.items,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+
   /// Items individuels (sans menuId)
   List<CartItem> get individualItems =>
       items.where((item) => item.menuId == null).toList();

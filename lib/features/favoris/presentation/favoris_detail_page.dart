@@ -5,6 +5,8 @@ import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
 import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
+import 'package:lilia_app/features/cart/data/cart_repository.dart';
+import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 
 class FavorisDetailPage extends ConsumerStatefulWidget {
@@ -170,13 +172,23 @@ class _FavorisDetailPageState extends ConsumerState<FavorisDetailPage> {
                     context.showSnack('Veuillez sélectionner une variante!');
                     return;
                   }
-                  final variantId = _selectedVariant!.id;
-                  ref
-                      .read(cartControllerProvider.notifier)
-                      .addItem(variantId: variantId, quantity: _quantity);
-                  context.showSnack(
-                    '${widget.product.name} a été ajouté au panier.',
-                  );
+                  try {
+                    ref
+                        .read(cartControllerProvider.notifier)
+                        .addItem(
+                          variantId: _selectedVariant!.id,
+                          quantity: _quantity,
+                          preview: CartItemPreview.fromProduct(
+                            widget.product,
+                            _selectedVariant!,
+                          ),
+                        );
+                    context.showSnack(
+                      '${widget.product.name} a été ajouté au panier.',
+                    );
+                  } on CartException catch (e) {
+                    context.showErrorSnack(e.message);
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).primaryColor,

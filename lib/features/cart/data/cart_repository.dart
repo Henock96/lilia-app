@@ -15,10 +15,17 @@ class CartException implements Exception {
   String toString() => message;
 }
 
+/// Transport HTTP du panier — **et rien d'autre**.
+///
+/// Il ne détient aucun état et ne diffuse rien : chaque méthode rend ce que le
+/// serveur a répondu. L'état du panier, la mise à jour optimiste et le
+/// rollback vivent dans `CartController`.
+///
+/// Le `StreamController.broadcast` qui vivait ici a disparu : il obligeait le
+/// contrôleur à observer sa propre source de vérité de l'extérieur, sans
+/// aucun endroit où poser un instantané avant mutation.
 class CartRepository {
   final ApiClient _api;
-  final _cartStreamController = StreamController<Cart?>.broadcast();
-  bool _isClosed = false; // Flag pour savoir si le controller est fermé
 
   CartRepository(this._api);
 
@@ -34,9 +41,24 @@ class CartRepository {
     return map;
   }
 
+  /// Le panier porté par une réponse, ou `null` si la réponse n'en contient
+  /// pas.
+  ///
+  /// ⚠️ La vérification des deux champs n'est pas défensive par principe.
+  /// `_unwrapDataMap` retombe sur l'enveloppe complète quand `data` n'est pas
+  /// une carte, et `Cart.fromJson` est tolérant : une réponse quelconque —
+  /// page d'erreur d'un proxy, enveloppe réécrite — se lisait donc comme un
+  /// **panier vide**, indiscernable d'un panier réellement vidé. Le contrôleur
+  /// l'aurait adopté et l'écran se serait vidé sans que rien n'ait été
+  /// supprimé.
+  ///
+  /// Un panier porte toujours un identifiant et une liste d'articles. Sans ces
+  /// deux-là, on préfère ne rien savoir plutôt que de croire à tort.
   Cart? _cartFromData(dynamic data) {
     final map = _unwrapDataMap(data);
-    return map == null ? null : Cart.fromJson(map);
+    if (map == null) return null;
+    if (map['id'] is! String || map['items'] is! List) return null;
+    return Cart.fromJson(map);
   }
 
   /// Mappe une [ApiException] (parsing centralisé) vers une [CartException]
@@ -88,57 +110,43 @@ class CartRepository {
     }
   }
 
-  Stream<Cart?> watchCart() => _cartStreamController.stream;
-
-  // Vérifier si le controller est fermé avant d'ajouter
-  void _safeAdd(Cart? cart) {
-    if (!_isClosed && !_cartStreamController.isClosed) {
-      _cartStreamController.add(cart);
-    }
-  }
-
-  void _safeAddError(Object error, [StackTrace? stackTrace]) {
-    if (!_isClosed && !_cartStreamController.isClosed) {
-      _cartStreamController.addError(error, stackTrace);
-    }
-  }
-
-  void clearCart() {
-    _safeAdd(null);
-  }
-
-  Future<void> getCart() async {
-    if (_isClosed) {
-      debugPrint('CartRepository is closed, skipping getCart');
-      return;
-    }
-
+  /// Lit le panier serveur.
+  ///
+  /// Invité ou session expirée → `null` (panier vide), pas une erreur : c'est
+  /// un état normal de l'application, pas une panne à signaler au client.
+  Future<Cart?> getCart() async {
     try {
       final res = await _api.getJson('/cart');
-      _safeAdd(_cartFromData(res.data));
-    } on ApiException catch (e, stackTrace) {
-      // Invité ou session expirée → panier vide (pas d'erreur affichée).
-      if (e.kind == ApiErrorKind.unauthorized) {
-        _safeAdd(null);
-      } else {
-        debugPrint('Error in getCart: ${e.message}');
-        _safeAddError(e, stackTrace);
-      }
+      return _cartFromData(res.data);
+    } on ApiException catch (e) {
+      if (e.kind == ApiErrorKind.unauthorized) return null;
+      debugPrint('Error in getCart: ${e.message}');
+      rethrow;
     }
   }
 
-  Future<void> addToCart({
+  /// ⚠️ **Ne jamais faire suivre une mutation d'un `getCart()`.**
+  ///
+  /// Les six routes de mutation du panier se terminent, côté backend, par
+  /// `return this.common.getCart(firebaseUid)` — la réponse *est* le panier
+  /// complet. Le `await getCart()` qui suivait ici doublait le délai de chaque
+  /// ajout (mesuré : 1957 ms au lieu de ~980 ms) pour redemander une donnée
+  /// déjà reçue. Les trois méthodes menus de ce fichier consommaient déjà
+  /// correctement la réponse ; celles sur les articles avaient divergé.
+  ///
+  /// Seules exceptions, vérifiées : `DELETE /cart/clear` (renvoie
+  /// `{ count: N }`) et `POST /orders/:id/reorder` (renvoie un rapport de
+  /// recommande). Ces deux-là doivent relire le panier.
+  Future<Cart?> addToCart({
     required String variantId,
     required int quantity,
-    int maxRetries = 2,
   }) async {
     try {
-      await _api.postJson(
+      final res = await _api.postJson(
         '/cart/add',
         body: {'variantId': variantId, 'quantite': quantity},
       );
-      debugPrint('✅ Item added to cart successfully');
-      await getCart();
+      return _cartFromData(res.data);
     } on ApiException catch (e) {
       debugPrint('❌ Error adding to cart: ${e.message}');
       throw _toCartException(
@@ -151,21 +159,20 @@ class CartRepository {
     }
   }
 
-  Future<void> updateItemQuantity({
+  Future<Cart?> updateItemQuantity({
     required String cartItemId,
     required int quantity,
   }) async {
     if (quantity == 0) {
-      await removeItem(cartItemId: cartItemId);
-      return;
+      return removeItem(cartItemId: cartItemId);
     }
 
     try {
-      await _api.patchJson(
+      final res = await _api.patchJson(
         '/cart/items/$cartItemId',
         body: {'quantite': quantity},
       );
-      await getCart();
+      return _cartFromData(res.data);
     } on ApiException catch (e) {
       throw _toCartException(
         e,
@@ -175,10 +182,10 @@ class CartRepository {
     }
   }
 
-  Future<void> removeItem({required String cartItemId}) async {
+  Future<Cart?> removeItem({required String cartItemId}) async {
     try {
-      await _api.deleteJson('/cart/items/$cartItemId');
-      await getCart();
+      final res = await _api.deleteJson('/cart/items/$cartItemId');
+      return _cartFromData(res.data);
     } on ApiException catch (e) {
       throw _toCartException(
         e,
@@ -189,7 +196,7 @@ class CartRepository {
   }
 
   /// Ajoute un menu complet au panier
-  Future<void> addMenuToCart({
+  Future<Cart?> addMenuToCart({
     required String menuId,
     required int quantity,
   }) async {
@@ -198,7 +205,7 @@ class CartRepository {
         '/cart/add-menu',
         body: {'menuId': menuId, 'quantite': quantity},
       );
-      _safeAdd(_cartFromData(res.data));
+      return _cartFromData(res.data);
     } on ApiException catch (e) {
       throw _toCartException(
         e,
@@ -211,13 +218,12 @@ class CartRepository {
   }
 
   /// Met à jour la quantité d'un menu dans le panier
-  Future<void> updateMenuQuantity({
+  Future<Cart?> updateMenuQuantity({
     required String menuId,
     required int quantity,
   }) async {
     if (quantity == 0) {
-      await removeMenu(menuId: menuId);
-      return;
+      return removeMenu(menuId: menuId);
     }
 
     try {
@@ -225,7 +231,7 @@ class CartRepository {
         '/cart/menus/$menuId',
         body: {'quantite': quantity},
       );
-      _safeAdd(_cartFromData(res.data));
+      return _cartFromData(res.data);
     } on ApiException catch (e) {
       throw _toCartException(
         e,
@@ -236,10 +242,10 @@ class CartRepository {
   }
 
   /// Supprime un menu complet du panier
-  Future<void> removeMenu({required String menuId}) async {
+  Future<Cart?> removeMenu({required String menuId}) async {
     try {
       final res = await _api.deleteJson('/cart/menus/$menuId');
-      _safeAdd(_cartFromData(res.data));
+      return _cartFromData(res.data);
     } on ApiException catch (e) {
       throw _toCartException(
         e,
@@ -249,11 +255,15 @@ class CartRepository {
     }
   }
 
-  /// Vide tout le panier via l'API backend
+  /// Vide tout le panier via l'API backend.
+  ///
+  /// ⚠️ Contrat différent des six autres mutations : `CartService.clearCart`
+  /// renvoie le `{ count }` d'un `deleteMany`, ou rien si aucun panier
+  /// n'existe. Il n'y a donc pas de panier à adopter — l'état résultant est
+  /// simplement « vide », que l'appelant connaît sans relire quoi que ce soit.
   Future<void> clearAllItems() async {
     try {
       await _api.deleteJson('/cart/clear');
-      _safeAdd(null);
     } on ApiException catch (e) {
       throw _toCartException(
         e,
@@ -263,21 +273,20 @@ class CartRepository {
     }
   }
 
-  /// Recommande une commande précédente
-  /// Ajoute tous les produits de la commande au panier
-  Future<Map<String, dynamic>> reorderFromOrder({
+  /// Recommande une commande précédente : recopie ses articles dans le panier.
+  ///
+  /// ⚠️ Second contrat différent : `POST /orders/:id/reorder` renvoie un
+  /// **rapport de recommande** (articles ajoutés, indisponibles…), pas le
+  /// panier. La relecture qui suit est donc nécessaire ici — c'est la seule
+  /// mutation du panier pour laquelle elle le reste.
+  Future<({Map<String, dynamic> report, Cart? cart})> reorderFromOrder({
     required String orderId,
   }) async {
     try {
       final res = await _api.postJson('/orders/$orderId/reorder');
       final data = _asMap(res.data) ?? <String, dynamic>{};
-      final result = _asMap(data['data']) ?? data;
-      debugPrint('Order reordered successfully');
-
-      // Rafraîchir le panier
-      await getCart();
-
-      return result;
+      final report = _asMap(data['data']) ?? data;
+      return (report: report, cart: await getCart());
     } on ApiException catch (e) {
       debugPrint('❌ Error reordering: ${e.message}');
       throw _toCartException(
@@ -290,10 +299,4 @@ class CartRepository {
     }
   }
 
-  void dispose() {
-    _isClosed = true;
-    if (!_cartStreamController.isClosed) {
-      _cartStreamController.close();
-    }
-  }
 }

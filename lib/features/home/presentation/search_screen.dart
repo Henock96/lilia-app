@@ -11,10 +11,11 @@ import '../../../features/cart/application/cart_controller.dart';
 import '../../../models/produit.dart';
 import '../../../models/restaurant.dart';
 import '../../../routing/app_route_enum.dart';
-import '../../../services/analytics_service.dart';
 import '../data/remote/home_controller.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
+import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
+import 'package:lilia_app/features/cart/data/cart_repository.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -380,24 +381,21 @@ class _SearchProductTile extends ConsumerWidget {
   }
 
   void _addToCart(BuildContext context, WidgetRef ref, ProductVariant variant) {
-    ref
-        .read(cartControllerProvider.notifier)
-        .addItem(variantId: variant.id)
-        .then((_) {
-          // `add_to_cart` **après** acceptation par le serveur : il refuse un
-          // produit épuisé ou un vendeur fermé, et compter le geste ferait
-          // apparaître des ajouts qui n'ont jamais eu lieu.
-          AnalyticsService.trackAddToCart(
-            productId: product.id,
-            productName: product.name,
-            restaurantId: product.restaurantId,
-            price: variant.prix,
-            quantity: 1,
+    // Le panier est mis à jour localement puis synchronisé : le message part
+    // dans la foulée du tap. `add_to_cart` est déclenché par le contrôleur à
+    // l'acceptation du serveur, et un échec de synchronisation défait l'ajout
+    // et s'affiche depuis la coque de navigation.
+    try {
+      ref
+          .read(cartControllerProvider.notifier)
+          .addItem(
+            variantId: variant.id,
+            preview: CartItemPreview.fromProduct(product, variant),
           );
-          if (context.mounted) {
-            context.showSnack('${product.name} ajouté au panier');
-          }
-        });
+      context.showSnack('${product.name} ajouté au panier');
+    } on CartException catch (e) {
+      context.showErrorSnack(e.message);
+    }
   }
 
   void _showVariantBottomSheet(BuildContext context, WidgetRef ref) {
