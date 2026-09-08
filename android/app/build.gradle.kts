@@ -145,10 +145,10 @@ android {
 }
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
-    implementation("com.google.android.material:material:1.13.0")
+    implementation("com.google.android.material:material:1.14.0")
 
     // Edge-to-edge support for Android 15+
-    implementation("androidx.activity:activity-ktx:1.9.3")
+    implementation("androidx.activity:activity-ktx:1.13.0")
 
     // Firebase dependencies
     implementation(platform("com.google.firebase:firebase-bom:34.18.0"))

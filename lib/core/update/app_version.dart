@@ -38,9 +38,9 @@ class AppVersion implements Comparable<AppVersion> {
   /// endroit à corriger au lieu de deux qui divergent en silence.
   static const current = AppVersion(
     major: 1,
-    minor: 2,
-    patch: 7,
-    buildNumber: 32,
+    minor: 3,
+    patch: 0,
+    buildNumber: 34,
   );
 
   /// Motif accepté : `1.2.7`, `1.2.7+32`, avec `v` initial et espaces tolérés.
