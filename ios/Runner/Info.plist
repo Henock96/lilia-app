@@ -39,10 +39,6 @@
 	<string>79838517894-f7i2ke4ge16lhq6peh2t8nrdr2j4j35e.apps.googleusercontent.com</string>
 	<key>GoogleMapsApiKey</key>
 	<string>$(GOOGLE_MAPS_API_KEY)</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Votre position est utilisée pour afficher les restaurants proches et permettre la livraison.</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>comgooglemaps</string>
@@ -52,6 +48,10 @@
 		<string>https</string>
 		<string>http</string>
 	</array>
+	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Votre position est utilisée pour afficher les restaurants proches et permettre la livraison.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -85,6 +85,8 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>UIStatusBarStyle</key>
+	<string></string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
