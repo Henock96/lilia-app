@@ -7,6 +7,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/core/update/app_version.dart';
 import 'package:lilia_app/common_widgets/connectivity_banner.dart';
+import 'package:lilia_app/features/auth/presentation/auth_failure_announcer_scope.dart';
 import 'package:lilia_app/routing/app_router.dart';
 import 'package:lilia_app/services/analytics_service.dart';
 import 'package:lilia_app/services/notification_service.dart';
@@ -89,6 +90,11 @@ class MyApp extends ConsumerWidget {
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         themeMode: themeMode,
+        // Au-dessus du routeur et sous le `ScaffoldMessenger` de MaterialApp :
+        // un échec d'authentification s'affiche même si l'écran qui l'a
+        // déclenché a déjà été démonté par une redirection (B-02).
+        builder: (context, child) =>
+            AuthFailureAnnouncerScope(child: child ?? const SizedBox.shrink()),
       ),
     );
   }

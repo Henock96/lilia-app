@@ -7,6 +7,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../app_user_model.dart';
+import '../domain/auth_failure.dart';
 
 part 'firebase_auth_repository.g.dart';
 
@@ -76,7 +77,7 @@ class FirebaseAuthenticationRepository {
 
     final user = userCredential.user;
     if (user == null) {
-      throw Exception("La création de l'utilisateur a échoué.");
+      throw kAuthUnknown;
     }
     // Étape 3: Sauvegarder les informations dans notre backend
     try {
@@ -94,10 +95,19 @@ class FirebaseAuthenticationRepository {
     } on ApiException catch (e) {
       // Si le backend échoue, on supprime l'utilisateur Firebase pour éviter
       // un état incohérent.
-      await user.delete();
-      throw Exception(
-        'Échec de la sauvegarde des informations utilisateur sur le backend: ${e.message}',
-      );
+      //
+      // ⚠️ La suppression est protégée : si elle échoue à son tour (réseau
+      // coupé entre-temps), c'est l'échec de synchronisation qu'il faut
+      // rapporter au client — pas celui du nettoyage, qu'il ne peut ni
+      // comprendre ni corriger.
+      try {
+        await user.delete();
+      } catch (_) {}
+      // Le message du serveur est déjà en français et nomme la cause : il
+      // traverse intact. L'ancienne version l'enveloppait dans un
+      // `Exception('Échec de la sauvegarde… : …')`, que le contrôleur
+      // remplaçait ensuite par « Une erreur inconnue est survenue ».
+      throw mapAuthError(e);
     }
   }
 
@@ -108,7 +118,17 @@ class FirebaseAuthenticationRepository {
   /// parrain impossible. Le paramètre existait pour l'inscription par e-mail
   /// mais pas ici — un filleul arrivé par Google n'était donc jamais rattaché
   /// à son parrain, silencieusement.
-  Future<AppUser?> signInWithGoogle({String? referralCode}) async {
+  ///
+  /// ⚠️ **Le type de retour n'est pas nullable, et c'est le correctif.** Il
+  /// l'était, et le contrôleur en déduisait une annulation : `if (googleUser ==
+  /// null) → l'utilisateur a annulé`. Or `GoogleSignIn.authenticate()` rend un
+  /// `Future<GoogleSignInAccount>` **non nullable** et **lève**
+  /// `GoogleSignInException(code: canceled)` — la branche était donc morte, et
+  /// l'annulation partait dans le `catch` générique, qui affichait
+  /// `GoogleSignInException(code GoogleSignInExceptionCode.canceled, …)` au
+  /// client. Rendre `AppUser` non nullable rend cette confusion
+  /// inexprimable : une annulation est un échec typé, pas une absence.
+  Future<AppUser> signInWithGoogle({String? referralCode}) async {
     // Étape 1: Initialiser GoogleSignIn si nécessaire
     await _googleSignIn.initialize();
 
@@ -128,7 +148,7 @@ class FirebaseAuthenticationRepository {
     final idToken = googleAuth.idToken;
 
     if (idToken == null) {
-      throw Exception("Impossible d'obtenir le token d'authentification");
+      throw kAuthUnknown;
     }
 
     // Étape 6: Créer les credentials Firebase (seul l'idToken est nécessaire)
@@ -138,7 +158,7 @@ class FirebaseAuthenticationRepository {
     final userCred = await _firebaseAuth.signInWithCredential(credential);
     final user = userCred.user;
     if (user == null) {
-      throw Exception("La connexion Google a échoué.");
+      throw kAuthUnknown;
     }
 
     final isNewUser = userCred.additionalUserInfo?.isNewUser ?? false;
@@ -172,24 +192,29 @@ class FirebaseAuthenticationRepository {
       if (kDebugMode) {
         debugPrint('Backend sync failed: ${e.kind} ${e.statusCode}');
       }
-      // Supprimer l'utilisateur Firebase UNIQUEMENT s'il s'agit d'une nouvelle inscription
-      // pour éviter de détruire le compte d'un utilisateur existant (C-AUTH-1).
+      // Supprimer l'utilisateur Firebase UNIQUEMENT s'il s'agit d'une nouvelle
+      // inscription, pour éviter de détruire le compte d'un utilisateur
+      // existant (C-AUTH-1).
       if (isNewUser) {
-        await user.delete();
+        try {
+          await user.delete();
+        } catch (_) {}
       }
-      if (e.kind == ApiErrorKind.network) {
-        throw Exception('Erreur réseau: Impossible de se connecter au serveur');
+      // Une panne réseau ou un serveur muet empêchent de savoir si le compte
+      // est utilisable : on le dit, même à un compte existant.
+      if (e.kind == ApiErrorKind.network || e.kind == ApiErrorKind.timeout) {
+        throw mapAuthError(e);
       }
-      if (e.kind == ApiErrorKind.timeout) {
-        throw Exception('Le serveur ne répond pas. Veuillez réessayer.');
-      }
+      // Un compte **existant** dont la synchronisation a échoué pour une autre
+      // raison reste parfaitement connecté : le serveur ne fait ici que
+      // rafraîchir `lastLogin`. Bloquer la session serait une punition sans
+      // rapport avec la panne.
       if (isNewUser) {
-        throw Exception(
-          'Échec de la synchronisation avec le backend (${e.statusCode}).',
-        );
+        throw mapAuthError(e);
       }
     }
-    return AppUser.fromFirebaseUser(user);
+    // `user` est non nul ici : le cas contraire a déjà levé plus haut.
+    return AppUser.fromFirebaseUser(user)!;
   }
 
   Future<bool> signOut() async {
@@ -215,41 +240,26 @@ class FirebaseAuthenticationRepository {
     }
   }
 
+  /// Le dépôt ne traduit plus : il laisse remonter la `FirebaseAuthException`
+  /// telle quelle. `PasswordController` la passe à `mapAuthError`, seul point
+  /// de traduction de l'application. La version précédente enveloppait
+  /// `requires-recent-login` dans un `Exception('…')` — que l'écran affichait
+  /// préfixé de « Exception: » — et laissait **tous les autres codes** filer
+  /// bruts jusqu'au client, `[firebase_auth/weak-password] …` compris.
   Future<void> updatePassword(String newPassword) async {
-    try {
-      await _firebaseAuth.currentUser?.updatePassword(newPassword);
-    } on FirebaseAuthException catch (e) {
-      // Gérer les erreurs, par exemple si l'utilisateur doit se reconnecter
-      if (e.code == 'requires-recent-login') {
-        throw Exception(
-          'Cette opération est sensible et nécessite une authentification récente. Veuillez vous déconnecter et vous reconnecter avant de réessayer.',
-        );
-      }
-      rethrow;
-    }
+    await _firebaseAuth.currentUser?.updatePassword(newPassword);
   }
 
   Future<void> sendPasswordResetEmailWithEmail(String email) async {
-    try {
-      await _firebaseAuth.sendPasswordResetEmail(email: email);
-    } catch (e) {
-      rethrow;
-    }
+    await _firebaseAuth.sendPasswordResetEmail(email: email);
   }
 
   Future<void> sendPasswordResetEmail() async {
-    try {
-      final user = _firebaseAuth.currentUser;
-      if (user != null && user.email != null) {
-        await _firebaseAuth.sendPasswordResetEmail(email: user.email!);
-      } else {
-        throw Exception(
-          "Aucun utilisateur connecté ou l'email n'est pas disponible.",
-        );
-      }
-    } catch (e) {
-      rethrow;
+    final user = _firebaseAuth.currentUser;
+    if (user == null || user.email == null) {
+      throw kAuthSessionExpired;
     }
+    await _firebaseAuth.sendPasswordResetEmail(email: user.email!);
   }
 }
 

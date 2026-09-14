@@ -34,7 +34,7 @@ final class DraftOrdersNotifierProvider
 }
 
 String _$draftOrdersNotifierHash() =>
-    r'b195b99f46bc93131404900ca124f059f44d9017';
+    r'8cb7c79b131171b432ea2099bd0295c2dbc09670';
 
 abstract class _$DraftOrdersNotifier extends $AsyncNotifier<List<DraftOrder>> {
   FutureOr<List<DraftOrder>> build();

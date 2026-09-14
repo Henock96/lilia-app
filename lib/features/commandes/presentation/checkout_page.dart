@@ -93,11 +93,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     // Récupérer les options de livraison
     final options = widget.deliveryOptions;
 
-    // Si pas d'options, rediriger vers la page de choix
+    // Filet de sécurité, plus une redirection.
+    //
+    // Le refus appartient désormais au `redirect` de la route `checkout`
+    // (`app_router.dart`) : sans `DeliveryOptions` dans l'`extra`, cette page
+    // n'est jamais construite. La version précédente naviguait ici même, dans
+    // un `addPostFrameCallback` — donc après avoir affiché une frame de page de
+    // paiement vide (R-04), et en concurrence avec le routeur.
     if (options == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.goNamed(AppRoutes.deliveryOptions.routeName);
-      });
       return const Scaffold(body: BuildLoadingState());
     }
 

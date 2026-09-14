@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:flutter/foundation.dart';
-import 'package:lilia_app/features/auth/repository/firebase_auth_error_handler.dart';
+import 'package:lilia_app/features/auth/application/password_controller.dart';
+import 'package:lilia_app/features/auth/application/sign_in_controller.dart';
+import 'package:lilia_app/features/auth/domain/auth_failure.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/commandes/data/order_repository.dart';
@@ -13,7 +14,6 @@ import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/features/user/data/adresse_repository.dart';
 import 'package:lilia_app/features/cart/application/draft_orders_provider.dart';
-import 'package:lilia_app/services/analytics_service.dart';
 import 'package:lilia_app/services/notification_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
@@ -21,6 +21,24 @@ import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart
 
 part 'auth_controller.g.dart';
 
+/// **La session, et rien d'autre.**
+///
+/// L'état de ce contrôleur répond à une seule question : *qui est connecté ?*
+/// Il vaut `AsyncData(user)` quand quelqu'un l'est, `AsyncData(null)` sinon —
+/// et c'est le flux Firebase qui l'écrit, jamais une opération.
+///
+/// ⚠️ **Ne jamais y écrire depuis une méthode d'action.** Cinq méthodes le
+/// faisaient (`sigInInUserWithEmailAndPassword`, `createUserWithEmailAndPassword`,
+/// `signInWithGoogle`, `updatePassword`, `sendPasswordResetEmail`) : elles
+/// posaient `AsyncValue.loading()` pour dire « ça travaille » et
+/// `AsyncValue.data(null)` pour dire « c'est fini ». Dans ce contrôleur-là,
+/// `data(null)` veut dire **« personne n'est connecté »** : après un simple
+/// changement de mot de passe, `edit_profile_page` — qui lit
+/// `ref.watch(authControllerProvider).value` — affichait « Utilisateur non
+/// trouvé » à un client dont la session était intacte.
+///
+/// Ces opérations vivent désormais dans [SignInController] et
+/// [PasswordController], dont l'état ne raconte que leur propre déroulement.
 @Riverpod(keepAlive: true)
 class AuthController extends _$AuthController {
   @override
@@ -40,117 +58,45 @@ class AuthController extends _$AuthController {
     return authStream;
   }
 
+  /// Enregistre le jeton FCM maintenant que l'utilisateur est authentifié.
+  ///
+  /// Ne pas rappeler `init()` : déjà exécuté au démarrage via
+  /// `notificationInitializerProvider`.
+  ///
+  /// ⚠️ L'échec est contenu **volontairement**. Cet appel est déclenché depuis
+  /// l'écoute du flux de session, sans `await` : une exception y deviendrait
+  /// une erreur asynchrone non capturée. Et surtout, ne pas recevoir de
+  /// notifications ne doit jamais empêcher d'ouvrir une session — c'est
+  /// exactement le genre de dépendance qui transforme une panne de service
+  /// tiers en impossibilité de se connecter.
   Future<void> _setupNotifications() async {
-    // Ne pas rappeler init() - déjà exécuté au démarrage via notificationInitializerProvider.
-    // registerTokenOnServer() récupère le token FCM si besoin et l'enregistre maintenant
-    // que l'utilisateur est authentifié.
-    final notificationService = ref.read(notificationServiceProvider);
-    await notificationService.registerTokenOnServer();
-  }
-
-  Future<void> sigInInUserWithEmailAndPassword(
-    String email,
-    String password,
-  ) async {
-    state = const AsyncValue.loading();
     try {
-      await ref
-          .read(authRepositoryProvider)
-          .signInWithEmailAndPassword(email: email, password: password);
-      AnalyticsService.trackLogin(method: 'email');
-    } on FirebaseAuthException catch (e, st) {
-      final error = FirebaseAuthErrorHandler.handleException(e);
-      final errorMessage = FirebaseAuthErrorHandler.getErrorMessage(error);
-      state = AsyncValue.error(errorMessage, st);
-    } catch (e, st) {
+      await ref.read(notificationServiceProvider).registerTokenOnServer();
+    } catch (e) {
       if (kDebugMode) {
-        debugPrint('Email sign-in failed: ${e.runtimeType}');
+        debugPrint('Enregistrement du jeton FCM impossible : ${e.runtimeType}');
       }
-      state = AsyncValue.error(
-        "Une erreur inconnue est survenue. Veuillez réessayer.",
-        st,
-      );
-    }
-  }
-
-  Future<void> createUserWithEmailAndPassword(
-    String email,
-    String password,
-    String name,
-    String phone, {
-    String? referralCode,
-  }) async {
-    state = const AsyncValue.loading();
-    try {
-      await ref
-          .read(authRepositoryProvider)
-          .createUserWithEmailAndPassword(
-            email: email,
-            password: password,
-            name: name,
-            phone: phone,
-            referralCode: referralCode,
-          );
-      AnalyticsService.trackSignUp(method: 'email');
-    } on FirebaseAuthException catch (e, st) {
-      final error = FirebaseAuthErrorHandler.handleException(e);
-      final errorMessage = FirebaseAuthErrorHandler.getErrorMessage(error);
-      state = AsyncValue.error(errorMessage, st);
-    } catch (e, st) {
-      if (kDebugMode) {
-        debugPrint('Email sign-up failed: ${e.runtimeType}');
-      }
-      state = AsyncValue.error(
-        "Une erreur inconnue est survenue. Veuillez réessayer.",
-        st,
-      );
-    }
-  }
-
-  /// [referralCode] n'a d'effet que si la connexion Google crée le compte.
-  Future<void> signInWithGoogle({String? referralCode}) async {
-    state = const AsyncValue.loading();
-    try {
-      final googleUser = await ref
-          .read(authRepositoryProvider)
-          .signInWithGoogle(referralCode: referralCode);
-      if (googleUser == null) {
-        // L'utilisateur a annulé la connexion Google
-        state = const AsyncValue.data(null);
-      } else {
-        // Connexion réussie
-        AnalyticsService.trackLogin(method: 'google');
-        state = AsyncValue.data(googleUser);
-      }
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
     }
   }
 
   Future<bool> signOut() async {
     try {
-      // Remove FCM token from server before signing out
-      final notificationService = ref.read(notificationServiceProvider);
-      await notificationService.removeTokenFromServer();
+      // Retirer le jeton FCM du serveur avant de fermer la session.
+      //
+      // ⚠️ L'échec est contenu. Cet appel partage le sort du service de
+      // notifications : s'il est indisponible, **la déconnexion doit quand
+      // même aboutir**. Sans cette garde, une panne FCM enfermait le client
+      // dans une session dont il ne pouvait plus sortir — et la garde de
+      // session (`SessionGuard`) ne pouvait pas davantage nettoyer un jeton
+      // que le serveur venait de refuser.
+      try {
+        await ref.read(notificationServiceProvider).removeTokenFromServer();
+      } catch (_) {}
 
       final authRepository = ref.read(authRepositoryProvider);
       await authRepository.signOut();
 
-      // Invalider TOUS les providers user-scoped pour vider le cache (C10).
-      // ⚠️ restaurantFavoritesProvider est keepAlive : sans invalidation, les
-      // favoris du compte précédent restaient visibles après reconnexion.
-      ref.invalidate(cartControllerProvider);
-      ref.invalidate(notificationHistoryProvider);
-      ref.invalidate(orderRepositoryProvider);
-      ref.invalidate(userOrdersProvider);
-      ref.invalidate(favoritesProvider);
-      ref.invalidate(restaurantFavoritesProvider);
-      ref.invalidate(userProfileProvider);
-      ref.invalidate(referralStatsProvider);
-      ref.invalidate(loyaltyTransactionsProvider);
-      ref.invalidate(adresseControllerProvider);
-      ref.invalidate(adresseRepositoryProvider);
-      ref.invalidate(draftOrdersProvider);
+      _invalidateUserScopedProviders();
 
       return true;
     } on Exception {
@@ -158,44 +104,14 @@ class AuthController extends _$AuthController {
     }
   }
 
-  Future<void> updatePassword(String newPassword) async {
-    state = const AsyncValue.loading();
-    try {
-      await ref.read(authRepositoryProvider).updatePassword(newPassword);
-      state = const AsyncValue.data(null); // Succès
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-      rethrow;
-    }
-  }
-
-  Future<void> sendPasswordResetEmailWithEmail(String email) async {
-    state = const AsyncValue.loading();
-    try {
-      await ref
-          .read(authRepositoryProvider)
-          .sendPasswordResetEmailWithEmail(email);
-      state = const AsyncValue.data(null); // Succès
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-      rethrow;
-    }
-  }
-
-  Future<void> sendPasswordResetEmail() async {
-    state = const AsyncValue.loading();
-    try {
-      await ref.read(authRepositoryProvider).sendPasswordResetEmail();
-      state = const AsyncValue.data(null); // Succès
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-      rethrow;
-    }
-  }
-
   /// Supprime définitivement le compte utilisateur (Backend + Firebase Auth).
-  Future<bool> deleteAccount() async {
-    state = const AsyncValue.loading();
+  ///
+  /// Rend `null` en cas de succès, sinon l'échec à montrer. **N'écrit pas dans
+  /// `state`** : c'est la session, pas le journal de l'opération. La version
+  /// précédente y posait `AsyncValue.error(...)` puis l'écran de profil allait
+  /// le relire avec `asError?.error` — un aller-retour qui laissait la session
+  /// en erreur, donc `.value` à `null`, bien après la fin de l'opération.
+  Future<AuthFailure?> deleteAccount() async {
     try {
       // 1. Supprimer le token FCM sur le serveur
       try {
@@ -235,47 +151,38 @@ class AuthController extends _$AuthController {
       }
 
       // 4. Invalider tous les providers user-scoped
-      ref.invalidate(cartControllerProvider);
-      ref.invalidate(notificationHistoryProvider);
-      ref.invalidate(orderRepositoryProvider);
-      ref.invalidate(userOrdersProvider);
-      ref.invalidate(favoritesProvider);
-      ref.invalidate(restaurantFavoritesProvider);
-      ref.invalidate(userProfileProvider);
-      ref.invalidate(referralStatsProvider);
-      ref.invalidate(loyaltyTransactionsProvider);
-      ref.invalidate(adresseControllerProvider);
-      ref.invalidate(adresseRepositoryProvider);
-      ref.invalidate(draftOrdersProvider);
+      _invalidateUserScopedProviders();
 
-      state = const AsyncValue.data(null);
-      return true;
-    } on ApiException catch (e, st) {
+      return null;
+    } catch (e) {
       // 409 = refus métier motivé (commande en cours, boutique possédée,
-      // livraison en cours). Le message du serveur nomme le blocage : on
-      // l'affiche tel quel plutôt que de le remplacer par un générique qui
-      // n'apprendrait rien. Le compte reste intact des deux côtés.
-      state = AsyncValue.error(e.message, st);
-      return false;
-    } on FirebaseAuthException catch (e, st) {
-      if (e.code == 'requires-recent-login') {
-        state = AsyncValue.error(
-          'Cette opération est sensible. Veuillez vous reconnecter avant de supprimer votre compte.',
-          st,
-        );
-      } else {
-        state = AsyncValue.error(
-          'Impossible de supprimer le compte. Veuillez réessayer.',
-          st,
-        );
-      }
-      return false;
-    } catch (e, st) {
-      state = AsyncValue.error(
-        'Une erreur est survenue lors de la suppression du compte.',
-        st,
-      );
-      return false;
+      // livraison en cours). Le message du serveur nomme le blocage : le
+      // mappeur le laisse passer intact plutôt que de le remplacer par un
+      // générique qui n'apprendrait rien. Le compte reste intact des deux côtés.
+      return mapAuthError(e);
     }
+  }
+
+  /// Vide tout ce qui appartient au compte qui s'en va.
+  ///
+  /// ⚠️ `restaurantFavoritesProvider` est `keepAlive` : sans invalidation, les
+  /// favoris du compte précédent restaient visibles après reconnexion (C10).
+  ///
+  /// Une seule liste, appelée par la déconnexion **et** par la suppression de
+  /// compte. Les deux en portaient chacune une copie de douze lignes : le jour
+  /// où l'une gagne un provider et pas l'autre, la fuite ne se voit pas.
+  void _invalidateUserScopedProviders() {
+    ref.invalidate(cartControllerProvider);
+    ref.invalidate(notificationHistoryProvider);
+    ref.invalidate(orderRepositoryProvider);
+    ref.invalidate(userOrdersProvider);
+    ref.invalidate(favoritesProvider);
+    ref.invalidate(restaurantFavoritesProvider);
+    ref.invalidate(userProfileProvider);
+    ref.invalidate(referralStatsProvider);
+    ref.invalidate(loyaltyTransactionsProvider);
+    ref.invalidate(adresseControllerProvider);
+    ref.invalidate(adresseRepositoryProvider);
+    ref.invalidate(draftOrdersProvider);
   }
 }

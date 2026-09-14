@@ -35,7 +35,7 @@ final class RestaurantFavoritesProvider
 }
 
 String _$restaurantFavoritesHash() =>
-    r'ecf1d6054db17c0bca2de807a3ffcf3357bc3a53';
+    r'd86a54aef00ff46b74e107a85a5ee8352ecdb4fc';
 
 abstract class _$RestaurantFavorites
     extends $AsyncNotifier<List<RestaurantSummary>> {

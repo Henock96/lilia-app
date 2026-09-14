@@ -31,6 +31,7 @@ class PhoneCollectionSheet extends ConsumerStatefulWidget {
 class _PhoneCollectionSheetState extends ConsumerState<PhoneCollectionSheet> {
   final _controller = TextEditingController();
   bool _saving = false;
+  String? _erreur;
 
   @override
   void dispose() {
@@ -38,16 +39,37 @@ class _PhoneCollectionSheetState extends ConsumerState<PhoneCollectionSheet> {
     super.dispose();
   }
 
+  /// Enregistre le numéro.
+  ///
+  /// ⚠️ L'échec **doit** se voir. La version précédente lisait le `bool` rendu
+  /// par `updateUser`, remettait `_saving` à `false` et s'arrêtait là : le
+  /// client voyait l'indicateur tourner puis s'éteindre, sans message et sans
+  /// que la feuille se ferme. Rien ne lui disait s'il devait réessayer.
   Future<void> _save() async {
     final phone = _controller.text.trim();
-    if (phone.isEmpty) return;
-    setState(() => _saving = true);
-    final ok = await ref.read(profileControllerProvider.notifier).updateUser({
-      'phone': phone,
+    if (phone.isEmpty) {
+      setState(() => _erreur = 'Entrez votre numéro de téléphone.');
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _erreur = null;
     });
+
+    final echec = await ref
+        .read(profileControllerProvider.notifier)
+        .updateUser({'phone': phone});
+
     if (!mounted) return;
-    setState(() => _saving = false);
-    if (ok) Navigator.of(context).pop();
+    setState(() {
+      _saving = false;
+      _erreur = echec;
+    });
+
+    // On ne referme que sur un succès : sinon le client doit pouvoir corriger
+    // et réessayer sans rouvrir la feuille.
+    if (echec == null) Navigator.of(context).pop();
   }
 
   @override
@@ -60,21 +82,23 @@ class _PhoneCollectionSheetState extends ConsumerState<PhoneCollectionSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(
-            'Ajoute ton numero',
+            'Ajoutez votre numéro',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 8),
           const Text(
-            'Pour le suivi de tes commandes et nos messages importants.',
+            'Pour le suivi de vos commandes et nos messages importants.',
           ),
           const SizedBox(height: 16),
           TextField(
             key: const Key('phone_collection_field'),
             controller: _controller,
             keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(
-              labelText: 'Numero de telephone',
-              prefixIcon: Icon(Icons.phone_outlined),
+            decoration: InputDecoration(
+              labelText: 'Numéro de téléphone',
+              prefixIcon: const Icon(Icons.phone_outlined),
+              errorText: _erreur,
+              errorMaxLines: 3,
             ),
           ),
           const SizedBox(height: 16),

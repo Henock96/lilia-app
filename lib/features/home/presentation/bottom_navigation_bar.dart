@@ -37,19 +37,34 @@ class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
       if (echec != null) context.showErrorSnack(echec.message);
     });
 
-    return Scaffold(
-      body: SafeArea(child: widget.navigationShell),
-      bottomNavigationBar: NavigationBar(
-        height: 65,
-        elevation: 0,
-        selectedIndex: widget.navigationShell.currentIndex,
-        destinations: const [
-          NavigationDestination(label: 'Accueil', icon: Icon(Iconsax.home)),
-          NavigationDestination(label: 'Panier', icon: _CartIcon()),
-          NavigationDestination(label: 'Commandes', icon: Icon(Iconsax.shop)),
-          NavigationDestination(label: 'Profil', icon: Icon(Iconsax.user)),
-        ],
-        onDestinationSelected: _goBranch,
+    return PopScope(
+      // Le retour système Android quittait l'application depuis n'importe quel
+      // onglet : la racine d'une branche n'a rien à dépiler, et il n'y avait
+      // aucun `PopScope` au niveau de la coque. Depuis « Commandes », « retour »
+      // fermait donc Lilia Food au lieu de revenir à l'accueil.
+      //
+      // On n'intercepte que depuis un onglet secondaire : sur l'accueil, le
+      // retour doit continuer de sortir de l'application, comme partout ailleurs
+      // sur Android.
+      canPop: widget.navigationShell.currentIndex == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        widget.navigationShell.goBranch(0);
+      },
+      child: Scaffold(
+        body: SafeArea(child: widget.navigationShell),
+        bottomNavigationBar: NavigationBar(
+          height: 65,
+          elevation: 0,
+          selectedIndex: widget.navigationShell.currentIndex,
+          destinations: const [
+            NavigationDestination(label: 'Accueil', icon: Icon(Iconsax.home)),
+            NavigationDestination(label: 'Panier', icon: _CartIcon()),
+            NavigationDestination(label: 'Commandes', icon: Icon(Iconsax.shop)),
+            NavigationDestination(label: 'Profil', icon: Icon(Iconsax.user)),
+          ],
+          onDestinationSelected: _goBranch,
+        ),
       ),
     );
   }

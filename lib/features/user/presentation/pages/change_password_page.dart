@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lilia_app/features/auth/controller/auth_controller.dart';
+import 'package:lilia_app/features/auth/application/password_controller.dart';
+import 'package:lilia_app/features/auth/presentation/signin_page.dart'
+    show AuthButtonSpinner;
 import 'package:lilia_app/utils/snackbar.dart';
 
 class ChangePasswordPage extends ConsumerStatefulWidget {
@@ -14,7 +16,6 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
   final _formKey = GlobalKey<FormState>();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -23,36 +24,33 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
     super.dispose();
   }
 
-  Future<void> _changePassword(BuildContext context) async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
+  /// Le chargement vient du contrôleur, plus d'un `bool` local : un `catch`
+  /// qui oubliait son `finally` laissait le bouton désactivé pour toujours.
+  ///
+  /// L'échec est **rendu**, pas relancé : `PasswordController` traduit la
+  /// `FirebaseAuthException` en message français. L'écran affichait auparavant
+  /// `Erreur: ${e.toString()}`, c'est-à-dire
+  /// `[firebase_auth/weak-password] Password should be at least 6 characters`.
+  Future<void> _changePassword() async {
+    if (!_formKey.currentState!.validate()) return;
 
-      try {
-        await ref
-            .read(authControllerProvider.notifier)
-            .updatePassword(_newPasswordController.text);
-        if (!context.mounted) return;
-        context.showSnack('Mot de passe mis à jour avec succès.');
+    final echec = await ref
+        .read(passwordControllerProvider.notifier)
+        .updatePassword(_newPasswordController.text);
 
-        Navigator.of(context).pop();
-      } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Erreur: ${e.toString()}')));
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
-      }
+    if (!mounted) return;
+    if (echec != null) {
+      context.showErrorSnack(echec.message);
+      return;
     }
+    context.showSuccessSnack('Mot de passe mis à jour.');
+    Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
+    final enCours = ref.watch(passwordControllerProvider).isLoading;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Changer le mot de passe')),
       body: Padding(
@@ -91,9 +89,10 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
               ),
               const SizedBox(height: 32),
               ElevatedButton(
-                onPressed: () => _isLoading ? null : _changePassword(context),
-                child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
+                key: const Key('change_password_submit'),
+                onPressed: enCours ? null : _changePassword,
+                child: enCours
+                    ? const AuthButtonSpinner()
                     : const Text('Changer le mot de passe'),
               ),
             ],

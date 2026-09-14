@@ -11,6 +11,7 @@ import 'package:lilia_app/features/notifications/application/notification_provid
 import 'package:lilia_app/features/notifications/data/notification_model.dart';
 import 'package:lilia_app/firebase_options.dart';
 import 'package:lilia_app/routing/app_router.dart';
+import 'package:lilia_app/routing/session_phase.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'notification_router.dart';
 
@@ -263,7 +264,23 @@ class NotificationService {
     if (action.route != null && action.route!.isNotEmpty) {
       try {
         final router = _ref.read(routerProvider);
-        router.push(action.route!);
+        // `push` empile sur l'écran courant : c'est ce qu'on veut quand le
+        // client est déjà dans l'application, son écran est conservé sous la
+        // commande qu'il vient d'ouvrir.
+        //
+        // ⚠️ Mais hors session ouverte, la destination doit traverser une
+        // redirection (`/splash?from=…` puis `/signin?from=…`), et **un `push`
+        // ne transporte pas ce paramètre** : réévalué au changement de phase,
+        // il retombe sur `/signin` nu, et le client atterrit sur l'accueil.
+        // C'est très exactement le cas décrit par R-05 — notification « votre
+        // commande est en route » + session expirée. `go` remplace la pile et
+        // conserve la requête. Il n'y a de toute façon rien à préserver
+        // dessous : au démarrage à froid, c'est l'écran de démarrage.
+        if (_ref.read(sessionPhaseProvider) == SessionPhase.authenticated) {
+          router.push(action.route!);
+        } else {
+          router.go(action.route!);
+        }
       } catch (e) {
         debugPrint('Notification navigation error: $e');
       }

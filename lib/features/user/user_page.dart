@@ -7,12 +7,10 @@ import 'package:iconsax/iconsax.dart';
 import 'package:lilia_app/features/auth/controller/auth_controller.dart';
 import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
-import 'package:lilia_app/features/user/edit_profile_page.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/theme/theme_mode_provider.dart';
 
 import '../../common_widgets/build_error_state.dart';
-import 'presentation/pages/about_page.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 
 class UserPage extends ConsumerWidget {
@@ -198,15 +196,9 @@ class UserPage extends ConsumerWidget {
                               iconColor: Colors.orange[400]!,
                               title: 'Modifier le profil',
                               subtitle: 'Nom, téléphone',
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute<void>(
-                                    builder: (context) =>
-                                        const EditProfilePage(),
-                                  ),
-                                );
-                              },
+                              onTap: () => context.goNamed(
+                                AppRoutes.editProfile.routeName,
+                              ),
                             ),
                             _ProfileMenuItem(
                               icon: Iconsax.lock,
@@ -240,14 +232,8 @@ class UserPage extends ConsumerWidget {
                           iconColor: Colors.teal[400]!,
                           title: 'À propos de Lilia Food',
                           subtitle: 'Version, conditions d\'utilisation',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute<void>(
-                                builder: (context) => const AboutPage(),
-                              ),
-                            );
-                          },
+                          onTap: () =>
+                              context.goNamed(AppRoutes.about.routeName),
                           showTopBorder: false,
                           showBottomBorder: false,
                         ),
@@ -424,14 +410,15 @@ class UserPage extends ConsumerWidget {
               child: const Text('Supprimer définitivement'),
               onPressed: () async {
                 Navigator.of(dialogContext).pop();
-                final ok = await ref
+                // `null` = compte supprimé. Sinon l'échec porte déjà le
+                // message du serveur, qui nomme la commande ou la boutique
+                // en cause — on ne va plus le relire dans l'état de la
+                // session, qu'il polluait.
+                final echec = await ref
                     .read(authControllerProvider.notifier)
                     .deleteAccount();
-                if (!ok && context.mounted) {
-                  final error = ref.read(authControllerProvider).asError?.error;
-                  if (error != null) {
-                    context.showErrorSnack(error.toString());
-                  }
+                if (echec != null && context.mounted) {
+                  context.showErrorSnack(echec.message);
                 }
               },
             ),

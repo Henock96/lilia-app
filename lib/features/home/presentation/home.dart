@@ -7,9 +7,10 @@ import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/home/presentation/widgets/section/banner_shimmer.dart';
 import 'package:lilia_app/features/home/presentation/widgets/section/restaurant_card.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
-import 'package:lilia_app/features/notifications/presentation/notifications_history_screen.dart';
 import 'package:lilia_app/models/banner.dart';
+import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/models/restaurant.dart';
 
 import 'package:lilia_app/core/update/app_update_dialog.dart';
@@ -194,13 +195,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         backgroundColor: Colors.red,
         child: IconButton(
           tooltip: 'Notifications',
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (context) => const NotificationsHistoryScreen(),
-              ),
-            );
-          },
+          onPressed: () =>
+              context.pushNamed(AppRoutes.notifications.routeName),
           icon: const Icon(Icons.notifications_outlined),
         ),
       ),

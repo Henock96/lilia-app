@@ -9,7 +9,6 @@ import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
-import 'package:lilia_app/features/commandes/presentation/fullscreen_tracking_screen.dart';
 import 'package:lilia_app/features/commandes/presentation/progress_step.dart';
 import 'package:lilia_app/features/commandes/presentation/status_info.dart';
 import 'package:lilia_app/core/network/api_exception.dart';
@@ -208,10 +207,9 @@ class OrderDetailPage extends ConsumerWidget {
   Widget _buildTrackingButton(BuildContext context, String orderId) {
     //final cs = Theme.of(context).colorScheme;
     return GestureDetector(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => FullscreenTrackingScreen(orderId: orderId),
-        ),
+      onTap: () => context.pushNamed(
+        AppRoutes.orderTracking.routeName,
+        pathParameters: {'orderId': orderId},
       ),
       child: Container(
         padding: const EdgeInsets.all(16),
