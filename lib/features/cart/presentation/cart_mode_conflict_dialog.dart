@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
+import 'package:lilia_app/features/cart/data/cart_repository.dart';
+import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 
 /// Modal affichée quand on tente d'ajouter au panier un produit dont le mode
 /// (`madeToOrder` true/false) ne matche pas celui des items existants (LIL-122).
@@ -112,17 +114,22 @@ class CartModeConflictDialog extends StatelessWidget {
 /// Si conflit → affiche [CartModeConflictDialog]. Si le client choisit
 /// "Vider et ajouter", on clear le panier puis on ajoute. Sinon on annule.
 ///
-/// Retourne `true` si l'item a effectivement été ajouté, `false` sinon
-/// (panier conservé OU erreur réseau — le caller gère son propre snackbar).
+/// Retourne `true` si l'ajout a été **accepté localement** — c'est-à-dire
+/// visible à l'écran. La synchronisation serveur se poursuit ensuite : un
+/// échec la défait et part dans `cartSyncFailuresProvider`, que la coque de
+/// navigation transforme en message. Retourne `false` si le client a renoncé
+/// devant la modal de conflit.
+///
+/// Lève une [CartException] si l'ajout est refusé par une règle vérifiable
+/// sans le serveur (autre vendeur, mode incompatible) — le caller l'affiche.
 Future<bool> addToCartSafely({
   required BuildContext context,
   required WidgetRef ref,
-  required String variantId,
-  required bool productMadeToOrder,
-  required String productName,
+  required CartItemPreview preview,
   int quantity = 1,
 }) async {
   final notifier = ref.read(cartControllerProvider.notifier);
+  final productMadeToOrder = preview.product.madeToOrder;
 
   if (notifier.wouldConflictWithCart(productMadeToOrder)) {
     // Le panier existant est dans le mode opposé à celui du nouvel item :
@@ -132,12 +139,16 @@ Future<bool> addToCartSafely({
     final shouldClear = await CartModeConflictDialog.show(
       context,
       cartIsPreorder: cartIsPreorder,
-      incomingProductName: productName,
+      incomingProductName: preview.product.nom,
     );
     if (shouldClear != true) return false;
     await notifier.clearCart();
   }
 
-  await notifier.addItem(variantId: variantId, quantity: quantity);
+  await notifier.addItem(
+    variantId: preview.variantId,
+    quantity: quantity,
+    preview: preview,
+  );
   return true;
 }

@@ -8,14 +8,33 @@ part of 'api_client.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
+/// Fils d'Ariane Sentry **et** garde de session.
+///
+/// L'observateur est le seul endroit traversé par *toutes* les erreurs d'API,
+/// quel que soit le dépôt appelant : c'est donc là que le 401 doit être vu.
+/// Avant, `ApiErrorKind.unauthorized` était calculé puis lu par deux dépôts
+/// pour des replis locaux, et la session expirée n'était traitée nulle part.
 
 @ProviderFor(networkObserver)
 final networkObserverProvider = NetworkObserverProvider._();
+
+/// Fils d'Ariane Sentry **et** garde de session.
+///
+/// L'observateur est le seul endroit traversé par *toutes* les erreurs d'API,
+/// quel que soit le dépôt appelant : c'est donc là que le 401 doit être vu.
+/// Avant, `ApiErrorKind.unauthorized` était calculé puis lu par deux dépôts
+/// pour des replis locaux, et la session expirée n'était traitée nulle part.
 
 final class NetworkObserverProvider
     extends
         $FunctionalProvider<NetworkObserver, NetworkObserver, NetworkObserver>
     with $Provider<NetworkObserver> {
+  /// Fils d'Ariane Sentry **et** garde de session.
+  ///
+  /// L'observateur est le seul endroit traversé par *toutes* les erreurs d'API,
+  /// quel que soit le dépôt appelant : c'est donc là que le 401 doit être vu.
+  /// Avant, `ApiErrorKind.unauthorized` était calculé puis lu par deux dépôts
+  /// pour des replis locaux, et la session expirée n'était traitée nulle part.
   NetworkObserverProvider._()
     : super(
         from: null,
@@ -49,7 +68,7 @@ final class NetworkObserverProvider
   }
 }
 
-String _$networkObserverHash() => r'eec087b935475284b01f88e6d8ed68a3592f8b2c';
+String _$networkObserverHash() => r'3ef4b3f9876c30fc96b55158373c586201e123d0';
 
 @ProviderFor(apiClient)
 final apiClientProvider = ApiClientProvider._();

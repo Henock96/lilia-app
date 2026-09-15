@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
@@ -85,7 +86,10 @@ class _ProductFavoritesTab extends ConsumerWidget {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => Center(child: Text('Erreur: $error')),
+      error: (error, _) => BuildErrorState(
+        error,
+        onRetry: () => ref.invalidate(favoritesProvider),
+      ),
     );
   }
 }
@@ -274,7 +278,13 @@ class _RestaurantFavoritesTab extends ConsumerWidget {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => Center(child: Text('Erreur: $error')),
+      // Cette branche existait déjà mais était inatteignable : le provider
+      // avalait toute `ApiException` et rendait une liste vide. Elle
+      // affichait par ailleurs `'Erreur: $error'`, soit l'objet brut.
+      error: (error, _) => BuildErrorState(
+        error,
+        onRetry: () => ref.invalidate(restaurantFavoritesProvider),
+      ),
     );
   }
 }

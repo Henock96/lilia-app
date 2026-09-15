@@ -3,57 +3,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // `StateProvider` vit dans `legacy` depuis Riverpod 3 — même import que
 // `notification_providers.dart`.
 import 'package:flutter_riverpod/legacy.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lilia_app/constants/app_size.dart';
 
 import '../../../routing/app_route_enum.dart';
-import '../controller/auth_controller.dart';
-import 'package:lilia_app/utils/snackbar.dart';
+import '../../../routing/auth_route_link.dart';
+import '../application/sign_in_controller.dart';
+import 'signin_page.dart' show AuthButtonSpinner, GoogleSignInButton;
 
-class SignUpPage extends ConsumerStatefulWidget {
+/// Écran d'inscription.
+///
+/// ⚠️ **Plus aucun dialogue modal de chargement.** Il en existait un, ouvert
+/// depuis un `ref.listen` et refermé via un `BuildContext` mémorisé dans un
+/// champ (`_progressIndicatorContext`). Ce champ n'est affecté qu'au moment où
+/// le `builder` du dialogue s'exécute — à la frame suivante. Un échec plus
+/// rapide que cette frame trouvait donc `null` au moment de refermer, et le
+/// dialogue `barrierDismissible: false` restait **définitivement** ouvert :
+/// écran figé, application inutilisable jusqu'au redémarrage (B-03).
+///
+/// Le chargement est désormais porté par `signInControllerProvider`, comme sur
+/// l'écran de connexion : un seul état, aucune branche ne peut le laisser
+/// allumé.
+class SignUpPage extends StatelessWidget {
   const SignUpPage({super.key});
 
   @override
-  ConsumerState<SignUpPage> createState() => _SignUpPageState();
-}
-
-class _SignUpPageState extends ConsumerState<SignUpPage> {
-  BuildContext? _progressIndicatorContext;
-
-  @override
-  void dispose() {
-    if (_progressIndicatorContext != null &&
-        _progressIndicatorContext!.mounted) {
-      Navigator.of(_progressIndicatorContext!).pop();
-      _progressIndicatorContext = null;
-    }
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    ref.listen(authControllerProvider, (prev, state) async {
-      if (state.isLoading) {
-        await showDialog<void>(
-          context: context,
-          barrierDismissible: false,
-          builder: (ctx) {
-            _progressIndicatorContext = ctx;
-            return const Center(child: CircularProgressIndicator());
-          },
-        );
-        return;
-      }
-      if (_progressIndicatorContext != null &&
-          _progressIndicatorContext!.mounted) {
-        Navigator.of(_progressIndicatorContext!).pop();
-        _progressIndicatorContext = null;
-      }
-      if (state.hasError && !state.isLoading) {
-        context.showErrorSnack('Erreur: ${state.error}');
-      }
-    });
-
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -61,15 +35,23 @@ class _SignUpPageState extends ConsumerState<SignUpPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _Header(),
+              const _Header(),
               gapH32,
-              _SignUpForm(),
+              const _SignUpForm(),
               gapH12,
-              _OrDivider(),
+              const _OrDivider(),
               gapH12,
-              _SocialLogins(),
+              // Le code de parrainage saisi sur CET écran doit suivre si le
+              // client choisit finalement Google — sinon un filleul perdait son
+              // parrain en silence.
+              GoogleSignInButton(
+                label: "S'inscrire avec Google",
+                referralCode: () =>
+                    ProviderScope.containerOf(context, listen: false)
+                        .read(signupReferralCodeProvider),
+              ),
               gapH12,
-              _SignInNavigation(),
+              const _SignInNavigation(),
             ],
           ),
         ),
@@ -135,13 +117,11 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
 
   Future<void> _signUp() async {
     if (_formKey.currentState!.validate()) {
-      await ref
-          .read(authControllerProvider.notifier)
-          .createUserWithEmailAndPassword(
-            _emailController.text.trim(),
-            _passwordController.text.trim(),
-            _nameController.text.trim(),
-            _phoneController.text.trim(),
+      await ref.read(signInControllerProvider.notifier).signUpWithEmail(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+            name: _nameController.text.trim(),
+            phone: _phoneController.text.trim(),
             referralCode: _referralController.text.trim().isEmpty
                 ? null
                 : _referralController.text.trim().toUpperCase(),
@@ -151,7 +131,7 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
 
   @override
   Widget build(BuildContext context) {
-    final state = ref.watch(authControllerProvider);
+    final etat = ref.watch(signInControllerProvider);
     final theme = Theme.of(context);
 
     return Form(
@@ -301,13 +281,10 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
           ),
           gapH32,
           ElevatedButton(
-            onPressed: state.isLoading ? null : _signUp,
-            child: state.isLoading
-                ? const SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(color: Colors.white),
-                  )
+            key: const Key('signup_submit'),
+            onPressed: etat.isLoading ? null : _signUp,
+            child: etat.isRunning(AuthOperation.emailSignUp)
+                ? const AuthButtonSpinner()
                 : const Text("S'inscrire"),
           ),
         ],
@@ -341,41 +318,10 @@ class _OrDivider extends StatelessWidget {
 /// Code de parrainage saisi sur l'écran d'inscription.
 ///
 /// Il vit dans un provider parce que **deux widgets frères** en ont besoin :
-/// `_SignUpForm`, qui le saisit, et `_SocialLogins`, qui doit le transmettre
+/// `_SignUpForm`, qui le saisit, et le bouton Google, qui doit le transmettre
 /// si l'utilisateur choisit finalement Google. Sans ce partage, taper son code
 /// puis cliquer « S'inscrire avec Google » perdait le parrain en silence.
 final signupReferralCodeProvider = StateProvider<String?>((ref) => null);
-
-class _SocialLogins extends ConsumerWidget {
-  const _SocialLogins();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final cs = Theme.of(context).colorScheme;
-    return OutlinedButton.icon(
-      onPressed: () async {
-        // Le code saisi sur CET écran doit suivre, quel que soit le mode
-        // d'inscription choisi ensuite. Sans cela, un filleul qui tape son
-        // code puis clique « Continuer avec Google » perdait son parrain sans
-        // le savoir.
-        await ref
-            .read(authControllerProvider.notifier)
-            .signInWithGoogle(
-              referralCode: ref.read(signupReferralCodeProvider),
-            );
-      },
-      icon: Image.asset('assets/images/google_logo.png', height: 24.0),
-      label: Text(
-        "S'inscrire avec Google",
-        style: TextStyle(color: cs.onSurface),
-      ),
-      style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 12.0),
-        side: BorderSide(color: cs.outline.withValues(alpha: 0.4)),
-      ),
-    );
-  }
-}
 
 class _SignInNavigation extends StatelessWidget {
   const _SignInNavigation();
@@ -393,7 +339,7 @@ class _SignInNavigation extends StatelessWidget {
           ),
         ),
         TextButton(
-          onPressed: () => context.goNamed(AppRoutes.signIn.routeName),
+          onPressed: () => goToAuthRoute(context, AppRoutes.signIn),
           child: Text(
             "Se connecter",
             style: TextStyle(

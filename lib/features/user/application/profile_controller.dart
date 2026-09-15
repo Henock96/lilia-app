@@ -5,8 +5,10 @@ import 'package:lilia_app/features/user/data/cloudinary_service.dart';
 import 'package:lilia_app/models/loyalty_transaction.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_app/features/user/data/user_repository.dart';
+import 'package:lilia_app/features/auth/domain/auth_failure.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_app/core/network/api_client.dart';
+import 'package:lilia_app/core/network/api_exception.dart';
 
 part 'profile_controller.g.dart';
 
@@ -15,27 +17,48 @@ UserRepository userRepository(Ref ref) {
   return UserRepository(ref.watch(apiClientProvider));
 }
 
+/// Ces trois providers refusent de travailler sans session.
+///
+/// Ils levaient `Exception('Utilisateur non authentifie.')` — préfixé de
+/// « Exception: » par `BuildErrorState`, et sans accents. Ils lèvent désormais
+/// un [AuthFailure], dont le message est écrit pour un client et dit quoi
+/// faire.
+///
+/// ## M-08 — « pas encore résolu » n'est pas « déconnecté »
+///
+/// Ces trois providers testaient `authState.asData?.value == null`. Cette
+/// condition est vraie dans **deux** situations que rien ne distingue :
+/// personne n'est connecté, ou Firebase n'a simplement pas encore répondu. Au
+/// démarrage à froid, ils échouaient donc le temps de la résolution, et le
+/// client d'une session parfaitement valide lisait « Votre session a expiré.
+/// Reconnectez-vous pour continuer. »
+///
+/// [_sessionOuverte] lève l'ambiguïté en attendant la **première émission** du
+/// flux Firebase : pendant le bootstrap le provider reste en chargement — ce
+/// qu'il est réellement — au lieu de conclure. `ref.watch(...future)` le fait
+/// rejouer à chaque changement de session, donc rien ne reste bloqué.
+Future<AppUser> _sessionOuverte(Ref ref) async {
+  final user = await ref.watch(authStateChangeProvider.future);
+  if (user == null) throw kAuthSessionExpired;
+  return user;
+}
+
 @riverpod
 Future<AppUser> userProfile(Ref ref) async {
-  final authState = ref.watch(authStateChangeProvider);
-  if (authState.asData?.value == null) {
-    throw Exception('Utilisateur non authentifie.');
-  }
+  await _sessionOuverte(ref);
   final userRepository = ref.watch(userRepositoryProvider);
   return userRepository.getUserProfile();
 }
 
 @riverpod
 Future<ReferralStats> referralStats(Ref ref) async {
-  final authState = ref.watch(authStateChangeProvider);
-  if (authState.asData?.value == null) throw Exception('Non authentifie.');
+  await _sessionOuverte(ref);
   return ref.watch(userRepositoryProvider).getReferralStats();
 }
 
 @riverpod
 Future<List<LoyaltyTransaction>> loyaltyTransactions(Ref ref) async {
-  final authState = ref.watch(authStateChangeProvider);
-  if (authState.asData?.value == null) throw Exception('Non authentifie.');
+  await _sessionOuverte(ref);
   return ref.watch(userRepositoryProvider).getLoyaltyTransactions();
 }
 
@@ -44,17 +67,29 @@ class ProfileController extends _$ProfileController {
   @override
   FutureOr<void> build() {}
 
-  Future<bool> updateUser(Map<String, dynamic> data) async {
+  /// Met à jour le profil. Rend `null` en cas de succès, sinon **le message à
+  /// montrer**.
+  ///
+  /// Rendait `bool`, et les appelants devaient aller relire l'erreur dans
+  /// `state` pour savoir quoi dire. La feuille de saisie du numéro ne le
+  /// faisait pas : elle arrêtait simplement son indicateur, et le client
+  /// n'obtenait **rien** — ni message, ni fermeture (M-03).
+  Future<String?> updateUser(Map<String, dynamic> data) async {
     final repository = ref.read(userRepositoryProvider);
     state = const AsyncLoading();
     try {
       await repository.updateUserProfile(data);
       ref.invalidate(userProfileProvider);
       state = const AsyncData(null);
-      return true;
+      return null;
     } catch (e, st) {
       state = AsyncError(e, st);
-      return false;
+      // `ApiException.message` est déjà en français et prêt à afficher — c'est
+      // le contrat de `ErrorInterceptor`. Toute autre erreur est technique et
+      // n'apprendrait rien au client.
+      return e is ApiException
+          ? e.message
+          : 'Enregistrement impossible. Veuillez réessayer.';
     }
   }
 

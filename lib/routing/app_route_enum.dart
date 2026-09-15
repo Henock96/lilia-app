@@ -1,4 +1,16 @@
+/// La table des routes de l'application.
+///
+/// ⚠️ **Source unique des chemins.** `app_router.dart` déclarait cinq chemins
+/// en dur (`restaurant/:id`, `product-detail`, `search`, `menu-detail`,
+/// `:orderId`) pendant que cet enum en portait sa propre version. L'une d'elles
+/// avait déjà divergé — `orderDetail` valait `'/:orderId'`, un chemin qui
+/// n'existe nulle part. Un enum qui prétend faire autorité et ne la fait pas
+/// est pire qu'une constante en dur : on lui fait confiance.
+///
+/// Convention : un chemin de route **racine** commence par `/`, un chemin de
+/// **sous-route** ne commence jamais par `/` (il est concaténé à son parent).
 enum AppRoutes {
+  splash,
   onboarding,
   home,
   signIn,
@@ -7,12 +19,16 @@ enum AppRoutes {
   favoris,
   favoriteDetail,
   profile,
+  editProfile,
+  about,
   address,
   changePassword,
   restaurantDetail,
   productDetail,
   menuDetail,
   orderDetail,
+  orderTracking,
+  notifications,
   cart,
   deliveryOptions,
   checkout,
@@ -25,8 +41,11 @@ enum AppRoutes {
 }
 
 extension AppRoutesExtension on AppRoutes {
+  /// Chemin déclaré dans `GoRoute.path`.
   String get path {
     switch (this) {
+      case AppRoutes.splash:
+        return '/splash';
       case AppRoutes.onboarding:
         return '/onboarding';
       case AppRoutes.home:
@@ -38,11 +57,16 @@ extension AppRoutesExtension on AppRoutes {
       case AppRoutes.commandes:
         return '/commandes';
       case AppRoutes.favoris:
-        return '/favoris';
+        // Sous-route de `/profile` : pas de `/` initial.
+        return 'favoris';
       case AppRoutes.favoriteDetail:
         return 'details';
       case AppRoutes.profile:
         return '/profile';
+      case AppRoutes.editProfile:
+        return 'edit';
+      case AppRoutes.about:
+        return 'about';
       case AppRoutes.address:
         return 'address';
       case AppRoutes.changePassword:
@@ -54,7 +78,13 @@ extension AppRoutesExtension on AppRoutes {
       case AppRoutes.menuDetail:
         return 'menu-detail';
       case AppRoutes.orderDetail:
-        return '/:orderId';
+        // Sous-route de `/commandes`. Valait `'/:orderId'` : faux, et mort
+        // puisque le routeur déclarait le chemin en dur à côté (R-02).
+        return ':orderId';
+      case AppRoutes.orderTracking:
+        return 'tracking';
+      case AppRoutes.notifications:
+        return 'notifications';
       case AppRoutes.cart:
         return '/cart';
       case AppRoutes.deliveryOptions:
@@ -80,6 +110,8 @@ extension AppRoutesExtension on AppRoutes {
 
   String get routeName {
     switch (this) {
+      case AppRoutes.splash:
+        return 'Splash';
       case AppRoutes.onboarding:
         return 'Onboarding';
       case AppRoutes.home:
@@ -96,6 +128,10 @@ extension AppRoutesExtension on AppRoutes {
         return 'FavoriteDetail';
       case AppRoutes.profile:
         return 'Profile';
+      case AppRoutes.editProfile:
+        return 'EditProfile';
+      case AppRoutes.about:
+        return 'About';
       case AppRoutes.address:
         return 'Address';
       case AppRoutes.changePassword:
@@ -108,6 +144,10 @@ extension AppRoutesExtension on AppRoutes {
         return 'Menu-Details';
       case AppRoutes.orderDetail:
         return 'OrderId';
+      case AppRoutes.orderTracking:
+        return 'OrderTracking';
+      case AppRoutes.notifications:
+        return 'Notifications';
       case AppRoutes.cart:
         return 'Cart';
       case AppRoutes.deliveryOptions:

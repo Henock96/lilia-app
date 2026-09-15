@@ -70,5 +70,27 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Support ouverture GPS / Google Maps -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="geo" />
+        </intent>
+        <!-- Support ouverture liens Web / Maps -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <!-- Support appel téléphonique (livreur, restaurant, support).
+             ⚠️ L'action doit être VIEW, pas DIAL : `url_launcher` construit un
+             `Intent(Intent.ACTION_VIEW)` aussi bien pour `canLaunchUrl` que
+             pour `launchUrl` (url_launcher_android, UrlLauncher.java). Déclaré
+             en DIAL, ce bloc a l'air juste et ne débloque rien —
+             `_callRestaurant` continuait d'afficher « Impossible d'ouvrir
+             l'application téléphone » sur Android 11+. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tel" />
+        </intent>
+        <package android:name="com.google.android.apps.maps" />
     </queries>
 </manifest>

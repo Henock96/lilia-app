@@ -2,9 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lilia_app/features/onboarding/application/onboarding_provider.dart';
-import 'package:lilia_app/routing/app_route_enum.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -90,11 +88,15 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
     }
   }
 
+  /// Marque l'onboarding fait, et **ne navigue pas**.
+  ///
+  /// La suite appartient au routeur : `sessionPhase` quitte
+  /// `onboardingRequired`, le `redirect` sort de cet écran vers la connexion —
+  /// ou vers l'accueil si une session est déjà ouverte, ce qu'un
+  /// `goNamed(signIn)` en dur ne savait pas faire. Ce `goNamed` produisait
+  /// alors deux navigations concurrentes pour un seul geste.
   void _completeOnboarding() async {
     await ref.read(onboardingStatusProvider.notifier).completeOnboarding();
-    if (mounted) {
-      context.goNamed(AppRoutes.signIn.routeName);
-    }
   }
 
   @override

@@ -32,6 +32,16 @@ class Adresse {
   /// Nom donné par le client : « Maison », « Bureau ».
   final String? label;
 
+  /// Adresse par défaut du client, telle que **le serveur** la désigne.
+  ///
+  /// Le champ existait en base et l'endpoint `PATCH /adresses/:id/default`
+  /// aussi, mais le client ne lisait ni l'un ni l'autre : il posait le badge
+  /// « Principale » sur le premier élément d'une liste triée par date de
+  /// création décroissante. Le badge désignait donc la **dernière adresse
+  /// créée**, et changeait tout seul dès qu'on en ajoutait une — y compris une
+  /// adresse ponctuelle saisie pour une seule commande.
+  final bool isDefault;
+
   Adresse({
     required this.id,
     required this.rue,
@@ -46,6 +56,7 @@ class Adresse {
     this.locationPrecision = LocationPrecision.unknown,
     this.landmark,
     this.label,
+    this.isDefault = false,
   });
 
   factory Adresse.fromJson(Map<String, dynamic> json) {
@@ -67,8 +78,15 @@ class Adresse {
       ),
       landmark: json['landmark'] as String?,
       label: json['label'] as String?,
+      isDefault: json['isDefault'] as bool? ?? false,
     );
   }
+
+  /// Libellé à afficher : le nom donné par le client s'il en a mis un, la rue
+  /// sinon. « Maison » situe mieux qu'« Avenue de la Paix » dans une liste où
+  /// trois adresses se ressemblent.
+  String get displayLabel =>
+      (label != null && label!.trim().isNotEmpty) ? label!.trim() : rue;
 
   /// `true` si l'adresse porte une position posée par le client.
   bool get hasPosition => latitude != null && longitude != null;

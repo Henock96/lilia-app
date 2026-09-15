@@ -4,7 +4,8 @@ import 'package:lilia_app/features/reviews/data/review_controller.dart';
 import 'package:lilia_app/features/reviews/data/review_repository.dart';
 import 'package:lilia_app/features/reviews/presentation/widgets/review_card.dart';
 import 'package:lilia_app/features/reviews/presentation/widgets/star_rating.dart';
-import 'package:lilia_app/features/reviews/presentation/screens/write_review_screen.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lilia_app/routing/app_route_enum.dart';
 
 import '../../../../models/review.dart';
 import 'package:lilia_app/utils/snackbar.dart';
@@ -208,15 +209,18 @@ class ReviewsScreen extends ConsumerWidget {
     WidgetRef ref, {
     String? existingReviewId,
   }) async {
-    final result = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => WriteReviewScreen(
-          restaurantId: restaurantId,
-          restaurantName: restaurantName,
-          existingReviewId: existingReviewId,
-        ),
-      ),
+    // La route `/reviews/write` existait déjà et n'était appelée par personne :
+    // cet écran la court-circuitait par un `Navigator.push`, ce qui la rendait
+    // morte (R-01) et sortait l'écran d'avis de l'observateur analytics comme
+    // du fil d'Ariane Sentry. `pushNamed` rend bien la valeur passée au
+    // `Navigator.pop(context, true)` de l'écran de rédaction.
+    final result = await context.pushNamed<bool>(
+      AppRoutes.writeReview.routeName,
+      extra: <String, dynamic>{
+        'restaurantId': restaurantId,
+        'restaurantName': restaurantName,
+        'existingReviewId': existingReviewId,
+      },
     );
 
     if (result == true) {

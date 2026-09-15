@@ -5,7 +5,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
+import 'package:lilia_app/core/update/app_version.dart';
 import 'package:lilia_app/common_widgets/connectivity_banner.dart';
+import 'package:lilia_app/features/auth/presentation/auth_failure_announcer_scope.dart';
 import 'package:lilia_app/routing/app_router.dart';
 import 'package:lilia_app/services/analytics_service.dart';
 import 'package:lilia_app/services/notification_service.dart';
@@ -49,6 +51,16 @@ void main() async {
         'SENTRY_ENV',
         defaultValue: 'production',
       );
+      // Dérivées d'`AppVersion.current`, et non réécrites à la main.
+      //
+      // La version vivait en dur ici **et** dans `AppVersion.current`. Deux
+      // copies d'un numéro qu'on incrémente à chaque publication finissent par
+      // diverger, et le jour où elles divergent, Sentry attribue les erreurs à
+      // la mauvaise version — c'est-à-dire qu'il répond faux à la seule
+      // question qu'on lui pose : « quelle version plante ? ». Une copie de
+      // moins, une occasion de moins.
+      options.release = 'lilia_app@${AppVersion.current}';
+      options.dist = '${AppVersion.current.buildNumber ?? 0}';
       options.tracesSampleRate = 0.1;
       // ignore: experimental_member_use
       options.profilesSampleRate = 0.1;
@@ -78,6 +90,11 @@ class MyApp extends ConsumerWidget {
         theme: AppTheme.light,
         darkTheme: AppTheme.dark,
         themeMode: themeMode,
+        // Au-dessus du routeur et sous le `ScaffoldMessenger` de MaterialApp :
+        // un échec d'authentification s'affiche même si l'écran qui l'a
+        // déclenché a déjà été démonté par une redirection (B-02).
+        builder: (context, child) =>
+            AuthFailureAnnouncerScope(child: child ?? const SizedBox.shrink()),
       ),
     );
   }

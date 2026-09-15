@@ -12,7 +12,7 @@ class BannerRepository {
   Future<List<AppBanner>> getActiveBanners({String? restaurantId}) async {
     final res = await _api.getJson(
       '/banners',
-      query: {if (restaurantId != null) 'restaurantId': restaurantId},
+      query: {'restaurantId': ?restaurantId},
     );
     final data = (res.data as Map<String, dynamic>)['data'] as List<dynamic>;
     return data

@@ -144,7 +144,7 @@ class _FakeCart extends CartController {
   final Cart? _cart;
 
   @override
-  Stream<Cart?> build() => Stream<Cart?>.value(_cart);
+  Future<Cart?> build() async => _cart;
 }
 
 class _FakeAdresses extends AdresseController {

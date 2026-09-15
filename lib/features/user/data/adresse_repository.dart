@@ -45,9 +45,9 @@ class AdresseRepository extends _$AdresseRepository {
       "rue": rue,
       "ville": ville,
       "country": pays,
-      if (quartierId != null) "quartierId": quartierId,
-      if (latitude != null) "latitude": latitude,
-      if (longitude != null) "longitude": longitude,
+      "quartierId": ?quartierId,
+      "latitude": ?latitude,
+      "longitude": ?longitude,
       if (landmark != null && landmark.isNotEmpty) "landmark": landmark,
       if (label != null && label.isNotEmpty) "label": label,
     };
@@ -71,10 +71,57 @@ class AdresseRepository extends _$AdresseRepository {
       body: <String, dynamic>{
         'latitude': latitude,
         'longitude': longitude,
-        if (landmark != null && landmark.isNotEmpty) 'landmark': landmark,
+        // `null` est transmis délibérément — il **efface** les repères.
+        //
+        // La condition précédente (`!= null && isNotEmpty`) omettait le champ
+        // dans ce cas, et le serveur laissait donc l'ancienne valeur en place :
+        // un client qui effaçait « portail bleu » parce qu'il avait déménagé
+        // de porte voyait le texte revenir, sans aucun moyen de s'en défaire.
+        // L'écran de choix de position porte ce champ pré-rempli : ce qu'il
+        // rend fait autorité, y compris quand c'est vide.
+        'landmark': landmark,
       },
     );
     return Adresse.fromJson(ApiResponse.mapOf(res.data));
+  }
+
+  /// Modifie le contenu d'une adresse : libellé, rue, quartier.
+  ///
+  /// Cette méthode manquait, et son absence se voyait à l'usage : une adresse
+  /// enregistrée était **définitive**. Une faute de frappe dans le nom de rue,
+  /// un quartier choisi trop vite, un « Maison » qu'on voulait appeler
+  /// « Chez maman » — la seule issue était de supprimer puis recréer, ce qui
+  /// faisait aussi perdre la position déjà posée sur la carte.
+  ///
+  /// Les paramètres omis ne sont pas envoyés : le serveur ne réécrit que ce
+  /// qu'il reçoit. C'est ce qui permet de corriger le libellé sans toucher à
+  /// la position, et inversement.
+  Future<Adresse> updateAdresse(
+    String adresseId, {
+    String? rue,
+    String? quartierId,
+    String? label,
+  }) async {
+    final res = await _api.patchJson(
+      '/adresses/$adresseId',
+      body: <String, dynamic>{
+        'rue': ?rue,
+        'quartierId': ?quartierId,
+        // Chaîne vide volontairement transmise : c'est ainsi que le client
+        // efface un libellé qu'il ne veut plus. Seul `null` omet le champ.
+        'label': ?label,
+      },
+    );
+    return Adresse.fromJson(ApiResponse.mapOf(res.data));
+  }
+
+  /// Désigne l'adresse par défaut du client.
+  ///
+  /// Le serveur bascule les autres à `false` dans une transaction : il n'y a
+  /// jamais deux adresses par défaut, et jamais zéro tant qu'une a été
+  /// choisie.
+  Future<void> setDefault(String adresseId) async {
+    await _api.patchJson('/adresses/$adresseId/default');
   }
 
   Future<void> deleteAdresse(String adresseId) async {

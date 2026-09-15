@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
+import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/models/draft_order.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -71,9 +72,14 @@ class DraftOrdersNotifier extends _$DraftOrdersNotifier {
 
     for (final item in draft.items) {
       try {
+        // `awaitServer` : la restauration ajoute les articles un par un et
+        // doit savoir lesquels ont échoué. Sans lui, la boucle enverrait tous
+        // les articles en parallèle et le `catch` ci-dessous ne verrait rien.
         await cartController.addItem(
           variantId: item.variantId,
           quantity: item.quantite,
+          preview: CartItemPreview.fromCartItem(item),
+          awaitServer: true,
         );
       } catch (e) {
         debugPrint('Erreur ajout item ${item.product.nom}: $e');

@@ -33,7 +33,7 @@ final class UserOrdersProvider
   UserOrders create() => UserOrders();
 }
 
-String _$userOrdersHash() => r'2f45641f44c14778905da9c7864abb0b01a9bf09';
+String _$userOrdersHash() => r'd2ed611784ca67247c528f2737d52fad0a54ccc7';
 
 abstract class _$UserOrders extends $AsyncNotifier<List<Order>> {
   FutureOr<List<Order>> build();

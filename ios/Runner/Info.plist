@@ -39,6 +39,15 @@
 	<string>79838517894-f7i2ke4ge16lhq6peh2t8nrdr2j4j35e.apps.googleusercontent.com</string>
 	<key>GoogleMapsApiKey</key>
 	<string>$(GOOGLE_MAPS_API_KEY)</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>comgooglemaps</string>
+		<string>googlechromes</string>
+		<string>maps</string>
+		<string>tel</string>
+		<string>https</string>
+		<string>http</string>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
@@ -76,6 +85,8 @@
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
+	<key>UIStatusBarStyle</key>
+	<string></string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

@@ -217,7 +217,7 @@ class PaymentService {
         body: {
           'orderId': orderId,
           'phoneNumber': phoneNumber,
-          if (method != null) 'method': method,
+          'method': ?method,
           'payerMessage': payerMessage ?? 'Paiement commande $orderId',
         },
       );

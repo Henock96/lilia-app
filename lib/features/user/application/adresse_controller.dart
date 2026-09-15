@@ -61,6 +61,36 @@ class AdresseController extends _$AdresseController {
     return adresse;
   }
 
+  /// Modifie le libellé, la rue ou le quartier d'une adresse existante.
+  Future<Adresse> updateAdresse(
+    String adresseId, {
+    String? rue,
+    String? quartierId,
+    String? label,
+  }) async {
+    final adresseRepo = ref.read(adresseRepositoryProvider.notifier);
+    final adresse = await adresseRepo.updateAdresse(
+      adresseId,
+      rue: rue,
+      quartierId: quartierId,
+      label: label,
+    );
+    ref.invalidateSelf();
+    return adresse;
+  }
+
+  /// Désigne l'adresse par défaut.
+  ///
+  /// On recharge la liste entière plutôt que de basculer le drapeau localement :
+  /// l'opération en modifie **plusieurs** lignes côté serveur (l'ancienne
+  /// défaut repasse à `false`), et deviner ce basculement ici finirait par
+  /// diverger de ce que la base contient réellement.
+  Future<void> setDefault(String adresseId) async {
+    final adresseRepo = ref.read(adresseRepositoryProvider.notifier);
+    await adresseRepo.setDefault(adresseId);
+    ref.invalidateSelf();
+  }
+
   Future<void> deleteAdresse(String adresseId) async {
     try {
       final adresseRepo = ref.read(adresseRepositoryProvider.notifier);

@@ -20,6 +20,18 @@ class RestaurantFavorites extends _$RestaurantFavorites {
 
   ApiClient get _api => ref.read(apiClientProvider);
 
+  /// ⚠️ **Une panne n'est pas une liste vide.**
+  ///
+  /// Ce `catch` rendait `[]` pour **toute** `ApiException`, au motif que les
+  /// favoris ne sont pas bloquants. Conséquence : backend en panne → l'écran
+  /// affichait son état vide soigné (« Aucun restaurant en favoris »,
+  /// « Explorez et ajoutez vos restaurants préférés ») à un client qui en avait
+  /// peut-être douze. Et le provider est `keepAlive` : ce mensonge restait à
+  /// l'écran jusqu'à une invalidation explicite. L'écran avait pourtant déjà
+  /// une branche `error:` — elle était simplement inatteignable.
+  ///
+  /// Seul le 401 rend encore une liste vide : sans session, il n'y a
+  /// effectivement rien à montrer, et ce n'est pas une panne.
   Future<List<RestaurantSummary>> _fetchFromBackend() async {
     try {
       final res = await _api.getJson('/favorites');
@@ -27,9 +39,9 @@ class RestaurantFavorites extends _$RestaurantFavorites {
       return ApiResponse.listOf(res.data)
           .map((e) => RestaurantSummary.fromJson(e as Map<String, dynamic>))
           .toList();
-    } on ApiException {
-      // Non connecté / erreur : liste vide (favoris = feature non bloquante).
-      return [];
+    } on ApiException catch (e) {
+      if (e.kind == ApiErrorKind.unauthorized) return [];
+      rethrow;
     }
   }
 

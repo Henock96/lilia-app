@@ -39,25 +39,23 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
   Future<void> _saveProfile() async {
     if (_formKey.currentState!.validate()) {
-      final success = await ref
+      final echec = await ref
           .read(profileControllerProvider.notifier)
           .updateUser({
             'nom': _nameController.text,
-            //'adresses': _addressController.text,
             'phone': _phoneController.text,
           });
 
       if (!mounted) return; // Vérifie si le widget est toujours monté
 
-      if (success) {
-        context.showSuccessSnack('Profil mis à jour avec succès!');
+      if (echec == null) {
+        context.showSuccessSnack('Profil mis à jour.');
         Navigator.of(context).pop(); // Retourne à la page précédente
       } else {
-        // En cas d'erreur, affiche le message d'erreur du provider
-        final error = ref.read(profileControllerProvider).error;
-        context.showErrorSnack(
-          'Erreur lors de la mise à jour: ${error ?? "Une erreur inconnue est survenue."}',
-        );
+        // Le message est déjà prêt à afficher : plus d'interpolation d'objet
+        // d'erreur, qui rendait « Erreur lors de la mise à jour: Instance
+        // of ... » quand ce n'était pas une `ApiException`.
+        context.showErrorSnack(echec);
       }
     }
   }
