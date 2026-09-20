@@ -51,6 +51,13 @@ class AuthController extends _$AuthController {
       if (user != null) {
         // L'utilisateur est connecté
         _setupNotifications();
+        // Le panier composé avant la connexion est versé dans le panier du
+        // compte. C'est ici — sur la transition de session, pas sur un écran —
+        // parce que la connexion peut venir de six endroits (mot de passe,
+        // Google, Apple, téléphone, inscription, reprise de session) et que
+        // chacun oublierait tôt ou tard de le faire. Voir
+        // `CartController.adoptGuestCart`.
+        _adoptGuestCart();
       }
     });
     ref.onDispose(subscription.cancel);
@@ -75,6 +82,23 @@ class AuthController extends _$AuthController {
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Enregistrement du jeton FCM impossible : ${e.runtimeType}');
+      }
+    }
+  }
+
+  /// Reprend le panier composé avant la connexion.
+  ///
+  /// ⚠️ L'échec est contenu, **et le panier local n'est pas effacé** en cas
+  /// d'erreur (cf. `adoptGuestCart`) : ne pas réussir à reprendre un panier ne
+  /// doit ni empêcher d'ouvrir une session, ni faire disparaître ce que le
+  /// client a composé. L'appel n'est pas attendu, comme celui des
+  /// notifications : il est déclenché depuis l'écoute du flux de session.
+  Future<void> _adoptGuestCart() async {
+    try {
+      await ref.read(cartControllerProvider.notifier).adoptGuestCart();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Reprise du panier visiteur impossible : ${e.runtimeType}');
       }
     }
   }

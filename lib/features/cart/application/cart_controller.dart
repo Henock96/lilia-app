@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_app/models/cart.dart';
+import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_app/features/cart/data/cart_repository.dart';
+import 'package:lilia_app/features/cart/data/guest_cart_store.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/core/network/api_client.dart';
 import 'package:lilia_app/services/analytics_service.dart';
@@ -12,6 +14,23 @@ part 'cart_controller.g.dart';
 @riverpod
 CartRepository cartRepository(Ref ref) =>
     CartRepository(ref.watch(apiClientProvider));
+
+/// « Y a-t-il une session ouverte ? », posée **au moment du geste**.
+///
+/// Une fonction et non un booléen, délibérément. Un booléen dérivé de
+/// `authStateChangeProvider` rendrait `CartController.build()` réactif à la
+/// connexion — donc le panier serveur écraserait le panier du visiteur à la
+/// seconde où la session s'ouvre, **avant** que `adoptGuestCart` ait pu le
+/// verser. La transition est un geste explicite, pas un effet de bord de
+/// reconstruction.
+///
+/// C'est aussi le seul point d'injection des tests : ils exercent le panier
+/// serveur sans Firebase initialisé.
+@Riverpod(keepAlive: true)
+bool Function() cartSessionIsOpen(Ref ref) {
+  final auth = ref.watch(authRepositoryProvider);
+  return () => auth.currentUser != null;
+}
 
 /// Échec de synchronisation survenu **après** que le client a vu son panier
 /// changer. Le geste a été accepté à l'écran puis défait : il faut le dire.
@@ -108,9 +127,187 @@ class CartController extends _$CartController {
   final Map<String, Future<void>> _files = {};
 
   @override
-  Future<Cart?> build() => ref.watch(cartRepositoryProvider).getCart();
+  Future<Cart?> build() async {
+    // Le magasin local n'est touché que sans session : `SharedPreferences`
+    // exige un binding Flutter initialisé, et un client connecté n'a rien à y
+    // lire.
+    if (_sansSession) {
+      final magasin = await ref.watch(guestCartStoreProvider.future);
+      return magasin.read();
+    }
+    return ref.watch(cartRepositoryProvider).getCart();
+  }
 
   CartRepository get _repo => ref.read(cartRepositoryProvider);
+
+  /// Personne n'est connecté.
+  ///
+  /// Lu à chaque mutation plutôt que capturé une fois : la session peut
+  /// s'ouvrir pendant la vie du contrôleur (c'est même tout l'intérêt), et un
+  /// booléen figé enverrait les gestes suivants au mauvais endroit.
+  bool get _sansSession => !ref.read(cartSessionIsOpenProvider)();
+
+  // ─── Panier du visiteur ───────────────────────────────────────────────────
+
+  /// Cet échec parle-t-il du transport, ou de l'article ?
+  ///
+  /// `CartRepository` mappe les deux mondes vers le même type. Les codes
+  /// ci-dessous décrivent une indisponibilité du **service** : elle vaut pour
+  /// toutes les lignes, pas pour celle qu'on essayait de verser.
+  static bool _estPanneDeTransport(CartException e) => const {
+    'NO_INTERNET',
+    'TIMEOUT',
+    'SERVER_ERROR',
+    'UNAUTHENTICATED',
+  }.contains(e.code);
+
+  /// Applique une mutation **localement**, pour un visiteur sans compte.
+  ///
+  /// Même fonction pure que l'affichage optimiste du panier serveur : il n'y a
+  /// qu'une seule notion de panier dans l'application, et un seul code qui la
+  /// fait évoluer. La seule différence est la destination — `SharedPreferences`
+  /// au lieu de `POST /cart/*`.
+  Future<void> _muterLocalement(
+    Cart? Function(Cart?)? optimiste,
+    String gesteDefait,
+  ) async {
+    // Un geste dont on ne sait pas produire le résultat localement ne peut pas
+    // être joué sans le serveur — donc pas sans session.
+    //
+    // En pratique il n'en reste qu'un : l'ajout d'un menu dont la
+    // décomposition n'a pas été fournie, ou qui n'est pas décomposable (un
+    // produit sans variante — le serveur le refuse aussi). Le cas nominal, lui,
+    // passe par `MenuCartPreview.fromMenu` et fonctionne sans compte.
+    if (optimiste == null) {
+      throw CartException(
+        'Connectez-vous pour ajouter ce menu à votre panier.',
+        code: 'AUTH_REQUIRED',
+      );
+    }
+
+    final nouveau = optimiste(state.value);
+    state = AsyncData(nouveau);
+    try {
+      final magasin = await ref.read(guestCartStoreProvider.future);
+      await magasin.write(nouveau);
+    } catch (e) {
+      // L'écriture locale a échoué : le panier reste juste à l'écran pour
+      // cette session, mais il ne survivra pas à la fermeture. On le dit —
+      // c'est exactement le genre de perte silencieuse qu'on cherche à éviter.
+      ref
+          .read(cartSyncFailuresProvider.notifier)
+          .report(_message(e, gesteDefait));
+    }
+  }
+
+  /// Verse le panier du visiteur dans son panier serveur, à la connexion.
+  ///
+  /// ## Le conflit, et la règle retenue
+  ///
+  /// Un client peut arriver avec **deux** paniers : celui qu'il vient de
+  /// composer en visiteur, et celui que son compte avait laissé ouvert. La
+  /// règle est *le panier du visiteur gagne* :
+  ///
+  /// - c'est celui qu'il est en train de regarder, au moment où il se connecte
+  ///   **pour le commander** — le second est un reliquat d'une autre session ;
+  /// - les deux ne sont pas fusionnables quand ils viennent de vendeurs
+  ///   différents, ou mélangent produits immédiats et produits sur commande :
+  ///   le serveur refuse ces paniers (`validateAddItem` porte la même règle).
+  ///   Il faut donc en choisir un, et prendre l'ancien effacerait un geste
+  ///   délibéré au profit d'un oubli.
+  ///
+  /// Quand les deux sont compatibles (même vendeur, même mode), rien n'est
+  /// effacé : les lignes du visiteur s'**ajoutent**, et les quantités
+  /// s'additionnent — c'est ce que fait `POST /cart/add`.
+  ///
+  /// ## En cas d'échec
+  ///
+  /// Le panier local est **conservé**. Il n'est effacé qu'après avoir été
+  /// réellement versé : un réseau coupé au mauvais moment ne doit pas faire
+  /// disparaître ce que le client a composé.
+  Future<void> adoptGuestCart() async {
+    final magasin = await ref.read(guestCartStoreProvider.future);
+    final invite = magasin.read();
+
+    if (invite == null || invite.items.isEmpty) {
+      await refresh();
+      return;
+    }
+
+    try {
+      final serveur = await _repo.getCart();
+
+      // Le serveur refuse un panier à deux vendeurs ou à deux modes. On pose
+      // la question avec la règle existante plutôt qu'en recopiant ses deux
+      // conditions : elles évolueraient séparément.
+      final incompatible =
+          validateAddItem(serveur, CartItemPreview.fromCartItem(invite.items.first)) !=
+          null;
+      if (incompatible) await _repo.clearAllItems();
+
+      // ── Ligne par ligne, et non tout ou rien ──────────────────────────────
+      //
+      // Le catalogue a pu bouger pendant que le visiteur composait : un produit
+      // épuisé, retiré, ou sorti de sa fenêtre horaire fait échouer SON ajout
+      // — pas les autres. Abandonner le versement entier sur le premier refus
+      // renverrait quelqu'un qui a cinq articles valables à un panier vide,
+      // pour une rupture sur le sixième.
+      //
+      // Les refusés restent en local, et ils sont **nommés** : « ce n'est pas
+      // passé » sans dire quoi oblige à comparer deux écrans de mémoire.
+      Cart? resultat = incompatible ? null : serveur;
+      final refuses = <CartItem>[];
+
+      for (final ligne in invite.items) {
+        try {
+          resultat = await _repo.addToCart(
+            variantId: ligne.variantId,
+            quantity: ligne.quantite,
+          );
+        } on CartException catch (e) {
+          // ⚠️ Toutes les `CartException` ne se valent pas. Un réseau coupé
+          // remonte par le même type qu'un produit épuisé — les traiter pareil
+          // marquerait « n'est plus disponible » sur tout ce qui reste à
+          // verser, au moment précis où rien n'est disponible parce que rien ne
+          // part. On rejette vers le `catch` extérieur, qui conserve le panier
+          // entier et dit la vérité : ça n'a pas pu être repris.
+          if (_estPanneDeTransport(e)) rethrow;
+          // Refus métier (stock, disponibilité, fenêtre horaire) : il concerne
+          // cette ligne seule.
+          refuses.add(ligne);
+        }
+      }
+
+      // Le magasin ne garde QUE ce qui n'est pas passé. Le vider entièrement
+      // perdrait les refus ; ne rien vider les ferait revenir en double au
+      // prochain démarrage.
+      await magasin.write(
+        refuses.isEmpty ? null : invite.copyWith(items: refuses),
+      );
+      if (ref.mounted) state = AsyncData(resultat);
+
+      if (refuses.isNotEmpty) {
+        final noms = refuses.map((i) => i.product.nom).join(', ');
+        ref
+            .read(cartSyncFailuresProvider.notifier)
+            .report(
+              refuses.length == 1
+                  ? '$noms n\'est plus disponible et n\'a pas été repris.'
+                  : 'Ces articles ne sont plus disponibles et n\'ont pas été '
+                        'repris : $noms.',
+            );
+      }
+    } catch (e) {
+      // Panne réseau ou refus global : le panier local survit **en entier**,
+      // le client le retrouvera au prochain essai.
+      ref
+          .read(cartSyncFailuresProvider.notifier)
+          .report(
+            _message(e, 'votre panier n\'a pas pu être repris — il est conservé'),
+          );
+      await refresh();
+    }
+  }
 
   // ─── Mutations sur les articles ────────────────────────────────────────────
 
@@ -194,13 +391,37 @@ class CartController extends _$CartController {
 
   // ─── Mutations sur les menus (sans optimisme, cf. en-tête de classe) ───────
 
-  Future<void> addMenu({required String menuId, int quantity = 1}) => _muter(
-    cle: 'menu:$menuId',
-    awaitServer: true,
-    gesteDefait: 'le menu n\'a pas été ajouté',
-    optimiste: null,
-    envoyer: () => _repo.addMenuToCart(menuId: menuId, quantity: quantity),
-  );
+  /// Ajoute un menu complet au panier.
+  ///
+  /// [preview] décrit sa décomposition en lignes — une par produit, la première
+  /// variante de chacun, comme le fait `CartMenusService`. Le fournir rend le
+  /// menu disponible **aux visiteurs sans compte** : sans lui, on retombe sur
+  /// l'ajout serveur, qui exige une session.
+  ///
+  /// `null` reste accepté pour les appelants qui ne connaissent que
+  /// l'identifiant du menu : correct, simplement réservé aux connectés.
+  Future<void> addMenu({
+    required String menuId,
+    int quantity = 1,
+    MenuCartPreview? preview,
+  }) {
+    // Même arbitrage que pour un article : un menu dont un produit vient d'un
+    // autre vendeur, ou d'un autre mode, ne peut pas rejoindre ce panier.
+    if (preview != null) {
+      final refus = validateAddItem(state.value, preview.lines.first);
+      if (refus != null) throw CartException(refus, code: 'INVALID_LOCAL');
+    }
+
+    return _muter(
+      cle: 'menu:$menuId',
+      awaitServer: true,
+      gesteDefait: 'le menu n\'a pas été ajouté',
+      optimiste: preview == null
+          ? null
+          : (cart) => applyAddMenu(cart, preview, quantity),
+      envoyer: () => _repo.addMenuToCart(menuId: menuId, quantity: quantity),
+    );
+  }
 
   Future<void> updateMenuQuantity({
     required String menuId,
@@ -209,7 +430,10 @@ class CartController extends _$CartController {
     cle: 'menu:$menuId',
     awaitServer: true,
     gesteDefait: 'la quantité du menu n\'a pas été modifiée',
-    optimiste: null,
+    // Modifier la quantité d'un menu ne demande aucune connaissance du
+    // catalogue : les lignes sont déjà dans le panier. Un visiteur peut donc
+    // le faire, contrairement à l'ajout.
+    optimiste: (cart) => applySetMenuQuantity(cart, menuId, quantity),
     envoyer: () =>
         _repo.updateMenuQuantity(menuId: menuId, quantity: quantity),
   );
@@ -218,7 +442,7 @@ class CartController extends _$CartController {
     cle: 'menu:$menuId',
     awaitServer: true,
     gesteDefait: 'le menu n\'a pas été retiré',
-    optimiste: null,
+    optimiste: (cart) => applyRemoveMenu(cart, menuId),
     envoyer: () => _repo.removeMenu(menuId: menuId),
   );
 
@@ -229,6 +453,13 @@ class CartController extends _$CartController {
   Future<void> clearCart() async {
     final instantane = state.value;
     state = const AsyncData(null);
+
+    if (_sansSession) {
+      final magasin = await ref.read(guestCartStoreProvider.future);
+      await magasin.clear();
+      return;
+    }
+
     try {
       await _repo.clearAllItems();
     } catch (e) {
@@ -242,6 +473,11 @@ class CartController extends _$CartController {
   }
 
   Future<void> refresh() async {
+    if (_sansSession) {
+      final magasin = await ref.read(guestCartStoreProvider.future);
+      if (ref.mounted) state = AsyncData(magasin.read());
+      return;
+    }
     final serveur = await _repo.getCart();
     if (ref.mounted) state = AsyncData(serveur);
   }
@@ -279,6 +515,11 @@ class CartController extends _$CartController {
     required bool awaitServer,
     required String gesteDefait,
   }) {
+    // Visiteur : tout se joue localement, il n'y a pas de panier serveur à
+    // synchroniser. Le branchement est ici — un seul endroit — plutôt que dans
+    // chacune des six mutations.
+    if (_sansSession) return _muterLocalement(optimiste, gesteDefait);
+
     final seq = ++_sequence;
     final instantane = state.value;
 

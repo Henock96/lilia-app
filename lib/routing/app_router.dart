@@ -38,6 +38,7 @@ import '../models/menu.dart';
 import '../models/produit.dart';
 import 'app_route_enum.dart';
 import 'pending_destination.dart';
+import 'protected_locations.dart';
 import 'session_phase.dart';
 
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -199,10 +200,17 @@ String? resolveRedirect({
     return surOnboarding ? null : AppRoutes.onboarding.path;
   }
   if (surOnboarding) {
-    // Onboarding terminé pendant qu'on y était : on en sort par le bas.
-    return phase == SessionPhase.authenticated
-        ? AppRoutes.home.path
-        : AppRoutes.signIn.path;
+    // Onboarding terminé pendant qu'on y était : on en sort **par l'accueil**,
+    // avec ou sans session.
+    //
+    // Il renvoyait sans session vers `/signin` — c'était le mur d'inscription,
+    // resté debout au seul endroit où il fait le plus de dégâts : la toute
+    // première ouverture de l'application, juste après un carrousel de
+    // présentation qui vient de promettre un catalogue. Ouvrir le mode
+    // visiteur partout ailleurs et le laisser ici aurait fait qu'un nouvel
+    // installateur — le seul public qui n'a jamais rien vu de Lilia Food —
+    // reste précisément celui à qui on demande un compte avant tout.
+    return AppRoutes.home.path;
   }
 
   // ── 3. Sortie de l'écran de démarrage ──────────────────────────────────────
@@ -210,13 +218,25 @@ String? resolveRedirect({
     if (phase == SessionPhase.authenticated) {
       return destination ?? AppRoutes.home.path;
     }
-    // Pas de session : on passe par la connexion, en gardant la destination.
-    return signInLocationFor(destination);
+    // Pas de session : **l'accueil est public**. On ne passe par la connexion
+    // que si la destination demandée l'exige — typiquement une notification
+    // tapée sur `/commandes/xyz` alors que la session a expiré. Auparavant, ce
+    // chemin envoyait tout le monde sur `/signin` : ouvrir l'application
+    // revenait à buter sur un mur d'inscription avant d'avoir vu une seule
+    // information.
+    if (destination != null &&
+        requiresAuthentication(Uri.parse(destination).path)) {
+      return signInLocationFor(destination);
+    }
+    return destination ?? AppRoutes.home.path;
   }
 
   // ── 4. Sans session ────────────────────────────────────────────────────────
   if (phase == SessionPhase.unauthenticated) {
     if (surAuth) return null; // déjà au bon endroit, `from` intact
+    // Découverte : rien à demander. La frontière vit dans une seule table
+    // (`protected_locations.dart`), pas dans une condition par écran.
+    if (!requiresAuthentication(emplacement)) return null;
     // R-05 : c'est ici que la destination est mémorisée. Sans cela, un client
     // renvoyé au login depuis `/commandes/xyz` atterrissait sur l'accueil après
     // s'être connecté, et devait retrouver sa commande lui-même.
@@ -229,6 +249,26 @@ String? resolveRedirect({
   }
   return null;
 }
+
+/// Emplacement racine de chaque branche de la coque, **dans l'ordre des
+/// onglets**.
+///
+/// ⚠️ Elle existe parce que `StatefulNavigationShell.goBranch` **ne passe pas
+/// par `redirect`** : c'est une bascule interne de pile, pas une navigation.
+/// Un invité qui tape « Commandes » atterrissait donc sur l'écran protégé sans
+/// que le garde soit consulté — le seul chemin de l'application qui échappait à
+/// `resolveRedirect`.
+///
+/// La coque interroge cette liste et la **même** table
+/// (`requiresAuthentication`) que le routeur : une seule règle, deux points
+/// d'entrée. `router_guest_test` vérifie que l'ordre correspond bien aux
+/// branches déclarées ci-dessous.
+const List<String> kShellBranchLocations = <String>[
+  '/', // Accueil
+  '/cart', // Panier
+  '/commandes', // Commandes
+  '/profile', // Profil
+];
 
 /// La table des routes, extraite du provider : elle ne dépend d'aucun état et
 /// n'a donc aucune raison d'être reconstruite avec lui.

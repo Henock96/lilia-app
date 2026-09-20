@@ -50,6 +50,83 @@ final class CartRepositoryProvider
 
 String _$cartRepositoryHash() => r'fea908e31a13a38fdb6590b5f0c3342caef18590';
 
+/// « Y a-t-il une session ouverte ? », posée **au moment du geste**.
+///
+/// Une fonction et non un booléen, délibérément. Un booléen dérivé de
+/// `authStateChangeProvider` rendrait `CartController.build()` réactif à la
+/// connexion — donc le panier serveur écraserait le panier du visiteur à la
+/// seconde où la session s'ouvre, **avant** que `adoptGuestCart` ait pu le
+/// verser. La transition est un geste explicite, pas un effet de bord de
+/// reconstruction.
+///
+/// C'est aussi le seul point d'injection des tests : ils exercent le panier
+/// serveur sans Firebase initialisé.
+
+@ProviderFor(cartSessionIsOpen)
+final cartSessionIsOpenProvider = CartSessionIsOpenProvider._();
+
+/// « Y a-t-il une session ouverte ? », posée **au moment du geste**.
+///
+/// Une fonction et non un booléen, délibérément. Un booléen dérivé de
+/// `authStateChangeProvider` rendrait `CartController.build()` réactif à la
+/// connexion — donc le panier serveur écraserait le panier du visiteur à la
+/// seconde où la session s'ouvre, **avant** que `adoptGuestCart` ait pu le
+/// verser. La transition est un geste explicite, pas un effet de bord de
+/// reconstruction.
+///
+/// C'est aussi le seul point d'injection des tests : ils exercent le panier
+/// serveur sans Firebase initialisé.
+
+final class CartSessionIsOpenProvider
+    extends
+        $FunctionalProvider<bool Function(), bool Function(), bool Function()>
+    with $Provider<bool Function()> {
+  /// « Y a-t-il une session ouverte ? », posée **au moment du geste**.
+  ///
+  /// Une fonction et non un booléen, délibérément. Un booléen dérivé de
+  /// `authStateChangeProvider` rendrait `CartController.build()` réactif à la
+  /// connexion — donc le panier serveur écraserait le panier du visiteur à la
+  /// seconde où la session s'ouvre, **avant** que `adoptGuestCart` ait pu le
+  /// verser. La transition est un geste explicite, pas un effet de bord de
+  /// reconstruction.
+  ///
+  /// C'est aussi le seul point d'injection des tests : ils exercent le panier
+  /// serveur sans Firebase initialisé.
+  CartSessionIsOpenProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'cartSessionIsOpenProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$cartSessionIsOpenHash();
+
+  @$internal
+  @override
+  $ProviderElement<bool Function()> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  bool Function() create(Ref ref) {
+    return cartSessionIsOpen(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool Function() value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool Function()>(value),
+    );
+  }
+}
+
+String _$cartSessionIsOpenHash() => r'bb69862f71624ab5ac94fd14033e4172c183c68d';
+
 /// Canal des échecs de synchronisation du panier.
 ///
 /// Il existe parce que les mutations rendent la main **avant** le réseau : un
@@ -291,7 +368,7 @@ final class CartControllerProvider
   CartController create() => CartController();
 }
 
-String _$cartControllerHash() => r'57ffb2cfa1da41a095817a9637d2eeb145195982';
+String _$cartControllerHash() => r'e5c66a9c4a91164981cb7ad93543090c86f68b81';
 
 /// État du panier, mises à jour optimistes et réconciliation avec le serveur.
 ///

@@ -78,6 +78,82 @@ void main() {
       expect(find.byType(RadioGroup<bool>), findsNothing);
     });
   });
+
+  // ── Adresse héritée sans quartier ──────────────────────────────────────
+  //
+  // Vingt adresses de production (juillet 2025 → mars 2026) n'ont aucun
+  // quartier : elles précèdent la règle qui le rend obligatoire. Sans lui,
+  // `DeliveryDestinationService` n'a pas de repli — ni position posée, ni
+  // centroïde — et la commande part **sans destination** pour le livreur.
+  //
+  // L'écran se contentait de l'annoncer (« Quartier non défini »). Une annonce
+  // juste, mais qui laisse le client devant un problème qu'il ne peut pas
+  // résoudre depuis le tunnel de commande. Le quartier est pourtant déjà choisi
+  // juste au-dessus : un tap le rattache, et répare l'adresse pour toutes les
+  // commandes suivantes.
+  group('DeliveryOptionsPage — compléter une adresse sans quartier', () {
+    testWidgets('propose de rattacher le quartier sélectionné', (tester) async {
+      await _pumpPage(tester, adresses: _adressesSansQuartier);
+
+      expect(find.text('Quartier non défini'), findsOneWidget);
+      await _choisirQuartier(tester, 'Poto-Poto');
+      // Le libellé nomme ce qui sera écrit. « Compléter » obligerait à
+      // l'essayer pour découvrir son effet, sur une action qui modifie une
+      // donnée enregistrée.
+      expect(find.text('Utiliser Poto-Poto'), findsOneWidget);
+    });
+
+    testWidgets('sans quartier choisi, renvoie vers le sélecteur au lieu d’un bouton inerte',
+        (tester) async {
+      await _pumpPage(
+        tester,
+        adresses: _adressesSansQuartier,
+        quartiers: const [],
+      );
+
+      expect(find.textContaining('Choisissez votre quartier ci-dessus'),
+          findsOneWidget);
+      expect(find.textContaining('Utiliser '), findsNothing);
+    });
+
+    testWidgets('le tap écrit au SERVEUR, pas seulement dans l’état local',
+        (tester) async {
+      // C'est toute la différence entre « compléter l'adresse » et « choisir un
+      // quartier pour aujourd'hui » : la seconde laisserait les commandes
+      // suivantes repartir sans destination.
+      final faux = _FakeAdresses(_adressesSansQuartier);
+      await _pumpPage(tester, adresses: _adressesSansQuartier, controller: faux);
+      await _choisirQuartier(tester, 'Poto-Poto');
+
+      await tester.tap(find.text('Utiliser Poto-Poto'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(faux.misAJour, [('adr-sans-quartier', 'q-1')]);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('une adresse complète ne propose rien', (tester) async {
+      await _pumpPage(tester);
+
+      expect(find.text('Quartier non défini'), findsNothing);
+      expect(find.textContaining('Utiliser '), findsNothing);
+    });
+  });
+}
+
+/// Ouvre le sélecteur de quartier et en choisit un, comme le ferait un client.
+///
+/// Le bouton de complétion ne s'affiche qu'une fois un quartier choisi : sans
+/// lui, il n'aurait rien à rattacher. Poser `_selectedQuartier` à la main dans
+/// le test aurait court-circuité précisément la condition qu'on veut vérifier.
+Future<void> _choisirQuartier(WidgetTester tester, String nom) async {
+  await tester.tap(find.byType(DropdownButtonFormField<Quartier>));
+  await tester.pump(const Duration(milliseconds: 400));
+  // Le nom apparaît deux fois quand le menu est ouvert (champ + option) :
+  // `.last` vise l'option du menu.
+  await tester.tap(find.text(nom).last);
+  await tester.pump(const Duration(milliseconds: 400));
 }
 
 /// Valeur portée par le `RadioGroup<bool>` — c'est elle qui pilote la sélection
@@ -89,15 +165,21 @@ Future<void> _pumpPage(
   WidgetTester tester, {
   VendorType vendorType = VendorType.RESTAURANT,
   bool emptyCart = false,
+  List<Adresse>? adresses,
+  List<Quartier>? quartiers,
+  _FakeAdresses? controller,
 }) async {
+  final faux = controller ?? _FakeAdresses(adresses ?? _adresses);
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         cartControllerProvider.overrideWith(
           () => _FakeCart(emptyCart ? null : _cart()),
         ),
-        quartiersListProvider.overrideWith((ref) async => _quartiers),
-        adresseControllerProvider.overrideWith(() => _FakeAdresses()),
+        quartiersListProvider.overrideWith(
+          (ref) async => quartiers ?? _quartiers,
+        ),
+        adresseControllerProvider.overrideWith(() => faux),
         restaurantControllerProvider(
           _restaurantId,
         ).overrideWith((ref) async => _restaurant(vendorType)),
@@ -122,9 +204,37 @@ class _FakeCart extends CartController {
   Future<Cart?> build() async => _cart;
 }
 
+/// Double du contrôleur d'adresses.
+///
+/// `misAJour` enregistre les appels : c'est ce qui permet de vérifier que la
+/// complétion part **au serveur** et ne se contente pas de changer l'affichage.
 class _FakeAdresses extends AdresseController {
+  _FakeAdresses(this._liste);
+  final List<Adresse> _liste;
+  final List<(String, String)> misAJour = [];
+
   @override
-  Future<List<Adresse>> build() async => _adresses;
+  Future<List<Adresse>> build() async => _liste;
+
+  @override
+  Future<Adresse> updateAdresse(
+    String adresseId, {
+    String? rue,
+    String? quartierId,
+    String? label,
+  }) async {
+    misAJour.add((adresseId, quartierId ?? ''));
+    final source = _liste.firstWhere((a) => a.id == adresseId);
+    return Adresse(
+      id: source.id,
+      rue: source.rue,
+      ville: source.ville,
+      country: source.country,
+      userId: source.userId,
+      quartierId: quartierId,
+      quartier: _quartiers.where((q) => q.id == quartierId).firstOrNull,
+    );
+  }
 }
 
 Cart _cart() => Cart(
@@ -168,5 +278,18 @@ final _adresses = [
     country: 'CG',
     userId: 'user-1',
     quartierId: 'q-1',
+    quartier: _quartiers.first,
+  ),
+];
+
+/// Une adresse telle qu'elles existaient avant avril 2026 : ni quartier, ni
+/// position. Elle est livrable — mais sans destination pour le livreur.
+final _adressesSansQuartier = [
+  Adresse(
+    id: 'adr-sans-quartier',
+    rue: '7 avenue de la Tsiémé',
+    ville: 'Brazzaville',
+    country: 'CG',
+    userId: 'user-1',
   ),
 ];

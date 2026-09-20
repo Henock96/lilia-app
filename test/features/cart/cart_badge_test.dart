@@ -58,6 +58,11 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         cartRepositoryProvider.overrideWithValue(repo),
+        // Ces tests exercent le panier **serveur** : ils déclarent donc une
+        // session ouverte. Sans cet aveu, `CartController` prendrait le chemin
+        // du panier visiteur et n'appellerait jamais le dépôt.
+        cartSessionIsOpenProvider.overrideWithValue(() => true),
+
         apiClientProvider.overrideWith(
           (ref) => throw StateError('aucun réseau attendu'),
         ),
