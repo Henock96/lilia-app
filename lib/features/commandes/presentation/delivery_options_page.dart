@@ -16,6 +16,7 @@ import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/models/vendor_type.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/utils/currency.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 class DeliveryOptionsPage extends ConsumerStatefulWidget {
   const DeliveryOptionsPage({super.key});
@@ -38,6 +39,14 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
   PickedLocation? _newAddressLocation;
 
   double? _calculatedDeliveryFee;
+
+  /// Identifiant de l'adresse dont on rattache le quartier, le temps de
+  /// l'aller-retour serveur. `null` = aucune complétion en cours.
+  ///
+  /// Porté par l'identifiant et non par un booléen : la liste peut contenir
+  /// plusieurs adresses sans quartier, et un drapeau global ferait tourner
+  /// l'indicateur sur toutes.
+  String? _completionEnCours;
 
   /// Vrai quand les frais affichés sont un repli local et non la réponse de
   /// `/quartiers/delivery-fee` : le montant final peut différer.
@@ -479,6 +488,43 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
     );
   }
 
+  /// Rattache le quartier sélectionné à une adresse qui n'en a pas.
+  ///
+  /// L'écriture part au serveur (`PATCH /adresses/:id`) et non dans l'état
+  /// local : la correction doit survivre à cette commande. C'est précisément ce
+  /// qui distingue « compléter l'adresse » de « choisir un quartier pour
+  /// aujourd'hui » — la seconde laisserait les dix-neuf autres commandes
+  /// suivantes repartir sans destination.
+  Future<void> _attacherQuartier(Adresse adresse) async {
+    final quartier = _selectedQuartier;
+    if (quartier == null || _completionEnCours != null) return;
+
+    setState(() => _completionEnCours = adresse.id);
+    try {
+      final misAJour = await ref
+          .read(adresseControllerProvider.notifier)
+          .updateAdresse(adresse.id, quartierId: quartier.id);
+
+      if (!mounted) return;
+      setState(() {
+        _completionEnCours = null;
+        // Si c'est l'adresse en cours de sélection, on la remplace par la
+        // version renvoyée par le serveur : sans cela, la carte continuerait
+        // d'afficher « Quartier non défini » jusqu'au prochain chargement.
+        if (_selectedAddress?.id == adresse.id) _selectedAddress = misAJour;
+      });
+      context.showSuccessSnack('Adresse complétée : ${quartier.nom}');
+      // Les frais peuvent dépendre du quartier (mode ZONE_BASED).
+      _calculateDeliveryFee();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _completionEnCours = null);
+      context.showErrorSnack(
+        "Impossible de compléter l'adresse. Réessayez.",
+      );
+    }
+  }
+
   Widget _buildAddressCard(Adresse adresse) {
     final cs = Theme.of(context).colorScheme;
     final isSelected = _selectedAddress?.id == adresse.id;
@@ -571,18 +617,61 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                           ),
                         ],
                       ] else ...[
-                        Icon(Icons.location_off, size: 14, color: cs.outline),
+                        Icon(
+                          Icons.location_off,
+                          size: 14,
+                          color: cs.error,
+                        ),
                         const SizedBox(width: 4),
-                        Text(
-                          'Quartier non défini',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: cs.onSurfaceVariant,
+                        Expanded(
+                          child: Text(
+                            'Quartier non défini',
+                            style: TextStyle(fontSize: 12, color: cs.error),
                           ),
                         ),
                       ],
                     ],
                   ),
+
+                  // ── Adresse sans quartier : on propose de la compléter ──
+                  //
+                  // Vingt adresses de production (juillet 2025 → mars 2026)
+                  // n'ont aucun quartier : elles précèdent la règle qui le rend
+                  // obligatoire. Sans lui, `DeliveryDestinationService` n'a pas
+                  // de niveau 2 — ni position posée, ni centroïde — et la
+                  // commande part en `UNKNOWN`, c'est-à-dire **sans
+                  // destination** pour le livreur.
+                  //
+                  // La carte se contentait de l'annoncer. L'annonce est juste,
+                  // mais elle laisse le client devant un problème qu'il n'a pas
+                  // les moyens de résoudre depuis cet écran : il faudrait
+                  // quitter le tunnel de commande, aller dans « Mes adresses »,
+                  // modifier, revenir. Personne ne le fait.
+                  //
+                  // Le quartier est pourtant **déjà choisi** juste au-dessus.
+                  // Un tap le rattache à l'adresse — et la répare pour toutes
+                  // les commandes suivantes, pas seulement celle-ci. C'est la
+                  // différence entre signaler une donnée manquante et permettre
+                  // de la fournir.
+                  if (adresse.quartier == null) ...[
+                    const SizedBox(height: 6),
+                    if (_selectedQuartier != null)
+                      _CompleterQuartierBouton(
+                        quartier: _selectedQuartier!,
+                        enCours: _completionEnCours == adresse.id,
+                        onPressed: () => _attacherQuartier(adresse),
+                      )
+                    else
+                      Text(
+                        'Choisissez votre quartier ci-dessus pour compléter '
+                        'cette adresse.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: cs.onSurfaceVariant,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
 
                   // Fiabilité de la position.
                   //
@@ -654,22 +743,34 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Text(
-                    'Frais de livraison',
-                    style: TextStyle(fontSize: 15),
-                  ),
-                  if (_isCalculatingFee)
-                    const Padding(
-                      padding: EdgeInsets.only(left: 8),
-                      child: SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+              // `Flexible` + `mainAxisSize.min` : sans eux, cette ligne
+              // débordait de 24 px — la largeur exacte de l'indicateur de
+              // calcul (16) et de son décalage (8) — pendant tout le temps où
+              // les frais se calculent, c'est-à-dire juste après que le client
+              // a choisi son quartier. Les deux `Row` imbriqués prenaient leur
+              // largeur intrinsèque et personne ne cédait de place.
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Flexible(
+                      child: Text(
+                        'Frais de livraison',
+                        style: TextStyle(fontSize: 15),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                ],
+                    if (_isCalculatingFee)
+                      const Padding(
+                        padding: EdgeInsets.only(left: 8),
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      ),
+                  ],
+                ),
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -908,4 +1009,57 @@ class DeliveryOptions {
     this.newAddressLocation,
     required this.deliveryFee,
   });
+}
+
+/// Bouton « compléter cette adresse avec le quartier sélectionné ».
+///
+/// Extrait en widget plutôt qu'inline : il porte trois états (repos, envoi en
+/// cours, désactivé) et un libellé qui nomme le quartier. Écrit dans la carte,
+/// il aurait rallongé une méthode qui construit déjà quatre blocs.
+///
+/// Le libellé dit ce qui va être écrit — « Utiliser Poto-Poto » — et non
+/// « Compléter ». Un bouton qui ne nomme pas son effet oblige à l'essayer pour
+/// le découvrir, sur une action qui modifie une donnée enregistrée.
+class _CompleterQuartierBouton extends StatelessWidget {
+  const _CompleterQuartierBouton({
+    required this.quartier,
+    required this.enCours,
+    required this.onPressed,
+  });
+
+  final Quartier quartier;
+  final bool enCours;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: enCours ? null : onPressed,
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          foregroundColor: cs.primary,
+        ),
+        icon: enCours
+            ? SizedBox(
+                width: 13,
+                height: 13,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: cs.primary,
+                ),
+              )
+            : const Icon(Icons.add_location_alt_outlined, size: 15),
+        label: Text(
+          enCours ? 'Enregistrement…' : 'Utiliser ${quartier.nom}',
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
 }

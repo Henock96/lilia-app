@@ -41,18 +41,38 @@ String stabilise(SessionPhase phase, String depart, {int limite = 10}) {
 }
 
 // Un échantillon représentatif de chaque famille de routes.
-const _protegees = <String>[
+//
+// ⚠️ Ces deux listes étaient **une seule**, nommée `_protegees`, et elle
+// contenait l'accueil, le panier, la fiche vendeur et les avis. C'était exact
+// tant que tout exigeait une session ; ça ne l'est plus. Les garder ensemble
+// aurait fait passer le mur d'inscription pour la règle.
+
+/// Découverte : accessible sans compte.
+const _decouverte = <String>[
   '/',
   '/cart',
+  '/restaurant/12',
+  '/product-detail',
+  '/search',
+  '/reviews',
+];
+
+/// Transaction : exige une session.
+const _transaction = <String>[
   '/commandes',
+  '/commandes/abc-123',
   '/profile',
   '/profile/favoris',
   '/profile/address',
-  '/commandes/abc-123',
-  '/restaurant/12',
   '/order-success',
-  '/reviews',
+  '/cart/delivery-options',
+  '/cart/delivery-options/checkout',
 ];
+
+/// Toutes les routes métier, quel que soit leur côté de la frontière.
+const _metier = <String>[..._decouverte, ..._transaction];
+
+/// Les écrans d'authentification eux-mêmes.
 const _publiques = <String>['/signin', '/signup'];
 
 void main() {
@@ -68,8 +88,8 @@ void main() {
       expect(redirige(SessionPhase.bootstrapping, '/'), startsWith('/splash'));
     });
 
-    test('toute route protégée est mise en attente sur le démarrage', () {
-      for (final route in _protegees) {
+    test('toute route métier est mise en attente sur le démarrage', () {
+      for (final route in _metier) {
         expect(
           redirige(SessionPhase.bootstrapping, route),
           startsWith('/splash'),
@@ -98,7 +118,7 @@ void main() {
 
   group('ONBOARDING_REQUIRED', () {
     test('tout mène à l’onboarding', () {
-      for (final route in [..._protegees, ..._publiques, '/splash']) {
+      for (final route in [..._metier, ..._publiques, '/splash']) {
         expect(
           redirige(SessionPhase.onboardingRequired, route),
           '/onboarding',
@@ -111,18 +131,35 @@ void main() {
       expect(redirige(SessionPhase.onboardingRequired, '/onboarding'), isNull);
     });
 
-    test('une fois terminé, on en sort sans y rester', () {
-      expect(redirige(SessionPhase.unauthenticated, '/onboarding'), '/signin');
+    /// ⚠️ Sans session, cette sortie valait `/signin`. C'était le mur
+    /// d'inscription resté debout à l'endroit où il fait le plus de dégâts :
+    /// la toute première ouverture, juste après un carrousel qui vient de
+    /// promettre un catalogue. Le seul public qui n'a jamais rien vu de Lilia
+    /// Food était précisément celui à qui on demandait un compte d'abord.
+    test('une fois terminé, on en sort par l’ACCUEIL, avec ou sans session', () {
+      expect(redirige(SessionPhase.unauthenticated, '/onboarding'), '/');
       expect(redirige(SessionPhase.authenticated, '/onboarding'), '/');
     });
   });
 
   group('UNAUTHENTICATED', () {
-    test('une route protégée renvoie au login', () {
-      for (final route in _protegees) {
+    test('une route de TRANSACTION renvoie au login', () {
+      for (final route in _transaction) {
         expect(
           redirige(SessionPhase.unauthenticated, route),
           startsWith('/signin'),
+          reason: route,
+        );
+      }
+    });
+
+    /// Le pendant, et le plus important des deux : ce qui relève de la
+    /// découverte s'ouvre sans rien demander.
+    test('une route de DÉCOUVERTE est servie telle quelle', () {
+      for (final route in _decouverte) {
+        expect(
+          redirige(SessionPhase.unauthenticated, route),
+          isNull,
           reason: route,
         );
       }
@@ -135,12 +172,12 @@ void main() {
       );
     });
 
-    test('R-05 — les quatre destinations citées par la Phase 2', () {
+    test('R-05 — les destinations de transaction citées par la Phase 2', () {
       for (final cible in const [
-        '/orders',
+        '/commandes',
         '/profile',
-        '/checkout',
-        '/restaurant/123/product/456',
+        '/cart/delivery-options/checkout',
+        '/order-success',
       ]) {
         final vers = redirige(SessionPhase.unauthenticated, cible)!;
         expect(Uri.parse(vers).path, '/signin');
@@ -164,18 +201,26 @@ void main() {
       );
     });
 
-    test('sortie du démarrage sans session → login, destination gardée', () {
+    test('sortie du démarrage sans session', () {
+      // Destination de transaction : on passe par la connexion, en la gardant.
       expect(
         redirige(SessionPhase.unauthenticated, '/splash?from=%2Fcommandes'),
         '/signin?from=%2Fcommandes',
       );
-      expect(redirige(SessionPhase.unauthenticated, '/splash'), '/signin');
+      // Rien de demandé : l'accueil, qui est public. C'est ici que vivait le
+      // mur d'inscription — un `/signin` inconditionnel.
+      expect(redirige(SessionPhase.unauthenticated, '/splash'), '/');
+      // Destination de découverte (lien partagé vers un vendeur) : on l'ouvre.
+      expect(
+        redirige(SessionPhase.unauthenticated, '/splash?from=%2Frestaurant%2F12'),
+        '/restaurant/12',
+      );
     });
   });
 
   group('AUTHENTICATED', () {
     test('les routes protégées sont servies telles quelles', () {
-      for (final route in _protegees) {
+      for (final route in _metier) {
         expect(redirige(SessionPhase.authenticated, route), isNull,
             reason: route);
       }
@@ -240,7 +285,7 @@ void main() {
   group('aucune boucle, quelle que soit la combinaison', () {
     test('toute phase × toute route converge en un point fixe', () {
       final routes = [
-        ..._protegees,
+        ..._metier,
         ..._publiques,
         '/splash',
         '/onboarding',

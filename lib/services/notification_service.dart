@@ -6,6 +6,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:lilia_app/core/network/api_client.dart';
+import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
 import 'package:lilia_app/features/notifications/data/notification_model.dart';
@@ -450,6 +451,20 @@ class NotificationService {
 
   // 8. Amélioration de registerTokenOnServer avec retry
   Future<void> registerTokenOnServer({int maxRetries = 5}) async {
+    // ⚠️ Un jeton FCM appartient à un compte. Sans session, il n'y a personne à
+    // qui le rattacher : `POST /notifications/register-token` répond 401.
+    //
+    // Depuis que l'accueil est ouvert aux visiteurs, `init()` s'exécute pour
+    // quelqu'un qui n'a pas de compte — et cet appel partait quand même, avec
+    // ses cinq tentatives et son backoff : **cinquante secondes** de requêtes
+    // vouées au 401 au premier lancement de l'application, sur la 4G de
+    // Brazzaville. `AuthController` rappelle cette méthode à l'ouverture de
+    // session, qui est le seul moment où elle a un sens.
+    if (_ref.read(authRepositoryProvider).currentUser == null) {
+      debugPrint('Aucune session : enregistrement du jeton FCM différé.');
+      return;
+    }
+
     // Essayer d'obtenir le token si pas encore disponible (ex: init() appelé avant connexion)
     // `_fetchFcmToken` absorbe `apns-token-not-set` et renvoie null.
     fcmToken ??= await _fetchFcmToken();

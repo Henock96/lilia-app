@@ -130,14 +130,21 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('déconnecté → Login, et l’accueil n’a jamais été monté', (
+    /// Ce test disait l'inverse : « déconnecté → Login ». C'était le mur
+    /// d'inscription — personne ne pouvait voir un vendeur ni un prix avant
+    /// d'avoir créé un compte.
+    ///
+    /// Ce qu'il protégeait reste vrai et reste vérifié : l'accueil n'est monté
+    /// qu'**après** la résolution de la session (U-03), jamais « en attendant ».
+    /// C'est la destination de sortie qui a changé, pas le moment.
+    testWidgets('déconnecté → ACCUEIL public, jamais le login', (
       tester,
     ) async {
       await monter(tester);
       await tester.pumpAndSettle();
-      expect(find.text('SignIn'), findsOneWidget);
-      // U-03 : c'est tout l'objet de l'écran de démarrage.
-      expect(find.text('Home'), findsNothing);
+      expect(find.text('Home'), findsOneWidget);
+      expect(find.text('SignIn'), findsNothing);
+      expect(emplacement(), '/');
     });
 
     testWidgets('connecté → Accueil, sans passer par le login', (tester) async {
@@ -186,6 +193,10 @@ void main() {
 
     testWidgets('login sans destination mène à l’accueil', (tester) async {
       await monter(tester);
+      await tester.pumpAndSettle();
+      // Le visiteur est sur l'accueil ; il ouvre la connexion de lui-même,
+      // sans destination à restaurer.
+      routeur.go('/signin');
       await tester.pumpAndSettle();
       expect(emplacement(), '/signin');
 

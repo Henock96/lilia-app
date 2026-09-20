@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/common_widgets/image_gallery.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
+import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/models/menu.dart';
 import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
@@ -415,7 +416,15 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
     try {
       await ref
           .read(cartControllerProvider.notifier)
-          .addMenu(menuId: menu.id, quantity: _quantity);
+          .addMenu(
+            menuId: menu.id,
+            quantity: _quantity,
+            // La décomposition du menu voyage avec la demande : c'est elle qui
+            // rend l'ajout possible **sans compte**. Sans elle, le menu serait
+            // le seul geste du catalogue à exiger une connexion, sur une
+            // application dont l'accueil met justement les menus en avant.
+            preview: MenuCartPreview.fromMenu(menu),
+          );
 
       if (context.mounted) {
         context.showSuccessSnack('Menu "${menu.nom}" ajoute au panier');

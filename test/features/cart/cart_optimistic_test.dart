@@ -19,7 +19,13 @@ void main() {
   Future<CartController> monter({int latenceMs = 40}) async {
     bench = await CartBench.demarrer(latenceMs: latenceMs);
     container = ProviderContainer(
-      overrides: [cartRepositoryProvider.overrideWithValue(bench.repository)],
+      overrides: [
+        cartRepositoryProvider.overrideWithValue(bench.repository),
+        // Ces tests exercent le panier **serveur** : ils déclarent donc une
+        // session ouverte. Sans cet aveu, `CartController` prendrait le chemin
+        // du panier visiteur et n'appellerait jamais le dépôt.
+        cartSessionIsOpenProvider.overrideWithValue(() => true),
+      ],
     );
     // LIFO : le conteneur doit tomber AVANT le serveur, sinon les requêtes
     // encore en vol échouent bruyamment sur un port fermé.

@@ -1,4 +1,5 @@
 import 'package:lilia_app/models/cart.dart';
+import 'package:lilia_app/models/menu.dart';
 import 'package:lilia_app/models/produit.dart';
 
 /// Ce qu'il faut savoir d'un article pour l'afficher dans le panier **avant**
@@ -121,6 +122,138 @@ Cart applyAddItem(Cart? cart, CartItemPreview preview, int quantity) {
     );
   }
   return base.copyWith(items: items);
+}
+
+/// Ce qu'il faut savoir d'un menu pour le poser dans un panier local.
+///
+/// Le même découpage que `CartMenusService.addMenu` côté serveur : **une ligne
+/// par produit du menu**, la première variante de chacun, toutes portant le
+/// `menuId` et la fiche du menu. Ce n'est pas une invention de contenu — c'est
+/// la reprise d'une règle déterministe de vingt lignes, et `Cart.totalPrice`
+/// sait déjà facturer un groupe au prix du menu et non à la somme de ses
+/// produits.
+class MenuCartPreview {
+  final String menuId;
+  final MenuInfo menu;
+
+  /// Les lignes à créer, dans l'ordre du menu. Vide si un produit n'a aucune
+  /// variante — cas que le serveur refuse, et qu'on refuse donc aussi.
+  final List<CartItemPreview> lines;
+
+  const MenuCartPreview({
+    required this.menuId,
+    required this.menu,
+    required this.lines,
+  });
+
+  /// Décompose un menu du jour, ou rend `null` s'il ne peut pas l'être.
+  ///
+  /// `null` dans deux cas, les mêmes que ceux que le serveur refuse : un menu
+  /// sans produit, ou un produit sans variante (`CartMenusService` lève alors
+  /// « n'a pas de variante disponible »). Mieux vaut le dire avant l'ajout que
+  /// de poser un panier faux — et le repli sur l'ajout serveur reste ouvert
+  /// pour un client connecté.
+  static MenuCartPreview? fromMenu(MenuDuJour menu) {
+    if (menu.products.isEmpty) return null;
+
+    final lignes = <CartItemPreview>[];
+    for (final mp in menu.products) {
+      // `variants.first` : la règle du serveur, mot pour mot.
+      if (mp.product.variants.isEmpty) return null;
+      final variante = mp.product.variants.first;
+      lignes.add(
+        CartItemPreview(
+          productId: mp.productId,
+          variantId: variante.id,
+          product: ProductItem(
+            nom: mp.product.name,
+            imageUrl: mp.product.imageUrl,
+            restaurantId: menu.restaurantId,
+            madeToOrder: mp.product.madeToOrder,
+          ),
+          variant: VariantItem(
+            label: variante.displayLabel,
+            prix: variante.prix.round(),
+          ),
+        ),
+      );
+    }
+
+    return MenuCartPreview(
+      menuId: menu.id,
+      menu: MenuInfo(
+        id: menu.id,
+        nom: menu.nom,
+        prix: menu.prix,
+        imageUrl: menu.imageUrl,
+      ),
+      lines: lignes,
+    );
+  }
+}
+
+/// Identifiant local d'une ligne de menu non encore confirmée.
+String optimisticMenuItemId(String menuId, String variantId) =>
+    'optimistic-$menuId-$variantId';
+
+/// Le panier tel qu'il sera si le serveur accepte l'ajout du menu.
+///
+/// Menu déjà présent → on incrémente la quantité de **toutes** ses lignes,
+/// exactement comme `CartMenusService`. Sinon on crée le groupe.
+Cart applyAddMenu(Cart? cart, MenuCartPreview preview, int quantity) {
+  final base = cart ?? _panierVide();
+  final dejaPresent = base.items.any((i) => i.menuId == preview.menuId);
+
+  if (dejaPresent) {
+    return base.copyWith(
+      items: [
+        for (final item in base.items)
+          if (item.menuId == preview.menuId)
+            item.copyWith(quantite: item.quantite + quantity)
+          else
+            item,
+      ],
+    );
+  }
+
+  return base.copyWith(
+    items: [
+      ...base.items,
+      for (final ligne in preview.lines)
+        CartItem(
+          id: optimisticMenuItemId(preview.menuId, ligne.variantId),
+          cartId: base.id,
+          productId: ligne.productId,
+          variantId: ligne.variantId,
+          menuId: preview.menuId,
+          quantite: quantity,
+          createdAt: DateTime.now(),
+          product: ligne.product,
+          variant: ligne.variant,
+          menu: preview.menu,
+        ),
+    ],
+  );
+}
+
+/// Le panier tel qu'il sera après changement de quantité d'un menu.
+Cart? applySetMenuQuantity(Cart? cart, String menuId, int quantity) {
+  if (cart == null) return null;
+  if (quantity <= 0) return applyRemoveMenu(cart, menuId);
+  return cart.copyWith(
+    items: [
+      for (final item in cart.items)
+        if (item.menuId == menuId) item.copyWith(quantite: quantity) else item,
+    ],
+  );
+}
+
+/// Le panier tel qu'il sera après retrait d'un menu — **toutes** ses lignes.
+Cart? applyRemoveMenu(Cart? cart, String menuId) {
+  if (cart == null) return null;
+  return cart.copyWith(
+    items: cart.items.where((item) => item.menuId != menuId).toList(),
+  );
 }
 
 /// Le panier tel qu'il sera si le serveur accepte la nouvelle quantité.

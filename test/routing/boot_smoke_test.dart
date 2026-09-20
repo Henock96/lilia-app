@@ -14,6 +14,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_app/features/auth/presentation/signin_page.dart';
+import 'package:lilia_app/features/home/presentation/bottom_navigation_bar.dart';
+import 'package:lilia_app/features/home/presentation/home.dart';
 import 'package:lilia_app/features/onboarding/application/onboarding_provider.dart';
 import 'package:lilia_app/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:lilia_app/features/splash/presentation/splash_screen.dart';
@@ -75,23 +77,68 @@ void main() {
     );
   }
 
+  /// ⚠️ Pas de `pumpAndSettle` une fois l'accueil monté : son carrousel de
+  /// bannières s'auto-défile, l'arbre ne se stabilise donc **jamais** et le
+  /// test attendrait dix minutes avant d'échouer. On pompe sur un budget borné.
+  ///
+  /// Les exceptions sont **drainées** à chaque frame : l'accueil pose une
+  /// bannière en asset local (`assets/images/banner.png`), que le bundle d'un
+  /// test de widget ne sert pas. C'est un artefact de l'environnement de test,
+  /// sans rapport avec ce qui est éprouvé ici — la destination du routeur. Ne
+  /// pas le drainer ferait échouer le test sur une image absente.
+  Future<void> laisserRouter(WidgetTester tester) async {
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 32));
+      tester.takeException();
+      if (find.byType(SplashScreen).evaluate().isEmpty && i > 4) break;
+    }
+    // Quelques frames de plus une fois l'accueil monté, pour que ses providers
+    // aient rendu leur premier état.
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 32));
+      tester.takeException();
+    }
+  }
+
+  /// Démonte l'arbre et laisse retomber les minuteurs de l'accueil.
+  ///
+  /// Le chatoiement des images en cours de chargement (`AppShimmerBox`) et le
+  /// carrousel de bannières posent des minuteurs à usage unique. Le binding de
+  /// test refuse de rendre la main tant qu'il en reste un — « A Timer is still
+  /// pending even after the widget tree was disposed ». On démonte, puis on
+  /// laisse passer assez de temps simulé pour qu'ils tirent dans le vide.
+  Future<void> ranger(WidgetTester tester) async {
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 2));
+    tester.takeException();
+  }
+
   testWidgets('l’application démarre sur l’écran de démarrage', (tester) async {
     await demarrer(tester, onboarding: _OnboardingFait.new);
     expect(find.byType(SplashScreen), findsOneWidget);
-    await tester.pumpAndSettle();
+    await laisserRouter(tester);
+    await ranger(tester);
   });
 
-  testWidgets('… puis en SORT, et atteint l’écran de connexion', (
+  testWidgets('… puis en SORT, et atteint l’ACCUEIL sans compte', (
     tester,
   ) async {
     // LE test. Sans lui, un écran de démarrage dont on ne sort jamais passe
     // pour un succès : `flutter analyze` est vert, tous les tests unitaires
     // sont verts, et l'application est un logo figé.
+    //
+    // Il disait auparavant « atteint l'écran de connexion » : c'était le mur
+    // d'inscription. L'accueil est désormais public, et c'est précisément ce
+    // que ce test doit protéger — une régression du garde le renverrait sur
+    // `/signin` sans que rien d'autre ne s'en aperçoive.
     await demarrer(tester, onboarding: _OnboardingFait.new);
-    await tester.pumpAndSettle();
+    await laisserRouter(tester);
 
     expect(find.byType(SplashScreen), findsNothing);
-    expect(find.byType(SignInPage), findsOneWidget);
+    expect(find.byType(SignInPage), findsNothing);
+    expect(find.byType(BottomNavigationPage), findsOneWidget);
+    expect(find.byType(HomeScreen), findsOneWidget);
+    await ranger(tester);
   });
 
   testWidgets('premier lancement → onboarding, pas connexion', (tester) async {

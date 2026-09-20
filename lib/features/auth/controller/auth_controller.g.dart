@@ -87,7 +87,7 @@ final class AuthControllerProvider
   AuthController create() => AuthController();
 }
 
-String _$authControllerHash() => r'0085aaba303a6ea7634a2458181d5e7aea9b9c88';
+String _$authControllerHash() => r'371aa8756fa2e540bd865cb88ef9c79b8ce95768';
 
 /// **La session, et rien d'autre.**
 ///

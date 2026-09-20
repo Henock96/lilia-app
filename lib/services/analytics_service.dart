@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -312,7 +314,41 @@ abstract final class AnalyticsService {
   /// visiteur suivant sur le même téléphone resterait attribuée au précédent.
   /// Un client non connecté reste suivi — Firebase lui attribue un identifiant
   /// d'installation anonyme.
-  static void identify(String? userId) => instance.identify(userId);
+  static void identify(String? userId) {
+    instance.identify(userId);
+    unawaited(setAuthState(authenticated: userId != null));
+  }
+
+  /// Visiteur ou client connecté — une **propriété d'audience**, pas un
+  /// événement.
+  ///
+  /// ## Pourquoi pas deux événements
+  ///
+  /// Depuis l'ouverture du mode visiteur, un même tunnel se joue dans deux
+  /// états : quelqu'un qui compose un panier sans compte, et quelqu'un qui en a
+  /// un. Les distinguer était demandé — mais ajouter `auth_required` /
+  /// `auth_completed` aurait modifié **unilatéralement** un contrat
+  /// d'événements partagé par trois plateformes, et deux d'entre elles ne
+  /// connaissent pas encore ce parcours.
+  ///
+  /// Une propriété d'audience répond à la même question sans toucher au
+  /// contrat : **chacun** des 9 événements devient segmentable par état de
+  /// session, y compris ceux qui existaient déjà (`view_item`, `add_to_cart`,
+  /// `begin_checkout`). On mesure donc le tunnel visiteur de bout en bout, et
+  /// pas seulement l'étape qu'on aurait pensé à instrumenter.
+  ///
+  /// Posée au même endroit qu'[identify] — la transition de session — pour
+  /// qu'elles ne puissent pas se contredire.
+  static Future<void> setAuthState({required bool authenticated}) async {
+    try {
+      await FirebaseAnalytics.instance.setUserProperty(
+        name: 'auth_state',
+        value: authenticated ? 'authenticated' : 'guest',
+      );
+    } catch (e) {
+      debugPrint('📊 [analytics] état de session non posé : $e');
+    }
+  }
 
   /// Propriétés d'audience — pays et devise, aucune donnée personnelle.
   static Future<void> setUserProperties({String? city}) async {

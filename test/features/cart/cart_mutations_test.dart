@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/models/cart.dart';
+import 'package:lilia_app/models/menu.dart';
+import 'package:lilia_app/models/produit.dart';
 
 /// Logique de mutation optimiste — testée sans réseau, sans widget, sans
 /// Riverpod. C'est elle qui décide ce que le client voit entre son tap et la
@@ -178,6 +180,117 @@ void main() {
     test('panier absent : rien à faire, pas de crash', () {
       expect(applySetQuantity(null, 'a', 3), isNull);
       expect(applyRemoveItem(null, 'a'), isNull);
+    });
+  });
+
+  group('MenuCartPreview.fromMenu — le miroir de CartMenusService', () {
+    Product produit(String id, {List<ProductVariant> variants = const []}) =>
+        Product(
+          id: id,
+          name: 'Produit $id',
+          description: '',
+          prixOriginal: 1500,
+          imageUrl: null,
+          restaurantId: 'resto-1',
+          categoryId: null,
+          isAvailable: true,
+          variants: variants,
+        );
+
+    MenuDuJour menu(List<MenuProduct> produits, {double prix = 4000}) =>
+        MenuDuJour(
+          id: 'menu-1',
+          nom: 'Combo midi',
+          prix: prix,
+          dateDebut: DateTime(2026, 9, 19),
+          dateFin: DateTime(2026, 9, 20),
+          isActive: true,
+          restaurantId: 'resto-1',
+          restaurant: MenuRestaurant(id: 'resto-1', nom: 'Chez Awa'),
+          products: produits,
+          createdAt: DateTime(2026, 9, 19),
+          updatedAt: DateTime(2026, 9, 19),
+        );
+
+    MenuProduct ligne(Product p) => MenuProduct(
+      id: 'mp-${p.id}',
+      menuId: 'menu-1',
+      productId: p.id,
+      ordre: 0,
+      product: p,
+      createdAt: DateTime(2026, 9, 19),
+    );
+
+    ProductVariant variante(String id, {double prix = 1500}) =>
+        ProductVariant(id: id, label: 'Normale', prix: prix);
+
+    /// La règle du serveur, mot pour mot : une ligne par produit, la PREMIÈRE
+    /// variante de chacun.
+    test('une ligne par produit, sur sa première variante', () {
+      final preview = MenuCartPreview.fromMenu(
+        menu([
+          ligne(produit('a', variants: [variante('va1'), variante('va2')])),
+          ligne(produit('b', variants: [variante('vb1')])),
+        ]),
+      )!;
+
+      expect(preview.lines.map((l) => l.variantId), ['va1', 'vb1']);
+      expect(preview.menuId, 'menu-1');
+      expect(preview.menu.prix, 4000);
+    });
+
+    /// `CartMenusService` lève « n'a pas de variante disponible ». Le client
+    /// s'arrête au même endroit, plutôt que de poser un panier faux.
+    test('un produit sans variante rend null', () {
+      expect(
+        MenuCartPreview.fromMenu(
+          menu([
+            ligne(produit('a', variants: [variante('va1')])),
+            ligne(produit('b')),
+          ]),
+        ),
+        isNull,
+      );
+    });
+
+    test('un menu vide rend null', () {
+      expect(MenuCartPreview.fromMenu(menu([])), isNull);
+    });
+
+    /// ⚠️ Le prix du menu n'est PAS la somme de ses produits — c'est tout
+    /// l'intérêt d'un menu, et le piège du calcul. `Cart.totalPrice` facture le
+    /// groupe au prix du menu ; encore faut-il que `MenuInfo` le porte.
+    test('le panier obtenu est facturé au prix du MENU', () {
+      final preview = MenuCartPreview.fromMenu(
+        menu([
+          ligne(produit('a', variants: [variante('va1', prix: 2500)])),
+          ligne(produit('b', variants: [variante('vb1', prix: 2500)])),
+        ]),
+      )!;
+
+      final panier = applyAddMenu(null, preview, 2);
+      expect(panier.items, hasLength(2));
+      expect(panier.totalItems, 2); // 2 menus, pas 4 produits
+      expect(panier.totalPrice, 8000); // 2 x 4000, pas 2 x 5000
+    });
+
+    test('retirer le menu retire toutes ses lignes', () {
+      final preview = MenuCartPreview.fromMenu(
+        menu([
+          ligne(produit('a', variants: [variante('va1')])),
+          ligne(produit('b', variants: [variante('vb1')])),
+        ]),
+      )!;
+      final panier = applyAddMenu(null, preview, 1);
+
+      expect(applyRemoveMenu(panier, 'menu-1')!.items, isEmpty);
+      expect(applySetMenuQuantity(panier, 'menu-1', 0)!.items, isEmpty);
+      expect(
+        applySetMenuQuantity(panier, 'menu-1', 3)!.items.every(
+          (i) => i.quantite == 3,
+        ),
+        isTrue,
+      );
     });
   });
 }

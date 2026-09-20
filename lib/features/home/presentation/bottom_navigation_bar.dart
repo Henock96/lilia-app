@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
+import 'package:lilia_app/routing/app_router.dart';
+import 'package:lilia_app/routing/pending_destination.dart';
+import 'package:lilia_app/routing/protected_locations.dart';
+import 'package:lilia_app/routing/session_phase.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 
 class BottomNavigationPage extends ConsumerStatefulWidget {
@@ -15,7 +19,24 @@ class BottomNavigationPage extends ConsumerStatefulWidget {
 }
 
 class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
+  /// Bascule d'onglet, **en repassant par le garde d'authentification**.
+  ///
+  /// `goBranch` change de pile sans déclencher `redirect` : c'était le seul
+  /// chemin de l'application qui échappait à `resolveRedirect`. Un invité
+  /// tapant « Commandes » ou « Profil » arrivait donc sur un écran qui
+  /// interroge des routes authentifiées, et n'y voyait qu'une erreur.
+  ///
+  /// La question posée est la **même** que celle du routeur —
+  /// `requiresAuthentication` — et la destination est mémorisée de la même
+  /// façon : après connexion, le client revient sur l'onglet qu'il voulait.
   void _goBranch(int index) {
+    final destination = kShellBranchLocations[index];
+    if (requiresAuthentication(destination) &&
+        ref.read(sessionPhaseProvider) != SessionPhase.authenticated) {
+      context.go(signInLocationFor(destination));
+      return;
+    }
+
     widget.navigationShell.goBranch(
       index,
       // A common pattern when using bottom navigation bars is to support
