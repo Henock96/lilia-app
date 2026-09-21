@@ -1,10 +1,10 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:lilia_app/models/cart.dart';
+import 'package:lilia_app/core/log.dart';
 
 part 'guest_cart_store.g.dart';
 
@@ -77,7 +77,7 @@ class GuestCartStore {
         updatedAt: DateTime.now(),
       );
     } catch (e) {
-      debugPrint('Panier invité illisible, ignoré : $e');
+      logDebug('Panier invité illisible, ignoré : $e');
       return null;
     }
   }

@@ -119,7 +119,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 Icon(Icons.search_off, size: 64, color: cs.onSurfaceVariant),
                 const SizedBox(height: 16),
                 Text(
-                  'Aucun resultat pour "$_query"',
+                  'Aucun résultat pour "$_query"',
                   style: TextStyle(fontSize: 16, color: cs.onSurfaceVariant),
                 ),
               ],
@@ -288,7 +288,11 @@ class _SearchProductTile extends ConsumerWidget {
       elevation: 0,
       child: ListTile(
         onTap: () {
-          context.pushNamed(AppRoutes.productDetail.routeName, extra: product);
+          context.pushNamed(
+            AppRoutes.productDetail.routeName,
+            pathParameters: {'productId': product.id},
+            extra: product,
+          );
         },
         leading: ClipRRect(
           borderRadius: BorderRadius.circular(8),

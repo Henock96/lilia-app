@@ -12,6 +12,7 @@ import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/cart/data/cart_repository.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/features/home/data/remote/home_controller.dart';
+import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
@@ -26,12 +27,30 @@ class CartScreen extends ConsumerStatefulWidget {
 }
 
 class _CartScreenState extends ConsumerState<CartScreen> {
+  /// Le panier atteint-il le minimum du vendeur ?
+  ///
+  /// Vrai aussi quand le minimum est inconnu : on ne barre jamais la route
+  /// sur une information qu'on n'a pas.
+  bool _minimumAtteint(Cart cart) {
+    final minimum = _minimumVendeur(ref, cart);
+    return minimum == null || cart.totalPrice >= minimum;
+  }
+
   @override
   void initState() {
     super.initState();
     // Rafraîchir le panier quand on ouvre l'écran
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await ref.read(cartControllerProvider.notifier).refresh();
+      // ⚠️ `refresh()` relaie l'`ApiException` brute de `getCart()` (tout ce
+      // qui n'est pas un 401). Non capturée dans un `addPostFrameCallback`,
+      // elle devenait une erreur asynchrone non gérée : ouvrir l'onglet
+      // Panier hors ligne suffisait à la produire. L'écran, lui, sait déjà
+      // afficher l'état d'erreur du provider.
+      try {
+        await ref.read(cartControllerProvider.notifier).refresh();
+      } catch (_) {
+        return;
+      }
       if (!mounted) return;
 
       // `view_cart` une fois le panier **chargé**, et seulement s'il contient
@@ -176,6 +195,21 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        // ── Minimum de commande du vendeur ────────────────
+                        //
+                        // Il était affiché sur la fiche vendeur et sur sa
+                        // carte, puis oublié. Le serveur, lui, refuse au
+                        // checkout (`validateMinimumOrderAmount`) : le client
+                        // l'apprenait donc après avoir choisi un mode de
+                        // livraison, un quartier, une adresse, saisi son
+                        // téléphone, parfois un code promo — cinq écrans pour
+                        // un refus connu dès le panier.
+                        //
+                        // On le dit ici, et on dit surtout **combien il
+                        // manque** : « minimum 5 000 FCFA » oblige à faire la
+                        // soustraction ; « ajoutez encore 1 200 FCFA » donne
+                        // le geste.
+                        _MinimumVendeur(cart: cartState.value!),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -200,23 +234,25 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               ],
                             ),
                             ElevatedButton(
-                              onPressed: () {
-                                // `begin_checkout` — l'action délibérée qui
-                                // engage la commande, et non l'affichage d'un
-                                // écran. Sur le web, le panier et la saisie de
-                                // commande vivent sur la même page : mesurer
-                                // l'affichage rendrait cette étape égale à
-                                // `view_cart` d'un côté et pas de l'autre, et
-                                // les deux tunnels cesseraient d'être
-                                // comparables.
-                                AnalyticsService.trackBeginCheckout(
-                                  itemCount: cartState.value!.totalItems,
-                                  cartTotal: cartState.value!.totalPrice,
-                                );
-                                context.goNamed(
-                                  AppRoutes.deliveryOptions.routeName,
-                                );
-                              },
+                              onPressed: _minimumAtteint(cartState.value!)
+                                  ? () {
+                                      // `begin_checkout` — l'action délibérée qui
+                                      // engage la commande, et non l'affichage d'un
+                                      // écran. Sur le web, le panier et la saisie de
+                                      // commande vivent sur la même page : mesurer
+                                      // l'affichage rendrait cette étape égale à
+                                      // `view_cart` d'un côté et pas de l'autre, et
+                                      // les deux tunnels cesseraient d'être
+                                      // comparables.
+                                      AnalyticsService.trackBeginCheckout(
+                                        itemCount: cartState.value!.totalItems,
+                                        cartTotal: cartState.value!.totalPrice,
+                                      );
+                                      context.goNamed(
+                                        AppRoutes.deliveryOptions.routeName,
+                                      );
+                                    }
+                                  : null,
                               child: const Padding(
                                 padding: EdgeInsets.symmetric(
                                   horizontal: 10.0,
@@ -239,6 +275,59 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 : Container(),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Le minimum de commande du vendeur, dit **avant** le tunnel.
+///
+/// `null` tant que la fiche vendeur n'est pas chargée, ou si le vendeur n'en
+/// impose aucun. Dans les deux cas on ne bloque rien : le serveur reste
+/// l'arbitre, cet écran ne fait qu'éviter au client de découvrir le refus
+/// cinq écrans plus loin.
+double? _minimumVendeur(WidgetRef ref, Cart cart) {
+  if (cart.items.isEmpty) return null;
+  final restaurantId = cart.items.first.product.restaurantId;
+  final minimum = ref
+      .watch(restaurantControllerProvider(restaurantId))
+      .value
+      ?.minimumOrderAmount;
+  return (minimum == null || minimum <= 0) ? null : minimum;
+}
+
+/// Bandeau « il vous manque X » — affiché seulement quand il manque quelque
+/// chose.
+class _MinimumVendeur extends ConsumerWidget {
+  const _MinimumVendeur({required this.cart});
+
+  final Cart cart;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final minimum = _minimumVendeur(ref, cart);
+    if (minimum == null || cart.totalPrice >= minimum) {
+      return const SizedBox.shrink();
+    }
+    final cs = Theme.of(context).colorScheme;
+    final manque = minimum - cart.totalPrice;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, size: 16, color: cs.error),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              // Le geste, pas la règle : « ajoutez encore 1 200 FCFA » se suit
+              // sans calcul, « minimum 5 000 FCFA » demande une soustraction.
+              'Ajoutez encore ${formatPrice(manque)} pour atteindre le '
+              'minimum de ce vendeur (${formatPrice(minimum)}).',
+              style: TextStyle(fontSize: 12, color: cs.error),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -728,6 +817,7 @@ class _SuggestionTile extends ConsumerWidget {
           onTap: () {
             context.pushNamed(
               AppRoutes.productDetail.routeName,
+              pathParameters: {'productId': product.id},
               extra: product,
             );
           },

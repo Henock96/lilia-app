@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:lilia_app/utils/order_reference.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -8,7 +9,6 @@ import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:intl/intl.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
-import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/features/commandes/presentation/progress_step.dart';
 import 'package:lilia_app/features/commandes/presentation/status_info.dart';
 import 'package:lilia_app/core/network/api_exception.dart';
@@ -47,7 +47,23 @@ class OrderDetailPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final orderAsyncValue = ref.watch(userOrdersProvider);
+    // ⚠️ La source de vérité est `GET /orders/:id`, **pas** la liste.
+    //
+    // Cet écran filtrait `userOrdersProvider` — la première page de
+    // l'historique, vingt commandes. Toute commande plus ancienne affichait
+    // « Cette commande n'est plus disponible », ce qui est faux : elle
+    // existe, et le serveur sait la rendre. C'est le cas d'une notification
+    // tardive, d'un ancien reçu, ou simplement d'un client fidèle.
+    final detailAsync = ref.watch(orderDetailProvider(orderId));
+    // La liste sert de **premier rendu** quand on arrive depuis elle : la
+    // commande est déjà en mémoire, l'afficher évite un écran de chargement
+    // pour une donnée qu'on a sous la main. Elle ne sert jamais à conclure
+    // qu'une commande n'existe pas.
+    final depuisListe = ref
+        .watch(userOrdersProvider)
+        .value
+        ?.where((o) => o.id == orderId)
+        .firstOrNull;
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -63,17 +79,31 @@ class OrderDetailPage extends ConsumerWidget {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
-        actions: [
-          IconButton(icon: const Icon(Iconsax.share), onPressed: () {}),
-        ],
+
+        // Le bouton « Partager » a été RETIRÉ : son `onPressed` était `() {}`.
+        // Un bouton visible qui ne fait rien coûte plus qu'un bouton absent —
+        // le client croit à une panne, et le support cherche une cause qui
+        // n'existe pas. À réintroduire le jour où il y a quelque chose à
+        // partager (le suivi ? le reçu ?), avec une décision sur quoi.
       ),
-      body: orderAsyncValue.when(
-        data: (orders) {
-          // Recherche null-safe : ne JAMAIS throw pendant build (sinon écran
-          // rouge). La commande peut être absente de la liste paginée si on
-          // arrive ici via notification / deep-link.
-          final matches = orders.where((o) => o.id == orderId);
-          if (matches.isEmpty) {
+      body: Builder(
+        builder: (context) {
+          final order = detailAsync.value ?? depuisListe;
+
+          // ⚠️ `isLoading && !hasError` : Riverpod 3 relance automatiquement un
+          // provider en échec. Entre deux tentatives il repasse en chargement
+          // tout en portant son erreur — un écran qui ne regarde que
+          // `isLoading` tourne alors indéfiniment au lieu de dire ce qui ne va
+          // pas, et n'offre jamais son bouton « Réessayer ».
+          if (order == null && detailAsync.isLoading && !detailAsync.hasError) {
+            return Center(
+              child: CircularProgressIndicator(
+                color: theme.colorScheme.primary,
+              ),
+            );
+          }
+
+          if (order == null) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -91,21 +121,38 @@ class OrderDetailPage extends ConsumerWidget {
                       style: theme.textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      'Cette commande n\'est plus disponible ou a été retirée de votre liste.',
+                    // Le message n'affirme plus que la commande a disparu :
+                    // le plus souvent, c'est la lecture qui a échoué.
+                    Text(
+                      detailAsync.hasError
+                          ? 'Nous n’avons pas pu charger cette commande. '
+                                'Vérifiez votre connexion et réessayez.'
+                          : 'Cette commande n’est plus disponible ou a été '
+                                'retirée de votre liste.',
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Retour'),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('Retour'),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: () =>
+                              ref.invalidate(orderDetailProvider(orderId)),
+                          icon: const Icon(Icons.refresh, size: 18),
+                          label: const Text('Réessayer'),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
             );
           }
-          final order = matches.first;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -193,13 +240,6 @@ class OrderDetailPage extends ConsumerWidget {
             ),
           );
         },
-        loading: () => Center(
-          child: CircularProgressIndicator(color: theme.colorScheme.primary),
-        ),
-        error: (err, stack) => BuildErrorState(
-          err,
-          onRetry: () => ref.invalidate(userOrdersProvider),
-        ),
       ),
     );
   }
@@ -330,7 +370,7 @@ class OrderDetailPage extends ConsumerWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '#${order.id.substring(0, 8).toUpperCase()}',
+                    refCommande(order.id),
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -658,13 +698,19 @@ class OrderDetailPage extends ConsumerWidget {
                   onPressed: () => MapLauncher.openNavigation(
                     latitude: order.deliveryLatitude!,
                     longitude: order.deliveryLongitude!,
-                    label: 'Livraison - Commande #${order.id.substring(0, 8)}',
+                    label: 'Livraison - Commande ${refCommande(order.id)}',
                     address: order.deliveryAddress,
                   ),
                   icon: const Icon(Icons.navigation_outlined, size: 16),
-                  label: const Text('Itinéraire', style: TextStyle(fontSize: 12)),
+                  label: const Text(
+                    'Itinéraire',
+                    style: TextStyle(fontSize: 12),
+                  ),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     visualDensity: VisualDensity.compact,
                   ),
                 ),
@@ -1583,7 +1629,6 @@ class _RateDriverCard extends ConsumerWidget {
   }
 }
 
-
 /// Précision textuelle sur l'avancement de la livraison.
 ///
 /// Le stepper suit `Order.status`, qui reste `PRET` entre l'acceptation de la
@@ -1641,7 +1686,6 @@ class _DeliveryProgressHint extends ConsumerWidget {
   }
 }
 
-
 /// Traduit en action l'intention portée par la dernière notification.
 ///
 /// L'invitation à noter est déjà traitée par `_RateDriverCard` : cette
@@ -1696,15 +1740,17 @@ class _NotificationIntentBanner extends ConsumerWidget {
           children: [
             Icon(icon, color: color, size: 22),
             const SizedBox(width: 12),
-            Expanded(child: Text(message, style: const TextStyle(fontSize: 13))),
+            Expanded(
+              child: Text(message, style: const TextStyle(fontSize: 13)),
+            ),
             IconButton(
               tooltip: 'Masquer',
               icon: const Icon(Icons.close, size: 18),
               // Consommer l'intention : sans ça, revenir sur la commande
               // rouvrirait la même bannière indéfiniment.
-              onPressed: () => ref
-                  .read(pendingNotificationIntentProvider.notifier)
-                  .state = null,
+              onPressed: () =>
+                  ref.read(pendingNotificationIntentProvider.notifier).state =
+                      null,
             ),
           ],
         ),
@@ -1787,9 +1833,9 @@ class _PaymentInProgressCard extends ConsumerWidget {
               const SizedBox(width: 10),
               Text(
                 'Paiement en cours',
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
               ),
             ],
           ),
@@ -1965,82 +2011,93 @@ class _PayNowButtonState extends ConsumerState<_PayNowButton> {
     var method = widget.order.paymentMethod;
     final formKey = GlobalKey<FormState>();
 
-    return showModalBottomSheet<({String phone, String method})>(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-        ),
-        child: StatefulBuilder(
-          builder: (innerContext, setSheetState) => Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Payer ${formatPrice(widget.order.total.toDouble())}',
-                  style: Theme.of(innerContext).textTheme.titleLarge,
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(
-                      value: 'MTN_MOMO',
-                      label: Text('MTN MoMo'),
-                    ),
-                    ButtonSegment(
-                      value: 'AIRTEL_MONEY',
-                      label: Text('Airtel Money'),
-                    ),
-                  ],
-                  selected: {method},
-                  onSelectionChanged: (selection) =>
-                      setSheetState(() => method = selection.first),
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: controller,
-                  keyboardType: TextInputType.phone,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Numéro Mobile Money',
-                    hintText: '06 123 45 67',
-                    border: OutlineInputBorder(),
+    // ⚠️ Le contrôleur est créé ici, donc il doit être libéré ici.
+    //
+    // Il ne l'était pas : la feuille pouvait être ouverte, fermée, rouverte à
+    // chaque tentative de paiement, et chaque passage laissait un
+    // `TextEditingController` vivant. Un `ChangeNotifier` non libéré retient
+    // ses auditeurs et son propre état ; la fuite est minuscule, mais elle est
+    // exactement du genre qui se recopie au prochain `showModalBottomSheet`.
+    //
+    // `whenComplete` et non un `dispose()` après l'`await` : la feuille peut
+    // être rejetée par un geste, la `Future` se résout alors par `null` sans
+    // repasser par le chemin nominal.
+    try {
+      return await showModalBottomSheet<({String phone, String method})>(
+        context: context,
+        isScrollControlled: true,
+        builder: (sheetContext) => Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+          ),
+          child: StatefulBuilder(
+            builder: (innerContext, setSheetState) => Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Payer ${formatPrice(widget.order.total.toDouble())}',
+                    style: Theme.of(innerContext).textTheme.titleLarge,
+                    textAlign: TextAlign.center,
                   ),
-                  validator: (value) {
-                    final input = (value ?? '').trim();
-                    if (input.isEmpty) return 'Numéro requis';
-                    final ok = ref
-                        .read(paymentServiceProvider)
-                        .validatePhoneNumber(input);
-                    return ok ? null : 'Numéro congolais invalide';
-                  },
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: () {
-                    if (formKey.currentState?.validate() ?? false) {
-                      Navigator.of(sheetContext).pop((
-                        phone: controller.text.trim(),
-                        method: method,
-                      ));
-                    }
-                  },
-                  child: const Text('Envoyer la demande de paiement'),
-                ),
-                const SizedBox(height: 8),
-              ],
+                  const SizedBox(height: 16),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(value: 'MTN_MOMO', label: Text('MTN MoMo')),
+                      ButtonSegment(
+                        value: 'AIRTEL_MONEY',
+                        label: Text('Airtel Money'),
+                      ),
+                    ],
+                    selected: {method},
+                    onSelectionChanged: (selection) =>
+                        setSheetState(() => method = selection.first),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: controller,
+                    keyboardType: TextInputType.phone,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Numéro Mobile Money',
+                      hintText: '06 123 45 67',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      final input = (value ?? '').trim();
+                      if (input.isEmpty) return 'Numéro requis';
+                      final ok = ref
+                          .read(paymentServiceProvider)
+                          .validatePhoneNumber(input);
+                      return ok ? null : 'Numéro congolais invalide';
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () {
+                      if (formKey.currentState?.validate() ?? false) {
+                        Navigator.of(
+                          sheetContext,
+                        ).pop((phone: controller.text.trim(), method: method));
+                      }
+                    },
+                    child: const Text('Envoyer la demande de paiement'),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+              ),
             ),
           ),
         ),
-      ),
-    );
+      );
+    } finally {
+      controller.dispose();
+    }
   }
 
   Future<void> _showManualInstructions(PaymentResponse payment) async {
@@ -2059,10 +2116,7 @@ class _PayNowButtonState extends ConsumerState<_PayNowButton> {
             const SizedBox(height: 12),
             SelectableText(
               instructions.phone,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text('Référence : ${instructions.reference}'),

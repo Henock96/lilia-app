@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
 import 'package:lilia_app/features/user/data/cloudinary_service.dart';
@@ -97,10 +96,22 @@ class ProfileController extends _$ProfileController {
     final picker = ImagePicker();
     final cloudinaryService = CloudinaryService();
 
-    debugPrint("1. Ouverture de la galerie...");
     final XFile? image = await picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 70,
+      // ⚠️ `requestFullMetadata` vaut `true` par défaut. Dans ce mode,
+      // `image_picker` lit les métadonnées du `PHAsset` après la sélection —
+      // ce qui exige l'autorisation photothèque, donc
+      // `NSPhotoLibraryUsageDescription` dans `Info.plist`. Cette clé n'y est
+      // pas, et iOS termine le processus quand une autorisation est demandée
+      // sans chaîne d'usage : la photo de profil faisait planter
+      // l'application.
+      //
+      // On n'a aucun usage de ces métadonnées — l'image est recompressée par
+      // `ImageCompressor` avant l'envoi. Les refuser supprime le besoin
+      // d'autorisation au lieu de le documenter : avec un déploiement iOS 15
+      // minimum, `PHPickerViewController` rend le fichier sans rien demander.
+      requestFullMetadata: false,
     );
     if (image == null) return;
 

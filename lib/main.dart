@@ -7,6 +7,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/core/update/app_version.dart';
 import 'package:lilia_app/common_widgets/connectivity_banner.dart';
+import 'package:lilia_app/features/auth/application/session_effects.dart';
 import 'package:lilia_app/features/auth/presentation/auth_failure_announcer_scope.dart';
 import 'package:lilia_app/routing/app_router.dart';
 import 'package:lilia_app/services/analytics_service.dart';
@@ -82,19 +83,36 @@ class MyApp extends ConsumerWidget {
     final themeMode = ref.watch(themeModeProvider);
     ref.watch(notificationInitializerProvider);
     ref.watch(userDataSynchronizerProvider);
-    return ConnectivityWrapper(
-      child: MaterialApp.router(
-        routerConfig: router,
-        debugShowCheckedModeBanner: false,
-        title: 'Lilia Food',
-        theme: AppTheme.light,
-        darkTheme: AppTheme.dark,
-        themeMode: themeMode,
-        // Au-dessus du routeur et sous le `ScaffoldMessenger` de MaterialApp :
-        // un échec d'authentification s'affiche même si l'écran qui l'a
-        // déclenché a déjà été démonté par une redirection (B-02).
-        builder: (context, child) =>
-            AuthFailureAnnouncerScope(child: child ?? const SizedBox.shrink()),
+    // ⚠️ Sans cette ligne, **rien** ne se produit à l'ouverture d'une session.
+    //
+    // Les effets de session — reprendre le panier composé sans compte,
+    // rattacher le jeton FCM au compte — vivaient dans `AuthController`, que
+    // personne n'observait au démarrage. Riverpod ne construit pas un provider
+    // que personne ne lit : le contrôleur n'existait qu'à partir de la
+    // *déconnexion*, donc les deux effets ne partaient jamais.
+    //
+    // Le provider rend `void` et ne change jamais de valeur : l'observer ne
+    // reconstruit pas `MyApp`. Il ne fait qu'exister — et c'est tout ce qu'on
+    // lui demande.
+    ref.watch(sessionEffectsProvider);
+    return MaterialApp.router(
+      routerConfig: router,
+      debugShowCheckedModeBanner: false,
+      title: 'Lilia Food',
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: themeMode,
+      // Au-dessus du routeur et sous le `ScaffoldMessenger` de MaterialApp :
+      // un échec d'authentification s'affiche même si l'écran qui l'a
+      // déclenché a déjà été démonté par une redirection (B-02).
+      //
+      // ⚠️ `ConnectivityGate` est ici pour **la même raison**, et il y était
+      // absent. Il enveloppait `MaterialApp` — donc au-dessus du
+      // `ScaffoldMessenger` que `MaterialApp` installe : son
+      // `ScaffoldMessenger.of(context)` ne pouvait rien trouver et levait à
+      // chaque bascule de réseau. Ne jamais le remonter au-dessus.
+      builder: (context, child) => AuthFailureAnnouncerScope(
+        child: ConnectivityGate(child: child ?? const SizedBox.shrink()),
       ),
     );
   }

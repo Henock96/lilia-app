@@ -74,12 +74,35 @@ final List<String> _prefixesProteges = <String>[
 /// La comparaison est un préfixe **de segment** : `/cart` ne doit pas protéger
 /// `/cartographie`, et `/commandes` ne protège `/commandes/abc` que parce que
 /// la frontière tombe sur un `/`.
+///
+/// ⚠️ Un segment `:param` du motif correspond à **n'importe quel** segment non
+/// vide de l'emplacement.
+///
+/// Sans cela, rendre une route adressable la faisait sortir de la table en
+/// silence. C'est arrivé : `/reviews/write` est devenu
+/// `/reviews/:restaurantId/write` pour survivre à une mort de processus, et
+/// une comparaison littérale ne reconnaissait plus `/reviews/abc/write`.
+/// Rédiger un avis redevenait public — un durcissement de routage annulant
+/// une règle d'accès, sans qu'une ligne de la table ait changé.
 bool requiresAuthentication(String location) {
-  final chemin = _sansBarreFinale(location);
+  final segmentsChemin = _segments(_sansBarreFinale(location));
   for (final prefixe in _prefixesProteges) {
-    if (chemin == prefixe || chemin.startsWith('$prefixe/')) return true;
+    if (_prefixeCorrespond(_segments(prefixe), segmentsChemin)) return true;
   }
   return false;
+}
+
+List<String> _segments(String chemin) =>
+    chemin.split('/').where((s) => s.isNotEmpty).toList();
+
+/// [motif] couvre-t-il [chemin] — lui-même ou l'un de ses descendants ?
+bool _prefixeCorrespond(List<String> motif, List<String> chemin) {
+  if (motif.length > chemin.length) return false;
+  for (var i = 0; i < motif.length; i++) {
+    if (motif[i].startsWith(':')) continue; // un paramètre accepte tout
+    if (motif[i] != chemin[i]) return false;
+  }
+  return true;
 }
 
 /// `/commandes/` et `/commandes` désignent le même écran. Sans cette

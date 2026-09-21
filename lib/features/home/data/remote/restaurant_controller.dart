@@ -1,8 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_repo.dart';
 import 'package:lilia_app/models/vendor_type.dart';
+import 'package:lilia_app/utils/provider_cache.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../../models/restaurant.dart';
@@ -12,6 +12,10 @@ part 'restaurant_controller.g.dart';
 /// Provider pour récupérer la liste de tous les restaurants
 @riverpod
 Future<List<RestaurantSummary>> restaurantsList(Ref ref) async {
+  // Quitter l'accueil et y revenir ne redemande rien au serveur.
+  cachePendant(ref, kCatalogCacheTtl);
+  ref.watch(staleForegroundStampProvider);
+
   final repository = ref.watch(restaurantRepositoryProvider);
   return repository.getAllRestaurants();
 }
@@ -68,40 +72,14 @@ Future<Restaurant> restaurantController(Ref ref, String restaurantId) async {
   return repository.getRestaurant(restaurantId);
 }
 
-/// Horodatage qui ne change qu'aux reprises **tardives** de l'application.
-///
-/// ## Pourquoi la durée de vie ne suffit pas
-///
-/// Un téléphone posé deux heures avec l'écran de la boutique ouvert laisse le
-/// widget monté : le minuteur aura bien relâché le lien, mais rien ne
-/// redemandera la donnée tant que l'utilisateur ne navigue pas. Or reprendre
-/// l'application est **exactement** le moment où il regarde à nouveau le menu.
-///
-/// ## Pourquoi « tardives » et pas « toutes »
-///
-/// Publier un horodatage à chaque reprise rechargerait la carte après un simple
-/// aller-retour vers les notifications. On ne publie donc que si l'écart dépasse
-/// [kMenuCacheTtl] — en dessous, la donnée est encore bonne, et Riverpod ne voit
-/// aucun changement de valeur, donc ne reconstruit rien.
-@Riverpod(keepAlive: true)
-class StaleForegroundStamp extends _$StaleForegroundStamp
-    with WidgetsBindingObserver {
-  @override
-  DateTime build() {
-    final binding = WidgetsBinding.instance;
-    binding.addObserver(this);
-    ref.onDispose(() => binding.removeObserver(this));
-    return DateTime.now();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed) return;
-    final now = DateTime.now();
-    // `this.state` — le paramètre du callback masque le champ du notifier.
-    if (now.difference(this.state) >= kMenuCacheTtl) this.state = now;
-  }
-}
+// `StaleForegroundStamp` a déménagé dans `lib/utils/provider_cache.dart`.
+//
+// Il y rejoint `cachePendant`, dont il est le pendant : l'un borne la durée
+// de vie d'un cache, l'autre force sa relecture au retour de l'application.
+// Ce sont les deux moitiés d'une même mécanique, et elle n'appartient pas au
+// catalogue — le barème de `platform_settings_service` en a le même besoin,
+// et l'importer d'ici aurait tiré tout le graphe restaurant dans le module
+// des réglages.
 
 /// Filtre vendor type courant pour le marketplace (LIL-117).
 /// `null` = "Tous" (pas de filtre). Watched par [vendorsList].
@@ -120,6 +98,12 @@ class MarketplaceFilter extends _$MarketplaceFilter {
 /// Riverpod rebuilde et refetch automatiquement.
 @riverpod
 Future<List<RestaurantSummary>> vendorsList(Ref ref) async {
+  // Idem. Le cache retient AUSSI le filtre observé juste en dessous : un
+  // provider maintenu en vie garde ses dépendances, donc la puce sélectionnée
+  // survit elle aussi à l'aller-retour.
+  cachePendant(ref, kCatalogCacheTtl);
+  ref.watch(staleForegroundStampProvider);
+
   final filter = ref.watch(marketplaceFilterProvider);
   final repository = ref.watch(restaurantRepositoryProvider);
   return repository.getVendors(vendorType: filter);

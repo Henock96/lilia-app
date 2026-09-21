@@ -46,8 +46,13 @@ class FakeAuthRepository implements FirebaseAuthenticationRepository {
 
   /// Comme Firebase : chaque abonné reçoit d'abord l'état courant, puis les
   /// bascules. `Stream.multi` est diffusé (`isBroadcast`), ce qui compte :
-  /// `AuthController.build()` s'y abonne **deux fois** — une pour le retour du
-  /// notifier, une pour l'enregistrement du jeton FCM.
+  /// plusieurs providers s'abonnent à la même source — `authStateChangeProvider`
+  /// (session et routage) et, à travers lui, `sessionEffectsProvider`.
+  ///
+  /// ⚠️ Ne pas appeler [dispose] depuis un `addTearDown` : fermer le
+  /// contrôleur alors qu'un `Stream.multi` y est encore abonné ne rend jamais
+  /// la main, et le test expire dans son nettoyage. Laisser le conteneur
+  /// Riverpod se défaire suffit.
   @override
   Stream<AppUser?> authStateChanges() => Stream<AppUser?>.multi((controller) {
         controller.add(_user);

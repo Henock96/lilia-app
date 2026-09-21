@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../../../core/network/api_client.dart';
@@ -10,6 +10,7 @@ import '../../../../models/restaurant.dart';
 import '../../../../models/search_result.dart';
 import '../../../../utils/api_response.dart';
 import '../../../../utils/json_isolate.dart';
+import 'package:lilia_app/core/log.dart';
 
 part 'home_repo.g.dart';
 
@@ -34,6 +35,18 @@ class HomeRepository {
   final ApiClient _api;
 
   HomeRepository(this._api);
+
+  /// GET /products/:id — **publique**, et c'est ce qui compte ici.
+  ///
+  /// La fiche produit ne se rendait que depuis un `Product` passé en `extra`
+  /// de navigation. `extra` n'est pas sérialisable : go_router restaure
+  /// l'emplacement après une mort de processus, jamais la charge utile. Le
+  /// client revenait donc sur « page introuvable » — au retour d'un appel, en
+  /// mémoire basse, ou avec « Ne pas conserver les activités ».
+  Future<Product> getProduct(String id) async {
+    final res = await _api.getJson('/products/$id');
+    return Product.fromJson(ApiResponse.mapOf(res.data));
+  }
 
   /// GET /products/popular?limit=10
   Future<List<Product>> getPopularProducts({int limit = 10}) async {
@@ -76,7 +89,7 @@ class HomeRepository {
       // Recommandations = feature non bloquante : on dégrade en liste vide,
       // mais on trace l'erreur en debug au lieu de l'avaler totalement (C12).
       if (kDebugMode) {
-        debugPrint('getRecommendations failed: ${e.message}');
+        logDebug('getRecommendations failed: ${e.message}');
       }
       return [];
     }

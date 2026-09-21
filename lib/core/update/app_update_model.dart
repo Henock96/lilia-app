@@ -30,8 +30,19 @@ class AppUpdateInfo {
     this.updateMessage,
     this.storeUrlAndroid =
         'https://play.google.com/store/apps/details?id=com.dreesis.lilia.lilia_app',
-    this.storeUrlIos =
-        'https://apps.apple.com/app/lilia-food/id6740000000',
+    // ⚠️ Une **recherche**, pas une fiche — et c'est délibéré.
+    //
+    // Ce repli valait `https://apps.apple.com/app/lilia-food/id6740000000` :
+    // un identifiant App Store manifestement fabriqué (un nombre rond de dix
+    // chiffres). En mise à jour **obligatoire**, le client se retrouvait
+    // enfermé dans une boîte de dialogue dont le seul bouton ouvrait une page
+    // inexistante — bloqué, sans recours.
+    //
+    // Une recherche aboutit toujours quelque part. Ce n'est pas la bonne
+    // réponse : la bonne réponse est de renseigner `updateUrlIos` dans
+    // `PlatformSettings`, ce qui court-circuite entièrement ce repli. Mais
+    // c'est une impasse de moins tant que ce n'est pas fait.
+    this.storeUrlIos = 'https://apps.apple.com/search?term=Lilia%20Food',
   });
 
   bool get isMandatory => requirement == UpdateRequirement.mandatory;

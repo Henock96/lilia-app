@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:lilia_app/core/log.dart';
 
 /// Utilitaire d'ouverture d'itinéraire GPS (Google Maps, Apple Maps, Waze, Web).
 ///
@@ -95,7 +96,7 @@ class MapLauncher {
         mode: LaunchMode.externalApplication,
       );
     } catch (e) {
-      debugPrint('MapLauncher error: $e');
+      logDebug('MapLauncher error: $e');
       return false;
     }
   }

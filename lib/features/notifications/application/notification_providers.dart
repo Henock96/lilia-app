@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_app/features/notifications/data/notification_model.dart';
 import 'package:lilia_app/features/notifications/data/notification_repository.dart';
 import '../../../services/notification_router.dart';
+import '../../auth/repository/firebase_auth_repository.dart';
 
 part 'notification_providers.g.dart';
 
@@ -27,7 +28,11 @@ final pendingNotificationIntentProvider =
 
 @riverpod
 NotificationRepository notificationRepository(Ref ref) {
-  return NotificationRepository();
+  // `watch` : à la déconnexion, le dépôt est reconstruit sur le seau du
+  // visiteur, et l'historique du compte parti cesse d'être lisible.
+  return NotificationRepository(
+    uid: ref.watch(authRepositoryProvider).currentUser?.uid,
+  );
 }
 
 @riverpod

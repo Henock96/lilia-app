@@ -7,18 +7,35 @@ import 'package:lilia_app/features/reviews/presentation/widgets/star_rating.dart
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 
+import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import '../../../../models/review.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 
 class ReviewsScreen extends ConsumerWidget {
   final String restaurantId;
-  final String restaurantName;
+  /// Purement cosmétique — il ne sert qu'au titre. Il était pourtant
+  /// **obligatoire** et transporté en `state.extra` : son absence suffisait à
+  /// renvoyer la route sur `NotFoundScreen` après une mort de processus.
+  /// Absent, il est lu depuis la fiche vendeur.
+  final String? restaurantName;
 
   const ReviewsScreen({
     super.key,
     required this.restaurantId,
-    required this.restaurantName,
+    this.restaurantName,
   });
+
+  /// Le titre, quelle que soit la façon dont on est arrivé ici.
+  ///
+  /// Le nom passé en `extra` évite un aller-retour quand on vient de la fiche
+  /// vendeur. Absent — lien profond, restauration de processus — on le lit.
+  /// Tant qu'il n'est pas là, un libellé neutre : c'est un titre, pas une
+  /// raison de refuser d'afficher les avis.
+  String _titre(WidgetRef ref) {
+    final nom = restaurantName ??
+        ref.watch(restaurantControllerProvider(restaurantId)).value?.name;
+    return nom == null ? 'Avis' : 'Avis - $nom';
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -30,7 +47,7 @@ class ReviewsScreen extends ConsumerWidget {
     final myReviewId = canReviewAsync.value?.existingReviewId;
 
     return Scaffold(
-      appBar: AppBar(title: Text('Avis - $restaurantName')),
+      appBar: AppBar(title: Text(_titre(ref))),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(restaurantReviewsProvider(restaurantId));
@@ -216,11 +233,8 @@ class ReviewsScreen extends ConsumerWidget {
     // `Navigator.pop(context, true)` de l'écran de rédaction.
     final result = await context.pushNamed<bool>(
       AppRoutes.writeReview.routeName,
-      extra: <String, dynamic>{
-        'restaurantId': restaurantId,
-        'restaurantName': restaurantName,
-        'existingReviewId': existingReviewId,
-      },
+      pathParameters: {'restaurantId': restaurantId},
+      extra: <String, dynamic>{'existingReviewId': existingReviewId},
     );
 
     if (result == true) {

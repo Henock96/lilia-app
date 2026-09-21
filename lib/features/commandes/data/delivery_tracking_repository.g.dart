@@ -73,7 +73,7 @@ final class DriverLocationControllerProvider
 }
 
 String _$driverLocationControllerHash() =>
-    r'6d1cdbe329135e8c2e5027eea71e5a6304aa00da';
+    r'b2441d53689c9475e2b399adcdbb77fa49f699b4';
 
 /// Controller qui combine WebSocket temps réel + HTTP initial.
 ///

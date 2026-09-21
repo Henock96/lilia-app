@@ -1,23 +1,15 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
-import 'package:lilia_app/features/auth/application/password_controller.dart';
-import 'package:lilia_app/features/auth/application/sign_in_controller.dart';
+import 'package:lilia_app/features/auth/application/session_effects.dart';
+import 'package:lilia_app/features/auth/application/user_scoped_providers.dart';
 import 'package:lilia_app/features/auth/domain/auth_failure.dart';
-import 'package:lilia_app/features/cart/application/cart_controller.dart';
-import 'package:lilia_app/features/commandes/data/order_controller.dart';
-import 'package:lilia_app/features/commandes/data/order_repository.dart';
-import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
-import 'package:lilia_app/features/favoris/application/restaurant_favorites_provider.dart';
-import 'package:lilia_app/features/notifications/application/notification_providers.dart';
-import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
-import 'package:lilia_app/features/user/data/adresse_repository.dart';
-import 'package:lilia_app/features/cart/application/draft_orders_provider.dart';
 import 'package:lilia_app/services/notification_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
+import 'package:lilia_app/core/log.dart';
 
 part 'auth_controller.g.dart';
 
@@ -39,69 +31,28 @@ part 'auth_controller.g.dart';
 ///
 /// Ces opérations vivent désormais dans [SignInController] et
 /// [PasswordController], dont l'état ne raconte que leur propre déroulement.
+///
+/// ## Ce contrôleur ne porte plus aucun effet de session
+///
+/// `build()` posait une écoute manuelle sur `authStateChanges()` pour y
+/// déclencher la reprise du panier visiteur et l'enregistrement du jeton FCM.
+/// Deux défauts, tous deux corrigés ici :
+///
+/// 1. **Ces effets ne s'exécutaient jamais.** Ce provider n'est observé par
+///    aucun écran au démarrage (le seul `ref.watch` est dans
+///    `edit_profile_page.dart`), et Riverpod ne construit pas un provider que
+///    personne ne lit. Ils vivent désormais dans [SessionEffects], observé par
+///    `MyApp`.
+/// 2. **Double abonnement.** `build()` s'abonnait à la main *et* rendait le
+///    même `Stream`, que Riverpod souscrit à son tour — deux souscriptions
+///    pour une source.
+///
+/// Il ne reste ici que la session et les opérations qui la ferment.
 @Riverpod(keepAlive: true)
 class AuthController extends _$AuthController {
   @override
-  Stream<AppUser?> build() {
-    // Écoute les changements d'état d'authentification de Firebase
-    final authStream = ref.watch(authRepositoryProvider).authStateChanges();
-
-    // Écoute le stream de manière sécurisée avec nettoyage onDispose
-    final subscription = authStream.listen((user) {
-      if (user != null) {
-        // L'utilisateur est connecté
-        _setupNotifications();
-        // Le panier composé avant la connexion est versé dans le panier du
-        // compte. C'est ici — sur la transition de session, pas sur un écran —
-        // parce que la connexion peut venir de six endroits (mot de passe,
-        // Google, Apple, téléphone, inscription, reprise de session) et que
-        // chacun oublierait tôt ou tard de le faire. Voir
-        // `CartController.adoptGuestCart`.
-        _adoptGuestCart();
-      }
-    });
-    ref.onDispose(subscription.cancel);
-
-    return authStream;
-  }
-
-  /// Enregistre le jeton FCM maintenant que l'utilisateur est authentifié.
-  ///
-  /// Ne pas rappeler `init()` : déjà exécuté au démarrage via
-  /// `notificationInitializerProvider`.
-  ///
-  /// ⚠️ L'échec est contenu **volontairement**. Cet appel est déclenché depuis
-  /// l'écoute du flux de session, sans `await` : une exception y deviendrait
-  /// une erreur asynchrone non capturée. Et surtout, ne pas recevoir de
-  /// notifications ne doit jamais empêcher d'ouvrir une session — c'est
-  /// exactement le genre de dépendance qui transforme une panne de service
-  /// tiers en impossibilité de se connecter.
-  Future<void> _setupNotifications() async {
-    try {
-      await ref.read(notificationServiceProvider).registerTokenOnServer();
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Enregistrement du jeton FCM impossible : ${e.runtimeType}');
-      }
-    }
-  }
-
-  /// Reprend le panier composé avant la connexion.
-  ///
-  /// ⚠️ L'échec est contenu, **et le panier local n'est pas effacé** en cas
-  /// d'erreur (cf. `adoptGuestCart`) : ne pas réussir à reprendre un panier ne
-  /// doit ni empêcher d'ouvrir une session, ni faire disparaître ce que le
-  /// client a composé. L'appel n'est pas attendu, comme celui des
-  /// notifications : il est déclenché depuis l'écoute du flux de session.
-  Future<void> _adoptGuestCart() async {
-    try {
-      await ref.read(cartControllerProvider.notifier).adoptGuestCart();
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('Reprise du panier visiteur impossible : ${e.runtimeType}');
-      }
-    }
-  }
+  Stream<AppUser?> build() =>
+      ref.watch(authRepositoryProvider).authStateChanges();
 
   Future<bool> signOut() async {
     try {
@@ -170,7 +121,7 @@ class AuthController extends _$AuthController {
       } on FirebaseAuthException catch (e) {
         if (e.code != 'user-not-found') rethrow;
         if (kDebugMode) {
-          debugPrint('Compte Firebase déjà supprimé par le backend — OK.');
+          logDebug('Compte Firebase déjà supprimé par le backend — OK.');
         }
       }
 
@@ -189,24 +140,9 @@ class AuthController extends _$AuthController {
 
   /// Vide tout ce qui appartient au compte qui s'en va.
   ///
-  /// ⚠️ `restaurantFavoritesProvider` est `keepAlive` : sans invalidation, les
-  /// favoris du compte précédent restaient visibles après reconnexion (C10).
-  ///
-  /// Une seule liste, appelée par la déconnexion **et** par la suppression de
-  /// compte. Les deux en portaient chacune une copie de douze lignes : le jour
-  /// où l'une gagne un provider et pas l'autre, la fuite ne se voit pas.
-  void _invalidateUserScopedProviders() {
-    ref.invalidate(cartControllerProvider);
-    ref.invalidate(notificationHistoryProvider);
-    ref.invalidate(orderRepositoryProvider);
-    ref.invalidate(userOrdersProvider);
-    ref.invalidate(favoritesProvider);
-    ref.invalidate(restaurantFavoritesProvider);
-    ref.invalidate(userProfileProvider);
-    ref.invalidate(referralStatsProvider);
-    ref.invalidate(loyaltyTransactionsProvider);
-    ref.invalidate(adresseControllerProvider);
-    ref.invalidate(adresseRepositoryProvider);
-    ref.invalidate(draftOrdersProvider);
-  }
+  /// La liste elle-même vit dans `user_scoped_providers.dart` : elle a trois
+  /// appelants (déconnexion, suppression de compte, fermeture de session
+  /// observée par [SessionEffects]), et trois copies d'une liste qu'on
+  /// complète à chaque nouveau provider finiraient par diverger.
+  void _invalidateUserScopedProviders() => invalidateUserScopedProviders(ref);
 }

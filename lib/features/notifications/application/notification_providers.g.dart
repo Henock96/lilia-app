@@ -55,7 +55,7 @@ final class NotificationRepositoryProvider
 }
 
 String _$notificationRepositoryHash() =>
-    r'30f9b069679a4dd2537b0e66a71826e8349a5512';
+    r'bf817ee3a97bd936aeeaf8b4a49f99615197d139';
 
 @ProviderFor(NotificationHistory)
 final notificationHistoryProvider = NotificationHistoryProvider._();

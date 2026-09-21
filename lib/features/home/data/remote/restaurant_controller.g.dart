@@ -52,7 +52,7 @@ final class RestaurantsListProvider
   }
 }
 
-String _$restaurantsListHash() => r'9de93e98d8872c1becac3e24bdda1238ed1e3440';
+String _$restaurantsListHash() => r'9b773a68fec77399b25f969c5c0b6575210baf27';
 
 /// **La carte d'un vendeur**, avec un cache borné.
 ///
@@ -208,121 +208,6 @@ final class RestaurantControllerFamily extends $Family
   String toString() => r'restaurantControllerProvider';
 }
 
-/// Horodatage qui ne change qu'aux reprises **tardives** de l'application.
-///
-/// ## Pourquoi la durée de vie ne suffit pas
-///
-/// Un téléphone posé deux heures avec l'écran de la boutique ouvert laisse le
-/// widget monté : le minuteur aura bien relâché le lien, mais rien ne
-/// redemandera la donnée tant que l'utilisateur ne navigue pas. Or reprendre
-/// l'application est **exactement** le moment où il regarde à nouveau le menu.
-///
-/// ## Pourquoi « tardives » et pas « toutes »
-///
-/// Publier un horodatage à chaque reprise rechargerait la carte après un simple
-/// aller-retour vers les notifications. On ne publie donc que si l'écart dépasse
-/// [kMenuCacheTtl] — en dessous, la donnée est encore bonne, et Riverpod ne voit
-/// aucun changement de valeur, donc ne reconstruit rien.
-
-@ProviderFor(StaleForegroundStamp)
-final staleForegroundStampProvider = StaleForegroundStampProvider._();
-
-/// Horodatage qui ne change qu'aux reprises **tardives** de l'application.
-///
-/// ## Pourquoi la durée de vie ne suffit pas
-///
-/// Un téléphone posé deux heures avec l'écran de la boutique ouvert laisse le
-/// widget monté : le minuteur aura bien relâché le lien, mais rien ne
-/// redemandera la donnée tant que l'utilisateur ne navigue pas. Or reprendre
-/// l'application est **exactement** le moment où il regarde à nouveau le menu.
-///
-/// ## Pourquoi « tardives » et pas « toutes »
-///
-/// Publier un horodatage à chaque reprise rechargerait la carte après un simple
-/// aller-retour vers les notifications. On ne publie donc que si l'écart dépasse
-/// [kMenuCacheTtl] — en dessous, la donnée est encore bonne, et Riverpod ne voit
-/// aucun changement de valeur, donc ne reconstruit rien.
-final class StaleForegroundStampProvider
-    extends $NotifierProvider<StaleForegroundStamp, DateTime> {
-  /// Horodatage qui ne change qu'aux reprises **tardives** de l'application.
-  ///
-  /// ## Pourquoi la durée de vie ne suffit pas
-  ///
-  /// Un téléphone posé deux heures avec l'écran de la boutique ouvert laisse le
-  /// widget monté : le minuteur aura bien relâché le lien, mais rien ne
-  /// redemandera la donnée tant que l'utilisateur ne navigue pas. Or reprendre
-  /// l'application est **exactement** le moment où il regarde à nouveau le menu.
-  ///
-  /// ## Pourquoi « tardives » et pas « toutes »
-  ///
-  /// Publier un horodatage à chaque reprise rechargerait la carte après un simple
-  /// aller-retour vers les notifications. On ne publie donc que si l'écart dépasse
-  /// [kMenuCacheTtl] — en dessous, la donnée est encore bonne, et Riverpod ne voit
-  /// aucun changement de valeur, donc ne reconstruit rien.
-  StaleForegroundStampProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'staleForegroundStampProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$staleForegroundStampHash();
-
-  @$internal
-  @override
-  StaleForegroundStamp create() => StaleForegroundStamp();
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(DateTime value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<DateTime>(value),
-    );
-  }
-}
-
-String _$staleForegroundStampHash() =>
-    r'2508a1298648a330e19227305de7dd9b8728e4e1';
-
-/// Horodatage qui ne change qu'aux reprises **tardives** de l'application.
-///
-/// ## Pourquoi la durée de vie ne suffit pas
-///
-/// Un téléphone posé deux heures avec l'écran de la boutique ouvert laisse le
-/// widget monté : le minuteur aura bien relâché le lien, mais rien ne
-/// redemandera la donnée tant que l'utilisateur ne navigue pas. Or reprendre
-/// l'application est **exactement** le moment où il regarde à nouveau le menu.
-///
-/// ## Pourquoi « tardives » et pas « toutes »
-///
-/// Publier un horodatage à chaque reprise rechargerait la carte après un simple
-/// aller-retour vers les notifications. On ne publie donc que si l'écart dépasse
-/// [kMenuCacheTtl] — en dessous, la donnée est encore bonne, et Riverpod ne voit
-/// aucun changement de valeur, donc ne reconstruit rien.
-
-abstract class _$StaleForegroundStamp extends $Notifier<DateTime> {
-  DateTime build();
-  @$mustCallSuper
-  @override
-  WhenComplete runBuild() {
-    final ref = this.ref as $Ref<DateTime, DateTime>;
-    final element =
-        ref.element
-            as $ClassProviderElement<
-              AnyNotifier<DateTime, DateTime>,
-              DateTime,
-              Object?,
-              Object?
-            >;
-    return element.handleCreate(ref, build);
-  }
-}
-
 /// Filtre vendor type courant pour le marketplace (LIL-117).
 /// `null` = "Tous" (pas de filtre). Watched par [vendorsList].
 
@@ -435,4 +320,4 @@ final class VendorsListProvider
   }
 }
 
-String _$vendorsListHash() => r'cb4a9ab64c802ace69bd921ee91b1c46fa998b01';
+String _$vendorsListHash() => r'aa8eca912df466772cc3a14e3290ac4168366bc7';

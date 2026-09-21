@@ -1,7 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 <uses-permission android:name="android.permission.VIBRATE" />
-<uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+<!-- `USE_FULL_SCREEN_INTENT` a été RETIRÉE : aucune notification de
+     l'application ne construit de `fullScreenIntent`. Depuis Android 14 elle
+     est réservée aux applications d'appel et d'alarme, et Google Play exige
+     une déclaration d'usage pour toute application qui la demande — une
+     formalité à chaque soumission, et un motif de refus, pour une capacité
+     inutilisée. -->
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
@@ -12,6 +17,7 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
+            android:screenOrientation="portrait"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"

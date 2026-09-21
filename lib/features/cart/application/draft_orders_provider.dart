@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/models/cart.dart';
@@ -6,12 +5,26 @@ import 'package:lilia_app/models/draft_order.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/storage/user_scoped_prefs.dart';
+import '../../auth/repository/firebase_auth_repository.dart';
+import 'package:lilia_app/core/log.dart';
+
 part 'draft_orders_provider.g.dart';
 
 const _storageKey = 'draft_orders';
 
 @Riverpod(keepAlive: true)
 class DraftOrdersNotifier extends _$DraftOrdersNotifier {
+  /// Clé du compte connecté — `draft_orders__<uid>`.
+  ///
+  /// Un brouillon nomme un vendeur, liste des articles et porte un montant :
+  /// sous une clé globale, il passait d'un compte à l'autre sur un téléphone
+  /// partagé. Voir `user_scoped_prefs.dart`.
+  String get _cle => cleParCompte(
+        _storageKey,
+        ref.read(authRepositoryProvider).currentUser?.uid,
+      );
+
   @override
   Future<List<DraftOrder>> build() async {
     return _loadDrafts();
@@ -19,12 +32,12 @@ class DraftOrdersNotifier extends _$DraftOrdersNotifier {
 
   Future<List<DraftOrder>> _loadDrafts() async {
     final prefs = await SharedPreferences.getInstance();
-    final jsonList = prefs.getStringList(_storageKey) ?? [];
+    final jsonList = prefs.getStringList(_cle) ?? [];
     try {
       return jsonList.map((json) => DraftOrder.fromJson(json)).toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     } catch (e) {
-      debugPrint('Erreur chargement brouillons: $e');
+      logDebug('Erreur chargement brouillons: $e');
       return [];
     }
   }
@@ -32,7 +45,7 @@ class DraftOrdersNotifier extends _$DraftOrdersNotifier {
   Future<void> _saveDrafts(List<DraftOrder> drafts) async {
     final prefs = await SharedPreferences.getInstance();
     final jsonList = drafts.map((d) => d.toJson()).toList();
-    await prefs.setStringList(_storageKey, jsonList);
+    await prefs.setStringList(_cle, jsonList);
   }
 
   /// Sauvegarde le panier actuel comme brouillon
@@ -64,7 +77,7 @@ class DraftOrdersNotifier extends _$DraftOrdersNotifier {
     // et la restauration → ne pas crasher (StateError) sur un firstWhere sec.
     final matches = drafts.where((d) => d.id == draftId);
     if (matches.isEmpty) {
-      debugPrint('Brouillon $draftId introuvable — restauration ignorée');
+      logDebug('Brouillon $draftId introuvable — restauration ignorée');
       return;
     }
     final draft = matches.first;
@@ -82,7 +95,7 @@ class DraftOrdersNotifier extends _$DraftOrdersNotifier {
           awaitServer: true,
         );
       } catch (e) {
-        debugPrint('Erreur ajout item ${item.product.nom}: $e');
+        logDebug('Erreur ajout item ${item.product.nom}: $e');
       }
     }
 

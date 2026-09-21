@@ -85,6 +85,7 @@ class RestaurantRepository {
       id,
       alreadyLoaded: vendor.products.length,
       total: total,
+      dejaVus: vendor.products.map((p) => p.id),
     );
     return vendor.withProducts([...vendor.products, ...rest]);
   }
@@ -101,12 +102,27 @@ class RestaurantRepository {
     String restaurantId, {
     required int alreadyLoaded,
     required int total,
+    required Iterable<String> dejaVus,
   }) async {
     const pageSize = 100; // MAX_PAGE_SIZE côté serveur
     const maxPages = 20;
 
+    // ⚠️ La page de départ est une **estimation**, et la déduplication est ce
+    // qui la rend inoffensive.
+    //
+    // `(alreadyLoaded ~/ pageSize) + 1` n'est juste que si la première charge
+    // est un multiple exact de 100. Elle vient de `GET /vendors/:id`, dont la
+    // borne lui est propre : à 150 produits déjà là, on repart page 2, donc
+    // aux articles 101–200 — et on recollecte 101 à 150.
+    //
+    // Recalculer finement supposerait de connaître la borne de l'autre
+    // endpoint, c'est-à-dire de coupler deux contrats. On préfère assumer le
+    // recouvrement et **écarter ce qu'on tient déjà**, par identifiant :
+    // c'est juste quelle que soit la taille de la première page, et ça
+    // protège aussi du cas où un produit change de page entre deux requêtes.
     final collected = <Product>[];
-    var page = (alreadyLoaded ~/ pageSize) + 1;
+    final connus = <String>{...dejaVus};
+    final page = (alreadyLoaded ~/ pageSize) + 1;
 
     for (var i = 0; i < maxPages; i++) {
       try {
@@ -120,8 +136,10 @@ class RestaurantRepository {
         );
         final batch = await parseJson(body, _parseProducts);
         if (batch.isEmpty) break;
-        collected.addAll(batch);
-        if (alreadyLoaded + collected.length >= total) break;
+        for (final produit in batch) {
+          if (connus.add(produit.id)) collected.add(produit);
+        }
+        if (connus.length >= total) break;
       } catch (_) {
         break;
       }

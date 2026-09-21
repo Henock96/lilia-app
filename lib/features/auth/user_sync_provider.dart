@@ -7,6 +7,7 @@ import 'package:lilia_app/services/analytics_service.dart';
 import 'package:lilia_app/utils/api_response.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:lilia_app/core/log.dart';
 
 part 'user_sync_provider.g.dart';
 
@@ -21,18 +22,30 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
         // Un token est disponible, l'utilisateur est probablement connecté.
         // On lance la synchronisation.
         if (kDebugMode) {
-          debugPrint('Token detected. Syncing user profile...');
+          logDebug('Token detected. Syncing user profile...');
         }
 
         // Contexte Sentry : rattacher les erreurs à l'utilisateur connecté.
         // Rôle constant CLIENT pour cette app.
+        //
+        // ⚠️ **Sans l'adresse e-mail.** Elle était transmise ici et plus bas,
+        // à trois lignes d'un `options.sendDefaultPii = false` posé dans
+        // `main.dart`. Les deux ne se contredisent pas techniquement — le
+        // drapeau ne coupe que la collecte *automatique* — mais quiconque
+        // cherche « envoie-t-on des données personnelles à Sentry ? » lit le
+        // `false` et s'arrête là.
+        //
+        // Et elle n'apportait rien : l'identifiant applicatif est déjà envoyé
+        // juste en dessous (`id: internalId`), il rattache l'erreur au client
+        // aussi sûrement, et il ne sort pas de nos systèmes. Une adresse
+        // e-mail chez un tiers hors UE demande une justification ; « c'était
+        // plus pratique » n'en est pas une.
         final firebaseUser = FirebaseAuth.instance.currentUser;
         if (firebaseUser != null) {
           await Sentry.configureScope(
             (scope) => scope.setUser(
               SentryUser(
                 id: firebaseUser.uid,
-                email: firebaseUser.email,
                 data: const {'role': 'CLIENT'},
               ),
             ),
@@ -44,7 +57,7 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
           if (kDebugMode) {
             // Status only — never log the token nor the response body
             // (contains user PII).
-            debugPrint('Backend /users/me sync status: ${res.statusCode}');
+            logDebug('Backend /users/me sync status: ${res.statusCode}');
           }
           final internalId = _internalUserId(res.data);
           if (internalId != null) {
@@ -52,7 +65,6 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
               (scope) => scope.setUser(
                 SentryUser(
                   id: internalId,
-                  email: firebaseUser?.email,
                   data: {
                     'role': 'CLIENT',
                     if (firebaseUser?.uid != null) 'firebaseUid': firebaseUser!.uid,
@@ -64,7 +76,7 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
           AnalyticsService.identify(internalId);
         } on ApiException catch (e) {
           if (kDebugMode) {
-            debugPrint('Backend sync error: ${e.kind}');
+            logDebug('Backend sync error: ${e.kind}');
           }
         }
       } else {
@@ -77,7 +89,7 @@ class UserDataSynchronizer extends _$UserDataSynchronizer {
         // de Firebase.
         AnalyticsService.identify(null);
         if (kDebugMode) {
-          debugPrint('User signed out, no token available.');
+          logDebug('User signed out, no token available.');
         }
       }
     });

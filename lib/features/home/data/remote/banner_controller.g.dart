@@ -46,4 +46,4 @@ final class BannersListProvider
   }
 }
 
-String _$bannersListHash() => r'9ba0081de3974285ac541fe465973d62e08092d0';
+String _$bannersListHash() => r'1912e91ba37c7949c10b794db04f3a739cf18b9e';

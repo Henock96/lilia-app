@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lilia_app/core/log.dart';
 
 /// Identifiant **d'installation** de l'application.
 ///
@@ -56,7 +57,7 @@ class InstallationId {
       return value;
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('InstallationId indisponible : $e');
+        logDebug('InstallationId indisponible : $e');
       }
       return null;
     }

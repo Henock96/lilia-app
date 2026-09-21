@@ -301,39 +301,35 @@ final List<RouteBase> _routes = [
         const MaterialPage(child: OrderSuccessPage()),
   ),
 
+  // Les avis d'un vendeur, adressables par son identifiant.
+  //
+  // La route exigeait `restaurantId` ET `restaurantName` dans `state.extra`,
+  // et rendait `NotFoundScreen` si l'un manquait. Le nom est purement
+  // cosmétique — il ne sert qu'au titre — et suffisait pourtant à casser la
+  // route. Il est désormais lu depuis la fiche vendeur.
   GoRoute(
     path: AppRoutes.reviews.path,
     name: AppRoutes.reviews.routeName,
-    pageBuilder: (context, state) {
-      final extra = state.extra;
-      if (extra is! Map<String, dynamic> ||
-          extra['restaurantId'] is! String ||
-          extra['restaurantName'] is! String) {
-        return const MaterialPage(child: NotFoundScreen());
-      }
-      return MaterialPage(
-        child: ReviewsScreen(
-          restaurantId: extra['restaurantId'] as String,
-          restaurantName: extra['restaurantName'] as String,
-        ),
-      );
-    },
+    pageBuilder: (context, state) => MaterialPage(
+      child: ReviewsScreen(
+        restaurantId: state.pathParameters['restaurantId']!,
+        // Raccourci d'affichage, jamais une condition : l'écran lit la fiche
+        // vendeur quand il n'est pas fourni.
+        restaurantName: state.extra as String?,
+      ),
+    ),
     routes: [
       GoRoute(
         path: AppRoutes.writeReview.path,
         name: AppRoutes.writeReview.routeName,
         pageBuilder: (context, state) {
           final extra = state.extra;
-          if (extra is! Map<String, dynamic> ||
-              extra['restaurantId'] is! String ||
-              extra['restaurantName'] is! String) {
-            return const MaterialPage(child: NotFoundScreen());
-          }
           return MaterialPage(
             child: WriteReviewScreen(
-              restaurantId: extra['restaurantId'] as String,
-              restaurantName: extra['restaurantName'] as String,
-              existingReviewId: extra['existingReviewId'] as String?,
+              restaurantId: state.pathParameters['restaurantId']!,
+              existingReviewId: extra is Map<String, dynamic>
+                  ? extra['existingReviewId'] as String?
+                  : null,
             ),
           );
         },
@@ -379,11 +375,21 @@ final List<RouteBase> _routes = [
                 path: AppRoutes.productDetail.path,
                 name: AppRoutes.productDetail.routeName,
                 pageBuilder: (context, state) {
-                  final Product? product = state.extra as Product?;
-                  if (product == null) {
+                  // L'identifiant vient du CHEMIN, l'objet n'est qu'un
+                  // raccourci. Avant, `extra == null` menait à
+                  // `NotFoundScreen` — c'est-à-dire qu'une restauration de
+                  // processus transformait une fiche produit en page
+                  // introuvable.
+                  final productId = state.pathParameters['productId'];
+                  if (productId == null || productId.isEmpty) {
                     return const MaterialPage(child: NotFoundScreen());
                   }
-                  return MaterialPage(child: ProductDetailPage(product: product));
+                  return MaterialPage(
+                    child: ProductDetailPage(
+                      productId: productId,
+                      product: state.extra as Product?,
+                    ),
+                  );
                 },
               ),
               GoRoute(
@@ -396,11 +402,16 @@ final List<RouteBase> _routes = [
                 path: AppRoutes.menuDetail.path,
                 name: AppRoutes.menuDetail.routeName,
                 pageBuilder: (context, state) {
-                  final MenuDuJour? menu = state.extra as MenuDuJour?;
-                  if (menu == null) {
+                  final menuId = state.pathParameters['menuId'];
+                  if (menuId == null || menuId.isEmpty) {
                     return const MaterialPage(child: NotFoundScreen());
                   }
-                  return MaterialPage(child: MenuDetailPage(menu: menu));
+                  return MaterialPage(
+                    child: MenuDetailPage(
+                      menuId: menuId,
+                      menu: state.extra as MenuDuJour?,
+                    ),
+                  );
                 },
               ),
               // Historique local des notifications. Était poussé par
@@ -535,12 +546,15 @@ final List<RouteBase> _routes = [
                     path: AppRoutes.favoriteDetail.path,
                     name: AppRoutes.favoriteDetail.routeName,
                     pageBuilder: (context, state) {
-                      final Product? product = state.extra as Product?;
-                      if (product == null) {
+                      final productId = state.pathParameters['productId'];
+                      if (productId == null || productId.isEmpty) {
                         return const MaterialPage(child: NotFoundScreen());
                       }
                       return MaterialPage(
-                        child: FavorisDetailPage(product: product),
+                        child: FavorisDetailPage(
+                          productId: productId,
+                          product: state.extra as Product?,
+                        ),
                       );
                     },
                   ),

@@ -1,7 +1,7 @@
-import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/core/network/api_client.dart';
 import 'package:lilia_app/utils/api_response.dart';
+import 'package:lilia_app/core/log.dart';
 
 enum PaymentStatus { pending, success, failed, cancelled }
 
@@ -79,7 +79,42 @@ class PaymentResponse {
   });
 
   /// Le paiement se joue-t-il sur le téléphone du client (push USSD) ?
-  bool get isInteractive => mode == 'PAWAPAY';
+  ///
+  /// ## Pourquoi la question est posée par la négative
+  ///
+  /// Ce getter valait `mode == 'PAWAPAY'`. Il désignait **un** prestataire là
+  /// où le serveur en connaît plusieurs : `PaymentMode` vaut `MANUAL`,
+  /// `SANDBOX`, `MTN_PRODUCTION` ou `PAWAPAY`, et `buildCreateResponse` renvoie
+  /// le **mode**, pas le nom du provider. Un `PAYMENT_MODE=MTN_PRODUCTION` —
+  /// bascule que le registre serveur présente explicitement comme ne demandant
+  /// « pas de déploiement de code » — rendait donc `false`.
+  ///
+  /// Conséquence, et c'est le scénario complet :
+  ///
+  /// 1. `ApiClient` annonce `X-Lilia-Payment-Flow: provider`, toujours ;
+  /// 2. la garde serveur (`assertClientHandlesProviderFlow`) ne refuse que les
+  ///    clients qui ne s'annoncent PAS — celui-ci passe ;
+  /// 3. une **vraie** demande de débit part sur le téléphone du client ;
+  /// 4. `isInteractive` rend `false`, et `CheckoutPage` affiche sa modale de
+  ///    virement manuel avec `instructions?.phone ?? ''` — un destinataire
+  ///    **vide**, puisque seul `ManualPaymentProvider` renvoie `instructions`.
+  ///
+  /// C'est mot pour mot ce que la garde serveur avait été écrite pour
+  /// empêcher, réintroduit par une comparaison trop étroite côté client.
+  ///
+  /// ## La règle
+  ///
+  /// L'écran d'attente (`PaymentPendingPage` + `PaymentStatusController`) ne
+  /// connaît que `paymentId` et interroge `GET /payments/:id/status` : il sait
+  /// conduire **n'importe quel** rail piloté par un prestataire, y compris un
+  /// rail qui n'existe pas encore. L'écran de virement, lui, a besoin d'une
+  /// donnée que seul le mode manuel fournit.
+  ///
+  /// On teste donc ce qu'on sait afficher sans le serveur — le virement
+  /// manuel, et le montant nul — et tout le reste part sur l'attente.
+  /// Un `mode` absent vaut `MANUAL` (cf. `fromJson`) : le contrat historique
+  /// est préservé.
+  bool get isInteractive => mode != 'MANUAL' && mode != 'ZERO_AMOUNT';
 
   /// Rien à payer : commande intégralement réglée en points de fidélité.
   bool get isSettled => status == 'SUCCESS';
@@ -210,7 +245,7 @@ class PaymentService {
     String? payerMessage,
   }) async {
     try {
-      debugPrint('💳 Initiation du paiement — commande $orderId');
+      logDebug('💳 Initiation du paiement — commande $orderId');
 
       final res = await _api.postJson(
         '/payments',
@@ -225,7 +260,7 @@ class PaymentService {
       // Réponse enveloppée `{ data: {...} }` par l'interceptor backend.
       return PaymentResponse.fromJson(ApiResponse.mapOf(res.data));
     } catch (e) {
-      debugPrint('❌ Error creating payment: $e');
+      logDebug('❌ Error creating payment: $e');
       rethrow;
     }
   }
@@ -233,14 +268,14 @@ class PaymentService {
   // Vérifier le statut du paiement
   Future<PaymentStatusResponse> checkPaymentStatus(String paymentId) async {
     try {
-      debugPrint('🔍 Checking payment status: $paymentId');
+      logDebug('🔍 Checking payment status: $paymentId');
 
       final res = await _api.getJson('/payments/$paymentId/status');
 
       // Réponse enveloppée `{ data: {...} }` par l'interceptor backend.
       return PaymentStatusResponse.fromJson(ApiResponse.mapOf(res.data));
     } catch (e) {
-      debugPrint('❌ Error checking payment status: $e');
+      logDebug('❌ Error checking payment status: $e');
       rethrow;
     }
   }
@@ -265,41 +300,19 @@ class PaymentService {
       // Ne jamais bloquer l'écran de commande sur cette lecture : à défaut
       // d'information, on retombe sur le comportement précédent (bouton
       // proposé), et le serveur reste le garde-fou contre le double débit.
-      debugPrint('⚠️ Statut de paiement de la commande $orderId indisponible : $e');
+      logDebug('⚠️ Statut de paiement de la commande $orderId indisponible : $e');
       return null;
     }
   }
 
-  // Polling du statut avec retry
-  Future<PaymentStatusResponse> waitForPaymentCompletion({
-    required String paymentId,
-    Duration timeout = const Duration(minutes: 3),
-    Duration pollInterval = const Duration(seconds: 5),
-  }) async {
-    final endTime = DateTime.now().add(timeout);
-
-    while (DateTime.now().isBefore(endTime)) {
-      try {
-        final status = await checkPaymentStatus(paymentId);
-
-        if (status.status == PaymentStatus.success ||
-            status.status == PaymentStatus.failed ||
-            status.status == PaymentStatus.cancelled) {
-          return status;
-        }
-
-        debugPrint(
-          '⏳ Payment still pending, checking again in ${pollInterval.inSeconds}s...',
-        );
-        await Future<void>.delayed(pollInterval);
-      } catch (e) {
-        debugPrint('⚠️ Error during polling: $e');
-        await Future<void>.delayed(pollInterval);
-      }
-    }
-
-    throw Exception('Payment verification timeout');
-  }
+  // `waitForPaymentCompletion` a été SUPPRIMÉ.
+  //
+  // Boucle de sondage bloquante, sans appelant : `PaymentStatusController` la
+  // remplace depuis l'écran d'attente, avec une cadence adaptée (3 s pendant
+  // la première minute, puis 5 s), un abandon explicite sur `undetermined`
+  // plutôt qu'une exception de délai, et un déclenchement immédiat sur push
+  // FCM. Laisser les deux côte à côte, c'est laisser quelqu'un rebrancher la
+  // mauvaise.
 
   /// Numéro au format attendu par le backend : chiffres, indicatif 242 inclus.
   ///

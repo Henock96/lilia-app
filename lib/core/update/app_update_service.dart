@@ -6,6 +6,7 @@ import 'package:lilia_app/features/settings/data/platform_settings_service.dart'
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:lilia_app/core/log.dart';
 
 part 'app_update_service.g.dart';
 
@@ -39,7 +40,7 @@ class AppUpdateService {
       storeUrlAndroid: settings.updateUrlAndroid ??
           'https://play.google.com/store/apps/details?id=com.dreesis.lilia.lilia_app',
       storeUrlIos: settings.updateUrlIos ??
-          'https://apps.apple.com/app/lilia-food/id6740000000',
+          'https://apps.apple.com/search?term=Lilia%20Food',
     );
   }
 
@@ -66,7 +67,7 @@ class AppUpdateService {
           mode: LaunchMode.externalApplication,
         );
       } catch (e) {
-        debugPrint('Failed to launch Play Store URL: $e');
+        logDebug('Failed to launch Play Store URL: $e');
         return false;
       }
     }
@@ -80,7 +81,7 @@ class AppUpdateService {
           mode: LaunchMode.externalApplication,
         );
       } catch (e) {
-        debugPrint('Failed to launch App Store URL: $e');
+        logDebug('Failed to launch App Store URL: $e');
         return false;
       }
     }

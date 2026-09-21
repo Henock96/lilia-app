@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:lilia_app/core/network/api_client.dart';
 import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/models/review.dart';
 import 'package:lilia_app/utils/api_response.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:lilia_app/core/log.dart';
 
 part 'review_repository.g.dart';
 
@@ -39,7 +39,7 @@ class ReviewRepository {
       // Objet plat → enveloppé `{ data: {...} }` par l'interceptor.
       return CanReviewResponse.fromJson(ApiResponse.mapOf(res.data));
     } on ApiException catch (e) {
-      debugPrint('canReview: ${e.message}');
+      logDebug('canReview: ${e.message}');
       final reason = e.kind == ApiErrorKind.unauthorized
           ? 'Vous devez être connecté'
           : 'Erreur lors de la vérification';
@@ -59,7 +59,7 @@ class ReviewRepository {
       }
       return null;
     } on ApiException catch (e) {
-      debugPrint('getMyReview: ${e.message}');
+      logDebug('getMyReview: ${e.message}');
       return null;
     }
   }

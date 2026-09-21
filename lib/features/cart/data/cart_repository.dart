@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:lilia_app/core/network/api_client.dart';
 import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/models/cart.dart';
+import 'package:lilia_app/core/log.dart';
 
 /// Exception personnalisée pour les erreurs de panier
 class CartException implements Exception {
@@ -120,7 +120,7 @@ class CartRepository {
       return _cartFromData(res.data);
     } on ApiException catch (e) {
       if (e.kind == ApiErrorKind.unauthorized) return null;
-      debugPrint('Error in getCart: ${e.message}');
+      logDebug('Error in getCart: ${e.message}');
       rethrow;
     }
   }
@@ -148,7 +148,7 @@ class CartRepository {
       );
       return _cartFromData(res.data);
     } on ApiException catch (e) {
-      debugPrint('❌ Error adding to cart: ${e.message}');
+      logDebug('❌ Error adding to cart: ${e.message}');
       throw _toCartException(
         e,
         fallback: 'Une erreur est survenue.',
@@ -288,7 +288,7 @@ class CartRepository {
       final report = _asMap(data['data']) ?? data;
       return (report: report, cart: await getCart());
     } on ApiException catch (e) {
-      debugPrint('❌ Error reordering: ${e.message}');
+      logDebug('❌ Error reordering: ${e.message}');
       throw _toCartException(
         e,
         fallback: 'Une erreur est survenue.',

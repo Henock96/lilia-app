@@ -9,6 +9,7 @@ import 'package:lilia_app/analytics/analytics_events.dart';
 import 'package:lilia_app/analytics/analytics_observer.dart';
 import 'package:lilia_app/analytics/analytics_sink.dart';
 import 'package:lilia_app/analytics/lilia_analytics.dart';
+import 'package:lilia_app/core/log.dart';
 
 /// Façade typée de la mesure — **le seul point d'entrée du code métier**.
 ///
@@ -58,7 +59,7 @@ abstract final class AnalyticsService {
     try {
       store = SharedPrefsKeyStore(await SharedPreferences.getInstance());
     } catch (e) {
-      debugPrint('📊 [analytics] stockage indisponible : $e');
+      logDebug('📊 [analytics] stockage indisponible : $e');
     }
 
     _analytics = LiliaAnalytics(
@@ -346,7 +347,7 @@ abstract final class AnalyticsService {
         value: authenticated ? 'authenticated' : 'guest',
       );
     } catch (e) {
-      debugPrint('📊 [analytics] état de session non posé : $e');
+      logDebug('📊 [analytics] état de session non posé : $e');
     }
   }
 
@@ -360,7 +361,7 @@ abstract final class AnalyticsService {
         await analytics.setUserProperty(name: 'city', value: city);
       }
     } catch (e) {
-      debugPrint('📊 [analytics] propriétés non posées : $e');
+      logDebug('📊 [analytics] propriétés non posées : $e');
     }
   }
 }

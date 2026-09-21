@@ -1,6 +1,8 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:lilia_app/core/network/api_exception.dart';
+import 'package:lilia_app/utils/order_reference.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -61,6 +63,37 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   /// qui n'arrive pas.
   final TextEditingController _momoPhoneController = TextEditingController();
   String? _idempotencyKey;
+
+  /// Vrai du premier tap sur « Valider et payer » jusqu'à la sortie du tunnel.
+  ///
+  /// ## Pourquoi `checkoutState.isLoading` ne suffisait pas
+  ///
+  /// Le bouton n'était grisé que par l'état de `CheckoutController`, qui ne
+  /// couvre **qu'une** des trois étapes du tunnel :
+  ///
+  /// ```text
+  /// ① createAdresse()          isLoading == false  → bouton ACTIF
+  /// ② placeOrder()             isLoading == true   → bouton grisé
+  ///    └─ state = AsyncData    isLoading == false
+  /// ③ _createPaymentWithRetry() (jusqu'à 2 essais + 2 s) → bouton ACTIF
+  /// ```
+  ///
+  /// Fenêtre ① : un aller-retour complet (~800 ms depuis Brazzaville) pendant
+  /// lequel rien à l'écran n'indique qu'il se passe quelque chose. Deux taps
+  /// créaient **deux adresses identiques** dans le carnet du client.
+  ///
+  /// Fenêtre ③ : `_idempotencyKey` vient d'être remise à zéro, un second tap
+  /// repart donc avec une clé neuve, sans aucune protection d'idempotence
+  /// côté serveur. Le panier ayant été vidé dans la transaction de checkout,
+  /// cette seconde commande échoue en « panier vide » — et le client voit un
+  /// dialogue d'échec **pendant qu'un paiement légitime se prépare**. C'est le
+  /// message exact qui invite à payer une deuxième fois.
+  ///
+  /// ⚠️ La garde est posée **avant le premier `await`**, et pas seulement sur
+  /// l'apparence du bouton : le grisage ne prend effet qu'à la frame suivante,
+  /// et deux taps peuvent tomber dans la même. Même raisonnement que
+  /// `SignInController._executer`.
+  bool _envoiEnCours = false;
   // LIL-122 : date/heure choisies pour les commandes preorder (madeToOrder).
   // Null tant que le client n'a pas ouvert le picker.
   DateTime? _scheduledFor;
@@ -137,7 +170,42 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           // Les paramètres viennent de `/platform-settings` et non plus de
           // constantes en dur : le jour où l'admin passe la commission de 8 à
           // 10 %, l'estimation suit sans release mobile.
-          final settings = settingsAsync.value ?? PlatformSettings.fallback;
+          //
+          // ⚠️ **Pas de barème, pas de total.** Ce `??
+          // PlatformSettings.fallback` affichait une commission de 8 % pendant
+          // que la production en facturait 15 : le client validait 22 600 FCFA
+          // et l'écran de paiement lui en réclamait 24 000. Deux fenêtres,
+          // toutes deux ordinaires — `/platform-settings` injoignable, et les
+          // premières frames de chaque checkout. On préfère désormais ne rien
+          // afficher et le dire.
+          final settings = settingsAsync.value;
+          if (settings == null) {
+            return _TarifsIndisponibles(
+              // ⚠️ `isLoading` seul ne suffit pas : Riverpod 3 **relance**
+      // automatiquement un provider en échec, avec un backoff. Entre deux
+      // tentatives il repasse donc en chargement tout en portant son erreur,
+      // et un écran qui ne regarde que `isLoading` affiche un indicateur
+      // perpétuel au lieu de dire ce qui ne va pas. Dès qu'un échec est
+      // connu, on l'annonce — la relance continue derrière.
+      enChargement: settingsAsync.isLoading && !settingsAsync.hasError,
+              onRetry: () => ref.invalidate(platformSettingsProvider),
+            );
+          }
+          // ── Fenêtre de maintenance ─────────────────────────────────
+          //
+          // `maintenanceMode` et `maintenanceMessage` étaient servis par
+          // `/platform-settings`, parsés par `PlatformSettings`… et lus par
+          // personne. L'administrateur pouvait déclarer une interruption ; le
+          // client la découvrait au refus du checkout, sans explication.
+          //
+          // C'est ici qu'elle se dit, et pas ailleurs : le mode maintenance
+          // n'interdit pas de consulter le catalogue, il interdit de
+          // commander. Un verrou global fermerait aussi la découverte, et
+          // ferait dépendre l'ouverture de l'application d'un appel réseau.
+          if (settings.maintenanceMode) {
+            return _MaintenanceEnCours(message: settings.maintenanceMessage);
+          }
+
           final estimate = CheckoutEstimate.compute(
             subTotal: cart.totalPrice,
             deliveryFee: _promoResult?.newDeliveryFee ?? options.deliveryFee,
@@ -199,7 +267,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   const SizedBox(height: 24),
 
                   // === SECTION TÉLÉPHONE ===
-                  _buildSectionTitle('Numero de telephone'),
+                  _buildSectionTitle('Numéro de téléphone'),
                   const SizedBox(height: 8),
                   userProfileAsync.when(
                     data: (user) => _buildPhoneSection(user.phone),
@@ -238,7 +306,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
                   // === SECTION POINTS DE FIDELITE ===
                   if (userPoints >= settings.loyaltyMinRedemption) ...[
-                    _buildSectionTitle('Points de fidelite'),
+                    _buildSectionTitle('Points de fidélité'),
                     const SizedBox(height: 8),
                     Material(
                       color: Colors.amber[50],
@@ -313,8 +381,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton(
+                      // Clé stable : pendant l'envoi, ce bouton n'affiche plus
+                      // son libellé mais un indicateur. Un test qui le
+                      // chercherait par son texte ne le retrouverait pas au
+                      // second tap — et conclurait à tort que tout va bien.
+                      key: const Key('checkout_submit'),
                       onPressed:
-                          checkoutState.isLoading ||
+                          _envoiEnCours ||
+                              checkoutState.isLoading ||
                               (cart.isPreorderCart && _scheduledFor == null)
                           ? null
                           : () => _startPaymentFlow(
@@ -328,7 +402,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: checkoutState.isLoading
+                      // L'indicateur suit la garde, et non le seul
+                      // `CheckoutController` : sinon il s'éteignait pendant la
+                      // création de l'adresse et pendant l'ouverture du
+                      // paiement, laissant croire que rien ne se passait.
+                      child: _envoiEnCours || checkoutState.isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
                               'Valider et payer',
@@ -347,7 +425,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     width: double.infinity,
                     height: 48,
                     child: OutlinedButton.icon(
-                      onPressed: checkoutState.isLoading
+                      onPressed: _envoiEnCours || checkoutState.isLoading
                           ? null
                           : () => _saveDraft(cart, restaurantId),
                       icon: const Icon(Icons.bookmark_border_rounded, size: 20),
@@ -666,7 +744,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       controller: _phoneController,
       keyboardType: TextInputType.phone,
       decoration: InputDecoration(
-        labelText: 'Numero de telephone',
+        labelText: 'Numéro de téléphone',
         hintText: 'Ex: 06 XXX XX XX',
         prefixIcon: const Icon(Icons.phone),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -677,10 +755,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       ),
       validator: (value) {
         if (value == null || value.isEmpty) {
-          return 'Veuillez entrer votre numero de telephone';
+          return 'Veuillez entrer votre numéro de téléphone';
         }
         if (value.length < 9) {
-          return 'Numero de telephone invalide';
+          return 'Numéro de téléphone invalide';
         }
         return null;
       },
@@ -1173,7 +1251,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     Icon(Icons.stars, size: 16, color: Colors.amber),
                     SizedBox(width: 4),
                     Text(
-                      'Points fidelite',
+                      'Points fidélité',
                       style: TextStyle(fontSize: 15, color: Colors.amber),
                     ),
                   ],
@@ -1314,14 +1392,34 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   /// l'admin ne pouvait rattacher à rien.
   ///
   /// Désormais : commande → paiement → instructions issues du serveur.
+  /// Point d'entrée **unique et gardé** du tunnel de paiement.
+  ///
+  /// Voir [_envoiEnCours] pour ce que la garde couvre et pourquoi elle ne peut
+  /// pas être portée par l'état d'un contrôleur.
   Future<void> _startPaymentFlow(
+    BuildContext context,
+    DeliveryOptions options,
+    String restaurantId,
+  ) async {
+    if (_envoiEnCours) return;
+    setState(() => _envoiEnCours = true);
+    try {
+      await _deroulerTunnelPaiement(context, options, restaurantId);
+    } finally {
+      // `mounted` : le tunnel se termine le plus souvent par une navigation,
+      // et cet écran a déjà disparu.
+      if (mounted) setState(() => _envoiEnCours = false);
+    }
+  }
+
+  Future<void> _deroulerTunnelPaiement(
     BuildContext context,
     DeliveryOptions options,
     String restaurantId,
   ) async {
     if (!_formKey.currentState!.validate()) {
       if (context.mounted) {
-        context.showErrorSnack('Veuillez remplir le numero de telephone');
+        context.showErrorSnack('Veuillez remplir le numéro de téléphone');
       }
       return;
     }
@@ -1461,7 +1559,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         paymentMethod: _selectedPaymentMethod,
         amount: payment.amount > 0 ? payment.amount : checkout.total,
       );
-      ref.read(cartControllerProvider.notifier).clearCart();
+      ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
       context.goNamed(AppRoutes.orderSuccess.routeName);
       return;
     }
@@ -1508,12 +1606,44 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         );
       } catch (e) {
         lastError = e;
-        if (attempt == 0) {
+        // ⚠️ Ne rejouer que ce qui peut réussir au second essai.
+        //
+        // Le `catch` ne discriminait rien : un 426 (version trop ancienne),
+        // un 400 (refus de l'opérateur, plafond de tentatives atteint) ou un
+        // 403 repartaient à l'identique, pour un refus certain — deux
+        // secondes d'écran figé ajoutées au pire moment du parcours, avant
+        // d'afficher un message que le serveur avait déjà donné.
+        //
+        // Aucun risque financier n'était en jeu (le serveur réutilise sa
+        // ligne `PENDING`), seulement du temps perdu. Mais deux secondes
+        // pendant lesquelles rien ne bouge, juste après « Valider et payer »,
+        // sont exactement celles où un client tape à nouveau.
+        if (attempt == 0 && _rejouable(e)) {
           await Future<void>.delayed(const Duration(seconds: 2));
+          continue;
         }
+        break;
       }
     }
     throw lastError!;
+  }
+
+  /// Cet échec peut-il avoir une autre issue au second essai ?
+  ///
+  /// Oui pour le transport et pour un serveur en peine — y compris le 502
+  /// `PAYMENT_PROVIDER_UNAVAILABLE`, où la ligne reste `PENDING` avec son
+  /// identifiant prestataire : le rejeu rejoue la **même** demande.
+  /// Non pour un refus, qui est une décision et ne changera pas en deux
+  /// secondes.
+  static bool _rejouable(Object erreur) {
+    if (erreur is! ApiException) return true; // inconnu : on laisse sa chance
+    return switch (erreur.kind) {
+      ApiErrorKind.network || ApiErrorKind.timeout || ApiErrorKind.server =>
+        true,
+      ApiErrorKind.client ||
+      ApiErrorKind.unauthorized ||
+      ApiErrorKind.unknown => false,
+    };
   }
 
   /// Numéro qui paiera.
@@ -1551,7 +1681,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Votre commande n°${checkout.id.substring(checkout.id.length - 6).toUpperCase()} '
+              'Votre commande ${refCommande(checkout.id)} '
               'a bien été créée, mais nous n\'avons pas pu préparer les instructions '
               'de paiement.',
               style: Theme.of(context).textTheme.bodyMedium,
@@ -1568,7 +1698,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           TextButton(
             onPressed: () {
               Navigator.of(dialogContext).pop();
-              ref.read(cartControllerProvider.notifier).clearCart();
+              ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
               context.goNamed(AppRoutes.commandes.routeName);
             },
             child: const Text('Voir mes commandes'),
@@ -1675,7 +1805,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Numero $methodLabel',
+                                'Numéro $methodLabel',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: cs.onSurfaceVariant,
@@ -1700,7 +1830,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                             Clipboard.setData(
                               ClipboardData(text: paymentPhoneNumber),
                             );
-                            context.showSnack('Numero copie!');
+                            context.showSnack('Numéro copié');
                           },
                         ),
                       ],
@@ -1866,7 +1996,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               // reste payable depuis « Mes commandes » jusqu'à expiration.
               onPressed: () {
                 Navigator.of(dialogContext).pop();
-                ref.read(cartControllerProvider.notifier).clearCart();
+                ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
                 context.goNamed(AppRoutes.commandes.routeName);
               },
               child: const Text('Plus tard'),
@@ -1874,7 +2004,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(dialogContext).pop();
-                ref.read(cartControllerProvider.notifier).clearCart();
+                ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
                 context.goNamed(AppRoutes.orderSuccess.routeName);
               },
               style: ElevatedButton.styleFrom(backgroundColor: methodColor),
@@ -2016,6 +2146,106 @@ class _CheckoutVendorBanner extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Le barème n'a pas pu être lu : on ne fabrique pas de total.
+///
+/// Cet écran remplace un `?? PlatformSettings.fallback` qui affichait
+/// tranquillement une commission de 8 % pendant que le serveur en facturait
+/// 15. Montrer un montant qu'on ne peut pas garantir coûte plus cher que de ne
+/// rien montrer : le client le découvre à l'écran de paiement, au moment où il
+/// s'apprête à payer.
+/// Interruption de service annoncée par le serveur.
+///
+/// Le message vient de l'administrateur (`maintenanceMessage`) : il sait ce
+/// qui se passe et jusqu'à quand. On n'en invente pas un à sa place, et on se
+/// contente d'un repli neutre s'il n'a rien écrit.
+class _MaintenanceEnCours extends StatelessWidget {
+  const _MaintenanceEnCours({required this.message});
+
+  final String? message;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.construction_outlined, size: 56, color: cs.tertiary),
+            const SizedBox(height: 16),
+            Text(
+              'Commandes momentanément suspendues',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message?.trim().isNotEmpty == true
+                  ? message!.trim()
+                  : 'Nous effectuons une maintenance. Votre panier est '
+                        'conservé : réessayez dans quelques minutes.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TarifsIndisponibles extends StatelessWidget {
+  const _TarifsIndisponibles({
+    required this.enChargement,
+    required this.onRetry,
+  });
+
+  /// Distingue « ça arrive » de « ça a échoué ». Sans cette nuance, une
+  /// seconde de réseau lent afficherait un message d'erreur.
+  final bool enChargement;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (enChargement) return const BuildLoadingState();
+
+    final cs = Theme.of(context).colorScheme;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.receipt_long_outlined, size: 56, color: cs.outline),
+            const SizedBox(height: 16),
+            Text(
+              'Frais indisponibles',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Nous n’avons pas pu récupérer les frais actuels. Pour ne pas '
+              'vous annoncer un montant qui changerait au paiement, la '
+              'commande est mise en attente.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Réessayer'),
+            ),
+          ],
+        ),
       ),
     );
   }

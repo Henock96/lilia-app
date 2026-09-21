@@ -77,7 +77,11 @@ class _RecommendationCard extends ConsumerWidget {
         // Aucun événement ici : ce geste **ouvre** la fiche produit, qui
         // émet `product_view`.
         onTap: () =>
-            context.pushNamed(AppRoutes.productDetail.routeName, extra: product),
+            context.pushNamed(
+              AppRoutes.productDetail.routeName,
+              pathParameters: {'productId': product.id},
+              extra: product,
+            ),
         child: Container(
           width: 160,
           margin: const EdgeInsets.symmetric(horizontal: 6),

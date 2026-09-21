@@ -1,7 +1,7 @@
 import 'package:cloudinary_public/cloudinary_public.dart';
-import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lilia_app/utils/image_compressor.dart';
+import 'package:lilia_app/core/log.dart';
 
 class CloudinaryService {
   // Upload NON signé : seuls le cloud name (public) et le preset unsigned
@@ -25,7 +25,7 @@ class CloudinaryService {
       );
       return response.secureUrl;
     } on CloudinaryException catch (e) {
-      debugPrint(e.message);
+      logDebug('Téléversement Cloudinary refusé : ${e.message ?? "motif inconnu"}');
       return null;
     }
   }

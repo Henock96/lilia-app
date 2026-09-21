@@ -26,6 +26,23 @@ part of 'auth_controller.dart';
 ///
 /// Ces opérations vivent désormais dans [SignInController] et
 /// [PasswordController], dont l'état ne raconte que leur propre déroulement.
+///
+/// ## Ce contrôleur ne porte plus aucun effet de session
+///
+/// `build()` posait une écoute manuelle sur `authStateChanges()` pour y
+/// déclencher la reprise du panier visiteur et l'enregistrement du jeton FCM.
+/// Deux défauts, tous deux corrigés ici :
+///
+/// 1. **Ces effets ne s'exécutaient jamais.** Ce provider n'est observé par
+///    aucun écran au démarrage (le seul `ref.watch` est dans
+///    `edit_profile_page.dart`), et Riverpod ne construit pas un provider que
+///    personne ne lit. Ils vivent désormais dans [SessionEffects], observé par
+///    `MyApp`.
+/// 2. **Double abonnement.** `build()` s'abonnait à la main *et* rendait le
+///    même `Stream`, que Riverpod souscrit à son tour — deux souscriptions
+///    pour une source.
+///
+/// Il ne reste ici que la session et les opérations qui la ferment.
 
 @ProviderFor(AuthController)
 final authControllerProvider = AuthControllerProvider._();
@@ -48,6 +65,23 @@ final authControllerProvider = AuthControllerProvider._();
 ///
 /// Ces opérations vivent désormais dans [SignInController] et
 /// [PasswordController], dont l'état ne raconte que leur propre déroulement.
+///
+/// ## Ce contrôleur ne porte plus aucun effet de session
+///
+/// `build()` posait une écoute manuelle sur `authStateChanges()` pour y
+/// déclencher la reprise du panier visiteur et l'enregistrement du jeton FCM.
+/// Deux défauts, tous deux corrigés ici :
+///
+/// 1. **Ces effets ne s'exécutaient jamais.** Ce provider n'est observé par
+///    aucun écran au démarrage (le seul `ref.watch` est dans
+///    `edit_profile_page.dart`), et Riverpod ne construit pas un provider que
+///    personne ne lit. Ils vivent désormais dans [SessionEffects], observé par
+///    `MyApp`.
+/// 2. **Double abonnement.** `build()` s'abonnait à la main *et* rendait le
+///    même `Stream`, que Riverpod souscrit à son tour — deux souscriptions
+///    pour une source.
+///
+/// Il ne reste ici que la session et les opérations qui la ferment.
 final class AuthControllerProvider
     extends $StreamNotifierProvider<AuthController, AppUser?> {
   /// **La session, et rien d'autre.**
@@ -68,6 +102,23 @@ final class AuthControllerProvider
   ///
   /// Ces opérations vivent désormais dans [SignInController] et
   /// [PasswordController], dont l'état ne raconte que leur propre déroulement.
+  ///
+  /// ## Ce contrôleur ne porte plus aucun effet de session
+  ///
+  /// `build()` posait une écoute manuelle sur `authStateChanges()` pour y
+  /// déclencher la reprise du panier visiteur et l'enregistrement du jeton FCM.
+  /// Deux défauts, tous deux corrigés ici :
+  ///
+  /// 1. **Ces effets ne s'exécutaient jamais.** Ce provider n'est observé par
+  ///    aucun écran au démarrage (le seul `ref.watch` est dans
+  ///    `edit_profile_page.dart`), et Riverpod ne construit pas un provider que
+  ///    personne ne lit. Ils vivent désormais dans [SessionEffects], observé par
+  ///    `MyApp`.
+  /// 2. **Double abonnement.** `build()` s'abonnait à la main *et* rendait le
+  ///    même `Stream`, que Riverpod souscrit à son tour — deux souscriptions
+  ///    pour une source.
+  ///
+  /// Il ne reste ici que la session et les opérations qui la ferment.
   AuthControllerProvider._()
     : super(
         from: null,
@@ -87,7 +138,7 @@ final class AuthControllerProvider
   AuthController create() => AuthController();
 }
 
-String _$authControllerHash() => r'371aa8756fa2e540bd865cb88ef9c79b8ce95768';
+String _$authControllerHash() => r'e035136a7aeaedc85a675dbe46136c4d441b2f38';
 
 /// **La session, et rien d'autre.**
 ///
@@ -107,6 +158,23 @@ String _$authControllerHash() => r'371aa8756fa2e540bd865cb88ef9c79b8ce95768';
 ///
 /// Ces opérations vivent désormais dans [SignInController] et
 /// [PasswordController], dont l'état ne raconte que leur propre déroulement.
+///
+/// ## Ce contrôleur ne porte plus aucun effet de session
+///
+/// `build()` posait une écoute manuelle sur `authStateChanges()` pour y
+/// déclencher la reprise du panier visiteur et l'enregistrement du jeton FCM.
+/// Deux défauts, tous deux corrigés ici :
+///
+/// 1. **Ces effets ne s'exécutaient jamais.** Ce provider n'est observé par
+///    aucun écran au démarrage (le seul `ref.watch` est dans
+///    `edit_profile_page.dart`), et Riverpod ne construit pas un provider que
+///    personne ne lit. Ils vivent désormais dans [SessionEffects], observé par
+///    `MyApp`.
+/// 2. **Double abonnement.** `build()` s'abonnait à la main *et* rendait le
+///    même `Stream`, que Riverpod souscrit à son tour — deux souscriptions
+///    pour une source.
+///
+/// Il ne reste ici que la session et les opérations qui la ferment.
 
 abstract class _$AuthController extends $StreamNotifier<AppUser?> {
   Stream<AppUser?> build();

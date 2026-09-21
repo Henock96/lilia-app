@@ -9,7 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_app/features/commandes/domain/checkout_estimate.dart';
 import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 
-const _settings = PlatformSettings.fallback;
+const _settings = PlatformSettings.defautsDeParsing;
 
 void main() {
   group('CheckoutEstimate — frais de service', () {

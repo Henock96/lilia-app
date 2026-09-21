@@ -59,9 +59,34 @@ dart run build_runner build --delete-conflicting-outputs   # après modif @river
 dart run build_runner watch --delete-conflicting-outputs   # dev
 flutter run
 flutter analyze
-flutter build apk / appbundle / ios
 dart run flutter_launcher_icons    # après changement logo
 ```
+
+### Release — `tool/release.sh`, et rien d'autre
+
+```bash
+export SENTRY_DSN='https://…@…ingest.sentry.io/…'
+tool/release.sh android          # app bundle Play Store
+tool/release.sh ios              # archive .ipa
+```
+
+⚠️ **Ne pas appeler `flutter build appbundle` à la main.** Trois valeurs sont
+injectées au build par `--dart-define`, et l'une d'elles n'a pas de défaut :
+
+| Define | Défaut | Conséquence si absent |
+|---|---|---|
+| `API_URL` | prod | — |
+| `WS_URL` | prod | — |
+| `SENTRY_DSN` | **aucun** | Sentry se désactive **en silence** |
+
+Un DSN vide ne produit aucune erreur : le SDK se désactive, l'application se
+compile, se publie, et ne remonte jamais un plantage. Sur la console Sentry,
+zéro événement ressemble à zéro plantage.
+
+`android/app/build.gradle.kts` refuse désormais un build de release qui ne
+déclare pas `SENTRY_DSN` — même garde que pour la clé Maps et le trousseau de
+signature. Pour y renoncer délibérément :
+`SENTRY_OPT_OUT=1 SENTRY_DSN='' tool/release.sh android`.
 
 ---
 

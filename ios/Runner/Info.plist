@@ -75,11 +75,25 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Modes d'arrière-plan réellement utilisés — et eux seuls.
+
+	     `location` et `fetch` ont été retirés :
+
+	     · `location` — la géolocalisation ne sert qu'à UN endroit,
+	       `LocationPickerPage`, par un `Geolocator.getCurrentPosition()`
+	       ponctuel, écran au premier plan. Aucun `getPositionStream`
+	       n'existe dans `lib/`. Déclarer ce mode sans fonctionnalité qui le
+	       justifie est un motif de rejet App Store (2.5.4), et il exigerait
+	       en plus `NSLocationAlwaysAndWhenInUseUsageDescription`, absent.
+
+	     · `fetch` — aucun `BGAppRefreshTask`, aucun
+	       `setMinimumBackgroundFetchInterval` dans `AppDelegate.swift`.
+
+	     `remote-notification` reste : c'est lui qui permet à un push de
+	     réveiller l'application. -->
 	<key>UIBackgroundModes</key>
 	<array>
-		<string>fetch</string>
 		<string>remote-notification</string>
-		<string>location</string>
 	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
@@ -87,18 +101,18 @@
 	<string>Main</string>
 	<key>UIStatusBarStyle</key>
 	<string></string>
+	<!-- Portrait uniquement. Toute l'interface est composée en colonne — pied
+	     de panier, tunnel de commande, carte de suivi — et le paysage y
+	     produisait des débordements. Autoriser une orientation qu'aucun écran
+	     ne sait rendre, c'est promettre une mise en page qui n'existe pas. -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 </dict>
 </plist>

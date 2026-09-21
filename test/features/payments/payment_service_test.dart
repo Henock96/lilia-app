@@ -123,15 +123,54 @@ void main() {
       expect(res.isInteractive, isFalse);
     });
 
-    test('un mode inconnu retombe sur le parcours manuel, jamais sur une erreur', () {
-      // Le backend peut ajouter un rail avant que l'application soit mise à
-      // jour : dégrader vaut mieux que planter au moment de payer.
-      final res = PaymentResponse.fromJson({
-        'paymentId': 'pay-4',
-        'mode': 'UN_RAIL_FUTUR',
-      });
+    // ⚠️ Ce test affirmait l'inverse — `isInteractive` devait valoir `false`
+    // sur un mode inconnu, au motif que « dégrader vaut mieux que planter ».
+    //
+    // Le repli manuel n'est pas une dégradation : c'est une panne silencieuse.
+    // L'écran de virement a besoin de `instructions.phone`, que **seul**
+    // `ManualPaymentProvider` renvoie (`manual.provider.ts`). Sur tout autre
+    // rail, `instructions` est `null` et
+    // `_showPaymentInstructionsDialog` affiche `instructions?.phone ?? ''` —
+    // un numéro de destinataire VIDE — pendant qu'une vraie demande de débit
+    // attend sur le téléphone du client.
+    //
+    // C'est très exactement ce que la garde serveur
+    // `assertClientHandlesProviderFlow` a été écrite pour empêcher, et que
+    // `X-Lilia-Payment-Flow: provider` — envoyé inconditionnellement par
+    // `ApiClient` — laisse pourtant passer : la garde ne refuse que les
+    // clients qui ne s'annoncent PAS.
+    //
+    // Le repli sûr est l'autre : l'écran d'attente ne connaît que
+    // `paymentId` et interroge `GET /payments/:id/status`, qui fonctionne
+    // pour n'importe quel prestataire. Un rail futur y est conduit
+    // correctement ; un rail manuel garde son écran.
+    test('un rail piloté par un prestataire, même inconnu, est interactif', () {
+      // `PAYMENT_MODE=MTN_PRODUCTION` / `SANDBOX` : le backend renvoie le
+      // MODE, pas le nom du provider (`mode: registry.currentMode`).
+      for (final mode in ['MTN_PRODUCTION', 'SANDBOX', 'UN_RAIL_FUTUR']) {
+        final res = PaymentResponse.fromJson({
+          'paymentId': 'pay-4',
+          'mode': mode,
+          'status': 'PENDING',
+        });
+        expect(
+          res.isInteractive,
+          isTrue,
+          reason: 'mode $mode : sans instructions de virement, le seul écran '
+              'qui sait conduire ce paiement est l’écran d’attente',
+        );
+        expect(res.instructions, isNull);
+      }
+    });
+
+    test('une réponse sans `mode` reste sur le parcours manuel', () {
+      // Contrat historique : un backend antérieur à `mode` ne servait que du
+      // virement manuel. Le défaut de `fromJson` vaut `MANUAL`, et il doit le
+      // rester — c'est le seul cas où l'absence d'information est une
+      // information.
+      final res = PaymentResponse.fromJson({'paymentId': 'pay-5'});
       expect(res.isInteractive, isFalse);
-      expect(res.paymentId, 'pay-4');
+      expect(res.paymentId, 'pay-5');
     });
   });
 

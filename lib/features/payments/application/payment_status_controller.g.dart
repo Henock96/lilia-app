@@ -102,7 +102,7 @@ final class PaymentStatusControllerProvider
 }
 
 String _$paymentStatusControllerHash() =>
-    r'94b3b4d98d81f60c127b139c8971ccab48fde422';
+    r'7c157298841d2957db53f39d0f111b8db3e7a9bc';
 
 /// Suit un paiement jusqu'à son issue.
 ///

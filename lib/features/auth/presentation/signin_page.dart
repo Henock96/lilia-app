@@ -7,6 +7,7 @@ import 'package:lilia_app/routing/auth_route_link.dart';
 import 'package:lilia_app/features/auth/application/password_controller.dart';
 import 'package:lilia_app/features/auth/application/sign_in_controller.dart';
 import 'package:lilia_app/utils/snackbar.dart';
+import 'package:lilia_app/features/auth/presentation/auth_screen_shell.dart';
 import 'package:lilia_app/features/auth/presentation/phone_collection_sheet.dart';
 
 /// Écran de connexion.
@@ -24,25 +25,20 @@ class SignInPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: Sizes.p24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const _Header(),
-              gapH32,
-              const _SignInForm(),
-              gapH24,
-              const _OrDivider(),
-              gapH24,
-              const GoogleSignInButton(label: 'Se connecter avec Google'),
-              gapH32,
-              const _SignUpNavigation(),
-            ],
-          ),
-        ),
+    return AuthScreenShell(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _Header(),
+          gapH32,
+          const _SignInForm(),
+          gapH24,
+          const _OrDivider(),
+          gapH24,
+          const GoogleSignInButton(label: 'Se connecter avec Google'),
+          gapH32,
+          const _SignUpNavigation(),
+        ],
       ),
     );
   }
@@ -56,7 +52,10 @@ class _Header extends StatelessWidget {
     final theme = Theme.of(context);
     return Column(
       children: [
-        gapH64,
+        // La flèche de retour occupe désormais le haut de l'écran : elle
+        // remplace cette marge au lieu de s'y ajouter, sinon l'en-tête
+        // descendrait et le dernier bouton sortirait de l'écran.
+        gapH8,
         Icon(Icons.fastfood, size: 80, color: theme.colorScheme.primary),
         gapH16,
         Text(

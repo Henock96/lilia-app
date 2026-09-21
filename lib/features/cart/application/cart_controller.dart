@@ -185,7 +185,24 @@ class CartController extends _$CartController {
       );
     }
 
-    final nouveau = optimiste(state.value);
+    // ⚠️ Attendre que le panier stocké soit LU avant de muter par-dessus.
+    //
+    // `build()` est asynchrone hors session : il lit `SharedPreferences`.
+    // Tant qu'il n'a pas rendu, `state.value` vaut `null` — indiscernable
+    // d'un panier vide. Un geste joué dans cette fenêtre produisait un panier
+    // d'un seul article, **et le réécrivait dans le magasin** : le panier
+    // composé la veille disparaissait.
+    //
+    // La fenêtre est courte — le badge de la coque observe le panier dès le
+    // montage, donc le `build()` part au démarrage — mais elle s'ouvre sur un
+    // démarrage à froid suivi d'un tap rapide, et sur un premier accès disque
+    // lent. C'est exactement le profil d'un téléphone d'entrée de gamme.
+    //
+    // `state.value` quand il existe, `await future` sinon : on ne paie
+    // l'attente que la première fois.
+    final actuel = state.hasValue ? state.value : await future;
+    final nouveau = optimiste(actuel);
+    if (!ref.mounted) return;
     state = AsyncData(nouveau);
     try {
       final magasin = await ref.read(guestCartStoreProvider.future);
@@ -455,8 +472,24 @@ class CartController extends _$CartController {
     state = const AsyncData(null);
 
     if (_sansSession) {
-      final magasin = await ref.read(guestCartStoreProvider.future);
-      await magasin.clear();
+      // ⚠️ Le chemin visiteur n'avait aucun rattrapage, contrairement au
+      // chemin connecté juste en dessous. Une écriture locale qui échoue —
+      // `SharedPreferences` indisponible, stockage plein — laissait l'écran
+      // vide au-dessus d'un magasin toujours plein : le panier « réapparaît »
+      // à la relance, sans que rien ne l'ait annoncé.
+      //
+      // Même conduite que le panier serveur : on défait, et on le dit.
+      try {
+        final magasin = await ref.read(guestCartStoreProvider.future);
+        await magasin.clear();
+      } catch (e) {
+        if (!ref.mounted) rethrow;
+        state = AsyncData(instantane);
+        ref
+            .read(cartSyncFailuresProvider.notifier)
+            .report(_message(e, 'le panier n\'a pas été vidé'));
+        rethrow;
+      }
       return;
     }
 
@@ -470,6 +503,24 @@ class CartController extends _$CartController {
           .report(_message(e, 'le panier n\'a pas été vidé'));
       rethrow;
     }
+  }
+
+  /// Vide le panier **sans que l'appelant ait à attendre ni à rattraper**.
+  ///
+  /// [clearCart] relève son erreur après avoir défait l'état optimiste, parce
+  /// que ses appelants synchrones (l'écran du panier, l'enregistrement d'un
+  /// brouillon) en ont besoin pour arrêter leur indicateur. Six autres sites
+  /// l'appelaient **sans `await` et sans `catch`** — confirmation de paiement,
+  /// écran de succès, reprise après échec. Une `Future` rejetée sans
+  /// gestionnaire devient une erreur asynchrone non capturée : un événement
+  /// Sentry à chaque `DELETE /cart/clear` qui échoue, au pire moment — le
+  /// paiement vient d'aboutir et l'écran navigue vers la confirmation.
+  ///
+  /// Le motif de l'échec, lui, part déjà dans [cartSyncFailuresProvider] :
+  /// le client est informé de toute façon, l'exception ne servait plus à rien
+  /// une fois arrivée là.
+  void clearCartEnArrierePlan() {
+    unawaited(clearCart().catchError((Object _) {}));
   }
 
   Future<void> refresh() async {
