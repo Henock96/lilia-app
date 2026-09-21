@@ -1,5 +1,5 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:flutter/foundation.dart';
+import 'package:lilia_app/core/log.dart';
 
 /// Une destination de mesure. Le cœur n'en connaît aucune en particulier.
 abstract interface class AnalyticsSink {
@@ -50,12 +50,12 @@ class DebugAnalyticsSink implements AnalyticsSink {
 
   @override
   void event(String name, Map<String, Object> params) {
-    debugPrint('📊 [analytics] $name $params');
+    logDebug('📊 [analytics] $name $params');
   }
 
   @override
   void identify(String? userId) {
-    debugPrint('📊 [analytics] identify ${userId ?? "(anonyme)"}');
+    logDebug('📊 [analytics] identify ${userId ?? "(anonyme)"}');
   }
 }
 

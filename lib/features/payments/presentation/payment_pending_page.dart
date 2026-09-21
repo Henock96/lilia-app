@@ -318,7 +318,7 @@ class _PaymentPendingPageState extends ConsumerState<PaymentPendingPage> {
     // Le panier n'est vidé qu'ICI, sur une confirmation serveur. Le vider au
     // départ du paiement effaçait la sélection d'un client dont le paiement
     // pouvait échouer.
-    ref.read(cartControllerProvider.notifier).clearCart();
+    ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
     ref.invalidate(userOrdersProvider);
     context.goNamed(AppRoutes.orderSuccess.routeName);
   }

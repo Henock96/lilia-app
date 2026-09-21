@@ -6,6 +6,7 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 
 import '../../../constants/app_constants.dart';
 import '../../auth/repository/firebase_auth_repository.dart';
+import 'package:lilia_app/core/log.dart';
 
 part 'tracking_socket_service.g.dart';
 
@@ -49,8 +50,19 @@ class DriverPositionEvent {
 /// Pattern : un seul socket réutilisé pour toute la session.
 /// Le caller s'abonne à une commande via `watch(orderId)` et reçoit les events
 /// dans des streams. Plusieurs watchers peuvent coexister (multi-orderId).
+/// Fabrique la connexion. Un point d'injection, et un seul.
+///
+/// Sans lui, `TrackingSocketService` ouvre un vrai socket vers
+/// `lilia-backend.onrender.com` dès qu'on l'exerce : le cycle de vie de la
+/// connexion — précisément ce qui était cassé — n'était donc vérifiable
+/// qu'à la main, appareil en main, en regardant la consommation de données.
+typedef SocketFactory = io.Socket Function(String url, dynamic options);
+
+io.Socket _socketReel(String url, dynamic options) => io.io(url, options);
+
 class TrackingSocketService {
   final FirebaseAuthenticationRepository _auth;
+  final SocketFactory _fabrique;
 
   io.Socket? _socket;
   bool _isConnecting = false;
@@ -59,23 +71,52 @@ class TrackingSocketService {
   final _statusStreams = <String, StreamController<String>>{};
   final _watchedOrders = <String>{};
 
-  TrackingSocketService(this._auth);
+  TrackingSocketService(this._auth, {SocketFactory? fabrique})
+      : _fabrique = fabrique ?? _socketReel;
 
   bool get isConnected => _socket?.connected ?? false;
 
+  /// Une connexion est-elle ouverte ? Distinct d'[isConnected], qui interroge
+  /// l'état du transport : ici on demande si le socket **existe**, ce qui est
+  /// la question du cycle de vie.
+  @visibleForTesting
+  bool get socketOuvert => _socket != null;
+
   Future<void> _ensureConnected() async {
+    // ⚠️ `_isConnecting` mentait, et c'est le correctif.
+    //
+    // Il était relâché dans un `finally` posé juste après `connect()` —
+    // c'est-à-dire **avant** que la poignée de main ait abouti. Or
+    // `isConnected` interroge `_socket?.connected`, qui reste `false` pendant
+    // tout ce temps. Entre les deux, un second `watch()` passait les deux
+    // gardes, faisait `_socket?.dispose()` sur la connexion en cours
+    // d'ouverture, et en créait une seconde.
+    //
+    // Le défaut s'auto-réparait — `onConnect` réémet `order:watch` pour
+    // toutes les commandes suivies — au prix d'un socket jeté et d'un délai
+    // de plus avant la première position, sur un réseau où chaque
+    // aller-retour se paie.
+    //
+    // Le drapeau est désormais relâché par les rappels du transport
+    // (`onConnect`, `onConnectError`), pas par la fin de la fonction. Il
+    // décrit donc ce qu'il prétend décrire : une connexion en cours.
+    //
+    // ⚠️ Ne PAS ajouter `_socket != null` à cette garde : après dix
+    // tentatives infructueuses, socket.io laisse un socket vivant et
+    // déconnecté, et c'est précisément le cas où il faut en refaire un.
     if (isConnected || _isConnecting) return;
     _isConnecting = true;
 
     try {
       final token = await _auth.getIdToken();
       if (token == null) {
-        debugPrint('[Tracking WS] Pas de token, connexion annulée');
+        logDebug('[Tracking WS] Pas de token, connexion annulée');
+        _isConnecting = false;
         return;
       }
 
       _socket?.dispose();
-      _socket = io.io(
+      _socket = _fabrique(
         '${AppConstants.wsUrl}${AppConstants.trackingNamespace}',
         io.OptionBuilder()
             .setTransports(['websocket', 'polling'])
@@ -90,17 +131,24 @@ class TrackingSocketService {
 
       _socket!
         ..onConnect((_) {
-          debugPrint('[Tracking WS] connected');
+          logDebug('[Tracking WS] connected');
+          _isConnecting = false;
           // Re-watch toutes les commandes après reconnexion
           for (final orderId in _watchedOrders) {
             _socket!.emit('order:watch', {'orderId': orderId});
           }
         })
         ..onDisconnect(
-          (reason) => debugPrint('[Tracking WS] disconnected: $reason'),
+          (reason) => logDebug('[Tracking WS] disconnected: $reason'),
         )
-        ..onConnectError((e) => debugPrint('[Tracking WS] connect error: $e'))
-        ..onError((e) => debugPrint('[Tracking WS] error: $e'))
+        ..onConnectError((e) {
+          // Socket.io rejouera lui-même (10 tentatives, backoff 2 s → 10 s).
+          // Le drapeau retombe pour qu'un `watch()` ultérieur puisse repartir
+          // d'un socket neuf si celui-ci finit par abandonner.
+          _isConnecting = false;
+          logDebug('[Tracking WS] connect error: $e');
+        })
+        ..onError((e) => logDebug('[Tracking WS] error: $e'))
         ..on('driver:position', (data) {
           if (data is! Map) return;
           try {
@@ -119,7 +167,7 @@ class TrackingSocketService {
               }
             }
           } catch (e) {
-            debugPrint('[Tracking WS] parse position error: $e');
+            logDebug('[Tracking WS] parse position error: $e');
           }
         })
         ..on('order:status', (data) {
@@ -142,9 +190,9 @@ class TrackingSocketService {
 
       _socket!.connect();
     } catch (e) {
-      debugPrint('[Tracking WS] connect threw: $e');
-    } finally {
+      // Échec avant même d'avoir un socket : rien n'est en cours.
       _isConnecting = false;
+      logDebug('[Tracking WS] connect threw: $e');
     }
   }
 
@@ -176,6 +224,30 @@ class TrackingSocketService {
     _watchedOrders.remove(orderId);
     _positionStreams.remove(orderId)?.close();
     _statusStreams.remove(orderId)?.close();
+
+    // ⚠️ Le socket était laissé **ouvert pour la vie de l'application**.
+    //
+    // Ce service est `keepAlive` et n'était disposé qu'avec le conteneur :
+    // `unwatch` retirait la commande de la liste, mais personne ne fermait la
+    // connexion. Consulter une commande en cours puis revenir à l'accueil
+    // laissait donc un WebSocket actif, avec sa reconnexion automatique
+    // (10 tentatives, backoff 2 s → 10 s) — de la batterie et de la data, en
+    // continu, pour une course que plus aucun écran ne regarde.
+    //
+    // `_ensureConnected()` le rouvrira au prochain `watch`. Le service savait
+    // déjà répondre à la question (`isWatching`) ; il ne s'en servait que
+    // pour éviter une reconnexion inutile, jamais pour fermer.
+    if (_watchedOrders.isEmpty) _fermerSocket();
+  }
+
+  /// Ferme la connexion sans toucher aux flux : ils appartiennent aux
+  /// commandes suivies, et il n'y en a plus.
+  void _fermerSocket() {
+    _isConnecting = false;
+    if (_socket == null) return;
+    logDebug('[Tracking WS] plus aucune commande suivie — fermeture');
+    _socket?.dispose();
+    _socket = null;
   }
 
   /// Au moins une commande est actuellement suivie (socket utile).
@@ -200,8 +272,7 @@ class TrackingSocketService {
     _positionStreams.clear();
     _statusStreams.clear();
     _watchedOrders.clear();
-    _socket?.dispose();
-    _socket = null;
+    _fermerSocket();
   }
 }
 
@@ -218,9 +289,14 @@ TrackingSocketService trackingSocketService(Ref ref) {
   // d'ouvrir un socket inutile au login/logout).
   ref.listen(firebaseIdTokenProvider, (previous, next) {
     final token = next.value;
-    if (token != null && service.isWatching) {
-      service.reconnect();
+    if (token == null) {
+      // Déconnexion ou changement de compte : le socket était authentifié par
+      // le jeton du compte parti. Le laisser ouvert, c'est laisser un canal
+      // temps réel rattaché à quelqu'un qui n'est plus là.
+      service.dispose();
+      return;
     }
+    if (service.isWatching) service.reconnect();
   });
 
   ref.onDispose(() => service.dispose());

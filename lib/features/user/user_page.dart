@@ -350,6 +350,23 @@ class UserPage extends ConsumerWidget {
               child: const Text('Déconnecter'),
               onPressed: () async {
                 Navigator.of(context).pop();
+                // ⚠️ On quitte la zone protégée **avant** de fermer la
+                // session, et l'ordre est le correctif.
+                //
+                // Dans l'autre sens, la session se ferme pendant qu'on est
+                // encore sur `/profile` : `resolveRedirect` voit un visiteur
+                // sur un emplacement protégé et applique sa règle — renvoyer
+                // vers `/signin?from=%2Fprofile`. Cette règle est juste pour
+                // une session **expirée** (on veut ramener le client où il
+                // allait), et fausse pour une déconnexion **demandée** : on
+                // présente un écran de connexion à quelqu'un qui vient
+                // précisément de dire qu'il partait.
+                //
+                // Naviguer d'abord met le client sur un emplacement public.
+                // Le changement de phase réévalue alors le `redirect` depuis
+                // l'accueil, qui ne demande rien. Aucune course, aucun
+                // clignotement d'écran de connexion.
+                context.goNamed(AppRoutes.home.routeName);
                 await ref.read(authControllerProvider.notifier).signOut();
               },
             ),
@@ -417,9 +434,17 @@ class UserPage extends ConsumerWidget {
                 final echec = await ref
                     .read(authControllerProvider.notifier)
                     .deleteAccount();
-                if (echec != null && context.mounted) {
+                if (!context.mounted) return;
+                if (echec != null) {
                   context.showErrorSnack(echec.message);
+                  return;
                 }
+                // Compte supprimé : même destination que la déconnexion.
+                // Ici la navigation ne peut pas précéder l'opération — le
+                // serveur peut refuser (409 : commande en cours, boutique
+                // possédée) et le client doit rester sur son profil pour lire
+                // pourquoi.
+                context.goNamed(AppRoutes.home.routeName);
               },
             ),
           ],
@@ -529,9 +554,12 @@ class _LoyaltyCardState extends ConsumerState<_LoyaltyCard> {
     // Le barème vient du serveur. Aucune conversion points → FCFA ne doit être
     // écrite en dur ici : le jour où l'administrateur change la valeur du
     // point, toutes les versions installées afficheraient encore l'ancienne.
-    final settings =
-        ref.watch(platformSettingsProvider).value ??
-        PlatformSettings.fallback;
+    // Nullable, et volontairement : le repli valait 1 pt = 50 XAF quand la
+    // production en applique 100. Annoncer « Valeur : 500 FCFA » sur un solde
+    // qui en vaut 1 000 n'est pas une approximation, c'est un chiffre faux.
+    // Sans barème on affiche le solde — qui, lui, vient du profil et est juste
+    // — et on tait la conversion.
+    final settings = ref.watch(platformSettingsProvider).value;
 
     return userAsync.when(
       data: (user) => Container(
@@ -562,7 +590,7 @@ class _LoyaltyCardState extends ConsumerState<_LoyaltyCard> {
                     Icon(Icons.stars, color: Colors.white, size: 22),
                     SizedBox(width: 8),
                     Text(
-                      'Points de fidelite',
+                      'Points de fidélité',
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -599,21 +627,24 @@ class _LoyaltyCardState extends ConsumerState<_LoyaltyCard> {
                       'points',
                       style: TextStyle(color: Colors.white70, fontSize: 14),
                     ),
-                    Text(
-                      '= ${settings.loyaltyPointsPerOrder} pt par commande livree',
-                      style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 11,
+                    if (settings != null)
+                      Text(
+                        '= ${settings.loyaltyPointsPerOrder} pt par commande livree',
+                        style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 11,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ],
             ),
             const SizedBox(height: 4),
             Text(
-              'Valeur : ${formatPrice(settings.pointsToXaf(user.loyaltyPoints).toDouble())} de réduction '
-              '(min. ${settings.loyaltyMinRedemption} pt)',
+              settings == null
+                  ? 'Valeur indisponible pour le moment'
+                  : 'Valeur : ${formatPrice(settings.pointsToXaf(user.loyaltyPoints).toDouble())} de réduction '
+                        '(min. ${settings.loyaltyMinRedemption} pt)',
               style: const TextStyle(color: Colors.white70, fontSize: 12),
             ),
             if (_showHistory) ...[
@@ -689,9 +720,9 @@ class _ReferralCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(referralStatsProvider);
-    final settings =
-        ref.watch(platformSettingsProvider).value ??
-        PlatformSettings.fallback;
+    // Nullable pour la même raison que la carte de fidélité : sans barème, on
+    // ne convertit pas des points en francs.
+    final settings = ref.watch(platformSettingsProvider).value;
 
     return statsAsync.when(
       data: (stats) {
@@ -783,21 +814,22 @@ class _ReferralCard extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: purpleDisplay.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
+              if (settings != null)
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: purpleDisplay.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    // Le filleul ne recoit plus rien : seul le parrain est
+                    // recompense, et seulement quand la commande est LIVREE.
+                    'Parrainez un ami : +${settings.referrerBonusPoints} pt '
+                    '(${formatPrice(settings.pointsToXaf(settings.referrerBonusPoints).toDouble())}) '
+                    'des sa premiere commande livree',
+                    style: TextStyle(fontSize: 11, color: purpleDisplay),
+                  ),
                 ),
-                child: Text(
-                  // Le filleul ne recoit plus rien : seul le parrain est
-                  // recompense, et seulement quand la commande est LIVREE.
-                  'Parrainez un ami : +${settings.referrerBonusPoints} pt '
-                  '(${formatPrice(settings.pointsToXaf(settings.referrerBonusPoints).toDouble())}) '
-                  'des sa premiere commande livree',
-                  style: TextStyle(fontSize: 11, color: purpleDisplay),
-                ),
-              ),
             ],
           ),
         );

@@ -16,7 +16,7 @@ class _OrderSuccessPageState extends ConsumerState<OrderSuccessPage> {
   void initState() {
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) {
-        ref.read(cartControllerProvider.notifier).clearCart();
+        ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
       }
     });
     super.initState();

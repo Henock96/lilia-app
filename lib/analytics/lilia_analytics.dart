@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'analytics_dedupe.dart';
 import 'analytics_sanitizer.dart';
 import 'analytics_sink.dart';
+import 'package:lilia_app/core/log.dart';
 
 /// Cœur de l'abstraction analytics — sans aucune dépendance à Firebase.
 ///
@@ -93,7 +94,7 @@ class LiliaAnalytics {
 
   void _warnDropped(String event, SanitizeResult result) {
     if (!kDebugMode || result.dropped.isEmpty) return;
-    debugPrint(
+    logDebug(
       '📊 [analytics] $event — paramètres retirés : '
       '${result.dropped.join(", ")}',
     );

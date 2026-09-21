@@ -20,6 +20,7 @@ import 'package:lilia_app/features/onboarding/application/onboarding_provider.da
 import 'package:lilia_app/features/onboarding/presentation/onboarding_screen.dart';
 import 'package:lilia_app/features/splash/presentation/splash_screen.dart';
 import 'package:lilia_app/routing/app_router.dart';
+import 'package:lilia_app/utils/provider_cache.dart';
 
 import '../features/auth/fake_auth_repository.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
@@ -110,6 +111,12 @@ void main() {
   Future<void> ranger(WidgetTester tester) async {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 2));
+    // Les listes de l'accueil posent en plus un minuteur de cache
+    // (`cachePendant`, `kCatalogCacheTtl`) : c'est lui qui fait qu'un
+    // aller-retour ne redemande rien au serveur. Il dure cinq minutes, bien
+    // au-delà des deux secondes ci-dessus. L'arbre étant démonté, le laisser
+    // tirer ne fait que relâcher le lien — aucune reconstruction.
+    await tester.pump(kCatalogCacheTtl);
     tester.takeException();
   }
 

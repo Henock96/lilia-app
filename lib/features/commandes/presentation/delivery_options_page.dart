@@ -680,6 +680,14 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                   // L'information arrivait donc partout sauf au moment où elle
                   // sert : mieux vaut apprendre que le livreur devra appeler
                   // avant de payer qu'en l'ayant au bout du fil.
+                  //
+                  // ⚠️ Le texte dépend du quartier, et c'est le correctif.
+                  // Il annonçait « le livreur sera guidé au quartier » quel
+                  // que soit l'état de l'adresse — y compris quand elle n'a
+                  // PAS de quartier, cas où `DeliveryDestinationService` n'a
+                  // ni position ni centroïde et rend `UNKNOWN`. On promettait
+                  // donc un guidage qui n'existe pas, sur la seule adresse
+                  // pour laquelle il n'existe pas.
                   if (!adresse.hasPosition) ...[
                     const SizedBox(height: 4),
                     Row(
@@ -688,8 +696,12 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
-                            'Non située — le livreur sera guidé au quartier '
-                            'et devra vous appeler',
+                            adresse.quartierId == null
+                                ? 'Non située et sans quartier — le livreur '
+                                      'n’aurait aucun repère. Complétez '
+                                      'l’adresse ci-dessus.'
+                                : 'Non située — le livreur sera guidé au '
+                                      'quartier et devra vous appeler',
                             style: TextStyle(fontSize: 11, color: cs.error),
                           ),
                         ),
@@ -712,8 +724,25 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
     final deliveryFee = _isDelivery ? (_calculatedDeliveryFee ?? 0) : 0.0;
     // Taux servi par `/platform-settings` — plus de 8 % en dur : le taux est
     // modifiable par l'admin et le serveur facture le sien.
-    final settings =
-        ref.watch(platformSettingsProvider).value ?? PlatformSettings.fallback;
+    //
+    // ⚠️ Le repli `?? PlatformSettings.fallback` a disparu : il affichait 8 %
+    // là où la production facture 15 %, donc un total inférieur de plusieurs
+    // centaines de francs à celui que le client allait payer. Sans barème, ce
+    // bloc n'annonce plus de total — et `_canContinue` refuse d'avancer.
+    final baremeAsync = ref.watch(platformSettingsProvider);
+    final settings = baremeAsync.value;
+    if (settings == null) {
+      return _BaremeIndisponible(
+        // ⚠️ `isLoading` seul ne suffit pas : Riverpod 3 **relance**
+      // automatiquement un provider en échec, avec un backoff. Entre deux
+      // tentatives il repasse donc en chargement tout en portant son erreur,
+      // et un écran qui ne regarde que `isLoading` affiche un indicateur
+      // perpétuel au lieu de dire ce qui ne va pas. Dès qu'un échec est
+      // connu, on l'annonce — la relance continue derrière.
+      enChargement: baremeAsync.isLoading && !baremeAsync.hasError,
+        onRetry: () => ref.invalidate(platformSettingsProvider),
+      );
+    }
     final serviceFee = (subTotal * settings.serviceFeeRate).roundToDouble();
     final total = subTotal + deliveryFee + serviceFee;
 
@@ -896,16 +925,50 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
   }
 
   bool _canContinue() {
+    // Sans barème, l'écran suivant refusera de composer un total : autant ne
+    // pas y emmener le client. Même règle des deux côtés, une seule source.
+    final bareme = ref.read(platformSettingsProvider).value;
+    if (bareme == null) return false;
+    // Fenêtre de maintenance déclarée par l'administrateur : le checkout
+    // l'annonce et refuse. Emmener le client jusque-là ne lui apprendrait
+    // rien de plus, une étape plus tard.
+    if (bareme.maintenanceMode) return false;
+
     if (!_isDelivery) return true; // Retrait, pas besoin d'adresse
 
     // Pour la livraison, il faut un quartier et une adresse
     if (_selectedQuartier == null) return false;
 
     if (_useNewAddress) {
+      // Une adresse créée ici naît avec `options.quartier.id`
+      // (`checkout_page` → `createAdresse(quartierId: …)`) : les deux sources
+      // coïncident par construction.
       return _newAddressController.text.trim().isNotEmpty;
-    } else {
-      return _selectedAddress != null;
     }
+
+    // ⚠️ L'adresse doit porter le quartier — pas seulement la liste déroulante.
+    //
+    // Ce sont **deux** porteurs pour une même donnée, et ils alimentent des
+    // consommateurs différents :
+    //
+    // ```text
+    // liste déroulante ──→ /quartiers/delivery-fee ──→ frais AFFICHÉS
+    // adresse.quartierId ─→ DeliveryDestinationService ─→ frais FACTURÉS
+    //                                                  └→ destination livreur
+    // ```
+    //
+    // Taper une adresse qui a un quartier les synchronise
+    // (`_buildAddressCard`). Une adresse qui n'en a pas ne le peut pas : chez
+    // un vendeur `ZONE_BASED`, le client valide le tarif de la zone choisie
+    // pendant que le serveur facture `restaurant.fixedDeliveryFee`. Et la
+    // commande part en `DESTINATION_UNKNOWN` — ni position posée, ni centroïde
+    // de quartier : le livreur n'a **aucun** point de chute.
+    //
+    // On bloque plutôt qu'on avertit, parce que la réparation est à un tap
+    // juste au-dessus (« Utiliser <quartier> »), avec le quartier déjà choisi,
+    // et qu'elle répare l'adresse pour toutes les commandes suivantes.
+    final adresse = _selectedAddress;
+    return adresse != null && adresse.quartierId != null;
   }
 
   void _continueToCheckout() {
@@ -1060,6 +1123,65 @@ class _CompleterQuartierBouton extends StatelessWidget {
           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
         ),
       ),
+    );
+  }
+}
+
+/// Le barème de frais n'a pas pu être lu — voir `platform_settings_service.dart`.
+///
+/// Pendant du `_TarifsIndisponibles` du checkout, au même motif : cet écran
+/// annonce lui aussi un total, et un total faux se découvre au paiement.
+class _BaremeIndisponible extends StatelessWidget {
+  const _BaremeIndisponible({
+    required this.enChargement,
+    required this.onRetry,
+  });
+
+  final bool enChargement;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.outline.withValues(alpha: 0.2)),
+      ),
+      child: enChargement
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          : Column(
+              children: [
+                Text(
+                  'Frais indisponibles',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Impossible de récupérer les frais actuels. Le total sera '
+                  'affiché dès qu’ils seront connus.',
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 10),
+                TextButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Réessayer'),
+                ),
+              ],
+            ),
     );
   }
 }

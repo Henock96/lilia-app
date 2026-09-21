@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/common_widgets/resolution_par_identifiant.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
 import 'package:lilia_app/services/analytics_service.dart';
@@ -8,21 +9,55 @@ import '../../../models/produit.dart';
 import '../../../models/vendor_type.dart';
 import '../../cart/presentation/cart_mode_conflict_dialog.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
+import 'package:lilia_app/features/home/data/remote/home_controller.dart';
 import 'package:lilia_app/common_widgets/image_gallery.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 
-class ProductDetailPage extends ConsumerStatefulWidget {
-  final Product product;
+/// **La fiche produit, adressable.**
+///
+/// ## Ce qui ne marchait pas
+///
+/// La page n'acceptait qu'un `Product` complet, passé en `extra` de
+/// navigation. Or `extra` n'est pas sérialisable : go_router restaure
+/// l'emplacement après une mort de processus (mémoire basse, « Ne pas
+/// conserver les activités », retour d'un appel téléphonique), **jamais** la
+/// charge utile. Le client revenait sur `NotFoundScreen`.
+///
+/// La route porte désormais `/product/:productId`. L'objet reste accepté en
+/// `extra` — c'est le chemin rapide, sans aller-retour, quand on arrive d'une
+/// liste qui l'a déjà. Quand il manque, la page le charge.
+class ProductDetailPage extends ConsumerWidget {
+  const ProductDetailPage({super.key, required this.productId, this.product});
 
-  const ProductDetailPage({super.key, required this.product});
+  final String productId;
+
+  /// Déjà en mémoire ? On rend tout de suite. Sinon, on va le chercher.
+  final Product? product;
 
   @override
-  ConsumerState<ProductDetailPage> createState() => _ProductDetailPageState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ResolutionParIdentifiant<Product>(
+      dejaLa: product,
+      charger: (ref) => ref.watch(productByIdProvider(productId)),
+      onRetry: () => ref.invalidate(productByIdProvider(productId)),
+      introuvable: 'Produit introuvable',
+      rendu: (p) => _ProductDetailView(product: p),
+    );
+  }
 }
 
-class _ProductDetailPageState extends ConsumerState<ProductDetailPage>
+class _ProductDetailView extends ConsumerStatefulWidget {
+  final Product product;
+
+  const _ProductDetailView({required this.product});
+
+  @override
+  ConsumerState<_ProductDetailView> createState() => _ProductDetailPageState();
+}
+
+class _ProductDetailPageState extends ConsumerState<_ProductDetailView>
     with SingleTickerProviderStateMixin {
   int _quantity = 1;
   ProductVariant? _selectedVariant;

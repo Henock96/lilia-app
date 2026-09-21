@@ -1,24 +1,45 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/common_widgets/resolution_par_identifiant.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
+import 'package:lilia_app/features/home/data/remote/home_controller.dart';
 import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/cart/data/cart_repository.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 
-class FavorisDetailPage extends ConsumerStatefulWidget {
-  final Product product;
+/// La route porte `/profile/favoris/details/:productId`.
+class FavorisDetailPage extends ConsumerWidget {
+  const FavorisDetailPage({super.key, required this.productId, this.product});
 
-  const FavorisDetailPage({super.key, required this.product});
+  final String productId;
+  final Product? product;
 
   @override
-  ConsumerState<FavorisDetailPage> createState() => _FavorisDetailPageState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ResolutionParIdentifiant<Product>(
+      dejaLa: product,
+      charger: (ref) => ref.watch(productByIdProvider(productId)),
+      onRetry: () => ref.invalidate(productByIdProvider(productId)),
+      introuvable: 'Produit introuvable',
+      rendu: (p) => _FavorisDetailView(product: p),
+    );
+  }
 }
 
-class _FavorisDetailPageState extends ConsumerState<FavorisDetailPage> {
+class _FavorisDetailView extends ConsumerStatefulWidget {
+  final Product product;
+
+  const _FavorisDetailView({required this.product});
+
+  @override
+  ConsumerState<_FavorisDetailView> createState() => _FavorisDetailPageState();
+}
+
+class _FavorisDetailPageState extends ConsumerState<_FavorisDetailView> {
   final int _quantity = 1;
   ProductVariant? _selectedVariant;
 

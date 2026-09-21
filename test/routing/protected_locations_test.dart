@@ -19,7 +19,7 @@ void main() {
       '/menu-detail',
       '/search',
       '/cart', // le panier se compose et se regarde sans compte
-      '/reviews', // lire les avis
+      '/reviews/resto-1', // lire les avis d’un vendeur
     ];
 
     for (final emplacement in publics) {
@@ -43,7 +43,11 @@ void main() {
       '/cart/delivery-options', // ⚠️ LA frontière du parcours d'achat
       '/cart/delivery-options/checkout',
       '/notifications',
-      '/reviews/write',
+      // ⚠️ Le segment du milieu est un paramètre : `/reviews/:restaurantId/write`.
+      // Une comparaison de préfixe littérale ne l'aurait pas reconnu, et
+      // rédiger un avis serait redevenu public en silence le jour où la route
+      // est devenue adressable.
+      '/reviews/resto-1/write',
     ];
 
     for (final emplacement in proteges) {

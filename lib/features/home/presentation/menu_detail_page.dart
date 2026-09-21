@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/common_widgets/resolution_par_identifiant.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -6,22 +7,44 @@ import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/common_widgets/image_gallery.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
+import 'package:lilia_app/features/home/data/remote/menu_controller.dart';
 import 'package:lilia_app/models/menu.dart';
 import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 
-class MenuDetailPage extends ConsumerStatefulWidget {
-  final MenuDuJour menu;
+/// La route porte `/menu/:menuId`. L'objet reste accepté en `extra` — chemin
+/// rapide depuis la liste —, mais il n'est plus nécessaire : voir
+/// [ResolutionParIdentifiant].
+class MenuDetailPage extends ConsumerWidget {
+  const MenuDetailPage({super.key, required this.menuId, this.menu});
 
-  const MenuDetailPage({super.key, required this.menu});
+  final String menuId;
+  final MenuDuJour? menu;
 
   @override
-  ConsumerState<MenuDetailPage> createState() => _MenuDetailPageState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ResolutionParIdentifiant<MenuDuJour>(
+      dejaLa: menu,
+      charger: (ref) => ref.watch(menuDetailsProvider(menuId)),
+      onRetry: () => ref.invalidate(menuDetailsProvider(menuId)),
+      introuvable: 'Menu introuvable',
+      rendu: (m) => _MenuDetailView(menu: m),
+    );
+  }
 }
 
-class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
+class _MenuDetailView extends ConsumerStatefulWidget {
+  final MenuDuJour menu;
+
+  const _MenuDetailView({required this.menu});
+
+  @override
+  ConsumerState<_MenuDetailView> createState() => _MenuDetailPageState();
+}
+
+class _MenuDetailPageState extends ConsumerState<_MenuDetailView> {
   int _quantity = 1;
 
   /// Placeholder dégradé orange affiché quand le menu n'a aucune image.
@@ -316,6 +339,7 @@ class _MenuDetailPageState extends ConsumerState<MenuDetailPage> {
                   onTap: () {
                     context.pushNamed(
                       AppRoutes.productDetail.routeName,
+                      pathParameters: {'productId': menuProduct.product.id},
                       extra: menuProduct.product,
                     );
                   },

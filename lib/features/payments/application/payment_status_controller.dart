@@ -1,10 +1,10 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import 'package:lilia_app/features/payments/data/payment_service.dart';
 import 'package:lilia_app/features/payments/domain/payment_failure.dart';
+import 'package:lilia_app/core/log.dart';
 
 part 'payment_status_controller.g.dart';
 
@@ -140,7 +140,7 @@ class PaymentStatusController extends _$PaymentStatusController {
       if (status.isTerminal) {
         // Le détail technique part dans les journaux, jamais dans l'état.
         if (status.status != PaymentStatus.success) {
-          debugPrint(
+          logDebug(
             '💰 Paiement ${status.paymentId} terminé — statut ${status.status}, '
             'code ${status.failureCode ?? "n/a"}, '
             'message prestataire « ${status.failureMessage ?? "n/a"} »',
@@ -166,7 +166,7 @@ class PaymentStatusController extends _$PaymentStatusController {
     } catch (e) {
       // Une interrogation qui échoue ne change rien à l'état du paiement : on
       // réessaie. Couper ici sur une coupure réseau ferait croire à un échec.
-      debugPrint('⏳ Interrogation du statut échouée : $e');
+      logDebug('⏳ Interrogation du statut échouée : $e');
       state = state.copyWith(elapsed: elapsed);
     }
 

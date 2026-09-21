@@ -138,6 +138,17 @@ void main() {
       // deux cas.
       const parametres = <AppRoutes, Map<String, String>>{
         AppRoutes.restaurantDetail: {'id': '12'},
+        // La fiche produit est adressable depuis la correction P2-006 : elle
+        // porte son identifiant dans le CHEMIN, et ne dépend plus d'un objet
+        // passé en `extra` — qui ne survit pas à une mort de processus.
+        AppRoutes.productDetail: {'productId': 'prod-1'},
+        // Les quatre dernières routes de P2-006, adressables à leur tour :
+        // menu, fiche favorite, avis et rédaction d'avis ne dépendent plus
+        // d'un objet passé en `extra`.
+        AppRoutes.menuDetail: {'menuId': 'menu-1'},
+        AppRoutes.favoriteDetail: {'productId': 'prod-1'},
+        AppRoutes.reviews: {'restaurantId': 'resto-1'},
+        AppRoutes.writeReview: {'restaurantId': 'resto-1'},
         AppRoutes.orderDetail: {'orderId': 'abc'},
         AppRoutes.orderTracking: {'orderId': 'abc'},
         AppRoutes.paymentPending: {'paymentId': 'pay-1'},
@@ -172,7 +183,18 @@ void main() {
       expect(pour(AppRoutes.notifications), '/notifications');
       expect(pour(AppRoutes.editProfile), '/profile/edit');
       expect(pour(AppRoutes.about), '/profile/about');
-      expect(pour(AppRoutes.writeReview), '/reviews/write');
+      expect(
+        pour(AppRoutes.writeReview, {'restaurantId': 'resto-1'}),
+        '/reviews/resto-1/write',
+      );
+      expect(
+        pour(AppRoutes.menuDetail, {'menuId': 'menu-1'}),
+        '/menu/menu-1',
+      );
+      expect(
+        pour(AppRoutes.favoriteDetail, {'productId': 'prod-1'}),
+        '/profile/favoris/details/prod-1',
+      );
       expect(
         pour(AppRoutes.orderTracking, {'orderId': 'abc'}),
         '/commandes/abc/tracking',

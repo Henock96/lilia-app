@@ -15,6 +15,7 @@ import 'package:lilia_app/routing/app_router.dart';
 import 'package:lilia_app/routing/session_phase.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'notification_router.dart';
+import 'package:lilia_app/core/log.dart';
 
 part 'notification_service.g.dart';
 
@@ -67,8 +68,18 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 }
 
 class NotificationService {
-  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _localNotifications =
+  /// ⚠️ `late final` et non `final` : ces deux champs touchent des plugins
+  /// natifs, et `FirebaseMessaging.instance` **lève** tant que
+  /// `Firebase.initializeApp()` n'a pas tourné. Initialisés à la construction,
+  /// ils rendaient la classe entière inconstructible dans un test — donc
+  /// l'idempotence de `registerTokenOnServer` invérifiable autrement qu'en
+  /// dupliquant sa logique dans un double.
+  ///
+  /// Différés, ils ne sont touchés qu'au premier usage réel (`init`,
+  /// `_fetchFcmToken`, affichage d'une notification locale). En production le
+  /// comportement est identique : `init()` les résout dès sa première ligne.
+  late final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  late final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
   final ApiClient _api;
   final Ref _ref;
@@ -86,11 +97,22 @@ class NotificationService {
 
   String? fcmToken;
 
-  /// Invalide `userOrdersProvider` au plus une fois par fenêtre de 600 ms.
+  /// Invalide la liste **et le détail** au plus une fois par fenêtre de 600 ms.
+  ///
+  /// ⚠️ Le détail n'était pas rafraîchi parce qu'il n'avait pas de source
+  /// propre : il filtrait la liste. Depuis qu'il lit `GET /orders/:id`, une
+  /// notification « votre commande est en route » laisserait l'écran ouvert
+  /// sur l'ancien statut si on n'invalidait que la liste.
+  ///
+  /// `invalidate` sur la famille entière : on ne connaît pas ici les
+  /// identifiants instanciés, et invalider une commande qui n'est affichée
+  /// nulle part ne coûte rien (le provider est `autoDispose`).
   void _invalidateUserOrdersDebounced() {
     _ordersInvalidationDebounce?.cancel();
     _ordersInvalidationDebounce = Timer(const Duration(milliseconds: 600), () {
-      if (!_isDisposed) _ref.invalidate(userOrdersProvider);
+      if (_isDisposed) return;
+      _ref.invalidate(userOrdersProvider);
+      _ref.invalidate(orderDetailProvider);
     });
   }
 
@@ -106,12 +128,12 @@ class NotificationService {
     );
 
     if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      debugPrint('User granted permission');
+      logDebug('User granted permission');
     } else if (settings.authorizationStatus ==
         AuthorizationStatus.provisional) {
-      debugPrint('User granted provisional permission');
+      logDebug('User granted provisional permission');
     } else {
-      debugPrint('User declined or has not accepted permission');
+      logDebug('User declined or has not accepted permission');
     }
 
     // iOS : sans ceci, AUCUNE notification ne s'affiche app au premier plan.
@@ -138,7 +160,10 @@ class NotificationService {
     _onMessageOpenedSubscription = FirebaseMessaging.onMessageOpenedApp.listen((
       RemoteMessage message,
     ) {
-      debugPrint('Message opened from background: ${message.data}');
+      // Le TYPE, pas la charge utile : celle-ci porte l'identifiant de
+      // commande et tout ce que le serveur y met. `logDebug` se tait en
+      // release, mais un journal de debug n'a pas besoin de la recopier.
+      logDebug('Notification ouverte — type ${message.data['type']}');
       // Ouverture depuis la notification = geste explicite : le routeur
       // autorise alors la navigation.
       _handleNotificationData(message.data, trigger: NotificationTrigger.tap);
@@ -147,9 +172,11 @@ class NotificationService {
     _onMessageSubscription = FirebaseMessaging.onMessage.listen((
       RemoteMessage message,
     ) {
-      debugPrint(
+      logDebug(
         'Message received while app is in foreground: ${message.notification?.title}',
       );
+      // L'affichage et l'historique ne concernent que les messages porteurs
+      // d'un bloc `notification` — un data-only n'a ni titre ni corps.
       if (message.notification != null) {
         _showLocalNotification(message); // Passer le message complet
 
@@ -161,12 +188,30 @@ class NotificationService {
           payload: message.data,
         );
 
-        _ref
-            .read(notificationHistoryProvider.notifier)
-            .addNotification(notification);
-
-        _handleNotificationData(message.data);
+        unawaited(
+          _ref
+              .read(notificationHistoryProvider.notifier)
+              .addNotification(notification)
+              .catchError((Object e) {
+            logDebug('Historique de notification non écrit : $e');
+          }),
+        );
       }
+
+      // ⚠️ **Hors de la condition**, et c'est le correctif.
+      //
+      // Le rafraîchissement de la commande était enfermé dans le `if`
+      // ci-dessus : un message sans bloc `notification` ne déclenchait donc
+      // **rien** au premier plan — ni rechargement de la liste, ni
+      // vérification immédiate du paiement par `PaymentPendingPage`. Le
+      // gestionnaire d'arrière-plan, lui, traitait déjà les deux cas.
+      //
+      // Sans conséquence aujourd'hui : `NotificationsService.sendToUser`
+      // envoie toujours `notification: { title, body }`. C'est une fragilité,
+      // pas un bug — et elle se réveillerait au premier événement émis en
+      // data-only pour éviter une bannière système sur un simple
+      // rafraîchissement.
+      _handleNotificationData(message.data);
     });
   }
 
@@ -225,13 +270,13 @@ class NotificationService {
     if (response.payload != null) {
       try {
         final data = jsonDecode(response.payload!);
-        debugPrint('Local notification tapped with payload: $data');
+        logDebug('Notification locale touchée — type ${data['type']}');
         _handleNotificationData(
           data as Map<String, dynamic>,
           trigger: NotificationTrigger.tap,
         );
       } catch (e) {
-        debugPrint('Error parsing notification payload: $e');
+        logDebug('Error parsing notification payload: $e');
       }
     }
   }
@@ -283,7 +328,7 @@ class NotificationService {
           router.go(action.route!);
         }
       } catch (e) {
-        debugPrint('Notification navigation error: $e');
+        logDebug('Notification navigation error: $e');
       }
     }
   }
@@ -364,7 +409,7 @@ class NotificationService {
   // 7. Amélioration de la méthode init avec gestion d'erreurs
   Future<void> init() async {
     if (_isDisposed) {
-      debugPrint('⚠️ NotificationService already disposed, skipping init');
+      logDebug('⚠️ NotificationService already disposed, skipping init');
       return;
     }
 
@@ -374,7 +419,7 @@ class NotificationService {
       // Vérifier les permissions locales
       final hasLocalPermission = await _requestLocalNotificationPermission();
       if (!hasLocalPermission) {
-        debugPrint('Local notification permission denied');
+        logDebug('Local notification permission denied');
       }
 
       await _requestPermission();
@@ -382,20 +427,20 @@ class NotificationService {
       fcmToken = await _fetchFcmToken();
 
       if (fcmToken != null) {
-        debugPrint('FCM token obtained.');
+        logDebug('FCM token obtained.');
 
         // Enregistrement en tâche de fond : ne JAMAIS bloquer l'init (donc le
         // démarrage de l'app) sur les retries réseau (C7).
         unawaited(registerTokenOnServer());
       } else {
-        debugPrint('FCM token unavailable (simulator or APNS not ready)');
+        logDebug('FCM token unavailable (simulator or APNS not ready)');
       }
 
       _setupMessageHandlers();
       _onTokenRefreshSubscription?.cancel();
       _onTokenRefreshSubscription = _fcm.onTokenRefresh.listen((newToken) {
         if (!_isDisposed) {
-          debugPrint('FCM token refreshed.');
+          logDebug('FCM token refreshed.');
           fcmToken = newToken;
           registerTokenOnServer();
         }
@@ -404,14 +449,14 @@ class NotificationService {
       // Gérer l'ouverture de l'app via une notification (app terminée)
       final initialMessage = await _fcm.getInitialMessage();
       if (initialMessage != null) {
-        debugPrint('App opened from terminated state via notification');
+        logDebug('App opened from terminated state via notification');
         _handleNotificationData(
           initialMessage.data,
           trigger: NotificationTrigger.tap,
         );
       }
     } catch (e) {
-      debugPrint('Error initializing notification service: $e');
+      logDebug('Error initializing notification service: $e');
     }
   }
 
@@ -441,7 +486,7 @@ class NotificationService {
       }
     }
 
-    debugPrint(
+    logDebug(
       '⚠️ Token APNS indisponible après $attempt tentatives '
       '(${timeout.inSeconds}s). Simulateur iOS, ou entitlement '
       '`aps-environment` absent de la config de build. Aucun push ne sera reçu.',
@@ -449,29 +494,76 @@ class NotificationService {
     return null;
   }
 
-  // 8. Amélioration de registerTokenOnServer avec retry
-  Future<void> registerTokenOnServer({int maxRetries = 5}) async {
-    // ⚠️ Un jeton FCM appartient à un compte. Sans session, il n'y a personne à
-    // qui le rattacher : `POST /notifications/register-token` répond 401.
-    //
-    // Depuis que l'accueil est ouvert aux visiteurs, `init()` s'exécute pour
-    // quelqu'un qui n'a pas de compte — et cet appel partait quand même, avec
-    // ses cinq tentatives et son backoff : **cinquante secondes** de requêtes
-    // vouées au 401 au premier lancement de l'application, sur la 4G de
-    // Brazzaville. `AuthController` rappelle cette méthode à l'ouverture de
-    // session, qui est le seul moment où elle a un sens.
-    if (_ref.read(authRepositoryProvider).currentUser == null) {
-      debugPrint('Aucune session : enregistrement du jeton FCM différé.');
-      return;
-    }
+  /// Jeton déjà confirmé par le serveur pour la session en cours.
+  ///
+  /// Sans lui, deux déclencheurs légitimes — la fin d'`init()` et l'ouverture
+  /// de session — produisaient deux `POST /notifications/register-token`
+  /// identiques à quelques millisecondes d'intervalle.
+  String? _jetonEnregistre;
 
+  /// Enregistrement en vol, partagé par les appelants concurrents.
+  Future<void>? _enregistrementEnCours;
+
+  /// Jeton visé par l'enregistrement en vol — `null` quand il reste à obtenir.
+  ///
+  /// La déduplication porte sur la **cible**, pas sur « une requête tourne » :
+  /// une rotation de jeton arrivée pendant un enregistrement vise autre chose
+  /// et doit partir quand même, sinon le serveur garderait l'ancien.
+  String? _jetonEnVol;
+
+  /// Rattache le jeton FCM au compte connecté. **Idempotente.**
+  ///
+  /// ⚠️ Un jeton FCM appartient à un compte. Sans session, il n'y a personne à
+  /// qui le rattacher : `POST /notifications/register-token` répond 401.
+  ///
+  /// Depuis que l'accueil est ouvert aux visiteurs, `init()` s'exécute pour
+  /// quelqu'un qui n'a pas de compte — et cet appel partait quand même, avec
+  /// ses cinq tentatives et son backoff : **cinquante secondes** de requêtes
+  /// vouées au 401 au premier lancement de l'application, sur la 4G de
+  /// Brazzaville. [SessionEffects] rappelle cette méthode à l'ouverture de
+  /// session, qui est le seul moment où elle a un sens.
+  ///
+  /// Trois gardes, dans cet ordre :
+  ///
+  /// 1. **pas de session** → on sort, l'ouverture de session rappellera ;
+  /// 2. **enregistrement déjà en vol** → on rend la même `Future`, plutôt que
+  ///    d'ouvrir une seconde salve de cinq tentatives ;
+  /// 3. **jeton déjà enregistré** → aucune requête.
+  ///
+  /// La garde 3 est levée par [forgetRegisteredToken] à la fermeture de
+  /// session et par la rotation du jeton : dans les deux cas, le serveur doit
+  /// réapprendre le rattachement.
+  Future<void> registerTokenOnServer({int maxRetries = 5}) {
+    if (_ref.read(authRepositoryProvider).currentUser == null) {
+      logDebug('Aucune session : enregistrement du jeton FCM différé.');
+      return Future<void>.value();
+    }
+    final vise = fcmToken;
+    final enVol = _enregistrementEnCours;
+    if (enVol != null && vise == _jetonEnVol) return enVol;
+
+    late final Future<void> operation;
+    operation = _enregistrerJeton(maxRetries).whenComplete(() {
+      if (identical(_enregistrementEnCours, operation)) {
+        _enregistrementEnCours = null;
+        _jetonEnVol = null;
+      }
+    });
+    _enregistrementEnCours = operation;
+    _jetonEnVol = vise;
+    return operation;
+  }
+
+  Future<void> _enregistrerJeton(int maxRetries) async {
     // Essayer d'obtenir le token si pas encore disponible (ex: init() appelé avant connexion)
     // `_fetchFcmToken` absorbe `apns-token-not-set` et renvoie null.
     fcmToken ??= await _fetchFcmToken();
-    if (fcmToken == null) {
-      debugPrint('FCM Token is null, cannot register on server.');
+    final jeton = fcmToken;
+    if (jeton == null) {
+      logDebug('FCM Token is null, cannot register on server.');
       return;
     }
+    if (jeton == _jetonEnregistre) return;
 
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       // Stoppe les retries si le service a été disposé entre-temps (C23).
@@ -479,17 +571,18 @@ class NotificationService {
       try {
         await _api.postJson(
           '/notifications/register-token',
-          body: {'token': fcmToken},
+          body: {'token': jeton},
         );
-        debugPrint('FCM Token registered successfully on the server.');
+        _jetonEnregistre = jeton;
+        logDebug('FCM Token registered successfully on the server.');
         return; // Succès, sortir de la boucle
       } catch (e) {
-        debugPrint(
+        logDebug(
           'Error registering FCM token (attempt $attempt/$maxRetries): $e',
         );
 
         if (attempt == maxRetries) {
-          debugPrint('Max retries reached. Failed to register FCM token.');
+          logDebug('Max retries reached. Failed to register FCM token.');
         } else {
           // Backoff borné (5s, 10s, 15s, 20s) — évite le blocage ~4 min (C7).
           await Future<void>.delayed(Duration(seconds: attempt * 5));
@@ -498,18 +591,27 @@ class NotificationService {
     }
   }
 
+  /// Oublie le rattachement confirmé — à appeler quand la session se ferme.
+  ///
+  /// Sans cela, le compte suivant sur ce téléphone retomberait sur la garde 3
+  /// de [registerTokenOnServer] : le jeton n'ayant pas changé, aucune requête
+  /// ne partirait, et le serveur continuerait de l'attribuer au compte parti.
+  void forgetRegisteredToken() => _jetonEnregistre = null;
+
   // Supprimer le token FCM du serveur (appeler au logout)
   Future<void> removeTokenFromServer() async {
     if (fcmToken == null) {
-      debugPrint('FCM Token is null, nothing to remove from server.');
+      logDebug('FCM Token is null, nothing to remove from server.');
       return;
     }
 
     try {
       await _api.deleteJson('/notifications/token', body: {'token': fcmToken});
-      debugPrint('FCM Token removed successfully from the server.');
+      logDebug('FCM Token removed successfully from the server.');
     } catch (e) {
-      debugPrint('Error removing FCM token from server: $e');
+      logDebug('Error removing FCM token from server: $e');
+    } finally {
+      forgetRegisteredToken();
     }
   }
 
@@ -524,7 +626,7 @@ class NotificationService {
   void dispose() {
     if (_isDisposed) return;
 
-    debugPrint('🧹 Disposing NotificationService...');
+    logDebug('🧹 Disposing NotificationService...');
     _isDisposed = true;
 
     _cancelSubscriptions();
@@ -536,38 +638,8 @@ class NotificationService {
     _onTokenRefreshSubscription = null;
   }
 
-  // 10. Méthode utilitaire pour tester les notifications locales
-  Future<void> showTestNotification() async {
-    const AndroidNotificationDetails androidDetails =
-        AndroidNotificationDetails(
-          'high_importance_channel',
-          'High Importance Notifications',
-          channelDescription:
-              'This channel is used for important notifications.',
-          importance: Importance.max,
-          priority: Priority.high,
-        );
-
-    // Sans bloc `iOS`, flutter_local_notifications n'affiche rien sur iOS : ce
-    // bouton de test paraissait donc cassé alors que seul l'affichage manquait.
-    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-
-    const NotificationDetails platformDetails = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
-
-    await _localNotifications.show(
-      id: 0,
-      title: 'Test Notification',
-      body: 'This is a test notification',
-      notificationDetails: platformDetails,
-    );
-  }
+  // `showTestNotification` a été SUPPRIMÉE : aucun appelant. Un bouton de
+  // test qui n'est branché nulle part finit par être rebranché au hasard.
 }
 
 @Riverpod(keepAlive: true)
@@ -581,15 +653,3 @@ NotificationService notificationService(Ref ref) {
 
   return service;
 }
-
-extension RefExtensions on Ref {
-  bool exists<T>(ProviderListenable<T> provider) {
-    try {
-      read(provider);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-}
-

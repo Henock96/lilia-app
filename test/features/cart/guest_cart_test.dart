@@ -158,6 +158,45 @@ void main() {
       expect((await magasin()).read()?.items, hasLength(1));
     });
 
+    test('un ajout joué AVANT la lecture du magasin n’écrase rien', () async {
+      // `build()` est asynchrone hors session : il lit `SharedPreferences`.
+      // Tant qu'il n'a pas rendu, `state.value` vaut `null` — indiscernable
+      // d'un panier vide. Un tap dans cette fenêtre fabriquait un panier d'un
+      // seul article et le réécrivait par-dessus celui de la veille.
+
+      // Hier soir : un panier composé et laissé là.
+      final hier = await monter();
+      await hier.addItem(variantId: 'var-hier', preview: _apercu(variantId: 'var-hier'));
+      expect((await magasin()).read()?.items, hasLength(1));
+
+      // Ce matin : l'application redémarre. Le magasin mocké survit, comme
+      // `SharedPreferences` sur l'appareil.
+      sessionOuverte = false;
+      depot = _FauxDepot();
+      container = ProviderContainer(
+        overrides: [
+          cartRepositoryProvider.overrideWithValue(depot),
+          cartSessionIsOpenProvider.overrideWithValue(() => sessionOuverte),
+        ],
+      );
+      addTearDown(container.dispose);
+      addTearDown(container.listen(cartControllerProvider, (_, _) {}).close);
+
+      // ⚠️ Aucun `await container.read(cartControllerProvider.future)` ici,
+      // contrairement à `monter()`. C'est précisément l'attente que le défaut
+      // exploitait : un tap avant la fin de la lecture.
+      await container.read(cartControllerProvider.notifier).addItem(
+            variantId: 'var-matin',
+            preview: _apercu(variantId: 'var-matin'),
+          );
+
+      expect(
+        (await magasin()).read()?.items.map((i) => i.variantId),
+        containsAll(<String>['var-hier', 'var-matin']),
+        reason: 'le panier de la veille doit survivre au tap du matin',
+      );
+    });
+
     test('les quantités s’additionnent sur la même variante', () async {
       final panier = await monter();
       await panier.addItem(variantId: 'var-1', preview: _apercu(), quantity: 2);

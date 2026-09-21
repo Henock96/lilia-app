@@ -60,7 +60,9 @@ extension AppRoutesExtension on AppRoutes {
         // Sous-route de `/profile` : pas de `/` initial.
         return 'favoris';
       case AppRoutes.favoriteDetail:
-        return 'details';
+        // Adressable, comme `productDetail` : la fiche ne dépend plus d'un
+        // objet passé en `extra`, qui ne survit pas à une mort de processus.
+        return 'details/:productId';
       case AppRoutes.profile:
         return '/profile';
       case AppRoutes.editProfile:
@@ -74,9 +76,11 @@ extension AppRoutesExtension on AppRoutes {
       case AppRoutes.restaurantDetail:
         return 'restaurant/:id';
       case AppRoutes.productDetail:
-        return 'product-detail';
+        // Adressable : la fiche ne dépend plus d'un objet passé en `extra`,
+        // qui ne survit pas à une mort de processus.
+        return 'product/:productId';
       case AppRoutes.menuDetail:
-        return 'menu-detail';
+        return 'menu/:menuId';
       case AppRoutes.orderDetail:
         // Sous-route de `/commandes`. Valait `'/:orderId'` : faux, et mort
         // puisque le routeur déclarait le chemin en dur à côté (R-02).
@@ -98,7 +102,10 @@ extension AppRoutesExtension on AppRoutes {
       case AppRoutes.orderSuccess:
         return '/order-success';
       case AppRoutes.reviews:
-        return '/reviews';
+        // Le nom du vendeur était transporté en `extra` à côté de son
+        // identifiant : purement cosmétique, et suffisant pour faire échouer
+        // la route. Il est désormais lu depuis la fiche vendeur.
+        return '/reviews/:restaurantId';
       case AppRoutes.writeReview:
         return 'write';
       case AppRoutes.search:

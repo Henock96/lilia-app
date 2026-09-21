@@ -13,6 +13,7 @@ import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/commandes/presentation/delivery_options_page.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:lilia_app/features/quartiers/application/quartiers_controller.dart';
+import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/models/adresse.dart';
 import 'package:lilia_app/models/cart.dart';
@@ -140,6 +141,92 @@ void main() {
       expect(find.textContaining('Utiliser '), findsNothing);
     });
   });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Le quartier a deux porteurs : la liste déroulante et l'adresse. Le client
+  // calcule ses frais depuis la première ; le serveur, depuis la seconde
+  // (`order-checkout.service.ts` → `destination?.quartierId`).
+  //
+  // Tant que les deux coïncident, l'écart n'existe pas — et la page les
+  // synchronise à chaque tap sur une adresse QUI A un quartier. Une adresse
+  // qui n'en a pas ne peut pas les synchroniser : elle laisse le client voir
+  // le tarif de la zone choisie pendant que le serveur facturera
+  // `restaurant.fixedDeliveryFee`, et elle fait partir la commande en
+  // `DESTINATION_UNKNOWN` — sans point de chute pour le livreur.
+  //
+  // La réparation est à un tap, juste au-dessus. C'est pour cela qu'on peut se
+  // permettre de bloquer plutôt que d'avertir.
+  group('DeliveryOptionsPage — le quartier de l’adresse fait foi', () {
+    testWidgets('adresse sans quartier → « Continuer » reste inactif',
+        (tester) async {
+      await _pumpPage(tester, adresses: _adressesSansQuartier);
+      await _choisirQuartier(tester, 'Poto-Poto');
+      await _taperAdresse(tester, '7 avenue de la Tsiémé');
+
+      expect(
+        _boutonContinuer(tester).onPressed,
+        isNull,
+        reason: 'choisir un quartier dans la liste ne renseigne pas l’adresse, '
+            'et c’est l’adresse que le serveur lira',
+      );
+    });
+
+    testWidgets('après complétion de l’adresse, « Continuer » s’active',
+        (tester) async {
+      final faux = _FakeAdresses(_adressesSansQuartier);
+      await _pumpPage(tester, adresses: _adressesSansQuartier, controller: faux);
+      await _choisirQuartier(tester, 'Poto-Poto');
+      await _taperAdresse(tester, '7 avenue de la Tsiémé');
+      expect(_boutonContinuer(tester).onPressed, isNull);
+
+      await tester.tap(find.text('Utiliser Poto-Poto'));
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 400));
+      }
+
+      expect(faux.misAJour, [('adr-sans-quartier', 'q-1')]);
+      expect(
+        _boutonContinuer(tester).onPressed,
+        isNotNull,
+        reason: 'l’adresse porte désormais le quartier : les deux sources '
+            'coïncident, le total affiché sera celui qui sera facturé',
+      );
+    });
+
+    testWidgets('adresse avec quartier → « Continuer » actif', (tester) async {
+      await _pumpPage(tester);
+      await _taperAdresse(tester, '12 rue de la Paix');
+
+      expect(_boutonContinuer(tester).onPressed, isNotNull);
+    });
+
+    testWidgets('en retrait, le quartier de l’adresse n’est pas exigé',
+        (tester) async {
+      // Aucune livraison, donc aucune destination à résoudre : l'exigence ne
+      // doit pas déborder sur un parcours qui ne la concerne pas.
+      await _pumpPage(tester, adresses: _adressesSansQuartier);
+      await tester.tap(find.textContaining('Retrait').first);
+      await tester.pump();
+
+      expect(_boutonContinuer(tester).onPressed, isNotNull);
+    });
+  });
+}
+
+/// Le bouton de sortie de l'écran. Il n'y en a qu'un.
+ElevatedButton _boutonContinuer(WidgetTester tester) => tester.widget<ElevatedButton>(
+      find.ancestor(
+        of: find.text('Continuer'),
+        matching: find.byType(ElevatedButton),
+      ),
+    );
+
+/// Sélectionne une adresse comme le ferait un client : en tapant sa carte.
+Future<void> _taperAdresse(WidgetTester tester, String rue) async {
+  await tester.tap(find.text(rue));
+  for (var i = 0; i < 3; i++) {
+    await tester.pump(const Duration(milliseconds: 400));
+  }
 }
 
 /// Ouvre le sélecteur de quartier et en choisit un, comme le ferait un client.
@@ -180,6 +267,18 @@ Future<void> _pumpPage(
           (ref) async => quartiers ?? _quartiers,
         ),
         adresseControllerProvider.overrideWith(() => faux),
+        // Sans barème, `_canContinue()` refuse d'avancer — c'est le correctif
+        // P1-001, et il s'applique aussi ici. Le fournir est donc une
+        // condition pour éprouver quoi que ce soit d'autre sur ce bouton.
+        platformSettingsProvider.overrideWith(
+          (ref) async => const PlatformSettings(
+            serviceFeePercent: 15,
+            loyaltyPointsPerOrder: 1,
+            loyaltyPointValueXaf: 100,
+            loyaltyMinRedemption: 1,
+            referrerBonusPoints: 1,
+          ),
+        ),
         restaurantControllerProvider(
           _restaurantId,
         ).overrideWith((ref) async => _restaurant(vendorType)),

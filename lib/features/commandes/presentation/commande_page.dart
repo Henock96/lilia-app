@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/utils/order_reference.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
@@ -44,7 +45,7 @@ class _CommandePageState extends ConsumerState<CommandePage>
     ref.listen<String?>(latestUpdatedOrderIdProvider, (previous, next) {
       if (next != null) {
         context.showSuccessSnack(
-          'Commande #${next.substring(0, 8)} mise à jour',
+          'Commande ${refCommande(next)} mise à jour',
         );
         ref.read(latestUpdatedOrderIdProvider.notifier).state = null;
       }
@@ -74,22 +75,41 @@ class _CommandePageState extends ConsumerState<CommandePage>
       ),
       body: ordersAsyncValue.when(
         data: (orders) {
-          final onGoingOrders = orders
-              .where(
-                (o) =>
-                    o.status == OrderStatus.enAttente ||
-                    o.status == OrderStatus.payer ||
-                    o.status == OrderStatus.enPreparation ||
-                    o.status == OrderStatus.pret ||
-                    o.status == OrderStatus.enRoute,
-              )
-              .toList();
-          final completedOrders = orders
-              .where((o) => o.status == OrderStatus.livrer)
-              .toList();
-          final cancelledOrders = orders
-              .where((o) => o.status == OrderStatus.annuler)
-              .toList();
+          // ⚠️ Le classement est **exhaustif**, et c'est le correctif.
+          //
+          // Les trois onglets étaient trois listes blanches disjointes. Un
+          // statut hors de ces listes — `OrderStatus.unknow`, produit par
+          // `_parseStatus` pour toute valeur que cette version ne connaît
+          // pas — n'appartenait à aucune : la commande **disparaissait** de
+          // l'application, sans erreur, sans compteur, sans trace. Le jour où
+          // le serveur ajoute `REMBOURSER` ou `ECHEC`, tout un pan de
+          // l'historique s'évapore côté client.
+          //
+          // Un `switch` sur l'enum plutôt que trois `where` : l'analyseur
+          // signalera la prochaine valeur ajoutée, au lieu de la laisser
+          // tomber dans le vide.
+          final onGoingOrders = <Order>[];
+          final completedOrders = <Order>[];
+          final cancelledOrders = <Order>[];
+          for (final o in orders) {
+            switch (o.status) {
+              case OrderStatus.enAttente:
+              case OrderStatus.payer:
+              case OrderStatus.enPreparation:
+              case OrderStatus.pret:
+              case OrderStatus.enRoute:
+              // Un statut que cette version ne sait pas lire décrit presque
+              // toujours une commande vivante — c'est le repli le moins
+              // coûteux : le client la voit, et `_getStatusInfo` affiche
+              // « Inconnu » plutôt que de mentir sur l'étape.
+              case OrderStatus.unknow:
+                onGoingOrders.add(o);
+              case OrderStatus.livrer:
+                completedOrders.add(o);
+              case OrderStatus.annuler:
+                cancelledOrders.add(o);
+            }
+          }
 
           return SafeArea(
             child: TabBarView(
@@ -176,108 +196,146 @@ class _OrderListView extends ConsumerWidget {
       );
     }
 
+    // Le défilement demande la page suivante **à l'approche du bas**, et non
+    // au tout dernier pixel : sur la 4G de Brazzaville, l'aller-retour prend
+    // près d'une seconde, et attendre le bord produirait un à-coup à chaque
+    // page. `chargerPlus` se garde lui-même des appels concurrents.
+    //
+    // ⚠️ Ce chargement porte sur la liste **complète**, pas sur l'onglet
+    // courant : les trois onglets découpent la même liste, et « plus rien
+    // dans Annulées » ne veut pas dire « plus rien à charger ».
+    final notifier = ref.read(userOrdersProvider.notifier);
+    final resteDesPages = notifier.hasMore;
+
     return RefreshIndicator(
       onRefresh: () async => ref.refresh(userOrdersProvider.future),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: orders.length,
-        itemBuilder: (context, index) {
-          final order = orders[index];
-          if (isDismissible) {
-            return Dismissible(
-              key: ValueKey(order.id),
-              direction: DismissDirection.endToStart,
-              confirmDismiss: (direction) async {
-                final confirmed =
-                    await showDialog<bool>(
-                      context: context,
-                      builder: (context) => AlertDialog(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        title: Row(
-                          children: [
-                            Icon(Icons.delete_outline, color: Colors.red[700]),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'Supprimer la commande ?',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          final metrics = notification.metrics;
+          if (metrics.axis != Axis.vertical) return false;
+          if (metrics.pixels >= metrics.maxScrollExtent - 400) {
+            notifier.chargerPlus();
+          }
+          return false;
+        },
+        child: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          // Une ligne de plus quand il reste des pages : elle porte l'indicateur
+          // et sert de zone d'accroche au défilement.
+          itemCount: orders.length + (resteDesPages ? 1 : 0),
+          itemBuilder: (context, index) {
+            if (index >= orders.length) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              );
+            }
+            final order = orders[index];
+            if (isDismissible) {
+              return Dismissible(
+                key: ValueKey(order.id),
+                direction: DismissDirection.endToStart,
+                confirmDismiss: (direction) async {
+                  final confirmed =
+                      await showDialog<bool>(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          title: Row(
+                            children: [
+                              Icon(
+                                Icons.delete_outline,
+                                color: Colors.red[700],
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Supprimer la commande ?',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          content: const Text(
+                            'Cette commande annulée sera retirée de votre liste.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.of(context).pop(false),
+                              child: const Text('Non, garder'),
+                            ),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                              ),
+                              onPressed: () => Navigator.of(context).pop(true),
+                              child: const Text(
+                                'Supprimer',
+                                style: TextStyle(fontSize: 13),
                               ),
                             ),
                           ],
                         ),
-                        content: const Text(
-                          'Cette commande annulée sera retirée de votre liste.',
+                      ) ??
+                      false;
+
+                  if (!confirmed) return false;
+
+                  try {
+                    await ref
+                        .read(userOrdersProvider.notifier)
+                        .removeOrder(order.id);
+                    if (!context.mounted) return false;
+                    context.showSuccessSnack('Commande supprimée');
+                    return true;
+                  } catch (e) {
+                    if (!context.mounted) return false;
+                    context.showErrorSnack('Erreur: ${e.toString()}');
+                    return false;
+                  }
+                },
+                background: Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.error,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 24),
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.delete_outline, color: Colors.white, size: 28),
+                      SizedBox(height: 4),
+                      Text(
+                        'Supprimer',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 12,
                         ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(false),
-                            child: const Text('Non, garder'),
-                          ),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                            ),
-                            onPressed: () => Navigator.of(context).pop(true),
-                            child: const Text(
-                              'Supprimer',
-                              style: TextStyle(fontSize: 13),
-                            ),
-                          ),
-                        ],
                       ),
-                    ) ??
-                    false;
-
-                if (!confirmed) return false;
-
-                try {
-                  await ref
-                      .read(userOrdersProvider.notifier)
-                      .removeOrder(order.id);
-                  if (!context.mounted) return false;
-                  context.showSuccessSnack('Commande supprimée');
-                  return true;
-                } catch (e) {
-                  if (!context.mounted) return false;
-                  context.showErrorSnack('Erreur: ${e.toString()}');
-                  return false;
-                }
-              },
-              background: Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.error,
-                  borderRadius: BorderRadius.circular(16),
+                    ],
+                  ),
                 ),
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 24),
-                child: const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.delete_outline, color: Colors.white, size: 28),
-                    SizedBox(height: 4),
-                    Text(
-                      'Supprimer',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              child: _OrderCard(
-                order: order,
-              ).staggeredIn(index < 8 ? index : 0),
-            );
-          }
-          return _OrderCard(order: order).staggeredIn(index < 8 ? index : 0);
-        },
+                child: _OrderCard(
+                  order: order,
+                ).staggeredIn(index < 8 ? index : 0),
+              );
+            }
+            return _OrderCard(order: order).staggeredIn(index < 8 ? index : 0);
+          },
+        ),
       ),
     );
   }
@@ -365,7 +423,7 @@ class _OrderCard extends ConsumerWidget {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              '#${order.id.substring(0, 8).toUpperCase()}',
+                              refCommande(order.id),
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,

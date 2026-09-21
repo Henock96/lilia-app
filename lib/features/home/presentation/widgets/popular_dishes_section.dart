@@ -111,7 +111,11 @@ class _DishCard extends ConsumerWidget {
         // émet `product_view`. En émettre un second sous un autre nom
         // compterait deux fois la même consultation.
         onTap: () =>
-            context.pushNamed(AppRoutes.productDetail.routeName, extra: product),
+            context.pushNamed(
+              AppRoutes.productDetail.routeName,
+              pathParameters: {'productId': product.id},
+              extra: product,
+            ),
         child: Container(
           width: 160,
           margin: const EdgeInsets.symmetric(horizontal: 6),

@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+
 import 'package:lilia_app/models/location_precision.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
@@ -9,6 +10,7 @@ import '../../../core/network/api_exception.dart';
 import '../../notifications/application/notification_providers.dart';
 import 'order_controller.dart';
 import 'tracking_socket_service.dart';
+import 'package:lilia_app/core/log.dart';
 
 part 'delivery_tracking_repository.g.dart';
 
@@ -211,7 +213,7 @@ Future<DriverLocation?> fetchDriverLocation(
     return DriverLocation.fromHttpJson(data);
   } on ApiException catch (e) {
     // Contrat : null si le backend renvoie une erreur (livraison absente, etc.).
-    debugPrint('fetchDriverLocation: ${e.message}');
+    logDebug('fetchDriverLocation: ${e.message}');
     return null;
   }
 }
@@ -224,7 +226,8 @@ Future<DriverLocation?> fetchDriverLocation(
 ///   3. Chaque event WS met à jour l'état immédiatement (lag <1s vs 10s avant)
 ///   4. Fallback HTTP toutes les 30s en cas de coupure WS (vs 10s avant)
 @riverpod
-class DriverLocationController extends _$DriverLocationController {
+class DriverLocationController extends _$DriverLocationController
+    with WidgetsBindingObserver {
   Timer? _httpFallbackTimer;
   StreamSubscription<DriverPositionEvent>? _wsPositionSub;
   StreamSubscription<String>? _wsStatusSub;
@@ -244,9 +247,34 @@ class DriverLocationController extends _$DriverLocationController {
   /// WebSocket et armait un poll HTTP toutes les 30 s pour une course terminée.
   static const _terminalDeliveryStatuses = {'LIVRER', 'ECHEC'};
 
+  /// Le suivi est en veille : l'application est passée en arrière-plan.
+  bool _enVeille = false;
+
+  /// La course est finie. Une reprise ne doit **pas** rouvrir de socket pour
+  /// une livraison terminée sous les yeux du client.
+  bool _termine = false;
+
   @override
   FutureOr<DriverLocation?> build(String orderId) async {
     _orderId = orderId;
+
+    // ⚠️ Le suivi tournait indéfiniment en arrière-plan.
+    //
+    // `unwatch` ferme bien le socket quand plus aucune commande n'est suivie
+    // — c'était le correctif P2-007. Mais il ne couvre pas l'autre cas, celui
+    // où l'écran **reste monté** : le client bascule vers WhatsApp pendant sa
+    // livraison, et le poll HTTP de 30 s et le WebSocket continuent. Sur une
+    // course de quarante minutes passée pour l'essentiel en arrière-plan,
+    // c'est quatre-vingts requêtes inutiles et une connexion permanente — de
+    // la data et de la batterie, sur des forfaits où l'une et l'autre
+    // comptent.
+    //
+    // iOS suspend le processus, donc l'impact y est borné ; c'est Android qui
+    // paie. On ne se repose pas sur la plateforme pour une consommation qu'on
+    // peut décider nous-mêmes.
+    final binding = WidgetsBinding.instance;
+    binding.addObserver(this);
+    ref.onDispose(() => binding.removeObserver(this));
     ref.onDispose(_cleanup);
 
     final initial = await _fetchHttp(orderId);
@@ -259,12 +287,21 @@ class DriverLocationController extends _$DriverLocationController {
       return initial;
     }
 
-    // Abonnement WebSocket
-    final socket = ref.read(trackingSocketServiceProvider);
-    _socket = socket;
-    final streams = socket.watch(orderId);
+    _socket = ref.read(trackingSocketServiceProvider);
+    _abonnerAuSuivi(orderId, initial);
 
-    DriverLocation? current = initial;
+    return initial;
+  }
+
+
+  /// Ouvre le suivi temps réel : abonnement WebSocket + repli HTTP.
+  ///
+  /// Extraite de [build] parce qu'elle sert **deux** fois — à l'ouverture de
+  /// l'écran, et au retour de l'application au premier plan. Dupliquer ces
+  /// trente lignes aurait garanti qu'une des deux copies finisse par diverger.
+  void _abonnerAuSuivi(String orderId, DriverLocation? initial) {
+    DriverLocation? current = initial ?? state.value;
+    final streams = _socket!.watch(orderId);
 
     _wsPositionSub = streams.position.listen((event) {
       if (!ref.mounted) return;
@@ -280,7 +317,7 @@ class DriverLocationController extends _$DriverLocationController {
     });
 
     _wsStatusSub = streams.status.listen((status) {
-      debugPrint('[Tracking] order:status → $status');
+      logDebug('[Tracking] order:status → $status');
       if (!ref.mounted) return;
       // La commande vient de se terminer sous nos yeux : le suivi n'a plus
       // d'objet, on coupe socket et timer plutôt que de tourner à vide jusqu'à
@@ -297,8 +334,87 @@ class DriverLocationController extends _$DriverLocationController {
 
     // Fallback HTTP plus rare — la WS prend le relai en temps normal
     _startHttpFallback(orderId);
+  }
 
-    return initial;
+  // ─── Cycle de vie de l'application ────────────────────────────────────────
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // `state` masque ici le champ du notifier — même contrainte de nommage
+    // que `StaleForegroundStamp`. On n'y touche pas dans cette méthode ; les
+    // écritures d'état passent par `_reprendre`.
+    if (!ref.mounted) return;
+    switch (state) {
+      case AppLifecycleState.resumed:
+        unawaited(_reprendre());
+      case AppLifecycleState.paused:
+      case AppLifecycleState.detached:
+        _mettreEnVeille();
+      // `inactive` et `hidden` sont transitoires — un appel entrant, le
+      // sélecteur d'applications, une bascule de fenêtre. Couper le suivi
+      // dessus le ferait clignoter à chaque notification système.
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.hidden:
+        break;
+    }
+  }
+
+  /// Coupe tout ce qui consomme, sans rien oublier de ce qu'on sait.
+  ///
+  /// L'état courant reste affiché : au retour, le client revoit la dernière
+  /// position connue le temps que la relecture aboutisse — plutôt qu'un écran
+  /// vide.
+  void _mettreEnVeille() {
+    if (_enVeille || _termine) return;
+    _enVeille = true;
+    logDebug('[Tracking] arrière-plan — suivi mis en veille');
+    _couperFluxEtMinuteur();
+  }
+
+  /// Rouvre le suivi, **en relisant d'abord**.
+  ///
+  /// La position affichée date d'avant la mise en veille : attendre le
+  /// prochain événement WebSocket montrerait un livreur immobile là où il
+  /// n'est plus. Une lecture HTTP immédiate coûte un aller-retour et corrige
+  /// l'écran tout de suite.
+  Future<void> _reprendre() async {
+    if (!_enVeille || _termine) return;
+    _enVeille = false;
+    final id = _orderId;
+    if (id == null) return;
+    logDebug('[Tracking] premier plan — reprise du suivi');
+
+    try {
+      final frais = await _fetchHttp(id);
+      if (!ref.mounted) return;
+      if (frais != null) state = AsyncValue.data(frais);
+      // Livrée pendant que le téléphone dormait : il n'y a plus rien à suivre.
+      if (frais != null &&
+          _terminalDeliveryStatuses.contains(frais.deliveryStatus)) {
+        _termine = true;
+        return;
+      }
+    } catch (e) {
+      // Une relecture ratée ne doit pas empêcher de reprendre le temps réel :
+      // c'est le WebSocket qui porte le suivi, la lecture n'est qu'un
+      // rattrapage.
+      logDebug('[Tracking] relecture à la reprise échouée : $e');
+    }
+
+    if (!ref.mounted || _enVeille) return;
+    _abonnerAuSuivi(id, state.value);
+  }
+
+  /// Ferme flux et minuteur, sans toucher aux drapeaux ni à l'état affiché.
+  void _couperFluxEtMinuteur() {
+    _httpFallbackTimer?.cancel();
+    _httpFallbackTimer = null;
+    _wsPositionSub?.cancel();
+    _wsPositionSub = null;
+    _wsStatusSub?.cancel();
+    _wsStatusSub = null;
+    final id = _orderId;
+    if (id != null) _socket?.unwatch(id);
   }
 
   Future<DriverLocation?> _fetchHttp(String orderId) async {
@@ -322,7 +438,7 @@ class DriverLocationController extends _$DriverLocationController {
         }
       } catch (e) {
         // Poll de fallback : on log mais on ne casse pas le timer périodique.
-        debugPrint('Tracking HTTP fallback: $e');
+        logDebug('Tracking HTTP fallback: $e');
       }
     });
   }
@@ -333,12 +449,18 @@ class DriverLocationController extends _$DriverLocationController {
     state = await AsyncValue.guard(() => _fetchHttp(_orderId!));
   }
 
-  /// Invalide `userOrdersProvider` au plus une fois par fenêtre de 600 ms
+  /// Invalide la liste **et le détail** au plus une fois par fenêtre de 600 ms
   /// (même fenêtre que le path FCM dans NotificationService).
+  ///
+  /// Le détail lit désormais `GET /orders/:id` : sans cette seconde
+  /// invalidation, l'écran ouvert sous la carte de suivi garderait son statut
+  /// d'origine pendant que le livreur avance.
   void _invalidateUserOrdersDebounced() {
     _statusInvalidationDebounce?.cancel();
     _statusInvalidationDebounce = Timer(const Duration(milliseconds: 600), () {
-      if (ref.mounted) ref.invalidate(userOrdersProvider);
+      if (!ref.mounted) return;
+      ref.invalidate(userOrdersProvider);
+      ref.invalidate(orderDetailProvider);
     });
   }
 
@@ -347,24 +469,17 @@ class DriverLocationController extends _$DriverLocationController {
   /// Distinct de [_cleanup], qui s'exécute au dispose : ici l'écran reste
   /// affiché et doit continuer à montrer le dernier état connu.
   void _stopLiveTracking() {
-    _httpFallbackTimer?.cancel();
-    _httpFallbackTimer = null;
-    _wsPositionSub?.cancel();
-    _wsPositionSub = null;
-    final id = _orderId;
-    if (id != null) _socket?.unwatch(id);
+    // `_termine` verrouille : une reprise de l'application ne doit pas
+    // rouvrir un socket pour une course qui s'est achevée sous nos yeux.
+    _termine = true;
+    _couperFluxEtMinuteur();
   }
 
   void _cleanup() {
-    _httpFallbackTimer?.cancel();
     _statusInvalidationDebounce?.cancel();
-    _wsPositionSub?.cancel();
-    _wsStatusSub?.cancel();
-    final id = _orderId;
-    if (id != null) {
-      // _socket capturé en build() — pas de ref.read pendant le dispose.
-      _socket?.unwatch(id);
-    }
+    // `_socket` a été capturé en build() : pas de `ref.read` pendant le
+    // dispose (interdit en Riverpod 3.x).
+    _couperFluxEtMinuteur();
     _socket = null;
     _orderId = null; // évite toute réutilisation d'un orderId obsolète (C14)
   }

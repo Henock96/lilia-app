@@ -8,6 +8,7 @@ import '../../../core/network/api_client.dart';
 import '../../../core/network/api_exception.dart';
 import '../app_user_model.dart';
 import '../domain/auth_failure.dart';
+import 'package:lilia_app/core/log.dart';
 
 part 'firebase_auth_repository.g.dart';
 
@@ -56,7 +57,7 @@ class FirebaseAuthenticationRepository {
         // Sync best-effort (met à jour lastLogin) : non bloquant pour la
         // connexion, mais on trace l'échec en debug au lieu de l'avaler (C19).
         if (kDebugMode) {
-          debugPrint('Background /users/sync failed: ${e.kind}');
+          logDebug('Background /users/sync failed: ${e.kind}');
         }
       }
     }
@@ -167,7 +168,7 @@ class FirebaseAuthenticationRepository {
     // Note: Le backend utilise UPSERT donc gère inscription ET connexion
     try {
       if (kDebugMode) {
-        debugPrint('Synchronizing Google user with backend...');
+        logDebug('Synchronizing Google user with backend...');
       }
 
       await _api.postJson(
@@ -186,11 +187,11 @@ class FirebaseAuthenticationRepository {
       );
 
       if (kDebugMode) {
-        debugPrint('User successfully synchronized with backend');
+        logDebug('User successfully synchronized with backend');
       }
     } on ApiException catch (e) {
       if (kDebugMode) {
-        debugPrint('Backend sync failed: ${e.kind} ${e.statusCode}');
+        logDebug('Backend sync failed: ${e.kind} ${e.statusCode}');
       }
       // Supprimer l'utilisateur Firebase UNIQUEMENT s'il s'agit d'une nouvelle
       // inscription, pour éviter de détruire le compte d'un utilisateur

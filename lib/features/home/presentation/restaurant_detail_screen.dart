@@ -112,12 +112,12 @@ class _RestaurantDetailScreenState
           hasMenus: restaurant.menus.isNotEmpty,
           onMenus: () => _showMenusSheet(restaurant.menus),
           onShare: _shareRestaurant,
+          // L'identifiant est dans le chemin ; le nom reste en `extra` pour
+          // éviter un aller-retour, mais l'écran sait s'en passer.
           onReviews: () => context.pushNamed(
             AppRoutes.reviews.routeName,
-            extra: {
-              'restaurantId': widget.restaurantId,
-              'restaurantName': restaurant.name,
-            },
+            pathParameters: {'restaurantId': widget.restaurantId},
+            extra: restaurant.name,
           ),
         ),
 
@@ -423,6 +423,7 @@ class _RestaurantDetailScreenState
                           Navigator.of(sheetContext).pop();
                           context.pushNamed(
                             AppRoutes.menuDetail.routeName,
+                            pathParameters: {'menuId': menu.id},
                             extra: menu,
                           );
                         },
@@ -1120,6 +1121,7 @@ class _CategorySection extends StatelessWidget {
             (product) => GestureDetector(
               onTap: () => context.pushNamed(
                 AppRoutes.productDetail.routeName,
+                pathParameters: {'productId': product.id},
                 extra: product,
               ),
               child: _ProductCard(product: product),
@@ -1371,7 +1373,11 @@ class _ProductCard extends ConsumerWidget {
   /// sélectionné.
   /// Ouvre la fiche produit, où le format se choisit.
   void _openDetail(BuildContext context) {
-    context.pushNamed(AppRoutes.productDetail.routeName, extra: product);
+    context.pushNamed(
+      AppRoutes.productDetail.routeName,
+      pathParameters: {'productId': product.id},
+      extra: product,
+    );
   }
 
   Future<void> _addToCart(BuildContext context, WidgetRef ref) async {

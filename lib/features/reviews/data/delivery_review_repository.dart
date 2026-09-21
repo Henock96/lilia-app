@@ -1,8 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:lilia_app/core/network/api_client.dart';
 import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/utils/api_response.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:lilia_app/core/log.dart';
 
 part 'delivery_review_repository.g.dart';
 
@@ -73,7 +73,7 @@ class DeliveryReviewRepository {
       if (data == null) return null;
       return DeliveryReview.fromJson(data as Map<String, dynamic>);
     } on ApiException catch (e) {
-      debugPrint('[DeliveryReview] lecture impossible : ${e.message}');
+      logDebug('[DeliveryReview] lecture impossible : ${e.message}');
       return null;
     }
   }

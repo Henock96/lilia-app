@@ -4,20 +4,51 @@ import 'dart:typed_data';
 
 import 'package:lilia_app/core/network/api_client.dart';
 import 'package:lilia_app/models/checkout.dart';
+import 'package:lilia_app/utils/api_response.dart';
 import 'package:lilia_app/utils/json_isolate.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../models/order.dart';
 
 part 'order_repository.g.dart';
 
-/// Décodage + mapping de la liste des commandes `{ data: [...] }`.
+/// Une page de commandes : les lignes, et de quoi savoir s'il en reste.
+class OrdersPage {
+  const OrdersPage({
+    required this.orders,
+    required this.page,
+    required this.totalPages,
+  });
+
+  final List<Order> orders;
+  final int page;
+  final int totalPages;
+
+  /// `GET /orders/my` rend `meta.totalPages` (minimum 1). Comparer les pages
+  /// plutôt que compter les lignes reçues : une page pleine n'implique pas
+  /// qu'il en existe une suivante.
+  bool get hasMore => page < totalPages;
+
+  static const vide = OrdersPage(orders: [], page: 1, totalPages: 1);
+}
+
+/// Décodage + mapping d'une page de commandes `{ data: [...], meta: {...} }`.
 /// Top-level → exécutable sur isolate (cf. [parseJson]). Les commandes
 /// portent des items + produits imbriqués : parsing potentiellement lourd.
-List<Order> _parseOrders(String body) {
+OrdersPage _parseOrdersPage(String body) {
   final decoded = json.decode(body);
-  final data = decoded is Map<String, dynamic> ? decoded['data'] : null;
+  final enveloppe = decoded is Map<String, dynamic> ? decoded : const <String, dynamic>{};
+  final data = enveloppe['data'];
   final list = data is List ? data : const <dynamic>[];
-  return list.whereType<Map<String, dynamic>>().map(Order.fromJson).toList();
+  final meta = enveloppe['meta'];
+  final metaMap = meta is Map<String, dynamic> ? meta : const <String, dynamic>{};
+
+  return OrdersPage(
+    orders: list.whereType<Map<String, dynamic>>().map(Order.fromJson).toList(),
+    page: (metaMap['page'] as num?)?.toInt() ?? 1,
+    // Absent d'une vieille réponse : on suppose une page unique plutôt que de
+    // laisser un défilement réclamer indéfiniment la suivante.
+    totalPages: (metaMap['totalPages'] as num?)?.toInt() ?? 1,
+  );
 }
 
 @Riverpod(keepAlive: true)
@@ -27,10 +58,36 @@ class OrderRepository extends _$OrderRepository {
   @override
   Future<void> build() async {}
 
-  Future<List<Order>> getMyOrders() async {
+  /// Taille de page. Bornée à 100 côté serveur (`PaginationQueryDto`).
+  static const pageSize = 20;
+
+  /// Une page de l'historique.
+  ///
+  /// ⚠️ L'appel ne passait **aucun** paramètre, et le serveur applique alors
+  /// son défaut : `limit = 20`. Le client recevait donc au plus vingt
+  /// commandes, sans jamais demander la suite — et comme
+  /// `OrderDetailPage` cherchait sa commande **dans cette liste**, tout
+  /// au-delà de la vingtième affichait « Commande introuvable ». Un client
+  /// fidèle perdait son historique, ses reçus et son bouton « Commander à
+  /// nouveau ».
+  Future<OrdersPage> getMyOrders({int page = 1}) async {
     // Corps brut → parsing déporté sur isolate au-delà du seuil (perf).
-    final body = await _api.getText('/orders/my');
-    return parseJson(body, _parseOrders);
+    final body = await _api.getText(
+      '/orders/my',
+      query: {'page': '$page', 'limit': '$pageSize'},
+    );
+    return parseJson(body, _parseOrdersPage);
+  }
+
+  /// **Une** commande, par sa route dédiée.
+  ///
+  /// `GET /orders/:id` existait côté serveur depuis toujours et n'avait aucun
+  /// appelant : le détail se contentait de filtrer la première page de la
+  /// liste. « Absente de la page 1 » n'est pas « inexistante », et c'est
+  /// pourtant ce que l'écran annonçait.
+  Future<Order> getOrder(String orderId) async {
+    final res = await _api.getJson('/orders/$orderId');
+    return Order.fromJson(ApiResponse.mapOf(res.data));
   }
 
   /// Télécharge le reçu PDF d'une commande payée.
@@ -79,8 +136,9 @@ class OrderRepository extends _$OrderRepository {
     return checkoutFromMap(json.encode(res.data));
   }
 
-  Future<void> reorder(String orderId) =>
-      _api.postJson('/orders/$orderId/reorder');
+  // `reorder(String)` a été SUPPRIMÉ : aucun appelant. La recommande passe
+  // par `CartController.reorder({orderId})`, qui consomme le rapport renvoyé
+  // par la route et relit le panier — ce que cette méthode ne faisait pas.
 
   Future<void> deleteOrder(String orderId) =>
       _api.deleteJson('/orders/$orderId');

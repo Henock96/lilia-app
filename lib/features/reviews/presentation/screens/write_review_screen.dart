@@ -6,13 +6,14 @@ import 'package:lilia_app/utils/snackbar.dart';
 
 class WriteReviewScreen extends ConsumerStatefulWidget {
   final String restaurantId;
-  final String restaurantName;
+  /// Cosmétique — voir `ReviewsScreen`.
+  final String? restaurantName;
   final String? existingReviewId;
 
   const WriteReviewScreen({
     super.key,
     required this.restaurantId,
-    required this.restaurantName,
+    this.restaurantName,
     this.existingReviewId,
   });
 
@@ -71,7 +72,7 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
           children: [
             // Nom du restaurant
             Text(
-              widget.restaurantName,
+              widget.restaurantName ?? 'ce vendeur',
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),

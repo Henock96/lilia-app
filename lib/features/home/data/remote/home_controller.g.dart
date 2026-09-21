@@ -50,7 +50,7 @@ final class PopularProductsProvider
   }
 }
 
-String _$popularProductsHash() => r'fbbca65b75d6b8a3bdea9e021a8a9622bfaafd3f';
+String _$popularProductsHash() => r'80528c80bd838d7eab7ad9c40ca8731e447c1d41';
 
 /// Provider pour les restaurants populaires
 
@@ -225,4 +225,132 @@ final class SearchResultsFamily extends $Family
 
   @override
   String toString() => r'searchResultsProvider';
+}
+
+/// **Un produit, par son identifiant.**
+///
+/// Existe pour que `/product/:productId` soit une adresse complète : la fiche
+/// se rendait uniquement depuis un `Product` passé en `extra` de navigation,
+/// et `extra` ne survit pas à une mort de processus. Le client qui revenait
+/// dans l'application après un appel téléphonique tombait sur « page
+/// introuvable ».
+///
+/// Mis en cache comme les listes du catalogue : revenir sur une fiche déjà
+/// vue ne coûte rien pendant cinq minutes, et au-delà les prix et la
+/// disponibilité sont redemandés.
+
+@ProviderFor(productById)
+final productByIdProvider = ProductByIdFamily._();
+
+/// **Un produit, par son identifiant.**
+///
+/// Existe pour que `/product/:productId` soit une adresse complète : la fiche
+/// se rendait uniquement depuis un `Product` passé en `extra` de navigation,
+/// et `extra` ne survit pas à une mort de processus. Le client qui revenait
+/// dans l'application après un appel téléphonique tombait sur « page
+/// introuvable ».
+///
+/// Mis en cache comme les listes du catalogue : revenir sur une fiche déjà
+/// vue ne coûte rien pendant cinq minutes, et au-delà les prix et la
+/// disponibilité sont redemandés.
+
+final class ProductByIdProvider
+    extends $FunctionalProvider<AsyncValue<Product>, Product, FutureOr<Product>>
+    with $FutureModifier<Product>, $FutureProvider<Product> {
+  /// **Un produit, par son identifiant.**
+  ///
+  /// Existe pour que `/product/:productId` soit une adresse complète : la fiche
+  /// se rendait uniquement depuis un `Product` passé en `extra` de navigation,
+  /// et `extra` ne survit pas à une mort de processus. Le client qui revenait
+  /// dans l'application après un appel téléphonique tombait sur « page
+  /// introuvable ».
+  ///
+  /// Mis en cache comme les listes du catalogue : revenir sur une fiche déjà
+  /// vue ne coûte rien pendant cinq minutes, et au-delà les prix et la
+  /// disponibilité sont redemandés.
+  ProductByIdProvider._({
+    required ProductByIdFamily super.from,
+    required String super.argument,
+  }) : super(
+         retry: null,
+         name: r'productByIdProvider',
+         isAutoDispose: true,
+         dependencies: null,
+         $allTransitiveDependencies: null,
+       );
+
+  @override
+  String debugGetCreateSourceHash() => _$productByIdHash();
+
+  @override
+  String toString() {
+    return r'productByIdProvider'
+        ''
+        '($argument)';
+  }
+
+  @$internal
+  @override
+  $FutureProviderElement<Product> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<Product> create(Ref ref) {
+    final argument = this.argument as String;
+    return productById(ref, argument);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return other is ProductByIdProvider && other.argument == argument;
+  }
+
+  @override
+  int get hashCode {
+    return argument.hashCode;
+  }
+}
+
+String _$productByIdHash() => r'9adfeed90fed765a906db6a0cb1afd61773b2985';
+
+/// **Un produit, par son identifiant.**
+///
+/// Existe pour que `/product/:productId` soit une adresse complète : la fiche
+/// se rendait uniquement depuis un `Product` passé en `extra` de navigation,
+/// et `extra` ne survit pas à une mort de processus. Le client qui revenait
+/// dans l'application après un appel téléphonique tombait sur « page
+/// introuvable ».
+///
+/// Mis en cache comme les listes du catalogue : revenir sur une fiche déjà
+/// vue ne coûte rien pendant cinq minutes, et au-delà les prix et la
+/// disponibilité sont redemandés.
+
+final class ProductByIdFamily extends $Family
+    with $FunctionalFamilyOverride<FutureOr<Product>, String> {
+  ProductByIdFamily._()
+    : super(
+        retry: null,
+        name: r'productByIdProvider',
+        dependencies: null,
+        $allTransitiveDependencies: null,
+        isAutoDispose: true,
+      );
+
+  /// **Un produit, par son identifiant.**
+  ///
+  /// Existe pour que `/product/:productId` soit une adresse complète : la fiche
+  /// se rendait uniquement depuis un `Product` passé en `extra` de navigation,
+  /// et `extra` ne survit pas à une mort de processus. Le client qui revenait
+  /// dans l'application après un appel téléphonique tombait sur « page
+  /// introuvable ».
+  ///
+  /// Mis en cache comme les listes du catalogue : revenir sur une fiche déjà
+  /// vue ne coûte rien pendant cinq minutes, et au-delà les prix et la
+  /// disponibilité sont redemandés.
+
+  ProductByIdProvider call(String productId) =>
+      ProductByIdProvider._(argument: productId, from: this);
+
+  @override
+  String toString() => r'productByIdProvider';
 }

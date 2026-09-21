@@ -1,3 +1,4 @@
+import java.util.Base64
 import java.util.Properties
 import java.io.FileInputStream
 
@@ -68,6 +69,54 @@ gradle.taskGraph.whenReady {
                 "storePassword. Sans lui, la release serait signée avec la clé " +
                 "de debug et refusée par le Play Store."
         )
+    }
+
+    // Et le même raisonnement, une troisième fois, pour le DSN Sentry.
+    //
+    // `main.dart` lit `String.fromEnvironment('SENTRY_DSN')`. Un DSN vide ne
+    // produit **aucune erreur** : le SDK se désactive tout seul, `appRunner`
+    // s'exécute, l'application se compile, s'installe, se lance, se publie —
+    // et ne remonte jamais le moindre plantage. Pire : sur la console Sentry,
+    // l'absence d'événements ressemble à une absence de plantages.
+    //
+    // C'est la seule fenêtre qu'on aura sur la production, et elle dépendait
+    // d'un `--dart-define` que ni `README.md`, ni `AGENTS.md`, ni `CLAUDE.md`
+    // n'écrivaient dans une commande de build. Les deux gardes ci-dessus ont
+    // été écrites avec ce soin ; celle-ci manquait.
+    //
+    // Flutter transmet les `--dart-define` à Gradle via `-Pdart-defines=`,
+    // une liste de `base64(clé=valeur)` séparés par des virgules.
+    if (buildingRelease) {
+        val defines: List<String> =
+            (project.findProperty("dart-defines") as String?)
+                ?.split(",")
+                ?.filter { it.isNotBlank() }
+                ?.mapNotNull {
+                    runCatching { String(Base64.getDecoder().decode(it)) }.getOrNull()
+                }
+                ?: emptyList()
+        // On exige que la **clé soit présente**, pas qu'elle soit renseignée.
+        //
+        // Un `--dart-define=SENTRY_DSN=` explicitement vide reste accepté :
+        // c'est un choix, il est écrit dans la commande, et il se relit. Ce
+        // qu'on refuse, c'est l'oubli — le cas où personne n'a décidé et où
+        // l'absence de télémétrie ne se remarque qu'au premier incident qu'on
+        // ne saura pas expliquer.
+        //
+        // Exiger une valeur non vide serait pire : le seul contournement
+        // serait d'inventer un DSN, et `SentryFlutter.init` échouerait à le
+        // parser au démarrage de l'application.
+        if (defines.none { it.startsWith("SENTRY_DSN=") }) {
+            throw GradleException(
+                "DSN Sentry non déclaré : ajoutez `--dart-define=SENTRY_DSN=$" +
+                    "SENTRY_DSN` à la commande de build (voir tool/release.sh). " +
+                    "Sans DSN, le binaire publié ne remonte AUCUN plantage, et " +
+                    "rien ne le signale — ni à la compilation, ni à l'exécution, " +
+                    "ni sur la console Sentry, où zéro événement ressemble à " +
+                    "zéro plantage. Pour renoncer délibérément à la télémétrie, " +
+                    "passez la clé vide : `--dart-define=SENTRY_DSN=`."
+            )
+        }
     }
 }
 

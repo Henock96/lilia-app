@@ -4,6 +4,9 @@ import 'package:lilia_app/models/restaurant.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/storage/user_scoped_prefs.dart';
+import '../../auth/repository/firebase_auth_repository.dart';
+
 import '../../../models/produit.dart';
 
 part 'favorites_provider.g.dart';
@@ -14,14 +17,25 @@ const _kFavoritesKey = 'favorites';
 class Favorites extends _$Favorites {
   late SharedPreferences _prefs;
 
+  /// Clé du compte connecté — `favorites__<uid>`, ou `favorites__invite`.
+  ///
+  /// Résolue à chaque `build`, jamais retenue : le provider est invalidé à la
+  /// déconnexion et au changement de compte
+  /// (`invalidateUserScopedProviders`), donc il relit la bonne.
+  late String _cle;
+
   @override
   Future<List<Product>> build() async {
     _prefs = await SharedPreferences.getInstance();
+    _cle = cleParCompte(
+      _kFavoritesKey,
+      ref.watch(authRepositoryProvider).currentUser?.uid,
+    );
     return _getFavorites();
   }
 
   List<Product> _getFavorites() {
-    final favoritesJson = _prefs.getStringList(_kFavoritesKey) ?? [];
+    final favoritesJson = _prefs.getStringList(_cle) ?? [];
     return favoritesJson
         .map(
           (jsonString) =>
@@ -34,7 +48,7 @@ class Favorites extends _$Favorites {
     final favoritesJson = products
         .map((product) => jsonEncode(product.toJson()))
         .toList();
-    await _prefs.setStringList(_kFavoritesKey, favoritesJson);
+    await _prefs.setStringList(_cle, favoritesJson);
     state = AsyncData(products);
   }
 

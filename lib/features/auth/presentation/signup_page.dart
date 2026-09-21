@@ -8,6 +8,7 @@ import 'package:lilia_app/constants/app_size.dart';
 import '../../../routing/app_route_enum.dart';
 import '../../../routing/auth_route_link.dart';
 import '../application/sign_in_controller.dart';
+import 'auth_screen_shell.dart';
 import 'signin_page.dart' show AuthButtonSpinner, GoogleSignInButton;
 
 /// Écran d'inscription.
@@ -28,33 +29,29 @@ class SignUpPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: Sizes.p24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const _Header(),
-              gapH32,
-              const _SignUpForm(),
-              gapH12,
-              const _OrDivider(),
-              gapH12,
-              // Le code de parrainage saisi sur CET écran doit suivre si le
-              // client choisit finalement Google — sinon un filleul perdait son
-              // parrain en silence.
-              GoogleSignInButton(
-                label: "S'inscrire avec Google",
-                referralCode: () =>
-                    ProviderScope.containerOf(context, listen: false)
-                        .read(signupReferralCodeProvider),
-              ),
-              gapH12,
-              const _SignInNavigation(),
-            ],
+    return AuthScreenShell(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _Header(),
+          gapH32,
+          const _SignUpForm(),
+          gapH12,
+          const _OrDivider(),
+          gapH12,
+          // Le code de parrainage saisi sur CET écran doit suivre si le
+          // client choisit finalement Google — sinon un filleul perdait son
+          // parrain en silence.
+          GoogleSignInButton(
+            label: "S'inscrire avec Google",
+            referralCode: () => ProviderScope.containerOf(
+              context,
+              listen: false,
+            ).read(signupReferralCodeProvider),
           ),
-        ),
+          gapH12,
+          const _SignInNavigation(),
+        ],
       ),
     );
   }
@@ -68,7 +65,10 @@ class _Header extends StatelessWidget {
     final theme = Theme.of(context);
     return Column(
       children: [
-        gapH64,
+        // La flèche de retour occupe désormais le haut de l'écran : elle
+        // remplace cette marge au lieu de s'y ajouter, sinon l'en-tête
+        // descendrait et le dernier bouton sortirait de l'écran.
+        gapH8,
         Icon(Icons.fastfood, size: 80, color: theme.colorScheme.primary),
         gapH16,
         Text(
@@ -117,7 +117,9 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
 
   Future<void> _signUp() async {
     if (_formKey.currentState!.validate()) {
-      await ref.read(signInControllerProvider.notifier).signUpWithEmail(
+      await ref
+          .read(signInControllerProvider.notifier)
+          .signUpWithEmail(
             email: _emailController.text.trim(),
             password: _passwordController.text.trim(),
             name: _nameController.text.trim(),
@@ -152,7 +154,7 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
           TextFormField(
             controller: _phoneController,
             decoration: const InputDecoration(
-              labelText: 'Numero de telephone',
+              labelText: 'Numéro de téléphone',
               prefixIcon: Icon(Icons.phone_outlined),
             ),
             keyboardType: TextInputType.phone,
@@ -243,9 +245,7 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
                     // frère, il ne voit pas ce contrôleur.
                     onChanged: (value) {
                       final code = value.trim().toUpperCase();
-                      ref
-                              .read(signupReferralCodeProvider.notifier)
-                              .state =
+                      ref.read(signupReferralCodeProvider.notifier).state =
                           code.isEmpty ? null : code;
                     },
                     decoration: InputDecoration(
@@ -332,7 +332,7 @@ class _SignInNavigation extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          'Vous avez deja un compte ?',
+          'Vous avez déjà un compte ?',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface,
             fontSize: 14,

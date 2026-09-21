@@ -2,7 +2,20 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Entitlements de la configuration RELEASE (TestFlight, App Store).
+
+	     ⚠️ Cette valeur était `development` — une copie du fichier Debug.
+	     Conséquence : soit la signature échoue (« Provisioning profile doesn't
+	     match the entitlements file's value for the aps-environment
+	     entitlement »), soit le binaire obtient un jeton APNS **bac à sable**.
+	     Firebase route alors vers api.sandbox.push.apple.com, Apple refuse le
+	     jeton, et AUCUN push n'arrive sur les builds distribués — sans la
+	     moindre erreur visible côté application.
+
+	     Ne jamais recopier `Runner.entitlements` par-dessus ce fichier : les
+	     deux ne diffèrent que par cette ligne, et c'est toute leur raison
+	     d'être. -->
 	<key>aps-environment</key>
-	<string>development</string>
+	<string>production</string>
 </dict>
 </plist>
