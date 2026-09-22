@@ -2,63 +2,90 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_app/core/update/app_version.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
-/// `AppVersion.current` doit dire la même chose que `pubspec.yaml`.
+/// La version comparée au seuil de mise à jour est celle du **binaire**.
 ///
-/// ## Pourquoi ce test existe
+/// ## Ce que ce test gardait, et pourquoi il a changé (UPD-001)
 ///
-/// La version de l'application est un numéro qu'on incrémente à chaque
-/// publication, et qui vivait recopié à trois endroits : `pubspec.yaml`, la
-/// balise de release Sentry dans `main.dart`, et `AppVersion.current`. Les
-/// deux derniers sont désormais un seul — mais rien n'empêchait encore de
-/// monter `pubspec.yaml` en oubliant le code Dart.
+/// Il vérifiait qu'une constante `AppVersion.current` recopiait
+/// `pubspec.yaml`. Le 22/09/2026 il échouait (pubspec `1.3.1+35`, constante
+/// `1.3.0+34`) — sans que rien ne l'exécute avant une release. Publié ainsi, le
+/// binaire 1.3.1 se serait déclaré 1.3.0+34 : un `minAppVersion = 1.3.1`
+/// aurait renvoyé au store, à vie, ceux qui venaient de mettre à jour.
 ///
-/// Les conséquences ne sont pas cosmétiques :
+/// La constante a disparu : `AppVersion.installed()` lit ce que Flutter a
+/// compilé depuis le pubspec. Ce qui reste à garder :
 ///
-///  * **Sentry** attribue les erreurs à la mauvaise version, et répond donc
-///    faux à la seule question qu'on lui pose après une publication ;
-///  * **la mise à jour** se compare à `AppVersion.current`. Une version figée
-///    trop bas déclenche une invitation à mettre à jour chez des clients déjà
-///    à jour ; figée trop haut, elle rend le seuil obligatoire inopérant au
-///    moment précis où on en a besoin.
-///
-/// Une constante qu'on doit penser à changer finit par ne pas l'être. Ce test
-/// est ce qui remplace cette discipline.
+/// 1. la version du pubspec est lisible par `AppVersion` — sinon le binaire
+///    se déclarerait « version inconnue » et échapperait à tout seuil ;
+/// 2. ce que la plateforme rapporte pour ce pubspec redonne exactement cette
+///    version ;
+/// 3. personne ne réintroduit une copie écrite à la main.
 void main() {
-  test('AppVersion.current est alignée sur pubspec.yaml', () {
-    final pubspec = File('pubspec.yaml').readAsStringSync();
+  TestWidgetsFlutterBinding.ensureInitialized();
 
+  String pubspecVersion() {
+    final pubspec = File('pubspec.yaml').readAsStringSync();
     final match = RegExp(
       r'^version:\s*(\S+)\s*$',
       multiLine: true,
     ).firstMatch(pubspec);
+    expect(match, isNotNull, reason: 'Aucune ligne `version:` dans pubspec.yaml.');
+    return match!.group(1)!;
+  }
 
+  setUp(AppVersion.resetInstalledForTest);
+
+  test('la version du pubspec est lisible par AppVersion', () {
+    final declared = pubspecVersion();
     expect(
-      match,
-      isNotNull,
-      reason: 'Aucune ligne `version:` trouvée dans pubspec.yaml.',
-    );
-
-    final declared = match!.group(1)!;
-    final parsed = AppVersion.tryParse(declared);
-
-    expect(
-      parsed,
+      AppVersion.tryParse(declared),
       isNotNull,
       reason:
-          'La version « $declared » de pubspec.yaml n\'est pas au format '
-          'major.minor.patch+build attendu par AppVersion.',
+          'pubspec.yaml déclare « $declared », illisible par AppVersion '
+          '(format attendu major.minor.patch+build). Le binaire se déclarerait '
+          'de version inconnue et échapperait au seuil minAppVersion.',
+    );
+  });
+
+  test('la version installée est celle que la plateforme rapporte pour ce pubspec', () async {
+    final declared = pubspecVersion();
+    final [name, build] = declared.split('+');
+    PackageInfo.setMockInitialValues(
+      appName: 'Lilia Food',
+      packageName: 'com.dreesis.lilia.lilia_app',
+      version: name,
+      buildNumber: build,
+      buildSignature: '',
     );
 
+    expect(await AppVersion.installed(), AppVersion.parse(declared));
+  });
+
+  test('buildNumber vide : version lue sans build', () {
     expect(
-      AppVersion.current,
-      equals(parsed),
+      AppVersion.fromPlatform(version: '1.3.1', buildNumber: ''),
+      AppVersion.parse('1.3.1'),
+    );
+  });
+
+  test('version illisible : null, jamais une valeur inventée', () {
+    expect(AppVersion.fromPlatform(version: '1.3', buildNumber: '35'), isNull);
+    expect(
+      AppVersion.fromPlatform(version: '1.3.1-beta', buildNumber: '35'),
+      isNull,
+    );
+  });
+
+  test('aucune version écrite en dur dans le code de mise à jour', () {
+    final source = File('lib/core/update/app_version.dart').readAsStringSync();
+    expect(
+      RegExp(r'^\s*static\s+const\s+current\b', multiLine: true).hasMatch(source),
+      isFalse,
       reason:
-          'pubspec.yaml déclare « $declared » mais AppVersion.current vaut '
-          '« ${AppVersion.current} ». Mettez à jour '
-          '`lib/core/update/app_version.dart` — sans quoi Sentry étiquettera '
-          'les erreurs avec la mauvaise version et le seuil de mise à jour '
-          'obligatoire se comparera à un numéro faux.',
+          'Une constante de version recopiée du pubspec a déjà divergé une '
+          'fois (UPD-001). La version vient de package_info_plus.',
     );
   });
 }

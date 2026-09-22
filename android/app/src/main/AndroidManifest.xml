@@ -97,6 +97,16 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="tel" />
         </intent>
+        <!-- Fiche Play native (`market://details?id=…`), tentée en premier par
+             `AppUpdateService.openStore`. Sans cette déclaration,
+             `canLaunchUrl` répond `false` sous Android 11+ (visibilité des
+             paquets) et l'étape native n'était jamais essayée : seule l'URL
+             https configurée par l'administrateur restait — d'où un blocage
+             sans issue si elle était fausse (UPD-002). -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="market" />
+        </intent>
         <package android:name="com.google.android.apps.maps" />
     </queries>
 </manifest>

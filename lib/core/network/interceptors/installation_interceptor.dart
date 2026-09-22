@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../device/installation_id.dart';
+import '../../update/app_version.dart';
 
 /// Pose l'identifiant d'installation sur chaque requête sortante.
 ///
@@ -29,6 +30,14 @@ class InstallationInterceptor extends Interceptor {
     if (id != null) {
       options.headers['X-Lilia-Installation-Id'] = id;
       options.headers['X-Lilia-Platform'] = InstallationId.platform;
+    }
+    // Version du binaire (UPD-003) : le serveur applique `minAppVersion` à la
+    // création de commande (426). Indépendante de l'identifiant d'installation
+    // — un stockage local indisponible ne doit pas soustraire le binaire au
+    // seuil. Version illisible : en-tête omis, le serveur laisse passer.
+    final version = await AppVersion.installed();
+    if (version != null) {
+      options.headers['X-Lilia-App-Version'] = version.toString();
     }
     handler.next(options);
   }

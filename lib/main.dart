@@ -43,6 +43,10 @@ void main() async {
   final container = ProviderContainer();
   await container.read(themeModeProvider.notifier).init();
 
+  // Version réellement compilée (pubspec → binaire), lue une fois ici ; la
+  // mise à jour et l'en-tête `X-Lilia-App-Version` réutilisent le même cache.
+  final installedVersion = await AppVersion.installed();
+
   // DSN injecté au build via --dart-define=SENTRY_DSN=... (jamais en dur).
   // DSN vide => Sentry se désactive tout seul, l'appRunner s'exécute quand même.
   await SentryFlutter.init(
@@ -52,16 +56,15 @@ void main() async {
         'SENTRY_ENV',
         defaultValue: 'production',
       );
-      // Dérivées d'`AppVersion.current`, et non réécrites à la main.
-      //
-      // La version vivait en dur ici **et** dans `AppVersion.current`. Deux
-      // copies d'un numéro qu'on incrémente à chaque publication finissent par
-      // diverger, et le jour où elles divergent, Sentry attribue les erreurs à
-      // la mauvaise version — c'est-à-dire qu'il répond faux à la seule
-      // question qu'on lui pose : « quelle version plante ? ». Une copie de
-      // moins, une occasion de moins.
-      options.release = 'lilia_app@${AppVersion.current}';
-      options.dist = '${AppVersion.current.buildNumber ?? 0}';
+      // Dérivées de la version **installée** (`AppVersion.installed`), lue dans
+      // le binaire — plus d'une constante recopiée du pubspec, qui avait fini
+      // par diverger (UPD-001) et aurait étiqueté les erreurs de 1.3.1 comme
+      // venant de 1.3.0. Version illisible : on laisse Sentry déduire la
+      // release lui-même plutôt que d'en inventer une.
+      if (installedVersion != null) {
+        options.release = 'lilia_app@$installedVersion';
+        options.dist = '${installedVersion.buildNumber ?? 0}';
+      }
       options.tracesSampleRate = 0.1;
       // ignore: experimental_member_use
       options.profilesSampleRate = 0.1;

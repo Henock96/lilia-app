@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_app/core/update/app_update_model.dart';
 import 'package:lilia_app/core/update/app_update_service.dart';
@@ -134,6 +135,131 @@ void main() {
 
       await service.dismissOptionalUpdate(versionKey);
       expect(await service.shouldPromptOptionalUpdate(versionKey), isFalse);
+    });
+  });
+
+  group('Version installée inconnue', () {
+    test('ne bloque personne : une inconnue n\'est pas un seuil', () {
+      final info = AppUpdateService().evaluateUpdate(
+        settings: _settings(minAppVersion: '9.0.0', latestAppVersion: '9.0.0'),
+        currentVersion: null,
+      );
+      expect(info.requirement, UpdateRequirement.none);
+    });
+  });
+
+  group('Comparaison (vecteurs communs backend / admin / app)', () {
+    AppUpdateInfo eval(String current, {String? min, String? latest}) =>
+        AppUpdateService().evaluateUpdate(
+          settings: _settings(minAppVersion: min, latestAppVersion: latest),
+          currentVersion: AppVersion.parse(current),
+        );
+
+    test('1.9.0 est sous 1.10.0 (numérique, pas lexicographique)', () {
+      expect(eval('1.9.0', min: '1.10.0', latest: '1.10.0').isMandatory, isTrue);
+    });
+    test('1.10.0 n\'est pas sous 1.9.0', () {
+      expect(eval('1.10.0', min: '1.9.0', latest: '2.0.0').isOptional, isTrue);
+    });
+    test('1.3.0+34 est sous 1.3.0+35', () {
+      expect(eval('1.3.0+34', min: '1.3.0+35', latest: '1.3.0+40').isMandatory, isTrue);
+    });
+    test('1.3.1+35 installée satisfait min 1.3.1 (le piège UPD-001)', () {
+      expect(eval('1.3.1+35', min: '1.3.1', latest: '1.3.1').requirement,
+          UpdateRequirement.none);
+    });
+    test('pré-version côté serveur : ignorée', () {
+      expect(eval('1.2.0', min: '1.3.0-beta').requirement, UpdateRequirement.none);
+    });
+  });
+
+  group('openStore (UPD-002)', () {
+    final info = AppUpdateService().evaluateUpdate(
+      settings: _settings(
+        minAppVersion: '2.0.0',
+        latestAppVersion: '2.0.0',
+        updateUrlAndroid:
+            'https://play.google.com/store/apps/details?id=com.dreesis.lilia.lilia_app&hl=fr',
+        updateUrlIos: 'https://apps.apple.com/app/lilia-food/id1234567890',
+      ),
+      currentVersion: AppVersion.parse('1.0.0'),
+    );
+
+    test('Android : fiche native, puis URL configurée, puis repli compilé', () {
+      final service = AppUpdateService(
+        platform: TargetPlatform.android,
+        isWeb: false,
+      );
+      expect(service.storeCandidates(info).map((u) => u.scheme).toList(), [
+        'market',
+        'https',
+        'https',
+      ]);
+    });
+
+    test('Android : la fiche native ouverte → opened, sans essayer la suite', () async {
+      final tried = <Uri>[];
+      final service = AppUpdateService(
+        platform: TargetPlatform.android,
+        isWeb: false,
+        canOpen: (_) async => true,
+        open: (uri) async {
+          tried.add(uri);
+          return true;
+        },
+      );
+      expect(await service.openStore(info), StoreOpenResult.opened);
+      expect(tried.single.scheme, 'market');
+    });
+
+    test('Android sans Play Store : saute market:// et ouvre l\'URL https', () async {
+      final tried = <Uri>[];
+      final service = AppUpdateService(
+        platform: TargetPlatform.android,
+        isWeb: false,
+        canOpen: (_) async => false,
+        open: (uri) async {
+          tried.add(uri);
+          return true;
+        },
+      );
+      expect(await service.openStore(info), StoreOpenResult.opened);
+      expect(tried.single.host, 'play.google.com');
+    });
+
+    test('une exception passe à la destination suivante', () async {
+      var calls = 0;
+      final service = AppUpdateService(
+        platform: TargetPlatform.iOS,
+        isWeb: false,
+        open: (uri) async {
+          calls++;
+          if (calls == 1) throw Exception('lien mort');
+          return true;
+        },
+      );
+      expect(await service.openStore(info), StoreOpenResult.opened);
+      expect(calls, 2);
+    });
+
+    test('tout échoue → failed, jamais un faux succès', () async {
+      final service = AppUpdateService(
+        platform: TargetPlatform.iOS,
+        isWeb: false,
+        open: (_) async => false,
+      );
+      expect(await service.openStore(info), StoreOpenResult.failed);
+      expect(service.storeName, "l'App Store");
+      expect(service.fallbackLink(info), info.storeUrlIos);
+    });
+
+    test('URL configurée vide ou blanche → repli compilé', () {
+      final blank = AppUpdateService().evaluateUpdate(
+        settings: _settings(updateUrlAndroid: '  ', updateUrlIos: ''),
+        currentVersion: AppVersion.parse('1.0.0'),
+      );
+      expect(blank.storeUrlAndroid, AppUpdateInfo.defaultStoreUrlAndroid);
+      expect(blank.storeUrlIos, AppUpdateInfo.defaultStoreUrlIos);
     });
   });
 }

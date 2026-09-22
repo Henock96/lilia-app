@@ -55,6 +55,51 @@ final class AppUpdateServiceProvider
 
 String _$appUpdateServiceHash() => r'ddbca48a1360c6b90cc6e93ba41742b64936cc6a';
 
+/// Version installée, lue une fois dans le binaire (`package_info_plus`).
+
+@ProviderFor(installedAppVersion)
+final installedAppVersionProvider = InstalledAppVersionProvider._();
+
+/// Version installée, lue une fois dans le binaire (`package_info_plus`).
+
+final class InstalledAppVersionProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<AppVersion?>,
+          AppVersion?,
+          FutureOr<AppVersion?>
+        >
+    with $FutureModifier<AppVersion?>, $FutureProvider<AppVersion?> {
+  /// Version installée, lue une fois dans le binaire (`package_info_plus`).
+  InstalledAppVersionProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'installedAppVersionProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$installedAppVersionHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<AppVersion?> $createElement(
+    $ProviderPointer pointer,
+  ) => $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<AppVersion?> create(Ref ref) {
+    return installedAppVersion(ref);
+  }
+}
+
+String _$installedAppVersionHash() =>
+    r'0f655694158d24ccbaf4d1304079e5faa4e8ef45';
+
 /// Fournit l'état calculé de la mise à jour courante à partir de PlatformSettings.
 
 @ProviderFor(appUpdateInfo)
@@ -97,4 +142,4 @@ final class AppUpdateInfoProvider
   }
 }
 
-String _$appUpdateInfoHash() => r'e0752175de499ccd1604cf3e150140238e0b6bb3';
+String _$appUpdateInfoHash() => r'beaa57d762101de5cb64d3449131ae911e4b8e7c';
