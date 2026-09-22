@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:package_info_plus/package_info_plus.dart';
+
 /// Représentation sémantique d'une version d'application (`1.2.7`, `1.2.7+32`).
 ///
 /// ## Pourquoi le parsing est strict
@@ -30,18 +33,59 @@ class AppVersion implements Comparable<AppVersion> {
     this.buildNumber,
   });
 
-  /// Version de cette application.
+  /// Version **réellement installée**, lue dans le binaire au démarrage.
   ///
-  /// ⚠️ À tenir synchronisée avec `version:` dans `pubspec.yaml`. C'est la
-  /// **seule** source de la version dans le code Dart : la balise de release
-  /// Sentry en dérive (`main.dart`), pour qu'une montée de version n'ait qu'un
-  /// endroit à corriger au lieu de deux qui divergent en silence.
-  static const current = AppVersion(
-    major: 1,
-    minor: 3,
-    patch: 0,
-    buildNumber: 34,
-  );
+  /// ## Pourquoi ce n'est plus une constante (UPD-001)
+  ///
+  /// La version vivait en dur ici (`static const current = 1.3.0+34`) pendant
+  /// que `pubspec.yaml` passait à `1.3.1+35`. Le test de garde échouait, mais
+  /// rien ne l'exécutait avant une release. Publier ce binaire puis poser
+  /// `minAppVersion = 1.3.1` aurait bloqué **à vie** les utilisateurs déjà mis
+  /// à jour : leur application se déclarait toujours 1.3.0+34, sous le seuil,
+  /// et les renvoyait au store — qui leur servait la version qu'ils avaient.
+  ///
+  /// La version vient désormais de `package_info_plus`, c'est-à-dire de ce que
+  /// Flutter a compilé depuis `pubspec.yaml` (`versionName`/`versionCode`
+  /// Android, `CFBundleShortVersionString`/`CFBundleVersion` iOS). Il n'y a
+  /// plus de seconde copie à oublier.
+  ///
+  /// `null` si la plateforme ne répond pas ou si la version est illisible :
+  /// l'appelant traite alors l'absence comme « aucune contrainte », jamais
+  /// comme un blocage — on ne bloque pas un utilisateur sur une inconnue.
+  ///
+  /// ⚠️ `flutter build apk --split-per-abi` ajoute un décalage par ABI au
+  /// `versionCode` (1000 + build…) : le build lu ici ne serait plus celui du
+  /// pubspec. Publier en `appbundle`, ce que fait déjà le projet.
+  static Future<AppVersion?> installed() {
+    return _installed ??= _readInstalled();
+  }
+
+  static Future<AppVersion?>? _installed;
+
+  static Future<AppVersion?> _readInstalled() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      return fromPlatform(version: info.version, buildNumber: info.buildNumber);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Compose la version depuis les deux champs de la plateforme.
+  ///
+  /// `buildNumber` peut être vide (web, certains bancs de test) : la version
+  /// est alors lue sans build, ce que [compareTo] sait traiter.
+  static AppVersion? fromPlatform({
+    required String version,
+    required String buildNumber,
+  }) {
+    final build = buildNumber.trim();
+    return tryParse(build.isEmpty ? version : '$version+$build');
+  }
+
+  /// Réinitialise le cache de [installed] — tests uniquement.
+  @visibleForTesting
+  static void resetInstalledForTest() => _installed = null;
 
   /// Motif accepté : `1.2.7`, `1.2.7+32`, avec `v` initial et espaces tolérés.
   static final _pattern = RegExp(r'^(\d+)\.(\d+)\.(\d+)(?:\+(\d+))?$');

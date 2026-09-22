@@ -1486,6 +1486,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         paymentMethod: _selectedPaymentMethod,
         failureKind: 'checkout_rejected',
       );
+      // 426 : le serveur applique un seuil de version que notre barème en
+      // cache (jusqu'à 5 min) ignore encore. 503 : une maintenance vient
+      // d'être déclarée. Dans les deux cas, relire les réglages fait
+      // apparaître tout de suite le dialogue de mise à jour ou l'écran de
+      // maintenance, au lieu d'un refus que rien n'explique au prochain essai.
+      if (e is ApiException && (e.statusCode == 426 || e.statusCode == 503)) {
+        ref.invalidate(platformSettingsProvider);
+      }
       if (!context.mounted) return;
       _showOrderError(context, e);
       return;

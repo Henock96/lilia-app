@@ -15,7 +15,8 @@ enum UpdateRequirement {
 /// Informations sur l'état de mise à jour de l'application.
 class AppUpdateInfo {
   final UpdateRequirement requirement;
-  final AppVersion currentVersion;
+  /// Version installée ; `null` si la plateforme ne l'a pas fournie.
+  final AppVersion? currentVersion;
   final AppVersion? minSupportedVersion;
   final AppVersion? latestAvailableVersion;
   final String? updateMessage;
@@ -28,22 +29,26 @@ class AppUpdateInfo {
     this.minSupportedVersion,
     this.latestAvailableVersion,
     this.updateMessage,
-    this.storeUrlAndroid =
-        'https://play.google.com/store/apps/details?id=com.dreesis.lilia.lilia_app',
-    // ⚠️ Une **recherche**, pas une fiche — et c'est délibéré.
-    //
-    // Ce repli valait `https://apps.apple.com/app/lilia-food/id6740000000` :
-    // un identifiant App Store manifestement fabriqué (un nombre rond de dix
-    // chiffres). En mise à jour **obligatoire**, le client se retrouvait
-    // enfermé dans une boîte de dialogue dont le seul bouton ouvrait une page
-    // inexistante — bloqué, sans recours.
-    //
-    // Une recherche aboutit toujours quelque part. Ce n'est pas la bonne
-    // réponse : la bonne réponse est de renseigner `updateUrlIos` dans
-    // `PlatformSettings`, ce qui court-circuite entièrement ce repli. Mais
-    // c'est une impasse de moins tant que ce n'est pas fait.
-    this.storeUrlIos = 'https://apps.apple.com/search?term=Lilia%20Food',
+    this.storeUrlAndroid = defaultStoreUrlAndroid,
+    this.storeUrlIos = defaultStoreUrlIos,
   });
+
+  /// Fiche Play de l'app — repli compilé, vérifié : c'est l'`applicationId`
+  /// réel (`android/app/build.gradle.kts`).
+  static const defaultStoreUrlAndroid =
+      'https://play.google.com/store/apps/details?id=com.dreesis.lilia.lilia_app';
+
+  /// ⚠️ Une **recherche**, pas une fiche — et c'est délibéré.
+  ///
+  /// Ce repli valait `https://apps.apple.com/app/lilia-food/id6740000000` :
+  /// un identifiant App Store fabriqué. En mise à jour **obligatoire**, le
+  /// client se retrouvait enfermé devant une page inexistante. Une recherche
+  /// aboutit toujours quelque part. La bonne réponse reste de renseigner
+  /// `updateUrlIos` — le serveur n'y accepte plus qu'une vraie fiche
+  /// (`apps.apple.com/…/id<chiffres>`) — mais l'app n'est pas encore publiée
+  /// sur l'App Store (22/09/2026).
+  static const defaultStoreUrlIos =
+      'https://apps.apple.com/search?term=Lilia%20Food';
 
   bool get isMandatory => requirement == UpdateRequirement.mandatory;
   bool get isOptional => requirement == UpdateRequirement.optional;

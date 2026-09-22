@@ -62,6 +62,17 @@ if [[ $# -eq 0 ]]; then
   exit 2
 fi
 
+# ── Garde : version et mécanisme de mise à jour (OPS-001) ────────────────────
+#
+# La version comparée au seuil `minAppVersion` est celle du binaire
+# (`package_info_plus`, UPD-001). Ces tests vérifient que le pubspec est
+# lisible par `AppVersion` et que les dialogues de mise à jour ne peuvent pas
+# enfermer l'utilisateur. Un échec ici arrête la release avant la compilation.
+titre "Garde : analyse et mise à jour"
+flutter analyze
+flutter test test/core/update/
+vert "  analyse et tests de mise à jour : OK"
+
 DEFINES=(
   "--dart-define=API_URL=${API_URL}"
   "--dart-define=WS_URL=${WS_URL}"

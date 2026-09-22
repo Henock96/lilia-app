@@ -1,0 +1,53 @@
+name: CI
+
+# Validation bloquante de l'app client (OPS-001, audit du 22/09/2026).
+#
+# Le test qui garde la version comparée au seuil de mise à jour obligatoire
+# (`test/core/update/`) échouait dans l'arbre de travail — pubspec 1.3.1+35
+# contre une constante à 1.3.0+34 — et rien ne l'exécutait : ce dépôt n'avait
+# aucune CI. Publié ainsi, un binaire se serait déclaré sous le seuil qu'on
+# venait de poser pour lui.
+#
+# Volontairement minimal : analyse + tests, rien qui exige un secret. Le build
+# de release reste `tool/release.sh` (signature, DSN Sentry), qui rejoue la
+# garde de version avant de compiler.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          # Même version que les postes de développement (flutter --version).
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+
+      - name: Dépendances
+        run: flutter pub get
+
+      # Les `.g.dart` sont versionnés : un `@riverpod` modifié sans relancer
+      # build_runner doit casser ici, pas en production.
+      - name: Code généré à jour
+        run: |
+          dart run build_runner build --delete-conflicting-outputs
+          git diff --exit-code -- '*.g.dart'
+
+      - name: Analyse
+        run: flutter analyze
+
+      # Isolée et en premier : si elle casse, le message dit exactement quoi.
+      - name: Garde de version et mise à jour
+        run: flutter test test/core/update/
+
+      - name: Tests
+        run: flutter test
