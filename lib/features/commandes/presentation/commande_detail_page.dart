@@ -32,14 +32,17 @@ import 'widgets/report_issue_sheet.dart';
 import '../../../services/analytics_service.dart';
 import '../../../services/notification_router.dart';
 import '../../notifications/application/notification_providers.dart';
+import '../domain/order_status_view.dart';
 
 /// Statuts pour lesquels le reçu PDF est téléchargeable (payée, non annulée).
 const _receiptStatuses = <OrderStatus>{
   OrderStatus.payer,
+  OrderStatus.acceptee,
   OrderStatus.enPreparation,
   OrderStatus.pret,
   OrderStatus.enRoute,
   OrderStatus.livrer,
+  OrderStatus.echecLivraison,
 };
 
 class OrderDetailPage extends ConsumerWidget {
@@ -167,13 +170,25 @@ class OrderDetailPage extends ConsumerWidget {
                 const SizedBox(height: 16),
 
                 // Barre de progression pour les commandes en cours
-                if (order.status != OrderStatus.livrer &&
-                    order.status != OrderStatus.annuler)
+                if (!_terminalStatuses.contains(order.status))
                   _buildProgressCard(context, order),
 
-                if (order.status != OrderStatus.livrer &&
-                    order.status != OrderStatus.annuler)
+                // F3-01 : où en est le vendeur (en attente de réponse,
+                // accepté, heure de fin annoncée).
+                if (acceptanceLine(order) case final line?) ...[
+                  const SizedBox(height: 8),
+                  _AcceptanceLine(text: line),
+                ],
+
+                if (!_terminalStatuses.contains(order.status))
                   const SizedBox(height: 16),
+
+                // Commande annulée : payée ⇒ le remboursement est automatique,
+                // il faut le dire (et le motif du vendeur s'il y en a un).
+                if (order.status == OrderStatus.annuler) ...[
+                  _CancellationCard(notice: cancellationNotice(order)),
+                  const SizedBox(height: 16),
+                ],
 
                 // Bouton de tracking temps réel quand la commande est en route
                 if (order.status == OrderStatus.enRoute) ...[
@@ -217,8 +232,9 @@ class OrderDetailPage extends ConsumerWidget {
                   const SizedBox(height: 12),
                 ],
 
-                // Bouton Annuler pour les commandes en attente
-                if (order.status == OrderStatus.enAttente)
+                // Bouton Annuler : le serveur publie les gestes permis
+                // (F3-01, règle R1) ; avant paiement face à un serveur antérieur.
+                if (canClientCancel(order))
                   _buildCancelButton(context, ref, order.id),
 
                 // Notation du livreur — uniquement après livraison effective.
@@ -1224,6 +1240,20 @@ class OrderDetailPage extends ConsumerWidget {
           color: Colors.purple,
           icon: Iconsax.card_tick,
         );
+      case OrderStatus.acceptee:
+        return StatusInfo(
+          label: 'Acceptée',
+          description: 'Le vendeur a accepté votre commande',
+          color: Colors.lightGreen,
+          icon: Iconsax.like_1,
+        );
+      case OrderStatus.echecLivraison:
+        return StatusInfo(
+          label: 'Livraison non aboutie',
+          description: 'Votre commande n’a pas pu être livrée — le support revient vers vous',
+          color: Colors.deepOrange,
+          icon: Iconsax.warning_2,
+        );
       case OrderStatus.enPreparation:
         return StatusInfo(
           label: 'En préparation',
@@ -2188,10 +2218,13 @@ class _PrecisionLine extends StatelessWidget {
 /// même liste (et une fenêtre de 72 h après livraison).
 const _reportableStatuses = {
   OrderStatus.payer,
+  OrderStatus.acceptee,
   OrderStatus.enPreparation,
   OrderStatus.pret,
   OrderStatus.enRoute,
   OrderStatus.livrer,
+  // F3-05 : un client doit pouvoir contester l'issue d'un échec (miroir serveur).
+  OrderStatus.echecLivraison,
 };
 
 class _ReportIssueButton extends ConsumerWidget {
@@ -2221,6 +2254,83 @@ class _ReportIssueButton extends ConsumerWidget {
           context.showErrorSnack('$e');
         }
       },
+    );
+  }
+}
+
+/// Statuts sans suite : pas de progression à afficher.
+const _terminalStatuses = {
+  OrderStatus.livrer,
+  OrderStatus.annuler,
+  OrderStatus.echecLivraison,
+};
+
+/// Ligne d'état de l'acceptation vendeur (F3-01).
+class _AcceptanceLine extends StatelessWidget {
+  const _AcceptanceLine({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Icon(Iconsax.clock, size: 16, color: cs.onSurfaceVariant),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Annulation expliquée : remboursement en cours si la commande était payée.
+class _CancellationCard extends StatelessWidget {
+  const _CancellationCard({required this.notice});
+
+  final ({String title, String detail}) notice;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cs.errorContainer.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cs.error.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Iconsax.close_circle, color: cs.error),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  notice.title,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(notice.detail, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

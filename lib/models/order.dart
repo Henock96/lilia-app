@@ -20,11 +20,15 @@ DateTime _asDate(Object? value) =>
 enum OrderStatus {
   enAttente,
   payer,
+  /// Acceptée par le vendeur, pas encore en préparation (Phase 3, F3-01).
+  acceptee,
   enPreparation,
   pret,
   enRoute,
   livrer,
   annuler,
+  /// Terminal : le repas est parti et n'est pas arrivé (F3-05).
+  echecLivraison,
   unknow,
 }
 
@@ -34,6 +38,8 @@ OrderStatus _parseStatus(String? status) {
       return OrderStatus.enAttente;
     case 'PAYER':
       return OrderStatus.payer;
+    case 'ACCEPTEE':
+      return OrderStatus.acceptee;
     case 'EN_PREPARATION':
       return OrderStatus.enPreparation;
     case 'PRET':
@@ -44,6 +50,8 @@ OrderStatus _parseStatus(String? status) {
       return OrderStatus.livrer;
     case 'ANNULER':
       return OrderStatus.annuler;
+    case 'ECHEC_LIVRAISON':
+      return OrderStatus.echecLivraison;
     default:
       return OrderStatus.unknow;
   }
@@ -74,6 +82,16 @@ class Order {
   final bool isDelivery; // Mode de livraison
   final bool isPreorder; // Commande programmée (précommande)
   final DateTime? scheduledFor; // Créneau de réception choisi (précommande)
+  // Phase 3, F3-01 — acceptation vendeur.
+  /// Paiement confirmé : distingue « annulée » de « annulée et remboursée ».
+  final DateTime? paidAt;
+  /// Heure de fin de préparation annoncée par le vendeur à l'acceptation.
+  final DateTime? estimatedReadyAt;
+  /// Motif d'un refus vendeur (`OUT_OF_STOCK`…), `null` sinon.
+  final String? vendorRejectionReason;
+  /// Gestes que le serveur accepte (`CANCEL`…). `null` = serveur antérieur
+  /// qui ne les publie pas ; liste vide = aucun geste permis.
+  final List<String>? allowedActions;
 
   Order({
     required this.id,
@@ -100,6 +118,10 @@ class Order {
     this.isDelivery = true,
     this.isPreorder = false,
     this.scheduledFor,
+    this.paidAt,
+    this.estimatedReadyAt,
+    this.vendorRejectionReason,
+    this.allowedActions,
   });
 
   Order copyWith({
@@ -153,6 +175,10 @@ class Order {
       isDelivery: isDelivery ?? this.isDelivery,
       isPreorder: isPreorder ?? this.isPreorder,
       scheduledFor: scheduledFor ?? this.scheduledFor,
+      paidAt: paidAt,
+      estimatedReadyAt: estimatedReadyAt,
+      vendorRejectionReason: vendorRejectionReason,
+      allowedActions: allowedActions,
     );
   }
 
@@ -199,6 +225,18 @@ class Order {
           : false,
       scheduledFor: json['scheduledFor'] != null
           ? DateTime.tryParse(json['scheduledFor'].toString())
+          : null,
+      paidAt: json['paidAt'] is String
+          ? DateTime.tryParse(json['paidAt'] as String)
+          : null,
+      estimatedReadyAt: json['estimatedReadyAt'] is String
+          ? DateTime.tryParse(json['estimatedReadyAt'] as String)
+          : null,
+      vendorRejectionReason: json['vendorRejectionReason'] is String
+          ? json['vendorRejectionReason'] as String
+          : null,
+      allowedActions: json['allowedActions'] is List
+          ? (json['allowedActions'] as List).whereType<String>().toList()
           : null,
     );
   }
