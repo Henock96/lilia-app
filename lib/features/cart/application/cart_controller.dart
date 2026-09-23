@@ -11,7 +11,11 @@ import 'package:lilia_app/services/analytics_service.dart';
 
 part 'cart_controller.g.dart';
 
-@riverpod
+// Maintenu en vie : lu par des contrôleurs qui le sont (panier, adresses,
+// profil, session). Sans état propre, il ne dépend que d'`apiClient`, lui-même
+// maintenu en vie — le garder ne coûte rien, le recréer sous un contrôleur
+// vivant est ce que `only_use_keep_alive_inside_keep_alive` interdit.
+@Riverpod(keepAlive: true)
 CartRepository cartRepository(Ref ref) =>
     CartRepository(ref.watch(apiClientProvider));
 

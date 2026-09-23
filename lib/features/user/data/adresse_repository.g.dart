@@ -20,7 +20,7 @@ final class AdresseRepositoryProvider
         argument: null,
         retry: null,
         name: r'adresseRepositoryProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -33,7 +33,7 @@ final class AdresseRepositoryProvider
   AdresseRepository create() => AdresseRepository();
 }
 
-String _$adresseRepositoryHash() => r'd5ec2b74f974b0ea2a0d702757137b844b0c7ea6';
+String _$adresseRepositoryHash() => r'1530d1caf992854d4533834bebd8aa8ce8eb6a5c';
 
 abstract class _$AdresseRepository extends $AsyncNotifier<void> {
   FutureOr<void> build();
