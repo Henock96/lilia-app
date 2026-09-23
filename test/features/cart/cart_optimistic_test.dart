@@ -67,7 +67,10 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 20));
       if (bench.nombreRequetes > 0) break;
     }
-    await Future<void>.delayed(const Duration(milliseconds: 400));
+    // Latence injectée (400 ms) + marge : attendre EXACTEMENT la latence
+    // faisait de ce test une course de minuteries — rouge une fois sur trois
+    // selon la charge de la machine (constaté pendant la Phase 2).
+    await Future<void>.delayed(const Duration(milliseconds: 700));
   }
 
   /// Comme [calme], mais laisse aussi passer les reprises de

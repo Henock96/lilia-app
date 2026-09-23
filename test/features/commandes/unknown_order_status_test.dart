@@ -10,6 +10,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/commandes/presentation/commande_page.dart';
 import 'package:lilia_app/models/order.dart';
@@ -38,6 +39,13 @@ class _FausseListe extends UserOrders {
 }
 
 void main() {
+  // `main.dart` initialise les données de locale avant `runApp`. Sans elles,
+  // le premier `DateFormat('…', 'fr_FR')` de la carte lève une
+  // `LocaleDataException` — que `takeException()` avalait : la liste ne se
+  // construisait jamais, et le test concluait à tort que la commande avait
+  // disparu.
+  setUpAll(() => initializeDateFormatting('fr_FR', null));
+
   test('le serveur peut inventer un statut : le modèle le range en `unknow`', () {
     // Preuve du point de départ : c'est bien ce que produit un statut
     // inattendu, et c'est cette valeur qui tombait dans le vide.
@@ -80,6 +88,14 @@ void main() {
       find.text('Aucune commande en cours'),
       findsNothing,
       reason: 'les deux commandes appartiennent à cet onglet',
+    );
+    // La liste est paresseuse : la seconde carte peut être hors écran, donc
+    // jamais construite. On fait défiler jusqu'à elle plutôt que de conclure
+    // à son absence.
+    await tester.scrollUntilVisible(
+      find.textContaining('Inconnu'),
+      300,
+      scrollable: find.byType(Scrollable).first,
     );
     expect(
       find.textContaining('Inconnu'),
