@@ -145,4 +145,12 @@ class OrderRepository extends _$OrderRepository {
 
   Future<void> cancelOrder(String orderId) =>
       _api.patchJson('/orders/$orderId/cancel');
+
+  /// Signale un problème sur la commande (Master Audit v1, F-06) — ouvre un
+  /// incident côté Lilia Food. `kind` : NOT_RECEIVED, WRONG_ORDER, LATE, OTHER.
+  Future<void> reportIssue(String orderId, String kind, {String? message}) =>
+      _api.postJson(
+        '/incidents/orders/$orderId/report',
+        body: {'kind': kind, 'message': ?message},
+      );
 }

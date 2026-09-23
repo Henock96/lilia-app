@@ -82,6 +82,13 @@ class DriverLocation {
   final double? restaurantLatitude;
   final double? restaurantLongitude;
 
+  /// Code de remise à 4 chiffres (Master Audit v1, F-06).
+  ///
+  /// Le serveur ne le renvoie qu'au CLIENT, et seulement pendant que le repas
+  /// roule vers lui. Le client le donne au livreur à la porte : c'est ce qui
+  /// prouve que la commande lui a été remise.
+  final String? handoverCode;
+
   const DriverLocation({
     this.deliveryId,
     this.deliveryStatus,
@@ -101,6 +108,7 @@ class DriverLocation {
     this.restaurantNom,
     this.restaurantLatitude,
     this.restaurantLongitude,
+    this.handoverCode,
   });
 
   /// `true` ssi on a une position GPS exploitable du livreur.
@@ -166,6 +174,7 @@ class DriverLocation {
       restaurantNom: restaurant?['nom'] as String?,
       restaurantLatitude: (restaurant?['latitude'] as num?)?.toDouble(),
       restaurantLongitude: (restaurant?['longitude'] as num?)?.toDouble(),
+      handoverCode: json['handoverCode'] as String?,
     );
   }
 
@@ -191,6 +200,9 @@ class DriverLocation {
       restaurantNom: restaurantNom,
       restaurantLatitude: restaurantLatitude,
       restaurantLongitude: restaurantLongitude,
+      // Une position WS ne porte pas le code : on garde celui lu en HTTP,
+      // sinon il disparaîtrait de l'écran au premier mouvement du livreur.
+      handoverCode: handoverCode,
     );
   }
 }

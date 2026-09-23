@@ -27,6 +27,8 @@ import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 import '../../reviews/presentation/widgets/rate_driver_sheet.dart';
 import '../data/delivery_tracking_repository.dart';
+import 'widgets/handover_code_card.dart';
+import 'widgets/report_issue_sheet.dart';
 import '../../../services/analytics_service.dart';
 import '../../../services/notification_router.dart';
 import '../../notifications/application/notification_providers.dart';
@@ -229,6 +231,13 @@ class OrderDetailPage extends ConsumerWidget {
                 // (reprendre un paiement, comprendre un incident). Sans ça,
                 // le client arrivait sur l'écran sans savoir quoi faire.
                 _NotificationIntentBanner(orderId: order.id),
+
+                // F-06 : le recours qui manquait — une commande déclarée
+                // livrée sans l'être n'avait aucune porte de sortie.
+                if (_reportableStatuses.contains(order.status)) ...[
+                  _ReportIssueButton(orderId: order.id),
+                  const SizedBox(height: 16),
+                ],
 
                 // Bouton Commander à nouveau pour les commandes livrées ou annulées
                 if (order.status == OrderStatus.livrer ||
@@ -1660,7 +1669,7 @@ class _DeliveryProgressHint extends ConsumerWidget {
             ? '$who va récupérer votre commande'
             : location.progressLabel;
 
-        return Padding(
+        final hint = Padding(
           padding: const EdgeInsets.only(top: 16),
           child: Row(
             children: [
@@ -1681,6 +1690,12 @@ class _DeliveryProgressHint extends ConsumerWidget {
             ],
           ),
         );
+
+        // F-06 : pendant que le repas roule, le client a son code de remise
+        // sous les yeux — c'est lui qui le donnera au livreur à la porte.
+        final code = location.handoverCode;
+        if (!location.isOnTheWay || code == null) return hint;
+        return Column(children: [hint, HandoverCodeCard(code: code)]);
       },
     );
   }
@@ -2167,4 +2182,45 @@ class _PrecisionLine extends StatelessWidget {
       ),
     ],
   );
+}
+
+/// Statuts sur lesquels un signalement a un sens — le serveur applique la
+/// même liste (et une fenêtre de 72 h après livraison).
+const _reportableStatuses = {
+  OrderStatus.payer,
+  OrderStatus.enPreparation,
+  OrderStatus.pret,
+  OrderStatus.enRoute,
+  OrderStatus.livrer,
+};
+
+class _ReportIssueButton extends ConsumerWidget {
+  const _ReportIssueButton({required this.orderId});
+
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return OutlinedButton.icon(
+      key: const Key('report-issue'),
+      icon: const Icon(Icons.flag_outlined),
+      label: const Text('Signaler un problème'),
+      onPressed: () async {
+        final report = await showReportIssueSheet(context);
+        if (report == null || !context.mounted) return;
+        try {
+          await ref
+              .read(orderRepositoryProvider.notifier)
+              .reportIssue(orderId, report.kind.wire, message: report.message);
+          if (!context.mounted) return;
+          context.showSuccessSnack(
+            'Signalement transmis. Notre équipe vous recontacte rapidement.',
+          );
+        } catch (e) {
+          if (!context.mounted) return;
+          context.showErrorSnack('$e');
+        }
+      },
+    );
+  }
 }
