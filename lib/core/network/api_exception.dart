@@ -8,10 +8,15 @@ class ApiException implements Exception {
   final int? statusCode;
   final ApiErrorKind kind;
 
+  /// Code métier posé par le serveur (`error.code`), ex. `ACCOUNT_NOT_SYNCED`.
+  /// Se lire sur lui plutôt que sur le texte, qui peut changer.
+  final String? code;
+
   const ApiException(
     this.message, {
     this.statusCode,
     this.kind = ApiErrorKind.unknown,
+    this.code,
   });
 
   @override

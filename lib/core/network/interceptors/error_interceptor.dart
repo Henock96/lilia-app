@@ -41,7 +41,12 @@ class ErrorInterceptor extends Interceptor {
     }
     final status = err.response?.statusCode;
     final message = _extractMessage(err.response?.data) ?? _fallback;
-    return ApiException(message, statusCode: status, kind: _kindFor(status));
+    return ApiException(
+      message,
+      statusCode: status,
+      kind: _kindFor(status),
+      code: _extractCode(err.response?.data),
+    );
   }
 
   ApiErrorKind _kindFor(int? status) {
@@ -50,6 +55,14 @@ class ErrorInterceptor extends Interceptor {
     if (status >= 500) return ApiErrorKind.server;
     if (status >= 400) return ApiErrorKind.client;
     return ApiErrorKind.unknown;
+  }
+
+  /// `{ error: { code } }` (filtre d'exceptions du backend), ou `{ code }`.
+  String? _extractCode(dynamic data) {
+    if (data is! Map) return null;
+    final error = data['error'];
+    final code = error is Map ? error['code'] : data['code'];
+    return code is String ? code : null;
   }
 
   String? _extractMessage(dynamic data) {

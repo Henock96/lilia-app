@@ -139,6 +139,14 @@ const kAuthUnknown = AuthFailure(AuthFailureKind.unknown, _kUnknown);
 const kAuthSessionExpired =
     AuthFailure(AuthFailureKind.sessionExpired, _kSessionExpired);
 
+/// Le téléphone gardait la session d'un compte supprimé (ou suspendu) côté
+/// Lilia : on revient à l'écran de connexion, où un autre compte peut servir.
+const kAuthAccountGone = AuthFailure(
+  AuthFailureKind.sessionExpired,
+  'Ce compte n’est plus disponible sur Lilia Food. '
+  'Connectez-vous avec un autre compte.',
+);
+
 /// Traduit **n'importe quel** échec technique en [AuthFailure].
 ///
 /// Point de passage unique des trois sources d'erreur de l'authentification :
