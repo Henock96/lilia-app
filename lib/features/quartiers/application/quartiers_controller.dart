@@ -17,10 +17,12 @@ Future<DeliveryFeeResult> deliveryFee(
   Ref ref, {
   required String restaurantId,
   required String quartierId,
+  int? subTotal,
 }) async {
   final repository = ref.watch(quartiersRepositoryProvider.notifier);
   return repository.calculateDeliveryFee(
     restaurantId: restaurantId,
     quartierId: quartierId,
+    subTotal: subTotal,
   );
 }

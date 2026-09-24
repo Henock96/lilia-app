@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
+import 'package:lilia_app/features/quartiers/domain/delivery_fee_label.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
@@ -305,7 +307,11 @@ class RestaurantCard extends ConsumerWidget {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              formatPrice(restaurant.fixedDeliveryFee),
+                              // F3-02 : « Dès X » en mode plateforme.
+                              deliveryFeeLabel(
+                                restaurant.fixedDeliveryFee,
+                                ref.watch(platformSettingsProvider).value,
+                              ),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: theme.colorScheme.onSurfaceVariant,

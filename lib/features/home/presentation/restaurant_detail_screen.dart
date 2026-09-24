@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
+import 'package:lilia_app/features/quartiers/domain/delivery_fee_label.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
@@ -921,13 +923,13 @@ class _ChipsRow extends StatelessWidget {
 
 // ─── Quick info livraison ──────────────────────────────────────────────────
 
-class _DeliveryInfoCard extends StatelessWidget {
+class _DeliveryInfoCard extends ConsumerWidget {
   final Restaurant restaurant;
 
   const _DeliveryInfoCard({required this.restaurant});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: Row(
@@ -942,9 +944,10 @@ class _DeliveryInfoCard extends StatelessWidget {
           _InfoTile(
             icon: Icons.local_shipping_outlined,
             label: 'Frais',
-            value: restaurant.fixedDeliveryFee == 0
-                ? 'Gratuit'
-                : formatPrice(restaurant.fixedDeliveryFee),
+            value: deliveryFeeLabel(
+              restaurant.fixedDeliveryFee,
+              ref.watch(platformSettingsProvider).value,
+            ),
             color: Colors.green,
           ),
           const SizedBox(width: 10),

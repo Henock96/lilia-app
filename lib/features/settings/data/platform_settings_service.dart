@@ -63,6 +63,15 @@ class PlatformSettings {
   final bool maintenanceMode;
   final String? maintenanceMessage;
 
+  /// F3-02 — qui fixe le prix de la course : `VENDOR_LEGACY` (le vendeur) ou
+  /// `PLATFORM` (la grille Lilia). En `PLATFORM`, `Restaurant.fixedDeliveryFee`
+  /// ne veut plus rien dire : le prix vient du devis `/quartiers/delivery-fee`.
+  final String deliveryPricingMode;
+
+  /// Prix le plus bas de la grille publiée (« Livraison dès X »). `null` en
+  /// mode vendeur ou sans grille.
+  final int? deliveryFeeFromXaf;
+
   /// Version minimale requise (en-dessous, mise à jour obligatoire / hard update).
   final String? minAppVersion;
 
@@ -81,6 +90,8 @@ class PlatformSettings {
     required this.referrerBonusPoints,
     this.maintenanceMode = false,
     this.maintenanceMessage,
+    this.deliveryPricingMode = 'VENDOR_LEGACY',
+    this.deliveryFeeFromXaf,
     this.minAppVersion,
     this.latestAppVersion,
     this.updateUrlAndroid,
@@ -115,6 +126,8 @@ class PlatformSettings {
     referrerBonusPoints: 1,
   );
 
+  bool get isPlatformDeliveryPricing => deliveryPricingMode == 'PLATFORM';
+
   /// Taux exploitable directement dans un produit (`0.08` pour 8 %).
   double get serviceFeeRate => serviceFeePercent / 100;
 
@@ -137,6 +150,10 @@ class PlatformSettings {
           defautsDeParsing.referrerBonusPoints,
       maintenanceMode: json['maintenanceMode'] as bool? ?? false,
       maintenanceMessage: json['maintenanceMessage'] as String?,
+      // Absent d'un serveur antérieur à F3-02 : c'est le mode vendeur.
+      deliveryPricingMode:
+          json['deliveryPricingMode'] as String? ?? 'VENDOR_LEGACY',
+      deliveryFeeFromXaf: (json['deliveryFeeFromXaf'] as num?)?.toInt(),
       minAppVersion: json['minAppVersion'] as String?,
       latestAppVersion: json['latestAppVersion'] as String?,
       updateUrlAndroid: json['updateUrlAndroid'] as String?,

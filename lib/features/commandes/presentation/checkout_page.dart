@@ -1062,6 +1062,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             restaurantId: restaurantId,
             subTotal: subTotal,
             deliveryFee: deliveryFee,
+            quartierId: widget.deliveryOptions?.quartier?.id,
           );
 
       if (!mounted) return;
@@ -1326,6 +1327,34 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           const Text(
             'Gratuit',
             style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Colors.green,
+            ),
+          ),
+        ],
+      );
+    }
+
+    // F3-02 — part offerte par le vendeur : le devis l'a déjà déduite, on
+    // montre seulement le prix de base barré.
+    final subsidy = widget.deliveryOptions?.deliverySubsidy ?? 0;
+    if (subsidy > 0) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            formatPrice(deliveryFee + subsidy),
+            style: TextStyle(
+              fontSize: 14,
+              decoration: TextDecoration.lineThrough,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            deliveryFee == 0 ? 'Offerte' : formatPrice(deliveryFee),
+            style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
               color: Colors.green,

@@ -31,10 +31,23 @@ class Quartier {
 
 class DeliveryFeeResult {
   final String mode;
+
+  /// Prix payé par le client, dans les trois modes : la seule valeur à lire
+  /// pour un montant.
   final double fee;
   final String? zoneName;
   final String? quartierName;
   final bool isDefaultZone;
+
+  /// Mode `PLATFORM` (F3-02) — prix de base de la grille, avant la part
+  /// offerte par le vendeur. `null` dans les autres modes.
+  final double? baseFee;
+
+  /// Part de la livraison offerte par le vendeur, retenue sur son reversement.
+  final double vendorSubsidy;
+
+  /// « Livraison offerte dès X » du vendeur, `null` s'il n'en propose pas.
+  final double? freeDeliveryThreshold;
 
   DeliveryFeeResult({
     required this.mode,
@@ -42,6 +55,9 @@ class DeliveryFeeResult {
     this.zoneName,
     this.quartierName,
     this.isDefaultZone = false,
+    this.baseFee,
+    this.vendorSubsidy = 0,
+    this.freeDeliveryThreshold,
   });
 
   factory DeliveryFeeResult.fromJson(Map<String, dynamic> json) {
@@ -51,9 +67,14 @@ class DeliveryFeeResult {
       zoneName: json['zoneName'] as String?,
       quartierName: json['quartierName'] as String?,
       isDefaultZone: json['isDefaultZone'] as bool? ?? false,
+      baseFee: (json['baseFee'] as num?)?.toDouble(),
+      vendorSubsidy: (json['vendorSubsidy'] as num?)?.toDouble() ?? 0,
+      freeDeliveryThreshold: (json['freeDeliveryThreshold'] as num?)
+          ?.toDouble(),
     );
   }
 
   bool get isFixed => mode == 'FIXED';
   bool get isZoneBased => mode == 'ZONE_BASED';
+  bool get isPlatform => mode == 'PLATFORM';
 }

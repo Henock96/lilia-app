@@ -33,7 +33,7 @@ final class PromoRepositoryProvider
   PromoRepository create() => PromoRepository();
 }
 
-String _$promoRepositoryHash() => r'9296392c9be69b683e3f3cc9b844a93da1fbb664';
+String _$promoRepositoryHash() => r'b4cfba5cdd06e0b393198c3d356a74e4dd126c8a';
 
 abstract class _$PromoRepository extends $AsyncNotifier<void> {
   FutureOr<void> build();

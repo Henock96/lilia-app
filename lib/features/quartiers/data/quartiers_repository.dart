@@ -29,10 +29,17 @@ class QuartiersRepository extends _$QuartiersRepository {
   Future<DeliveryFeeResult> calculateDeliveryFee({
     required String restaurantId,
     required String quartierId,
+    int? subTotal,
   }) async {
     final res = await _api.getJson(
       '/quartiers/delivery-fee',
-      query: {'restaurantId': restaurantId, 'quartierId': quartierId},
+      query: {
+        'restaurantId': restaurantId,
+        'quartierId': quartierId,
+        // Sert au seul seuil « livraison offerte dès X » (F3-02) ; le
+        // checkout recalcule sur le panier serveur.
+        'subTotal': ?subTotal,
+      },
     );
     // Objet plat côté service → enveloppé `{ data: {...} }` par l'interceptor.
     return DeliveryFeeResult.fromJson(ApiResponse.mapOf(res.data));

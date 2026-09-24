@@ -72,7 +72,8 @@ final class DeliveryFeeProvider
   /// Provider pour calculer les frais de livraison
   DeliveryFeeProvider._({
     required DeliveryFeeFamily super.from,
-    required ({String restaurantId, String quartierId}) super.argument,
+    required ({String restaurantId, String quartierId, int? subTotal})
+    super.argument,
   }) : super(
          retry: null,
          name: r'deliveryFeeProvider',
@@ -100,11 +101,13 @@ final class DeliveryFeeProvider
   @override
   FutureOr<DeliveryFeeResult> create(Ref ref) {
     final argument =
-        this.argument as ({String restaurantId, String quartierId});
+        this.argument
+            as ({String restaurantId, String quartierId, int? subTotal});
     return deliveryFee(
       ref,
       restaurantId: argument.restaurantId,
       quartierId: argument.quartierId,
+      subTotal: argument.subTotal,
     );
   }
 
@@ -119,7 +122,7 @@ final class DeliveryFeeProvider
   }
 }
 
-String _$deliveryFeeHash() => r'e3524f78952cb0e2a9586fc401df230201f4acb9';
+String _$deliveryFeeHash() => r'3d321e64da25eb0cd9207efed98fbc3fd53d44f4';
 
 /// Provider pour calculer les frais de livraison
 
@@ -127,7 +130,7 @@ final class DeliveryFeeFamily extends $Family
     with
         $FunctionalFamilyOverride<
           FutureOr<DeliveryFeeResult>,
-          ({String restaurantId, String quartierId})
+          ({String restaurantId, String quartierId, int? subTotal})
         > {
   DeliveryFeeFamily._()
     : super(
@@ -143,8 +146,13 @@ final class DeliveryFeeFamily extends $Family
   DeliveryFeeProvider call({
     required String restaurantId,
     required String quartierId,
+    int? subTotal,
   }) => DeliveryFeeProvider._(
-    argument: (restaurantId: restaurantId, quartierId: quartierId),
+    argument: (
+      restaurantId: restaurantId,
+      quartierId: quartierId,
+      subTotal: subTotal,
+    ),
     from: this,
   );
 
