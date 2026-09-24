@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:lilia_app/features/home/domain/opening_label.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -241,7 +242,7 @@ class _SearchRestaurantTile extends StatelessWidget {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  restaurant.isOpen ? 'Ouvert' : 'Ferme',
+                  openingLabel(restaurant.isOpen, restaurant.pausedUntil),
                   style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
                 ),
                 const SizedBox(width: 8),

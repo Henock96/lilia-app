@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/features/home/domain/opening_label.dart';
 import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 import 'package:lilia_app/features/quartiers/domain/delivery_fee_label.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
@@ -362,7 +363,7 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        restaurant.isOpen ? 'Ouvert' : 'Ferme',
+                        openingLabel(restaurant.isOpen, restaurant.pausedUntil),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 11,
