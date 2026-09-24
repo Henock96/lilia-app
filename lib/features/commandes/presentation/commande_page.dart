@@ -95,6 +95,7 @@ class _CommandePageState extends ConsumerState<CommandePage>
             switch (o.status) {
               case OrderStatus.enAttente:
               case OrderStatus.payer:
+              case OrderStatus.acceptee:
               case OrderStatus.enPreparation:
               case OrderStatus.pret:
               case OrderStatus.enRoute:
@@ -106,7 +107,10 @@ class _CommandePageState extends ConsumerState<CommandePage>
                 onGoingOrders.add(o);
               case OrderStatus.livrer:
                 completedOrders.add(o);
+              // Livraison non aboutie : issue terminale sans repas reçu, rangée
+              // avec les annulations plutôt qu'avec les livrées.
               case OrderStatus.annuler:
+              case OrderStatus.echecLivraison:
                 cancelledOrders.add(o);
             }
           }
@@ -702,6 +706,18 @@ class _StatusBadge extends StatelessWidget {
           label: 'Payée',
           color: Colors.purple,
           icon: Icons.payment,
+        );
+      case OrderStatus.acceptee:
+        return _StatusInfo(
+          label: 'Acceptée',
+          color: Colors.lightGreen,
+          icon: Icons.thumb_up_alt_outlined,
+        );
+      case OrderStatus.echecLivraison:
+        return _StatusInfo(
+          label: 'Livraison non aboutie',
+          color: Colors.deepOrange,
+          icon: Icons.report_problem_outlined,
         );
       case OrderStatus.enPreparation:
         return _StatusInfo(

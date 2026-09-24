@@ -1,3 +1,8 @@
+// Exception assumée à `avoid_public_notifier_properties` (riverpod_lint) :
+// `hasMore` et `isLoadingMore` changent dans le MÊME geste que `state` (la page
+// ajoutée), donc l'écran qui les lit est reconstruit avec elles. Les déplacer
+// dans `state` imposerait de refondre la pagination. Portée : ce fichier.
+// ignore_for_file: riverpod_lint/avoid_public_notifier_properties
 import 'package:lilia_app/services/analytics_service.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:lilia_app/models/order.dart';

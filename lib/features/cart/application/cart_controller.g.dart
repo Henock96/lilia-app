@@ -21,7 +21,7 @@ final class CartRepositoryProvider
         argument: null,
         retry: null,
         name: r'cartRepositoryProvider',
-        isAutoDispose: true,
+        isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
@@ -48,7 +48,7 @@ final class CartRepositoryProvider
   }
 }
 
-String _$cartRepositoryHash() => r'fea908e31a13a38fdb6590b5f0c3342caef18590';
+String _$cartRepositoryHash() => r'6a9fa56a035f418dd11f3192952988f7363871e1';
 
 /// « Y a-t-il une session ouverte ? », posée **au moment du geste**.
 ///

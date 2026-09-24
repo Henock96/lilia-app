@@ -1,3 +1,6 @@
+// Faux contrôleurs de test : ils exposent volontairement des compteurs pour
+// les assertions (`avoid_public_notifier_properties` vise le code de prod).
+// ignore_for_file: riverpod_lint/avoid_public_notifier_properties
 // **Un tap, une commande.**
 //
 // Le bouton « Valider et payer » n'était grisé que par `CheckoutController`,
