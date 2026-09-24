@@ -3,6 +3,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../../core/network/api_exception.dart';
 import '../controller/auth_controller.dart';
 import '../domain/auth_failure.dart';
+import '../domain/orphan_session.dart';
 import '../repository/firebase_auth_repository.dart';
 import 'auth_failure_announcer.dart';
 
@@ -52,24 +53,31 @@ class SessionGuard extends _$SessionGuard {
   @override
   void build() {}
 
-  /// À appeler sur **toute** erreur d'API. Ne réagit qu'au 401.
+  /// À appeler sur **toute** erreur d'API. Réagit au 401, et au 403 d'un
+  /// compte absent ou révoqué côté Lilia (voir [accountRefusalOf]).
+  ///
+  /// Ce second cas affichait « Compte non synchronisé » en boucle : un compte
+  /// supprimé pendant que le téléphone gardait sa session Firebase ne
+  /// retrouvait jamais l'écran de connexion (bug du 24/09/2026).
   Future<void> handle(Object error) async {
-    if (error is! ApiException ||
-        error.kind != ApiErrorKind.unauthorized ||
-        _deconnexionEnCours) {
-      return;
-    }
+    if (error is! ApiException || _deconnexionEnCours) return;
+    final refusal = accountRefusalOf(error);
+    if (error.kind != ApiErrorKind.unauthorized && refusal == null) return;
 
     // Un 401 sur une route publique, ou après une déconnexion déjà faite, ne
     // concerne aucune session : ni nettoyage, ni message à un visiteur qui n'a
     // rien demandé.
     if (ref.read(authRepositoryProvider).currentUser == null) return;
 
+    // Compte absent ou révoqué côté Lilia : on déconnecte, sans tenter de
+    // resynchroniser — une resynchronisation recréerait en silence un compte
+    // supprimé exprès (les scripts de purge n'effacent que la base). Se
+    // reconnecter avec le même compte refait la synchronisation.
     _deconnexionEnCours = true;
     try {
       ref
           .read(authFailureAnnouncerProvider.notifier)
-          .announce(kAuthSessionExpired);
+          .announce(refusal == null ? kAuthSessionExpired : kAuthAccountGone);
       await ref.read(authControllerProvider.notifier).signOut();
     } finally {
       _deconnexionEnCours = false;

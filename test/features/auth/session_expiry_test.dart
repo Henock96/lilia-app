@@ -78,6 +78,65 @@ void main() {
     expect(annonce(), isNull);
   });
 
+  group('Compte supprimé pendant que le téléphone gardait sa session', () {
+    // Bug du 24/09/2026 : « Compte non synchronisé » en boucle, sans retour
+    // possible à l'écran de connexion.
+    test(
+      '403 ACCOUNT_NOT_SYNCED : déconnecte et annonce un compte indisponible',
+      () async {
+        await garde().handle(
+          const ApiException(
+            'Compte non synchronisé. Appelez POST /users/sync avant cette action.',
+            statusCode: 403,
+            kind: ApiErrorKind.client,
+            code: 'ACCOUNT_NOT_SYNCED',
+          ),
+        );
+
+        expect(repo.appelsSignOut, 1);
+        expect(annonce()?.message, contains('plus disponible'));
+      },
+    );
+
+    test('403 ACCOUNT_REVOKED (supprimé, bloqué) : déconnecte', () async {
+      await garde().handle(
+        const ApiException(
+          'Compte suspendu',
+          statusCode: 403,
+          kind: ApiErrorKind.client,
+          code: 'ACCOUNT_REVOKED',
+        ),
+      );
+
+      expect(repo.appelsSignOut, 1);
+    });
+
+    test('serveur antérieur au code : reconnu par le message', () async {
+      await garde().handle(
+        const ApiException(
+          'Compte non synchronisé. Appelez POST /users/sync avant cette action.',
+          statusCode: 403,
+          kind: ApiErrorKind.client,
+        ),
+      );
+
+      expect(repo.appelsSignOut, 1);
+    });
+
+    test('un 403 ordinaire (rôle refusé) ne déconnecte pas', () async {
+      await garde().handle(
+        const ApiException(
+          'Accès refusé',
+          statusCode: 403,
+          kind: ApiErrorKind.client,
+        ),
+      );
+
+      expect(repo.appelsSignOut, 0);
+      expect(annonce(), isNull);
+    });
+  });
+
   group('Pas de boucle, pas de doublon', () {
     test('deux 401 simultanés ne déconnectent qu’une fois', () async {
       // Plusieurs requêtes partent ensemble au démarrage d'un écran : elles
@@ -97,7 +156,10 @@ void main() {
         if (next != null) messages++;
       });
 
-      await Future.wait([garde().handle(_erreur401), garde().handle(_erreur401)]);
+      await Future.wait([
+        garde().handle(_erreur401),
+        garde().handle(_erreur401),
+      ]);
 
       expect(messages, 1);
     });
