@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
+import 'package:lilia_app/features/quartiers/domain/delivery_fee_label.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -490,7 +492,10 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          formatPrice(restaurant.fixedDeliveryFee),
+                          deliveryFeeLabel(
+                            restaurant.fixedDeliveryFee,
+                            ref.watch(platformSettingsProvider).value,
+                          ),
                           style: TextStyle(
                             fontSize: 12,
                             color: cs.onSurfaceVariant,

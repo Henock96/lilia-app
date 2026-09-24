@@ -19,6 +19,7 @@ class PromoRepository extends _$PromoRepository {
     required String restaurantId,
     required double subTotal,
     required double deliveryFee,
+    String? quartierId,
   }) async {
     final res = await ref
         .read(apiClientProvider)
@@ -29,6 +30,9 @@ class PromoRepository extends _$PromoRepository {
             'restaurantId': restaurantId,
             'subTotal': subTotal,
             'deliveryFee': deliveryFee,
+            // F3-02 — en mode plateforme, un code « livraison offerte » se
+            // chiffre sur le devis de ce quartier.
+            'quartierId': ?quartierId,
           },
         );
     // Objet plat côté backend → enveloppé `{ data: {...} }` par l'interceptor.

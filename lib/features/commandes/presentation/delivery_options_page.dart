@@ -40,6 +40,18 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
 
   double? _calculatedDeliveryFee;
 
+  /// Dernier devis serveur (F3-02) : il porte la part offerte par le vendeur
+  /// et le seuil de livraison offerte, qu'on explique sans rien recalculer.
+  DeliveryFeeResult? _quote;
+
+  /// Mode plateforme et devis injoignable : le prix est inconnu. On ne le
+  /// remplace pas par le tarif du vendeur, qui ne s'applique plus.
+  bool _deliveryFeeUnavailable = false;
+
+  /// Sous-total du panier, transmis au devis pour le seul seuil « livraison
+  /// offerte dès X ».
+  int? _subTotal;
+
   /// Identifiant de l'adresse dont on rattache le quartier, le temps de
   /// l'aller-retour serveur. `null` = aucune complétion en cours.
   ///
@@ -115,6 +127,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                 setState(() {
                   _isDelivery = true;
                   _calculatedDeliveryFee = null;
+                  _quote = null;
                 });
               }
             });
@@ -123,6 +136,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
           final double subTotal = cart.items.fold(0.0, (sum, item) {
             return sum + (item.variant.prix * item.quantite);
           });
+          _subTotal = subTotal.round();
 
           return SafeArea(
             child: SingleChildScrollView(
@@ -244,6 +258,8 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
           setState(() {
             _isDelivery = value;
             _calculatedDeliveryFee = value ? null : 0;
+            _quote = null;
+            _deliveryFeeUnavailable = false;
           });
         },
         child: Column(
@@ -804,6 +820,12 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
+                  if (_isDelivery && _deliveryFeeUnavailable)
+                    TextButton(
+                      onPressed: _calculateDeliveryFee,
+                      child: const Text('Prix indisponible — réessayer'),
+                    )
+                  else
                   Text(
                     _isDelivery
                         ? (_calculatedDeliveryFee != null
@@ -819,6 +841,19 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                   // Le calcul de zone a échoué : on affiche un repli, le
                   // montant final peut différer. Le dire plutôt que de laisser
                   // croire à un montant confirmé.
+                  if (_isDelivery && (_quote?.vendorSubsidy ?? 0) > 0)
+                    Text(
+                      'dont ${formatPrice(_quote!.vendorSubsidy)} offerts par le vendeur',
+                      style: const TextStyle(fontSize: 11, color: Colors.green),
+                    ),
+                  if (_isDelivery &&
+                      _quote?.freeDeliveryThreshold != null &&
+                      (_quote?.vendorSubsidy ?? 0) == 0 &&
+                      subTotal < _quote!.freeDeliveryThreshold!)
+                    Text(
+                      'Offerte dès ${formatPrice(_quote!.freeDeliveryThreshold!)}',
+                      style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                    ),
                   if (_isDelivery && _deliveryFeeIsEstimate)
                     Text(
                       'Estimation — montant confirme a la commande',
@@ -893,6 +928,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
 
     setState(() {
       _isCalculatingFee = true;
+      _deliveryFeeUnavailable = false;
     });
 
     try {
@@ -900,14 +936,32 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
         deliveryFeeProvider(
           restaurantId: _restaurantId!,
           quartierId: _selectedQuartier!.id,
+          subTotal: _subTotal,
         ).future,
       );
+      if (!mounted) return;
       setState(() {
         _calculatedDeliveryFee = result.fee;
+        _quote = result;
         _deliveryFeeIsEstimate = false;
         _isCalculatingFee = false;
       });
     } catch (e) {
+      if (!mounted) return;
+      // F3-02 — en mode plateforme, le tarif du vendeur ne s'applique plus :
+      // s'en servir comme repli annoncerait un prix que le checkout ne
+      // facturera pas. Le prix est inconnu, on le dit et on propose de
+      // réessayer.
+      if (ref.read(platformSettingsProvider).value?.isPlatformDeliveryPricing ??
+          false) {
+        setState(() {
+          _calculatedDeliveryFee = null;
+          _quote = null;
+          _deliveryFeeUnavailable = true;
+          _isCalculatingFee = false;
+        });
+        return;
+      }
       // Le calcul de zone a échoué (réseau instable — le cas nominal à
       // Brazzaville). On retombe sur les frais fixes du vendeur, et à défaut
       // sur le défaut serveur — l'ancienne valeur en dur de 500 FCFA était
@@ -935,6 +989,12 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
     if (bareme.maintenanceMode) return false;
 
     if (!_isDelivery) return true; // Retrait, pas besoin d'adresse
+
+    // Mode plateforme : pas de devis, pas de prix — on n'emmène pas le client
+    // valider un total inconnu.
+    if (bareme.isPlatformDeliveryPricing && _calculatedDeliveryFee == null) {
+      return false;
+    }
 
     // Pour la livraison, il faut un quartier et une adresse
     if (_selectedQuartier == null) return false;
@@ -986,6 +1046,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
         deliveryFee: _isDelivery
             ? (_calculatedDeliveryFee ?? kDefaultDeliveryFee)
             : 0,
+        deliverySubsidy: _isDelivery ? (_quote?.vendorSubsidy ?? 0) : 0,
       ),
     );
   }
@@ -1064,6 +1125,10 @@ class DeliveryOptions {
   final PickedLocation? newAddressLocation;
   final double deliveryFee;
 
+  /// F3-02 — part de la livraison offerte par le vendeur, déjà déduite de
+  /// [deliveryFee]. Affichée, jamais recalculée.
+  final double deliverySubsidy;
+
   DeliveryOptions({
     required this.isDelivery,
     this.quartier,
@@ -1071,6 +1136,7 @@ class DeliveryOptions {
     this.newAddressRue,
     this.newAddressLocation,
     required this.deliveryFee,
+    this.deliverySubsidy = 0,
   });
 }
 
