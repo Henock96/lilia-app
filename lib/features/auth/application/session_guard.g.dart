@@ -148,7 +148,7 @@ final class SessionGuardProvider extends $NotifierProvider<SessionGuard, void> {
   }
 }
 
-String _$sessionGuardHash() => r'33b439868ca022d09b552467ac486d465a53474c';
+String _$sessionGuardHash() => r'dd33ad2df93ac0d081dbcd22b871fb98485e9208';
 
 /// Ce qu'il advient d'une session que le serveur n'accepte plus.
 ///
