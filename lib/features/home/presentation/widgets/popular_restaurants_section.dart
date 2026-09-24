@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/features/home/domain/opening_label.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
@@ -151,7 +152,7 @@ class _PopularRestaurantCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        restaurant.isOpen ? 'Ouvert' : 'Ferme',
+                        openingLabel(restaurant.isOpen, restaurant.pausedUntil),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 9,

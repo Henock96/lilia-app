@@ -181,6 +181,10 @@ class RestaurantSummary {
 
   // Nouveaux champs
   final bool isOpen;
+
+  /// F3-03 — pause datée : « rouvre à 14h30 ». `null` sans pause ou pour un
+  /// serveur antérieur.
+  final DateTime? pausedUntil;
   final List<Specialty> specialties;
   final int estimatedDeliveryTimeMin;
   final int estimatedDeliveryTimeMax;
@@ -203,6 +207,7 @@ class RestaurantSummary {
     this.averageRating,
     this.totalReviews,
     this.isOpen = true,
+    this.pausedUntil,
     this.specialties = const [],
     this.estimatedDeliveryTimeMin = 15,
     this.estimatedDeliveryTimeMax = 30,
@@ -250,6 +255,7 @@ class RestaurantSummary {
           : null,
       totalReviews: json['totalReviews'] as int?,
       isOpen: (json['isOpen'] as bool?) ?? true,
+      pausedUntil: DateTime.tryParse(json['pausedUntil'] as String? ?? ''),
       specialties: specialties,
       estimatedDeliveryTimeMin:
           (json['estimatedDeliveryTimeMin'] as int?) ?? 15,
@@ -290,6 +296,10 @@ class Restaurant {
 
   // Nouveaux champs
   final bool isOpen;
+
+  /// F3-03 — pause datée : « rouvre à 14h30 ». `null` sans pause ou pour un
+  /// serveur antérieur.
+  final DateTime? pausedUntil;
   final List<Specialty> specialties;
   final List<OperatingHours> operatingHours;
   final int estimatedDeliveryTimeMin;
@@ -320,6 +330,7 @@ class Restaurant {
     required this.categoriesMap,
     this.categories = const [],
     this.isOpen = true,
+    this.pausedUntil,
     this.specialties = const [],
     this.operatingHours = const [],
     this.estimatedDeliveryTimeMin = 15,
@@ -449,6 +460,7 @@ class Restaurant {
       categoriesMap: categoriesMap,
       categories: declaredCategories,
       isOpen: (json['isOpen'] as bool?) ?? true,
+      pausedUntil: DateTime.tryParse(json['pausedUntil'] as String? ?? ''),
       specialties: specialties,
       operatingHours: operatingHours,
       estimatedDeliveryTimeMin:

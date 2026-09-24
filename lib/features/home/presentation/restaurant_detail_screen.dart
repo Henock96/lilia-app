@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/features/home/domain/opening_label.dart';
 import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 import 'package:lilia_app/features/quartiers/domain/delivery_fee_label.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -679,7 +680,7 @@ class _VendorIdentityCard extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            open ? 'Ouvert' : 'Fermé',
+            openingLabel(open, restaurant.pausedUntil),
             style: TextStyle(
               color: open ? Colors.green : Colors.red,
               fontWeight: FontWeight.bold,
