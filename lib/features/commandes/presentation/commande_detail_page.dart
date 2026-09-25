@@ -250,7 +250,12 @@ class OrderDetailPage extends ConsumerWidget {
 
                 // F-06 : le recours qui manquait — une commande déclarée
                 // livrée sans l'être n'avait aucune porte de sortie.
-                if (_reportableStatuses.contains(order.status)) ...[
+                // F3-06 — livrée : réclamation détaillée (articles, photo,
+                // fil avec le service client), 24 h. Avant : signalement F-06.
+                if (order.status == OrderStatus.livrer) ...[
+                  _ClaimButton(orderId: order.id),
+                  const SizedBox(height: 16),
+                ] else if (_reportableStatuses.contains(order.status)) ...[
                   _ReportIssueButton(orderId: order.id),
                   const SizedBox(height: 16),
                 ],
@@ -2226,6 +2231,23 @@ const _reportableStatuses = {
   // F3-05 : un client doit pouvoir contester l'issue d'un échec (miroir serveur).
   OrderStatus.echecLivraison,
 };
+
+class _ClaimButton extends StatelessWidget {
+  const _ClaimButton({required this.orderId});
+
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context) => OutlinedButton.icon(
+    key: const Key('open-claim'),
+    icon: const Icon(Icons.support_agent_outlined),
+    label: const Text('Un problème avec ma commande ?'),
+    onPressed: () => context.pushNamed(
+      AppRoutes.claimForm.routeName,
+      pathParameters: {'orderId': orderId},
+    ),
+  );
+}
 
 class _ReportIssueButton extends ConsumerWidget {
   const _ReportIssueButton({required this.orderId});

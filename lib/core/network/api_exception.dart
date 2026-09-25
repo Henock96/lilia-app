@@ -12,11 +12,16 @@ class ApiException implements Exception {
   /// Se lire sur lui plutôt que sur le texte, qui peut changer.
   final String? code;
 
+  /// Le reste de `error` — ce qu'un refus porte en plus de son code, comme
+  /// l'identifiant de la réclamation déjà ouverte (`CLAIM_ALREADY_OPEN`).
+  final Map<String, dynamic>? details;
+
   const ApiException(
     this.message, {
     this.statusCode,
     this.kind = ApiErrorKind.unknown,
     this.code,
+    this.details,
   });
 
   @override
