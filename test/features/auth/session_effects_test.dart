@@ -25,6 +25,7 @@ import 'package:lilia_app/services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fake_auth_repository.dart';
+import 'package:lilia_app/models/modifier.dart';
 
 /// Panier serveur simulé, qui applique réellement les ajouts : on observe le
 /// contenu obtenu, pas un nombre d'appels.
@@ -39,6 +40,7 @@ class _FauxPanierServeur implements CartRepository {
   Future<Cart?> addToCart({
     required String variantId,
     required int quantity,
+    List<SelectedOption> options = const [],
   }) async {
     if (erreurAAjout != null) throw erreurAAjout!;
     _cart = applyAddItem(

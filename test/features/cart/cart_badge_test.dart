@@ -6,6 +6,7 @@ import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/cart/data/cart_repository.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/models/cart.dart';
+import 'package:lilia_app/models/modifier.dart';
 
 /// Le compteur du panier, et la garantie qu'il ne fait pas reconstruire
 /// l'application entière.
@@ -37,6 +38,7 @@ class _FauxRepository implements CartRepository {
   Future<Cart?> addToCart({
     required String variantId,
     required int quantity,
+    List<SelectedOption> options = const [],
   }) async {
     final apercu = apercus[variantId];
     if (apercu != null) {

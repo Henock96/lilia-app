@@ -18,6 +18,8 @@ import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/services/analytics_service.dart';
 import 'package:lilia_app/utils/currency.dart';
+import 'package:lilia_app/features/cart/presentation/product_options_gate.dart';
+import 'package:lilia_app/features/cart/presentation/line_options_text.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -637,14 +639,27 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                         fontSize: 12,
                       ),
                     ),
+                    // F3-09 — options de la ligne, et problème annoncé par le
+                    // serveur (option en rupture…) : le checkout la refusera.
+                    LineOptionsText(widget.item.options),
+                    if (widget.item.issue != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          widget.item.issue!.message,
+                          key: const ValueKey('cart-line-issue'),
+                          style: TextStyle(color: cs.error, fontSize: 12),
+                        ),
+                      ),
                     const SizedBox(height: 4),
                     Text(
-                      formatPrice(widget.item.variant.prix),
+                      // Prix unitaire du serveur (variante + options).
+                      formatPrice(widget.item.unitPrice),
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     if (widget.item.quantite > 1)
                       Text(
-                        'Sous-total : ${formatPrice(widget.item.variant.prix * widget.item.quantite)}',
+                        'Sous-total : ${formatPrice(widget.item.unitPrice * widget.item.quantite)}',
                         style: TextStyle(
                           fontSize: 11,
                           color: cs.onSurfaceVariant,
@@ -931,6 +946,8 @@ class _SuggestionTile extends ConsumerWidget {
   }
 
   void _handleAddToCart(BuildContext context, WidgetRef ref) {
+    // F3-09 — un produit à options s'ajoute depuis sa fiche.
+    if (openProductForOptions(context, product)) return;
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       context.showSnack('Connectez-vous pour ajouter au panier');

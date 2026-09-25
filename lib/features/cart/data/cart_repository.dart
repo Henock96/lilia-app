@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:lilia_app/core/network/api_client.dart';
 import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/models/cart.dart';
+import 'package:lilia_app/models/modifier.dart';
 import 'package:lilia_app/core/log.dart';
 
 /// Exception personnalisée pour les erreurs de panier
@@ -95,7 +96,14 @@ class CartRepository {
       case ApiErrorKind.unknown:
         final status = e.statusCode;
         if (status == 400 && useBackendMessageOn400) {
-          return CartException(e.message, code: 'INVALID_DATA');
+          // F3-09 — le code métier du serveur (`MODIFIER_REQUIRED`…) passe :
+          // l'écran peut s'y fier plutôt qu'au texte.
+          return CartException(e.message, code: e.code ?? 'INVALID_DATA');
+        }
+        if (status == 409 && useBackendMessageOn400) {
+          // Option mise en rupture entre l'affichage et l'ajout : le message
+          // du serveur est nominatif (« L'option « Alloco » n'est plus… »).
+          return CartException(e.message, code: e.code ?? 'CONFLICT');
         }
         if (status == 403) {
           return CartException(
@@ -140,11 +148,19 @@ class CartRepository {
   Future<Cart?> addToCart({
     required String variantId,
     required int quantity,
+    List<SelectedOption> options = const [],
   }) async {
     try {
       final res = await _api.postJson(
         '/cart/add',
-        body: {'variantId': variantId, 'quantite': quantity},
+        body: {
+          'variantId': variantId,
+          'quantite': quantity,
+          // F3-09 — envoyé seulement s'il y a des options : un ajout sans
+          // option garde exactement le corps d'avant.
+          if (options.isNotEmpty)
+            'options': [for (final o in options) o.toJson()],
+        },
       );
       return _cartFromData(res.data);
     } on ApiException catch (e) {

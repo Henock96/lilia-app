@@ -16,6 +16,7 @@ import 'package:lilia_app/features/cart/data/guest_cart_store.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/models/cart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lilia_app/models/modifier.dart';
 
 /// Dépôt de panier **serveur** simulé : il applique réellement les ajouts, pour
 /// qu'on puisse observer le panier obtenu plutôt que des appels comptés.
@@ -28,6 +29,9 @@ class _FauxDepot implements CartRepository {
   /// Variantes que le serveur refuse — rupture, retrait, fenêtre horaire.
   final Set<String> refusees = {};
 
+  /// F3-09 — options reçues à chaque `POST /cart/add`, dans l'ordre.
+  final List<({String variantId, List<SelectedOption> options})> recus = [];
+
   @override
   Future<Cart?> getCart() async => _cart;
 
@@ -35,11 +39,13 @@ class _FauxDepot implements CartRepository {
   Future<Cart?> addToCart({
     required String variantId,
     required int quantity,
+    List<SelectedOption> options = const [],
   }) async {
     if (erreurAAjout != null) throw erreurAAjout!;
     if (refusees.contains(variantId)) {
       throw CartException('Produit épuisé.', code: 'INVALID_DATA');
     }
+    recus.add((variantId: variantId, options: options));
     _cart = applyAddItem(
       _cart,
       CartItemPreview(
@@ -47,6 +53,15 @@ class _FauxDepot implements CartRepository {
         variantId: variantId,
         product: ProductItem(nom: variantId, restaurantId: 'resto-serveur'),
         variant: VariantItem(label: 'Standard', prix: 1000),
+        options: [
+          for (final o in options)
+            LineOption(
+              optionId: o.optionId,
+              groupName: 'g',
+              name: o.optionId,
+              quantity: o.quantity,
+            ),
+        ],
       ),
       quantity,
     );
@@ -457,6 +472,107 @@ void main() {
         container.read(cartSyncFailuresProvider)?.message,
         contains('conservé'),
       );
+    });
+  });
+
+  // ─── F3-09 — options & suppléments ──────────────────────────────────────
+
+  CartItemPreview pouletAvec(List<LineOption> options) => CartItemPreview(
+    productId: 'prod-poulet',
+    variantId: 'var-poulet',
+    product: ProductItem(nom: 'Poulet braisé', restaurantId: 'resto-1'),
+    variant: VariantItem(label: 'Standard', prix: 3000),
+    options: options,
+  );
+  const alloco = LineOption(
+    optionId: 'opt-alloco',
+    groupName: 'Accompagnement',
+    name: 'Alloco',
+    priceDeltaXaf: 500,
+  );
+  const riz = LineOption(
+    optionId: 'opt-riz',
+    groupName: 'Accompagnement',
+    name: 'Riz',
+  );
+  const oeuf2 = LineOption(
+    optionId: 'opt-oeuf',
+    groupName: 'Suppléments',
+    name: 'Œuf',
+    priceDeltaXaf: 300,
+    quantity: 2,
+  );
+
+  group('F3-09 — options dans le panier invité', () {
+    test('même plat, options différentes : deux lignes ; mêmes options : une', () async {
+      final panier = await monter();
+      await panier.addItem(variantId: 'var-poulet', preview: pouletAvec([alloco]));
+      await panier.addItem(variantId: 'var-poulet', preview: pouletAvec([riz]));
+      await panier.addItem(variantId: 'var-poulet', preview: pouletAvec([alloco]));
+
+      final lignes = etat()!.items;
+      expect(lignes, hasLength(2));
+      expect(
+        lignes.firstWhere((l) => l.optionsSignature == 'opt-alloco:1').quantite,
+        2,
+      );
+    });
+
+    test('le prix affiché inclut les suppléments (3 000 + 500 + 2×300)', () async {
+      final panier = await monter();
+      await panier.addItem(
+        variantId: 'var-poulet',
+        preview: pouletAvec([alloco, oeuf2]),
+        quantity: 2,
+      );
+      final ligne = etat()!.items.single;
+      expect(ligne.unitPrice, 4100);
+      expect(etat()!.totalPrice, 8200);
+    });
+
+    test('les options survivent à la fermeture de l’application', () async {
+      final panier = await monter();
+      await panier.addItem(
+        variantId: 'var-poulet',
+        preview: pouletAvec([alloco, oeuf2]),
+      );
+      final relu = (await magasin()).read()!.items.single;
+      expect(relu.optionsSignature, 'opt-alloco:1,opt-oeuf:2');
+      expect(relu.options.map((o) => o.label), ['Alloco', 'Œuf ×2']);
+      expect(relu.unitPrice, 4100);
+    });
+
+    test('à la connexion, chaque ligne part AVEC ses options — jamais sans', () async {
+      final panier = await monter();
+      await panier.addItem(variantId: 'var-poulet', preview: pouletAvec([alloco, oeuf2]));
+      await panier.addItem(variantId: 'var-poulet', preview: pouletAvec([riz]));
+
+      sessionOuverte = true;
+      await panier.adoptGuestCart();
+
+      expect(
+        depot.recus.map(
+          (r) => [for (final o in r.options) '${o.optionId}:${o.quantity}'],
+        ),
+        [
+          ['opt-alloco:1', 'opt-oeuf:2'],
+          ['opt-riz:1'],
+        ],
+      );
+      expect(etat()!.items, hasLength(2));
+    });
+
+    test('un panier invité enregistré AVANT F3-09 se relit (sans option)', () async {
+      await monter(
+        prefs: {
+          GuestCartStore.storageKey:
+              '{"items":[{"id":"x","cartId":"guest-cart","productId":"p","variantId":"v","quantite":1,"createdAt":"2026-09-01T00:00:00.000","product":{"nom":"Ancien","restaurantId":"r"},"variant":{"label":"Standard","prix":1500}}]}',
+        },
+      );
+      final ligne = etat()!.items.single;
+      expect(ligne.options, isEmpty);
+      expect(ligne.optionsSignature, '');
+      expect(ligne.unitPrice, 1500);
     });
   });
 }

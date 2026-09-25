@@ -14,6 +14,8 @@ import 'package:lilia_app/common_widgets/image_gallery.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
+import 'package:lilia_app/features/cart/domain/modifier_selection.dart';
+import 'package:lilia_app/features/cart/presentation/modifier_group_picker.dart';
 
 /// **La fiche produit, adressable.**
 ///
@@ -61,6 +63,11 @@ class _ProductDetailPageState extends ConsumerState<_ProductDetailView>
     with SingleTickerProviderStateMixin {
   int _quantity = 1;
   ProductVariant? _selectedVariant;
+
+  /// F3-09 — options choisies (vide pour un produit sans groupe).
+  late final ModifierSelectionState _options = ModifierSelectionState(
+    widget.product.modifierGroups,
+  );
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
 
@@ -92,6 +99,15 @@ class _ProductDetailPageState extends ConsumerState<_ProductDetailView>
       restaurantId: widget.product.restaurantId,
       price: widget.product.prixOriginal,
     );
+    // F3-09 — une fois par ouverture, seulement si la fiche propose un choix.
+    if (widget.product.hasModifiers) {
+      AnalyticsService.trackProductOptionsView(
+        productId: widget.product.id,
+        productName: widget.product.name,
+        restaurantId: widget.product.restaurantId,
+        groupCount: widget.product.modifierGroups.length,
+      );
+    }
   }
 
   @override
@@ -107,7 +123,13 @@ class _ProductDetailPageState extends ConsumerState<_ProductDetailView>
   /// trois tailles dont la moins chère vaut 1 000 et dont `prixOriginal` vaut
   /// 2 500, la fiche annonçait 2 500 tant que rien n'était sélectionné — un
   /// montant qu'aucun panier n'aurait jamais porté.
-  double get _unitPrice => _selectedVariant?.prix ?? widget.product.startingPrice;
+  ///
+  /// F3-09 — plus les suppléments choisis. Affichage seulement : le panier
+  /// affichera le prix unitaire calculé par le serveur, et le checkout le
+  /// recalcule depuis la base.
+  double get _unitPrice =>
+      (_selectedVariant?.prix ?? widget.product.startingPrice) +
+      _options.optionsValue;
 
   double get _currentPrice => _unitPrice * _quantity;
 
@@ -147,13 +169,16 @@ Téléchargez l'app Lilia Food pour commander !
         return p.availableFrom != null && p.availableUntil != null
             ? 'Disponible de ${p.availableFrom} à ${p.availableUntil}'
             : 'Hors créneau de vente';
+      case ProductUnavailability.optionsIndisponibles:
+        return 'Indisponible';
       case null:
         break;
     }
     if (p.variants.length > 1 && _selectedVariant == null) {
       return 'Choisissez un format';
     }
-    return null;
+    // F3-09 — groupe obligatoire incomplet : on dit lequel.
+    return _options.blockingReason;
   }
 
   Future<void> _addToCart() async {
@@ -169,7 +194,11 @@ Téléchargez l'app Lilia Food pour commander !
       final added = await addToCartSafely(
         context: context,
         ref: ref,
-        preview: CartItemPreview.fromProduct(widget.product, _selectedVariant!),
+        preview: CartItemPreview.fromProduct(
+          widget.product,
+          _selectedVariant!,
+          options: _options.lines,
+        ),
         quantity: _quantity,
       );
       if (!added) return; // Le client a annulé sur la modal de conflit
@@ -231,6 +260,14 @@ Téléchargez l'app Lilia Food pour commander !
                   // Variantes
                   if (widget.product.variants.isNotEmpty)
                     _buildVariantsSection(theme),
+
+                  // F3-09 — options & suppléments. Toutes les variantes
+                  // partagent les mêmes groupes (limite de la V1).
+                  if (widget.product.hasModifiers)
+                    ModifierGroupPicker(
+                      state: _options,
+                      onChanged: () => setState(() {}),
+                    ),
 
                   // Sélecteur de quantité
                   _buildQuantitySelector(theme),
@@ -917,7 +954,15 @@ Téléchargez l'app Lilia Food pour commander !
                       const SizedBox(width: 8),
                       // Dire POURQUOI : « désactivé » sans raison ressemble à
                       // une panne de l'application.
-                      Text(_blockedReason ?? 'Ajouter au panier'),
+                      // « Ajouter · 3 800 FCFA » : le client voit ce que ses
+                      // choix coûtent avant d'appuyer.
+                      Flexible(
+                        child: Text(
+                          _blockedReason ??
+                              'Ajouter · ${formatPrice(_currentPrice)}',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
                     ],
                   ),
                 ),

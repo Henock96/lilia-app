@@ -1,5 +1,6 @@
 import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/models/menu.dart';
+import 'package:lilia_app/models/modifier.dart';
 import 'package:lilia_app/models/produit.dart';
 
 /// Ce qu'il faut savoir d'un article pour l'afficher dans le panier **avant**
@@ -14,15 +15,34 @@ class CartItemPreview {
   final ProductItem product;
   final VariantItem variant;
 
+  /// F3-09 — options choisies, avec nom et supplément du catalogue pour
+  /// l'affichage immédiat. Seuls `optionId` et `quantity` partent au serveur.
+  final List<LineOption> options;
+
   const CartItemPreview({
     required this.productId,
     required this.variantId,
     required this.product,
     required this.variant,
+    this.options = const [],
   });
 
+  /// Ce qui part au serveur : identifiants et quantités, rien d'autre.
+  List<SelectedOption> get selection => [for (final o in options) o.selected];
+
+  /// Identité locale de la sélection — même forme que la signature serveur.
+  String get optionsKey => selectionKey(selection);
+
+  /// Valeur unitaire des options (analytics, affichage).
+  int get optionsValue =>
+      options.fold(0, (sum, o) => sum + o.priceDeltaXaf * o.quantity);
+
   /// Depuis la fiche produit ou une carte de catalogue.
-  factory CartItemPreview.fromProduct(Product product, ProductVariant variant) {
+  factory CartItemPreview.fromProduct(
+    Product product,
+    ProductVariant variant, {
+    List<LineOption> options = const [],
+  }) {
     return CartItemPreview(
       productId: product.id,
       variantId: variant.id,
@@ -36,6 +56,7 @@ class CartItemPreview {
         label: variant.displayLabel,
         prix: variant.prix.round(),
       ),
+      options: options,
     );
   }
 
@@ -46,6 +67,7 @@ class CartItemPreview {
     variantId: item.variantId,
     product: item.product,
     variant: item.variant,
+    options: item.options,
   );
 }
 
@@ -55,7 +77,10 @@ class CartItemPreview {
 /// le panier entier, donc la ligne provisoire et son identifiant disparaissent
 /// avec elle. Il est reconnaissable pour que rien ne tente un
 /// `DELETE /cart/items/optimistic-…` sur une ligne qui n'existe pas encore.
-String optimisticItemId(String variantId) => 'optimistic-$variantId';
+String optimisticItemId(String variantId, [String optionsKey = '']) =>
+    optionsKey.isEmpty
+    ? 'optimistic-$variantId'
+    : 'optimistic-$variantId-$optionsKey';
 
 bool isOptimisticItemId(String id) => id.startsWith('optimistic-');
 
@@ -94,12 +119,19 @@ String? validateAddItem(Cart? cart, CartItemPreview preview) {
 
 /// Le panier tel qu'il sera si le serveur accepte l'ajout.
 ///
-/// Si la variante est déjà au panier hors menu, on incrémente sa ligne — c'est
-/// ce que fait `CartItemsService.addItem`. Sinon on crée une ligne provisoire.
+/// Si la même variante **avec la même sélection d'options** est déjà au panier
+/// hors menu, on incrémente sa ligne — c'est ce que fait
+/// `CartItemsService.addItem` (identité = variante + signature, F3-09).
+/// Sinon on crée une ligne provisoire : « Poulet + Alloco » et « Poulet +
+/// Frites » sont deux lignes.
 Cart applyAddItem(Cart? cart, CartItemPreview preview, int quantity) {
   final base = cart ?? _panierVide();
+  final key = preview.optionsKey;
   final index = base.items.indexWhere(
-    (i) => i.variantId == preview.variantId && i.menuId == null,
+    (i) =>
+        i.variantId == preview.variantId &&
+        i.menuId == null &&
+        i.optionsSignature == key,
   );
 
   final items = List<CartItem>.of(base.items);
@@ -110,7 +142,7 @@ Cart applyAddItem(Cart? cart, CartItemPreview preview, int quantity) {
   } else {
     items.add(
       CartItem(
-        id: optimisticItemId(preview.variantId),
+        id: optimisticItemId(preview.variantId, key),
         cartId: base.id,
         productId: preview.productId,
         variantId: preview.variantId,
@@ -118,6 +150,8 @@ Cart applyAddItem(Cart? cart, CartItemPreview preview, int quantity) {
         createdAt: DateTime.now(),
         product: preview.product,
         variant: preview.variant,
+        optionsSignature: key,
+        options: preview.options,
       ),
     );
   }

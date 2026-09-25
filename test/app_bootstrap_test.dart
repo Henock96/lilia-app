@@ -33,6 +33,7 @@ import 'package:lilia_app/services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'features/auth/fake_auth_repository.dart';
+import 'package:lilia_app/models/modifier.dart';
 
 class _OnboardingFait extends OnboardingStatus {
   @override
@@ -68,6 +69,7 @@ class _FauxPanier implements CartRepository {
   Future<Cart?> addToCart({
     required String variantId,
     required int quantity,
+    List<SelectedOption> options = const [],
   }) async {
     ajouts++;
     return null;
