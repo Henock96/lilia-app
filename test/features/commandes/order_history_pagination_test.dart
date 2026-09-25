@@ -14,6 +14,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/commandes/data/order_repository.dart';
 import 'package:lilia_app/features/commandes/presentation/commande_detail_page.dart';
@@ -75,6 +76,12 @@ class _FauxDepot extends OrderRepository {
 }
 
 void main() {
+  // Sans les données de locale fr_FR, l'en-tête du détail (`DateFormat(…,
+  // 'fr_FR')`) levait une LocaleDataException que `takeException()` avalait :
+  // l'écran n'était jamais rendu, et « Commande introuvable absente » passait
+  // pour la mauvaise raison.
+  setUpAll(() => initializeDateFormatting('fr_FR'));
+
   late _FauxDepot depot;
   late ProviderContainer container;
 
@@ -192,7 +199,7 @@ void main() {
       );
       for (var i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 200));
-        tester.takeException();
+        expect(tester.takeException(), isNull);
       }
 
       expect(
@@ -207,6 +214,9 @@ void main() {
             'la commande 23 existe : elle n’est simplement pas dans les vingt '
             'dernières',
       );
+      // Preuve positive : l'écran de détail est réellement rendu.
+      expect(find.text('Détails de la commande'), findsOneWidget);
+      expect(find.text('Chez Lilia'), findsWidgets);
     });
 
     testWidgets('une commande réellement absente le dit, avec un Réessayer', (
@@ -223,7 +233,7 @@ void main() {
       );
       for (var i = 0; i < 6; i++) {
         await tester.pump(const Duration(milliseconds: 200));
-        tester.takeException();
+        expect(tester.takeException(), isNull);
       }
 
       expect(find.text('Commande introuvable'), findsOneWidget);
