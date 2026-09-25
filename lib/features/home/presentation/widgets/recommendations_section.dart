@@ -14,6 +14,7 @@ import 'section_header.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/features/cart/data/cart_repository.dart';
+import 'package:lilia_app/features/cart/presentation/product_options_gate.dart';
 
 class RecommendationsSection extends ConsumerWidget {
   const RecommendationsSection({super.key});
@@ -255,6 +256,8 @@ class _RecommendationCard extends ConsumerWidget {
   }
 
   void _handleAddToCart(BuildContext context, WidgetRef ref) {
+    // F3-09 — un produit à options s'ajoute depuis sa fiche.
+    if (openProductForOptions(context, product)) return;
     if (product.variants.length > 1) {
       _showVariantBottomSheet(context, ref);
     } else if (product.variants.isNotEmpty) {

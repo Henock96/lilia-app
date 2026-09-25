@@ -1,4 +1,5 @@
 import 'package:lilia_app/models/gallery_image.dart';
+import 'package:lilia_app/models/modifier.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/models/vendor_type.dart';
 import 'package:lilia_app/utils/availability_window.dart';
@@ -24,13 +25,18 @@ enum ProductUnavailability {
   retire,
 
   /// Hors de sa fenêtre horaire (`availableNow == false`).
-  horsCreneau;
+  horsCreneau,
+
+  /// F3-09 — un choix obligatoire n'a plus aucune option vendable
+  /// (`modifiersUnavailableReason` du serveur, ex. plus aucun accompagnement).
+  optionsIndisponibles;
 
   /// Libellé court, pour un badge sur une carte produit.
   String get badge => switch (this) {
     ProductUnavailability.epuise => 'Épuisé',
     ProductUnavailability.retire => 'Indisponible',
     ProductUnavailability.horsCreneau => 'Hors créneau',
+    ProductUnavailability.optionsIndisponibles => 'Indisponible',
   };
 }
 
@@ -90,6 +96,16 @@ class Product {
   /// posé sur le cache de la carte.
   final bool? availableNow;
 
+  /// F3-09 — groupes d'options (« Accompagnement », « Suppléments »), dans
+  /// l'ordre du vendeur. Vide pour un produit sans option, pour une réponse
+  /// antérieure à F3-09, ou quand la plateforme n'a pas encore ouvert les
+  /// options : dans ces trois cas l'ajout au panier reste celui d'avant.
+  final List<ModifierGroup> modifierGroups;
+
+  /// F3-09 — verdict du serveur : pourquoi les options rendent ce produit
+  /// incommandable (groupe obligatoire sans option vendable), `null` sinon.
+  final String? modifiersUnavailableReason;
+
   Product({
     required this.id,
     required this.name,
@@ -116,7 +132,12 @@ class Product {
     this.availableFrom,
     this.availableUntil,
     this.availableNow,
+    this.modifierGroups = const [],
+    this.modifiersUnavailableReason,
   });
+
+  /// L'ajout au panier passe-t-il par le choix des options ?
+  bool get hasModifiers => modifierGroups.isNotEmpty;
 
   /// Reste-t-il des unités ? `null` = illimité, `0` = épuisé.
   ///
@@ -135,7 +156,10 @@ class Product {
   /// fenêtre horaire manquait ici, si bien qu'une viennoiserie « 06:00 → 11:00 »
   /// restait proposée à 15 h, jusqu'au refus du serveur au checkout.
   bool get isOrderable =>
-      isAvailable && isInStock && isWithinAvailabilityWindow;
+      isAvailable &&
+      isInStock &&
+      isWithinAvailabilityWindow &&
+      modifiersUnavailableReason == null;
 
   /// Pourquoi ce produit n'est-il pas commandable ? `null` s'il l'est.
   ///
@@ -148,6 +172,9 @@ class Product {
     if (!isAvailable) return ProductUnavailability.retire;
     if (!isInStock) return ProductUnavailability.epuise;
     if (!isWithinAvailabilityWindow) return ProductUnavailability.horsCreneau;
+    if (modifiersUnavailableReason != null) {
+      return ProductUnavailability.optionsIndisponibles;
+    }
     return null;
   }
 
@@ -274,6 +301,8 @@ class Product {
       // Absent des réponses antérieures à septembre 2026 : `null` fait
       // retomber `isWithinAvailabilityWindow` sur le calcul local.
       availableNow: json['availableNow'] as bool?,
+      modifierGroups: ModifierGroup.listFrom(json['modifierGroups']),
+      modifiersUnavailableReason: json['modifiersUnavailableReason'] as String?,
     );
   }
 }

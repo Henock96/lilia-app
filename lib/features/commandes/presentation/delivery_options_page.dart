@@ -133,9 +133,11 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
             });
           }
 
-          final double subTotal = cart.items.fold(0.0, (sum, item) {
-            return sum + (item.variant.prix * item.quantite);
-          });
+          // F3-09 — le sous-total du panier, options comprises : prix
+          // unitaire serveur × quantité, un menu compté une fois à son prix.
+          // L'ancienne somme `variant.prix × quantite` sur TOUTES les lignes
+          // ignorait les suppléments et comptait un menu produit par produit.
+          final double subTotal = cart.totalPrice;
           _subTotal = subTotal.round();
 
           return SafeArea(

@@ -10,6 +10,7 @@ import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/cart/data/cart_repository.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/utils/snackbar.dart';
+import 'package:lilia_app/features/cart/presentation/product_options_gate.dart';
 
 /// La route porte `/profile/favoris/details/:productId`.
 class FavorisDetailPage extends ConsumerWidget {
@@ -188,6 +189,8 @@ class _FavorisDetailPageState extends ConsumerState<_FavorisDetailView> {
               height: 60,
               child: ElevatedButton(
                 onPressed: () {
+                  // F3-09 — les options se choisissent sur la fiche produit.
+                  if (openProductForOptions(context, widget.product)) return;
                   if (_selectedVariant == null &&
                       widget.product.variants.isNotEmpty) {
                     context.showSnack('Veuillez sélectionner une variante!');

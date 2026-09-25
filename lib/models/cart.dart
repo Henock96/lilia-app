@@ -1,3 +1,4 @@
+import 'package:lilia_app/models/modifier.dart';
 import 'package:lilia_app/utils/currency.dart';
 
 Map<String, dynamic> _asMap(Object? value) =>
@@ -73,12 +74,18 @@ class Cart {
   }
 
   // Calcule le prix total du panier
+  //
+  // F3-09 — le prix d'une ligne individuelle est son **prix unitaire serveur**
+  // (`unitPriceXaf` : variante + options), jamais `variant.prix` seul, qui
+  // sous-estimerait tout article à supplément. Multiplier par la quantité
+  // locale garde l'affichage juste pendant une mise à jour optimiste ; le
+  // checkout, lui, recalcule tout.
   double get totalPrice {
     if (items.isEmpty) return 0.0;
     // Prix des items individuels
     double total = individualItems.fold(
       0.0,
-      (sum, item) => sum + (item.variant.prix.toDouble() * item.quantite),
+      (sum, item) => sum + (item.unitPrice.toDouble() * item.quantite),
     );
     // Prix des menus (prix du menu * quantité)
     for (final entry in menuGroups.entries) {
@@ -105,6 +112,10 @@ class Cart {
   bool get isPreorderCart =>
       items.isNotEmpty && items.every((item) => item.product.madeToOrder);
 
+  /// F3-09 — au moins une ligne ne passera pas le checkout telle quelle
+  /// (option en rupture, choix devenu obligatoire). Annoncé par le serveur.
+  bool get hasIssues => items.any((item) => item.issue != null);
+
   factory Cart.fromJson(Map<String, dynamic> json) {
     return Cart(
       id: _asString(json['id']),
@@ -130,6 +141,21 @@ class CartItem {
   VariantItem variant;
   MenuInfo? menu;
 
+  /// F3-09 — sélection d'options, forme canonique du serveur (`''` = aucune).
+  /// Fait partie de l'identité de la ligne.
+  String optionsSignature;
+
+  /// F3-09 — options de la ligne (groupe, nom, supplément unitaire, quantité).
+  List<LineOption> options;
+
+  /// F3-09 — prix unitaire calculé par le serveur (variante + options).
+  /// `null` pour une ligne locale (panier invité, affichage optimiste) : voir
+  /// [unitPrice].
+  int? unitPriceXaf;
+
+  /// F3-09 — la ligne n'est plus commandable telle quelle (`GET /cart`).
+  LineIssue? issue;
+
   CartItem({
     required this.id,
     required this.cartId,
@@ -141,7 +167,20 @@ class CartItem {
     required this.product,
     required this.variant,
     this.menu,
+    this.optionsSignature = '',
+    this.options = const [],
+    this.unitPriceXaf,
+    this.issue,
   });
+
+  /// Part des options dans le prix unitaire.
+  int get optionsTotal =>
+      options.fold(0, (sum, o) => sum + o.priceDeltaXaf * o.quantity);
+
+  /// Prix unitaire affiché : celui du **serveur** quand il est connu ; sinon
+  /// (ligne locale pas encore confirmée) variante + suppléments du catalogue,
+  /// remplacé dès la réponse du serveur.
+  int get unitPrice => unitPriceXaf ?? (variant.prix + optionsTotal);
 
   CartItem copyWith({
     String? id,
@@ -154,6 +193,10 @@ class CartItem {
     ProductItem? product,
     VariantItem? variant,
     MenuInfo? menu,
+    String? optionsSignature,
+    List<LineOption>? options,
+    int? unitPriceXaf,
+    LineIssue? issue,
   }) => CartItem(
     id: id ?? this.id,
     cartId: cartId ?? this.cartId,
@@ -165,6 +208,10 @@ class CartItem {
     product: product ?? this.product,
     variant: variant ?? this.variant,
     menu: menu ?? this.menu,
+    optionsSignature: optionsSignature ?? this.optionsSignature,
+    options: options ?? this.options,
+    unitPriceXaf: unitPriceXaf ?? this.unitPriceXaf,
+    issue: issue ?? this.issue,
   );
 
   factory CartItem.fromMap(Map<String, dynamic> json) => CartItem(
@@ -180,6 +227,14 @@ class CartItem {
     menu: json["menu"] is Map<String, dynamic>
         ? MenuInfo.fromMap(json["menu"] as Map<String, dynamic>)
         : null,
+    // F3-09 — absents d'un serveur ou d'un panier invité antérieurs : ligne
+    // sans option, prix unitaire recalculé localement pour l'affichage.
+    optionsSignature: _asString(json["optionsSignature"]),
+    options: LineOption.listFrom(json["options"]),
+    unitPriceXaf: json["unitPriceXaf"] is num
+        ? (json["unitPriceXaf"] as num).toInt()
+        : null,
+    issue: LineIssue.from(json["issue"]),
   );
 
   Map<String, dynamic> toMap() => {
@@ -193,6 +248,12 @@ class CartItem {
     "product": product.toMap(),
     "variant": variant.toMap(),
     "menu": menu?.toMap(),
+    // F3-09 — le panier invité doit garder les options : sans elles, la
+    // reprise à la connexion ajouterait « Poulet » au lieu de « Poulet +
+    // Alloco » (ou serait refusée pour choix obligatoire manquant).
+    "optionsSignature": optionsSignature,
+    "options": options.map((o) => o.toMap()).toList(),
+    "unitPriceXaf": unitPriceXaf,
   };
 }
 

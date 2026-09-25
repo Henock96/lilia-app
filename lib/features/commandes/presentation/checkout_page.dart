@@ -32,6 +32,7 @@ import '../../../models/vendor_type.dart';
 import '../data/promo_repository.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
+import 'package:lilia_app/features/cart/presentation/line_options_text.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
   final DeliveryOptions? deliveryOptions;
@@ -1160,14 +1161,21 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Expanded(
-                    child: Text(
-                      '${item.quantite}x ${item.product.nom}',
-                      style: const TextStyle(fontSize: 14),
-                      overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${item.quantite}x ${item.product.nom}',
+                          style: const TextStyle(fontSize: 14),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        LineOptionsText(item.options),
+                      ],
                     ),
                   ),
                   Text(
-                    formatPrice((item.quantite * item.variant.prix)),
+                    // F3-09 — prix unitaire serveur (variante + options).
+                    formatPrice(item.quantite * item.unitPrice),
                     style: const TextStyle(fontSize: 14),
                   ),
                 ],

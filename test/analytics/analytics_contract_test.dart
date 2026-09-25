@@ -106,6 +106,19 @@ void main() {
       });
     }
 
+    test('product_options_view ne laisse passer aucune donnée personnelle', () {
+      expect(
+        sanitizer.sanitize(AnalyticsEvents.productOptionsView, pii).params,
+        isEmpty,
+      );
+    });
+
+    test('les clés des options ne sont pas prises pour des données personnelles', () {
+      expect(AnalyticsSanitizer.isForbiddenKey('options_count'), isFalse);
+      expect(AnalyticsSanitizer.isForbiddenKey('options_value'), isFalse);
+      expect(AnalyticsSanitizer.isForbiddenKey('group_count'), isFalse);
+    });
+
     test('rejette une clé interdite, y compris en casse chameau', () {
       expect(AnalyticsSanitizer.isForbiddenKey('contact_phone'), isTrue);
       expect(AnalyticsSanitizer.isForbiddenKey('deliveryLatitude'), isTrue);
@@ -167,12 +180,22 @@ void main() {
         'restaurant_id',
         'price',
       ]);
+      // F3-09 : `options_count` / `options_value` s'ajoutent à la fin — ajout
+      // additif, les cinq clés historiques ne bougent pas.
       expect(analyticsEventParams['add_to_cart'], [
         'product_id',
         'product_name',
         'restaurant_id',
         'price',
         'quantity',
+        'options_count',
+        'options_value',
+      ]);
+      expect(analyticsEventParams['product_options_view'], [
+        'product_id',
+        'product_name',
+        'restaurant_id',
+        'group_count',
       ]);
       expect(analyticsEventParams['view_cart'], ['item_count', 'cart_total']);
       expect(analyticsEventParams['begin_checkout'], ['item_count', 'cart_total']);

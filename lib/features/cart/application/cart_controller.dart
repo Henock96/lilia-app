@@ -284,6 +284,8 @@ class CartController extends _$CartController {
           resultat = await _repo.addToCart(
             variantId: ligne.variantId,
             quantity: ligne.quantite,
+            // F3-09 — les options du visiteur partent avec la ligne.
+            options: [for (final o in ligne.options) o.selected],
           );
         } on CartException catch (e) {
           // ⚠️ Toutes les `CartException` ne se valent pas. Un réseau coupé
@@ -349,7 +351,9 @@ class CartController extends _$CartController {
     }
 
     return _muter(
-      cle: variantId,
+      // F3-09 — la file d'attente se tient par ligne, et une ligne est une
+      // variante PLUS une sélection d'options.
+      cle: '$variantId|${preview?.optionsKey ?? ''}',
       awaitServer: awaitServer,
       gesteDefait: 'l\'article n\'a pas été ajouté',
       optimiste: preview == null
@@ -359,6 +363,7 @@ class CartController extends _$CartController {
         final serveur = await _repo.addToCart(
           variantId: variantId,
           quantity: quantity,
+          options: preview?.selection ?? const [],
         );
         // `add_to_cart` **après** acceptation par le serveur, jamais sur le
         // geste : il refuse un produit épuisé ou un vendeur fermé, et compter
@@ -371,8 +376,12 @@ class CartController extends _$CartController {
             productId: preview.productId,
             productName: preview.product.nom,
             restaurantId: preview.product.restaurantId,
+            // `price` garde son sens historique (prix du format) : les
+            // options voyagent à part, pour ne pas fausser les séries.
             price: preview.variant.prix,
             quantity: quantity,
+            optionsCount: preview.options.fold(0, (n, o) => n + o.quantity),
+            optionsValue: preview.optionsValue,
           );
         }
         return serveur;

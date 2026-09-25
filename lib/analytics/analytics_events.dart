@@ -30,6 +30,11 @@ abstract final class AnalyticsEvents {
   static const paymentSuccess = 'payment_success';
   static const orderCreated = 'order_created';
 
+  /// F3-09 — le sélecteur d'options d'un produit a été affiché. Commun aux
+  /// trois plateformes, mais **hors tunnel** : il mesure l'usage des options,
+  /// pas une étape de l'achat (un produit sans option ne le déclenche pas).
+  static const productOptionsView = 'product_options_view';
+
   /// Événements secondaires, propres à l'application.
   ///
   /// Ils ne font pas partie du tunnel et ne sont **pas** comparés au web.
@@ -76,6 +81,15 @@ abstract final class AnalyticsParams {
   static const failureKind = 'failure_kind';
   static const pagePath = 'page_path';
   static const pageTitle = 'page_title';
+
+  /// F3-09 — nombre d'options choisies (quantités comprises) sur la ligne, et
+  /// leur valeur unitaire en XAF. `0` et `0` pour un produit sans option : les
+  /// tableaux existants continuent de lire `add_to_cart` sans changement.
+  static const optionsCount = 'options_count';
+  static const optionsValue = 'options_value';
+
+  /// F3-09 — nombre de groupes d'options proposés (`product_options_view`).
+  static const groupCount = 'group_count';
 }
 
 /// Liste blanche des paramètres, par événement.
@@ -110,6 +124,14 @@ const analyticsEventParams = <String, List<String>>{
     AnalyticsParams.restaurantId,
     AnalyticsParams.price,
     AnalyticsParams.quantity,
+    AnalyticsParams.optionsCount,
+    AnalyticsParams.optionsValue,
+  ],
+  AnalyticsEvents.productOptionsView: [
+    AnalyticsParams.productId,
+    AnalyticsParams.productName,
+    AnalyticsParams.restaurantId,
+    AnalyticsParams.groupCount,
   ],
   AnalyticsEvents.viewCart: [
     AnalyticsParams.itemCount,

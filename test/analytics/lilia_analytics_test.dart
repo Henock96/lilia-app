@@ -278,7 +278,7 @@ void main() {
       }
     });
 
-    test('add_to_cart porte bien les cinq paramètres du contrat', () {
+    test('add_to_cart sans option : les cinq paramètres, plus 0 / 0 (F3-09)', () {
       AnalyticsService.trackAddToCart(
         productId: 'p1',
         productName: 'Poulet braisé',
@@ -292,6 +292,38 @@ void main() {
         'restaurant_id': 'r1',
         'price': 3500,
         'quantity': 2,
+        'options_count': 0,
+        'options_value': 0,
+      });
+    });
+
+    test('add_to_cart avec options : nombre et valeur unitaire des options', () {
+      AnalyticsService.trackAddToCart(
+        productId: 'p1',
+        productName: 'Poulet braisé',
+        restaurantId: 'r1',
+        price: 3800,
+        quantity: 1,
+        optionsCount: 2,
+        optionsValue: 800,
+      );
+      expect(sink.events.single.params, containsPair('options_count', 2));
+      expect(sink.events.single.params, containsPair('options_value', 800));
+    });
+
+    test('product_options_view', () {
+      AnalyticsService.trackProductOptionsView(
+        productId: 'p1',
+        productName: 'Poulet braisé',
+        restaurantId: 'r1',
+        groupCount: 2,
+      );
+      expect(sink.events.single.name, 'product_options_view');
+      expect(sink.events.single.params, {
+        'product_id': 'p1',
+        'product_name': 'Poulet braisé',
+        'restaurant_id': 'r1',
+        'group_count': 2,
       });
     });
 

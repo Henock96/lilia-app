@@ -17,6 +17,7 @@ import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/features/cart/data/cart_repository.dart';
+import 'package:lilia_app/features/cart/presentation/product_options_gate.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -341,6 +342,7 @@ class _SearchProductTile extends ConsumerWidget {
                     context.showSnack('Connectez-vous pour ajouter au panier');
                     return;
                   }
+                  if (openProductForOptions(context, product)) return;
                   if (product.variants.length > 1) {
                     _showVariantBottomSheet(context, ref);
                   } else if (product.variants.isNotEmpty) {
@@ -386,6 +388,8 @@ class _SearchProductTile extends ConsumerWidget {
   }
 
   void _addToCart(BuildContext context, WidgetRef ref, ProductVariant variant) {
+    // F3-09 — un produit à options s'ajoute depuis sa fiche.
+    if (openProductForOptions(context, product)) return;
     // Le panier est mis à jour localement puis synchronisé : le message part
     // dans la foulée du tap. `add_to_cart` est déclenché par le contrôleur à
     // l'acceptation du serveur, et un échec de synchronisation défait l'ajout

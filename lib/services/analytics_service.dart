@@ -125,6 +125,10 @@ abstract final class AnalyticsService {
     required String restaurantId,
     required num price,
     required int quantity,
+    // F3-09 — `0` / `0` sans option : le contrat existant reste lisible tel
+    // quel, et un tableau peut isoler les ajouts avec options.
+    int optionsCount = 0,
+    int optionsValue = 0,
   }) {
     instance.track(AnalyticsEvents.addToCart, {
       AnalyticsParams.productId: productId,
@@ -132,6 +136,24 @@ abstract final class AnalyticsService {
       AnalyticsParams.restaurantId: restaurantId,
       AnalyticsParams.price: price,
       AnalyticsParams.quantity: quantity,
+      AnalyticsParams.optionsCount: optionsCount,
+      AnalyticsParams.optionsValue: optionsValue,
+    });
+  }
+
+  /// F3-09 — le sélecteur d'options d'un produit a été affiché (une fois par
+  /// ouverture de fiche, pas à chaque reconstruction).
+  static void trackProductOptionsView({
+    required String productId,
+    required String productName,
+    required String restaurantId,
+    required int groupCount,
+  }) {
+    instance.track(AnalyticsEvents.productOptionsView, {
+      AnalyticsParams.productId: productId,
+      AnalyticsParams.productName: productName,
+      AnalyticsParams.restaurantId: restaurantId,
+      AnalyticsParams.groupCount: groupCount,
     });
   }
 

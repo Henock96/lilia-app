@@ -24,6 +24,7 @@ import 'widgets/vendor_type_badge.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
+import 'package:lilia_app/features/cart/presentation/product_options_gate.dart';
 
 /// Écran de détail vendeur (LIL-117 — refonte UI).
 ///
@@ -1385,6 +1386,8 @@ class _ProductCard extends ConsumerWidget {
   }
 
   Future<void> _addToCart(BuildContext context, WidgetRef ref) async {
+    // F3-09 — un produit à options s'ajoute depuis sa fiche.
+    if (openProductForOptions(context, product)) return;
     if (product.variants.isEmpty) {
       context.showSnack('Ce produit n\'a pas de variante sélectionnable.');
       return;

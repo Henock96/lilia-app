@@ -1,5 +1,7 @@
 // lib/models/order_item.dart
 
+import 'package:lilia_app/models/modifier.dart';
+
 Map<String, dynamic> _asMap(Object? value) =>
     value is Map<String, dynamic> ? value : <String, dynamic>{};
 
@@ -22,8 +24,16 @@ class OrderItem {
   final String productId;
   final String variant;
   final int quantite;
+  /// Prix unitaire figé — **options comprises** depuis F3-09 (décision Q1) :
+  /// `prix × quantite` reste le montant de la ligne, sans rien additionner.
   final double prix;
   final DateTime createdAt;
+
+  /// F3-09 — options figées à la commande (noms et suppléments de l'époque).
+  final List<LineOption> options;
+
+  /// F3-09 — part des options dans [prix] (ventilation, jamais à rajouter).
+  final int optionsTotalXaf;
   final OrderItemProduct
   product; // Contient maintenant plus de détails sur le produit
 
@@ -36,6 +46,8 @@ class OrderItem {
     required this.prix,
     required this.createdAt,
     required this.product,
+    this.options = const [],
+    this.optionsTotalXaf = 0,
   });
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
@@ -48,6 +60,8 @@ class OrderItem {
       prix: _asDouble(json['prix']),
       createdAt: _asDate(json['createdAt']),
       product: OrderItemProduct.fromJson(_asMap(json['product'])),
+      options: LineOption.listFrom(json['options']),
+      optionsTotalXaf: _asInt(json['optionsTotalXaf']),
     );
   }
 }

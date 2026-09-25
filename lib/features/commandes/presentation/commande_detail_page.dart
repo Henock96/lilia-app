@@ -34,6 +34,7 @@ import '../../../services/analytics_service.dart';
 import '../../../services/notification_router.dart';
 import '../../notifications/application/notification_providers.dart';
 import '../domain/order_status_view.dart';
+import 'package:lilia_app/features/cart/presentation/line_options_text.dart';
 
 /// Statuts pour lesquels le reçu PDF est téléchargeable (payée, non annulée).
 const _receiptStatuses = <OrderStatus>{
@@ -1389,6 +1390,8 @@ class _OrderItemCard extends StatelessWidget {
                 item.variant,
                 style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
               ),
+              // F3-09 — options figées de la commande.
+              LineOptionsText(item.options),
               const SizedBox(height: 6),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

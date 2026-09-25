@@ -14,6 +14,7 @@ import 'shimmer_box.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/features/cart/data/cart_repository.dart';
+import 'package:lilia_app/features/cart/presentation/product_options_gate.dart';
 
 class PopularDishesSection extends ConsumerWidget {
   const PopularDishesSection({super.key});
@@ -294,6 +295,8 @@ class _DishCard extends ConsumerWidget {
   }
 
   void _handleAddToCart(BuildContext context, WidgetRef ref) {
+    // F3-09 — un produit à options s'ajoute depuis sa fiche.
+    if (openProductForOptions(context, product)) return;
     // Verifier l'authentification
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
