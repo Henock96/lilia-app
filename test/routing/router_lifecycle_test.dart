@@ -152,6 +152,9 @@ void main() {
         AppRoutes.orderDetail: {'orderId': 'abc'},
         AppRoutes.orderTracking: {'orderId': 'abc'},
         AppRoutes.paymentPending: {'paymentId': 'pay-1'},
+        // F3-06
+        AppRoutes.claimForm: {'orderId': 'abc'},
+        AppRoutes.claimDetail: {'claimId': 'claim-1'},
       };
 
       for (final route in AppRoutes.values) {

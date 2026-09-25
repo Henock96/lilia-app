@@ -95,6 +95,22 @@ class NotificationRouter {
 
     final intent = _intentFor(type, data);
 
+    // F3-06 — réponse ou issue d'une réclamation : c'est la demande qu'on
+    // ouvre, pas la commande (l'issue s'y lit en tête).
+    final claimId = data['claimId'] as String?;
+    if (type != null &&
+        type.startsWith('claim_') &&
+        claimId != null &&
+        claimId.isNotEmpty) {
+      return NotificationAction(
+        refresh: NotificationTarget.orders,
+        orderId: orderId,
+        route: trigger == NotificationTrigger.tap
+            ? '/profile/demandes/$claimId'
+            : null,
+      );
+    }
+
     return NotificationAction(
       refresh: NotificationTarget.orders,
       orderId: orderId,

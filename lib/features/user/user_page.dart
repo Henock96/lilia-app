@@ -183,6 +183,16 @@ class UserPage extends ConsumerWidget {
                                 AppRoutes.draftOrders.routeName,
                               ),
                             ),
+                            // F3-06 — réclamations et réponses du service client.
+                            _ProfileMenuItem(
+                              icon: Iconsax.message_question,
+                              iconColor: Colors.teal[400]!,
+                              title: 'Mes demandes',
+                              subtitle: 'Réclamations et réponses du service client',
+                              onTap: () => context.goNamed(
+                                AppRoutes.myClaims.routeName,
+                              ),
+                            ),
                             _ProfileMenuItem(
                               icon: Iconsax.location,
                               iconColor: Colors.blue[400]!,

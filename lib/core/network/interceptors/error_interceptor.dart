@@ -46,7 +46,14 @@ class ErrorInterceptor extends Interceptor {
       statusCode: status,
       kind: _kindFor(status),
       code: _extractCode(err.response?.data),
+      details: _extractDetails(err.response?.data),
     );
+  }
+
+  Map<String, dynamic>? _extractDetails(dynamic data) {
+    if (data is! Map) return null;
+    final error = data['error'];
+    return error is Map ? Map<String, dynamic>.from(error) : null;
   }
 
   ApiErrorKind _kindFor(int? status) {

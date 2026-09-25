@@ -38,6 +38,9 @@ enum AppRoutes {
   writeReview,
   search,
   draftOrders,
+  claimForm,
+  myClaims,
+  claimDetail,
 }
 
 extension AppRoutesExtension on AppRoutes {
@@ -112,6 +115,14 @@ extension AppRoutesExtension on AppRoutes {
         return 'search';
       case AppRoutes.draftOrders:
         return 'draft-orders';
+      case AppRoutes.claimForm:
+        // F3-06 — sous la fiche commande : `/commandes/:orderId/reclamation`.
+        return 'reclamation';
+      case AppRoutes.myClaims:
+        // Sous `/profile` : protégé par héritage.
+        return 'demandes';
+      case AppRoutes.claimDetail:
+        return ':claimId';
     }
   }
 
@@ -173,6 +184,12 @@ extension AppRoutesExtension on AppRoutes {
         return 'Search';
       case AppRoutes.draftOrders:
         return 'DraftOrders';
+      case AppRoutes.claimForm:
+        return 'ClaimForm';
+      case AppRoutes.myClaims:
+        return 'MyClaims';
+      case AppRoutes.claimDetail:
+        return 'ClaimDetail';
     }
   }
 }

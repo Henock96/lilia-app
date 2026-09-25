@@ -39,6 +39,9 @@ void main() {
       '/profile/address',
       '/profile/favoris/details',
       '/profile/draft-orders',
+      '/profile/demandes',
+      '/profile/demandes/claim-1',
+      '/commandes/abc/reclamation',
       '/order-success',
       '/cart/delivery-options', // ⚠️ LA frontière du parcours d'achat
       '/cart/delivery-options/checkout',
@@ -121,6 +124,9 @@ void main() {
       AppRoutes.orderSuccess: true,
       AppRoutes.notifications: true,
       AppRoutes.writeReview: true,
+      AppRoutes.claimForm: true,
+      AppRoutes.myClaims: true,
+      AppRoutes.claimDetail: true,
     };
 
     final nonClassees = AppRoutes.values

@@ -112,4 +112,25 @@ void main() {
       expect(action.refresh, NotificationTarget.orders);
     });
   });
+
+  group('réclamations (F3-06)', () {
+    const data = {
+      'type': 'claim_message',
+      'claimId': 'claim-1',
+      'orderId': 'order-1',
+    };
+
+    test('au tap, ouvre la demande et non la commande', () {
+      final action = router.resolve(data, trigger: NotificationTrigger.tap);
+      expect(action.route, '/profile/demandes/claim-1');
+    });
+
+    test('au premier plan, ne déplace personne', () {
+      final action = router.resolve(
+        {...data, 'type': 'claim_resolved'},
+        trigger: NotificationTrigger.foreground,
+      );
+      expect(action.route, isNull);
+    });
+  });
 }

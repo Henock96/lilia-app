@@ -34,6 +34,9 @@ import '../features/home/presentation/search_screen.dart';
 import '../features/reviews/presentation/screens/reviews_screen.dart';
 import '../features/reviews/presentation/screens/write_review_screen.dart';
 import '../features/cart/presentation/draft_orders_screen.dart';
+import '../features/claims/presentation/claim_detail_page.dart';
+import '../features/claims/presentation/claim_form_page.dart';
+import '../features/claims/presentation/my_claims_page.dart';
 import '../models/menu.dart';
 import '../models/produit.dart';
 import 'app_route_enum.dart';
@@ -521,6 +524,16 @@ final List<RouteBase> _routes = [
                       ),
                     ),
                   ),
+                  // F3-06 — réclamation sur une commande livrée.
+                  GoRoute(
+                    path: AppRoutes.claimForm.path,
+                    name: AppRoutes.claimForm.routeName,
+                    pageBuilder: (context, state) => MaterialPage(
+                      child: ClaimFormPage(
+                        orderId: state.pathParameters['orderId']!,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -577,6 +590,24 @@ final List<RouteBase> _routes = [
                 name: AppRoutes.draftOrders.routeName,
                 pageBuilder: (context, state) =>
                     const MaterialPage(child: DraftOrdersScreen()),
+              ),
+              // F3-06 — « Mes demandes » et le fil d'une demande.
+              GoRoute(
+                path: AppRoutes.myClaims.path,
+                name: AppRoutes.myClaims.routeName,
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: MyClaimsPage()),
+                routes: [
+                  GoRoute(
+                    path: AppRoutes.claimDetail.path,
+                    name: AppRoutes.claimDetail.routeName,
+                    pageBuilder: (context, state) => MaterialPage(
+                      child: ClaimDetailPage(
+                        claimId: state.pathParameters['claimId']!,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               // Édition du profil et « À propos » : tous deux poussés par
               // `Navigator.push` depuis l'écran de profil, donc hors mesure.
