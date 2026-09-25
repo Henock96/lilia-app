@@ -92,6 +92,16 @@ class Order {
   /// Gestes que le serveur accepte (`CANCEL`…). `null` = serveur antérieur
   /// qui ne les publie pas ; liste vide = aucun geste permis.
   final List<String>? allowedActions;
+  // F3-07 — retrait au comptoir.
+  /// Comment la remise est prouvée (`PICKUP_CODE`, `PICKUP_CUSTOMER_CONFIRMED`,
+  /// `PICKUP_VENDOR_DECLARED`…). `null` tant que la commande n'est pas remise,
+  /// ou sur une commande antérieure au dispositif.
+  final String? deliveryProof;
+  /// Le client a confirmé « J'ai récupéré ma commande ».
+  final DateTime? customerConfirmedAt;
+  /// Code à 4 chiffres à montrer au comptoir. Le serveur ne le rend qu'au
+  /// client propriétaire, tant que la commande attend au restaurant.
+  final String? pickupCode;
 
   Order({
     required this.id,
@@ -122,6 +132,9 @@ class Order {
     this.estimatedReadyAt,
     this.vendorRejectionReason,
     this.allowedActions,
+    this.deliveryProof,
+    this.customerConfirmedAt,
+    this.pickupCode,
   });
 
   Order copyWith({
@@ -179,6 +192,9 @@ class Order {
       estimatedReadyAt: estimatedReadyAt,
       vendorRejectionReason: vendorRejectionReason,
       allowedActions: allowedActions,
+      deliveryProof: deliveryProof,
+      customerConfirmedAt: customerConfirmedAt,
+      pickupCode: pickupCode,
     );
   }
 
@@ -238,8 +254,30 @@ class Order {
       allowedActions: json['allowedActions'] is List
           ? (json['allowedActions'] as List).whereType<String>().toList()
           : null,
+      deliveryProof: json['deliveryProof'] is String
+          ? json['deliveryProof'] as String
+          : null,
+      customerConfirmedAt: json['customerConfirmedAt'] is String
+          ? DateTime.tryParse(json['customerConfirmedAt'] as String)
+          : null,
+      pickupCode: json['pickupCode'] is String
+          ? json['pickupCode'] as String
+          : null,
     );
   }
+
+  /// Le serveur propose « J'ai récupéré ma commande » (F3-07). Jamais déduit
+  /// du statut côté client : c'est le serveur qui sait si la remise est déjà
+  /// prouvée.
+  bool get canConfirmPickup =>
+      allowedActions?.contains('CONFIRM_PICKUP') ?? false;
+
+  /// Retrait remis et prouvé (code au comptoir, confirmation, arbitrage).
+  bool get pickupProved =>
+      !isDelivery &&
+      status == OrderStatus.livrer &&
+      deliveryProof != null &&
+      deliveryProof != 'PICKUP_VENDOR_DECLARED';
 
   /// `true` si un marqueur peut être posé sur la carte pour cette commande.
   ///

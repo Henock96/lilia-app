@@ -28,6 +28,7 @@ import 'package:lilia_app/utils/snackbar.dart';
 import '../../reviews/presentation/widgets/rate_driver_sheet.dart';
 import '../data/delivery_tracking_repository.dart';
 import 'widgets/handover_code_card.dart';
+import 'widgets/pickup_card.dart';
 import 'widgets/report_issue_sheet.dart';
 import '../../../services/analytics_service.dart';
 import '../../../services/notification_router.dart';
@@ -187,6 +188,26 @@ class OrderDetailPage extends ConsumerWidget {
                 // il faut le dire (et le motif du vendeur s'il y en a un).
                 if (order.status == OrderStatus.annuler) ...[
                   _CancellationCard(notice: cancellationNotice(order)),
+                  const SizedBox(height: 16),
+                ],
+
+                // F3-07 — retrait au comptoir : code à montrer, puis
+                // « J'ai récupéré ma commande ».
+                if (PickupCard.isRelevant(order)) ...[
+                  PickupCard(
+                    order: order,
+                    onConfirm: () => ref
+                        .read(orderRepositoryProvider.notifier)
+                        .confirmPickup(order.id),
+                    onConfirmed: (_) {
+                      ref.invalidate(orderDetailProvider(orderId));
+                      ref.invalidate(userOrdersProvider);
+                      if (!context.mounted) return;
+                      context.showSuccessSnack(
+                        'Commande récupérée. Bon appétit !',
+                      );
+                    },
+                  ),
                   const SizedBox(height: 16),
                 ],
 
@@ -375,7 +396,7 @@ class OrderDetailPage extends ConsumerWidget {
       'fr_FR',
     ).format(order.createdAt);
     final formattedTime = DateFormat('HH:mm').format(order.createdAt);
-    final statusInfo = _getStatusInfo(order.status);
+    final statusInfo = pickupStatusInfo(order) ?? _getStatusInfo(order.status);
 
     return Container(
       width: double.infinity,
@@ -2354,5 +2375,37 @@ class _CancellationCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// En-tête d'un retrait au comptoir (F3-07) : « prête pour la livraison » et
+/// « livrée » n'ont pas de sens pour une commande qu'on vient chercher.
+/// `null` : le libellé général convient.
+StatusInfo? pickupStatusInfo(Order order) {
+  if (order.isDelivery) return null;
+  switch (order.status) {
+    case OrderStatus.pret:
+      return StatusInfo(
+        label: 'Prête',
+        description: 'Votre commande vous attend au restaurant',
+        color: Colors.green,
+        icon: Iconsax.shop,
+      );
+    case OrderStatus.livrer:
+      return order.deliveryProof == 'PICKUP_VENDOR_DECLARED'
+          ? StatusInfo(
+              label: 'Remise',
+              description: 'Le restaurant indique vous avoir remis la commande',
+              color: Colors.teal,
+              icon: Iconsax.shop,
+            )
+          : StatusInfo(
+              label: 'Récupérée',
+              description: 'Vous avez récupéré votre commande',
+              color: Colors.teal,
+              icon: Iconsax.verify,
+            );
+    default:
+      return null;
   }
 }

@@ -146,6 +146,14 @@ class OrderRepository extends _$OrderRepository {
   Future<void> cancelOrder(String orderId) =>
       _api.patchJson('/orders/$orderId/cancel');
 
+  /// Retrait au comptoir : « J'ai récupéré ma commande » (F3-07). Idempotent
+  /// côté serveur — un second appel après une coupure ne réécrit rien — et
+  /// rend la commande à jour.
+  Future<Order> confirmPickup(String orderId) async {
+    final res = await _api.postJson('/orders/$orderId/pickup/confirm');
+    return Order.fromJson(ApiResponse.mapOf(res.data));
+  }
+
   /// Signale un problème sur la commande (Master Audit v1, F-06) — ouvre un
   /// incident côté Lilia Food. `kind` : NOT_RECEIVED, WRONG_ORDER, LATE, OTHER.
   Future<void> reportIssue(String orderId, String kind, {String? message}) =>
