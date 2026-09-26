@@ -1,3 +1,4 @@
+import 'package:lilia_app/common_widgets/offer_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:lilia_app/features/home/domain/opening_label.dart';
 import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
@@ -651,6 +652,9 @@ class _VendorIdentityCard extends StatelessWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 _statusChip(),
+                // F3-11 — offre boutique : appliquée d'elle-même au panier.
+                if (restaurant.activeOffer != null)
+                  OfferBadge(offer: restaurant.activeOffer!, expanded: true),
                 for (final s in restaurant.specialties)
                   _specialtyChip(context, s),
               ],
