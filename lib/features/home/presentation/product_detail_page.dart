@@ -133,6 +133,12 @@ class _ProductDetailPageState extends ConsumerState<_ProductDetailView>
 
   double get _currentPrice => _unitPrice * _quantity;
 
+  /// F3-10 — plus d'unité de ce format disponible au-delà.
+  bool get _atMaxQuantity {
+    final max = _selectedVariant?.availableQuantity;
+    return max != null && _quantity >= max;
+  }
+
   void _shareProduct(BuildContext context) {
     final String message =
         '''
@@ -176,6 +182,10 @@ Téléchargez l'app Lilia Food pour commander !
     }
     if (p.variants.length > 1 && _selectedVariant == null) {
       return 'Choisissez un format';
+    }
+    // F3-10 — le produit a du stock, mais plus assez pour ce format.
+    if (_selectedVariant?.isSoldOut ?? false) {
+      return 'Ce format est épuisé';
     }
     // F3-09 — groupe obligatoire incomplet : on dit lequel.
     return _options.blockingReason;
@@ -667,12 +677,21 @@ Téléchargez l'app Lilia Food pour commander !
           const SizedBox(height: 12),
           ...widget.product.variants.map((variant) {
             final isSelected = _selectedVariant?.id == variant.id;
+            // F3-10 — un format épuisé reste affiché (le client sait qu'il
+            // existe) mais ne se choisit pas.
+            final soldOut = variant.isSoldOut;
             return GestureDetector(
-              onTap: () {
-                setState(() {
-                  _selectedVariant = variant;
-                });
-              },
+              onTap: soldOut
+                  ? null
+                  : () {
+                      setState(() {
+                        _selectedVariant = variant;
+                        final max = variant.availableQuantity;
+                        if (max != null && _quantity > max && max > 0) {
+                          _quantity = max;
+                        }
+                      });
+                    },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.only(bottom: 10),
@@ -722,7 +741,11 @@ Téléchargez l'app Lilia Food pour commander !
                     // Label
                     Expanded(
                       child: Text(
-                        variant.displayLabel,
+                        soldOut
+                            ? '${variant.displayLabel} · Épuisé'
+                            : variant.lowQuantity != null
+                            ? '${variant.displayLabel} · Plus que ${variant.lowQuantity}'
+                            : variant.displayLabel,
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: isSelected
@@ -820,9 +843,11 @@ Téléchargez l'app Lilia Food pour commander !
                 _buildQuantityButton(
                   icon: Icons.add,
                   onTap: () {
+                    if (_atMaxQuantity) return;
                     setState(() => _quantity++);
                   },
-                  enabled: true,
+                  // F3-10 — plafond du format choisi (verdict du serveur).
+                  enabled: !_atMaxQuantity,
                   theme: theme,
                   isPrimary: true,
                 ),

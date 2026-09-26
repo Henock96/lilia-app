@@ -313,16 +313,44 @@ class ProductVariant {
   final String? label;
   final double prix;
 
-  ProductVariant({required this.id, this.label, required this.prix});
+  /// F3-10 — unités de stock du produit consommées par une unité vendue
+  /// (bouteille = 1, carton de 6 = 6). Absent (serveur antérieur) = 1.
+  final int stockConsumption;
+
+  /// F3-10 — verdict du serveur : ventes encore possibles de CE format
+  /// (`null` = illimité, ou serveur antérieur). Jamais recalculé ici.
+  final int? availableQuantity;
+
+  /// `UNLIMITED` · `AVAILABLE` · `LOW` · `OUT_OF_STOCK` (ou `null`).
+  final String? stockStatus;
+
+  ProductVariant({
+    required this.id,
+    this.label,
+    required this.prix,
+    this.stockConsumption = 1,
+    this.availableQuantity,
+    this.stockStatus,
+  });
 
   /// Label affichable — jamais null, fallback "Standard".
   String get displayLabel => label ?? 'Standard';
+
+  /// Ce format ne peut plus être vendu, même si le produit a du stock (5
+  /// bouteilles : plus de carton de 6).
+  bool get isSoldOut => stockStatus == 'OUT_OF_STOCK';
+
+  /// « Plus que N » — seulement quand le serveur le dit.
+  int? get lowQuantity => stockStatus == 'LOW' ? availableQuantity : null;
 
   factory ProductVariant.fromJson(Map<String, dynamic> json) {
     return ProductVariant(
       id: json['id'] as String,
       label: json['label'] as String?,
       prix: (json['prix'] as num).toDouble(),
+      stockConsumption: (json['stockConsumption'] as num?)?.toInt() ?? 1,
+      availableQuantity: (json['availableQuantity'] as num?)?.toInt(),
+      stockStatus: json['stockStatus'] as String?,
     );
   }
 }

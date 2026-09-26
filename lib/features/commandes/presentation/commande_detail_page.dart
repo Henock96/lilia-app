@@ -1122,6 +1122,23 @@ class OrderDetailPage extends ConsumerWidget {
     );
   }
 
+  /// Raisons des lignes non rachetées (au plus trois), telles que le serveur
+  /// les formule.
+  List<String> _reorderReasons(Map<String, dynamic> result) {
+    final details = result['details'];
+    final unavailable = details is Map<String, dynamic>
+        ? details['unavailable']
+        : null;
+    if (unavailable is! List) return const [];
+    return unavailable
+        .whereType<Map<String, dynamic>>()
+        .map((u) => u['reason'])
+        .whereType<String>()
+        .take(3)
+        .map((r) => '• $r')
+        .toList();
+  }
+
   void _handleReorder(
     BuildContext context,
     WidgetRef ref,
@@ -1160,6 +1177,10 @@ class OrderDetailPage extends ConsumerWidget {
         if (totalUnavailable > 0) {
           message +=
               '\n$totalUnavailable article${totalUnavailable > 1 ? 's' : ''} indisponible${totalUnavailable > 1 ? 's' : ''}';
+          // F3-10 — dire pourquoi (format retiré, stock insuffisant…) : le
+          // serveur n'ajoute plus jamais un autre format à la place.
+          final reasons = _reorderReasons(result);
+          if (reasons.isNotEmpty) message += ' :\n${reasons.join('\n')}';
         }
 
         context.showSnack(
