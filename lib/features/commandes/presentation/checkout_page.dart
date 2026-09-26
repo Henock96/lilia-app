@@ -12,6 +12,8 @@ import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/cart/application/draft_orders_provider.dart';
 import 'package:lilia_app/features/commandes/data/checkout_controller.dart';
+import 'package:lilia_app/features/commandes/data/checkout_quote_provider.dart';
+import 'package:lilia_app/models/checkout_quote.dart';
 import 'package:lilia_app/features/commandes/presentation/delivery_options_page.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:lilia_app/features/payments/data/payment_service.dart';
@@ -227,12 +229,19 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             useLoyaltyPoints: true,
             settings: settings,
           ).loyaltyDiscount;
-          final double subTotal = estimate.subTotal;
-          final double deliveryFee = estimate.deliveryFee;
-          final double serviceFee = estimate.serviceFee;
-          final double discountAmount = estimate.promoDiscount;
-          final double loyaltyDiscount = estimate.loyaltyDiscount;
-          final double total = estimate.total;
+          // F3-11 — devis serveur : le calcul du checkout lui-même, offre
+          // boutique comprise. Il fait foi dès qu'il est là ; l'estimation
+          // locale ne couvre que son chargement (ou une précommande dont le
+          // créneau n'est pas encore choisi, que le serveur refuserait).
+          final quote = _quoteFor(options, cart.isPreorderCart);
+          final double subTotal = quote?.subTotal ?? estimate.subTotal;
+          final double deliveryFee = quote?.deliveryFee ?? estimate.deliveryFee;
+          final double serviceFee = quote?.serviceFee ?? estimate.serviceFee;
+          final double discountAmount =
+              quote?.promoDiscount ?? estimate.promoDiscount;
+          final double loyaltyDiscount =
+              quote?.loyaltyDiscount ?? estimate.loyaltyDiscount;
+          final double total = quote?.total ?? estimate.total;
           final String restaurantId = cart.items.first.product.restaurantId;
 
           // ⚠️ Plus aucun `begin_checkout` ici.
@@ -359,6 +368,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     loyaltyDiscount: loyaltyDiscount,
                     total: total,
                     options: options,
+                    vendorOffer: quote?.vendorOffer,
                   ).fadeSlideIn(),
                   const SizedBox(height: 24),
 
@@ -1084,6 +1094,31 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
   }
 
+  /// Dernier devis serveur affiché — renvoyé au checkout (offre vue).
+  CheckoutQuote? _lastQuote;
+
+  /// Devis du panier pour les options courantes ; `null` tant qu'il n'est pas
+  /// là (ou s'il échoue : le checkout dira alors pourquoi, avec son message).
+  CheckoutQuote? _quoteFor(DeliveryOptions options, bool isPreorderCart) {
+    if (isPreorderCart && _scheduledFor == null) {
+      _lastQuote = null;
+      return null;
+    }
+    final usesNewAddress = options.newAddressRue != null;
+    final async = ref.watch(
+      checkoutQuoteProvider(
+        isDelivery: options.isDelivery,
+        adresseId: usesNewAddress ? null : options.address?.id,
+        quartierId: options.quartier?.id ?? options.address?.quartierId,
+        promoCode: _promoResult?.code,
+        useLoyaltyPoints: _useLoyaltyPoints,
+        scheduledFor: _scheduledFor,
+      ),
+    );
+    _lastQuote = async.hasValue && !async.hasError ? async.value : null;
+    return _lastQuote;
+  }
+
   Widget _buildOrderSummary({
     required Cart cart,
     required double subTotal,
@@ -1094,6 +1129,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     required double loyaltyDiscount,
     required double total,
     required DeliveryOptions options,
+    QuotedVendorOffer? vendorOffer,
   }) {
     final cs = Theme.of(context).colorScheme;
     return Container(
@@ -1210,6 +1246,47 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               ),
             ],
           ),
+          // F3-11 — offre boutique, financée par le vendeur. Distincte du
+          // code promo : ce n'est pas la même remise, ni le même payeur.
+          if (vendorOffer != null && vendorOffer.discount > 0) ...[
+            const SizedBox(height: 8),
+            Row(
+              key: const Key('checkout_vendor_offer'),
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.local_offer,
+                        size: 16,
+                        color: Colors.green,
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          vendorOffer.label,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            color: Colors.green,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '- ${formatPrice(vendorOffer.discount)}',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.green,
+                  ),
+                ),
+              ],
+            ),
+          ],
           // Ligne réduction promo
           if (_promoResult != null) ...[
             const SizedBox(height: 8),
@@ -1514,8 +1591,21 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             idempotencyKey: _getOrCreateIdempotencyKey(),
             useLoyaltyPoints: _useLoyaltyPoints,
             scheduledFor: _scheduledFor,
+            // F3-11 — l'offre affichée par le devis. Sans devis chargé, on
+            // n'affirme rien : le serveur applique ce qu'il trouve.
+            seenVendorOffer: _lastQuote == null
+                ? null
+                : (id: _lastQuote!.vendorOffer?.id),
           );
     } catch (e) {
+      // F3-11 — l'offre a changé depuis le récapitulatif (terminée, budget
+      // épuisé, mise en pause) : rien n'a été encaissé. On recalcule le devis
+      // et on laisse le client valider le nouveau total.
+      if (e is ApiException && e.code == 'VENDOR_OFFER_CHANGED') {
+        ref.invalidate(checkoutQuoteProvider);
+        if (context.mounted) context.showErrorSnack(e.message);
+        return;
+      }
       // Catégorie d'échec seulement : `e.toString()` transportait le message du
       // serveur, donc du texte libre susceptible de contenir un numéro ou une
       // référence de transaction.

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:lilia_app/core/network/api_client.dart';
 import 'package:lilia_app/models/checkout.dart';
+import 'package:lilia_app/models/checkout_quote.dart';
 import 'package:lilia_app/utils/api_response.dart';
 import 'package:lilia_app/utils/json_isolate.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -107,6 +108,10 @@ class OrderRepository extends _$OrderRepository {
     double? deliveryLongitude,
     // LIL-122 : commande programmée (panier 100% madeToOrder)
     DateTime? scheduledFor,
+    // F3-11 — l'offre boutique vue dans le devis (`id: null` = aucune). Le
+    // record lui-même absent : on n'affirme rien, le serveur applique ce
+    // qu'il trouve (ancien comportement).
+    ({String? id})? seenVendorOffer,
   }) async {
     final bodyMap = <String, dynamic>{
       'paymentMethod': paymentMethod,
@@ -123,6 +128,7 @@ class OrderRepository extends _$OrderRepository {
         'isPreorder': true,
         'scheduledFor': scheduledFor.toUtc().toIso8601String(),
       },
+      if (seenVendorOffer != null) 'vendorOfferId': seenVendorOffer.id,
     };
 
     final res = await _api.postJson(
@@ -134,6 +140,36 @@ class OrderRepository extends _$OrderRepository {
     );
     // checkoutFromMap attend l'enveloppe JSON brute { message, data: {...} }.
     return checkoutFromMap(json.encode(res.data));
+  }
+
+  /// Devis du panier (F3-11) — `POST /orders/quote`, sans rien écrire.
+  ///
+  /// Livraison vers une adresse pas encore enregistrée (elle ne l'est qu'au
+  /// paiement) : [quartierId] suffit à chiffrer la course.
+  Future<CheckoutQuote> quote({
+    required bool isDelivery,
+    String? adresseId,
+    String? quartierId,
+    String? promoCode,
+    bool useLoyaltyPoints = false,
+    DateTime? scheduledFor,
+  }) async {
+    final res = await _api.postJson(
+      '/orders/quote',
+      body: <String, dynamic>{
+        'isDelivery': isDelivery,
+        if (isDelivery && adresseId != null) 'adresseId': adresseId,
+        if (isDelivery && adresseId == null && quartierId != null)
+          'quartierId': quartierId,
+        if (promoCode != null && promoCode.isNotEmpty) 'promoCode': promoCode,
+        if (useLoyaltyPoints) 'useLoyaltyPoints': true,
+        if (scheduledFor != null) ...{
+          'isPreorder': true,
+          'scheduledFor': scheduledFor.toUtc().toIso8601String(),
+        },
+      },
+    );
+    return CheckoutQuote.fromJson(ApiResponse.mapOf(res.data));
   }
 
   // `reorder(String)` a été SUPPRIMÉ : aucun appelant. La recommande passe

@@ -5,6 +5,7 @@ import 'package:lilia_app/features/quartiers/domain/delivery_fee_label.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
+import 'package:lilia_app/common_widgets/offer_badge.dart';
 import 'package:lilia_app/features/favoris/application/restaurant_favorites_provider.dart';
 import 'package:lilia_app/features/reviews/presentation/widgets/star_rating.dart';
 import 'package:lilia_app/models/restaurant.dart';
@@ -171,6 +172,15 @@ class RestaurantCard extends ConsumerWidget {
                           ),
                         ),
                       ),
+                      // F3-11 — offre boutique en cours, financée par le
+                      // vendeur : « −10 % ». Le montant exact d'une commande
+                      // vient du devis serveur au checkout.
+                      if (restaurant.activeOffer != null)
+                        Positioned(
+                          bottom: 10,
+                          left: 10,
+                          child: OfferBadge(offer: restaurant.activeOffer!),
+                        ),
                       // Temps de livraison
                       Positioned(
                         bottom: 10,

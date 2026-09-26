@@ -34,6 +34,9 @@ import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/models/adresse.dart';
 import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/models/checkout.dart';
+import 'package:lilia_app/models/checkout_quote.dart';
+import 'package:lilia_app/features/commandes/data/order_repository.dart';
+import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/models/quartier.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/models/vendor_type.dart';
@@ -111,6 +114,9 @@ class _FauxCheckout extends CheckoutController {
   final Completer<void>? porte;
   int commandes = 0;
 
+  /// F3-11 — l'offre que l'écran a affirmée au checkout.
+  ({String? id})? offreVue;
+
   @override
   FutureOr<void> build() {}
 
@@ -125,8 +131,10 @@ class _FauxCheckout extends CheckoutController {
     bool useLoyaltyPoints = false,
     String? idempotencyKey,
     DateTime? scheduledFor,
+    ({String? id})? seenVendorOffer,
   }) async {
     commandes++;
+    offreVue = seenVendorOffer;
     state = const AsyncLoading();
     if (porte != null) await porte!.future;
     state = const AsyncData(null);
@@ -144,6 +152,23 @@ class _FauxCheckout extends CheckoutController {
       items: const [],
     );
   }
+}
+
+/// F3-11 — devis serveur fixe, pour vérifier ce que l'écran en fait.
+class _FauxDevis extends OrderRepository {
+  _FauxDevis(this.devis);
+  final CheckoutQuote devis;
+
+  @override
+  Future<CheckoutQuote> quote({
+    required bool isDelivery,
+    String? adresseId,
+    String? quartierId,
+    String? promoCode,
+    bool useLoyaltyPoints = false,
+    DateTime? scheduledFor,
+  }) async =>
+      devis;
 }
 
 /// Compte les encaissements ouverts — c'est la fenêtre ③.
@@ -215,6 +240,7 @@ void main() {
     Completer<void>? porteAdresse,
     Completer<void>? porteCommande,
     Completer<void>? portePaiement,
+    CheckoutQuote? devis,
   }) async {
     tester.view.physicalSize = const Size(1400, 3200);
     tester.view.devicePixelRatio = 2.0;
@@ -237,6 +263,8 @@ void main() {
           userProfileProvider.overrideWith(
             (ref) async => const AppUser(uid: 'uid-a', phone: '060000000'),
           ),
+          if (devis != null)
+            orderRepositoryProvider.overrideWith(() => _FauxDevis(devis)),
         ],
         child: MaterialApp(
           home: CheckoutPage(deliveryOptions: _optionsNouvelleAdresse()),
@@ -355,5 +383,52 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
     }
     expect(tester.takeException(), isNull);
+  });
+
+  // ─── F3-11 — offre boutique ───────────────────────────────────────────────
+
+  testWidgets('devis serveur : ligne d’offre, total du serveur, offre vue renvoyée', (
+    tester,
+  ) async {
+    await monter(
+      tester,
+      devis: CheckoutQuote.fromJson({
+        'subTotal': 5000,
+        'deliveryFee': 1000,
+        'deliveryFeeBeforePromo': 1000,
+        'serviceFee': 750,
+        'vendorOffer': {
+          'id': 'o1',
+          'label': '−10 % sur toute la boutique',
+          'discountXaf': 500,
+        },
+        'loyalty': {'pointsUsed': 0, 'discountXaf': 0},
+        'total': 6250,
+      }),
+    );
+
+    expect(find.byKey(const Key('checkout_vendor_offer')), findsOneWidget);
+    expect(find.text('−10 % sur toute la boutique'), findsOneWidget);
+    expect(find.text(formatPrice(6250)), findsWidgets);
+
+    await taper(tester);
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(checkout.commandes, 1);
+    expect(checkout.offreVue, (id: 'o1'));
+  });
+
+  testWidgets('sans devis (serveur injoignable) : aucune offre affirmée', (
+    tester,
+  ) async {
+    await monter(tester);
+    expect(find.byKey(const Key('checkout_vendor_offer')), findsNothing);
+    await taper(tester);
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(checkout.commandes, 1);
+    expect(checkout.offreVue, isNull);
   });
 }

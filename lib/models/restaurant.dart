@@ -1,3 +1,4 @@
+import 'package:lilia_app/models/active_offer.dart';
 import 'package:lilia_app/models/gallery_image.dart';
 import 'package:lilia_app/models/menu.dart';
 import 'package:lilia_app/models/produit.dart';
@@ -196,6 +197,9 @@ class RestaurantSummary {
   final bool acceptsPreorders;
   final int? preorderLeadHours;
 
+  /// F3-11 — offre boutique en cours (badge « −10 % »), `null` sinon.
+  final ActiveOffer? activeOffer;
+
   RestaurantSummary({
     required this.id,
     required this.name,
@@ -216,6 +220,7 @@ class RestaurantSummary {
     this.vendorType = VendorType.RESTAURANT,
     this.acceptsPreorders = false,
     this.preorderLeadHours,
+    this.activeOffer,
   });
 
   /// Retourne le temps de livraison formaté (ex: "15-30 min")
@@ -267,6 +272,7 @@ class RestaurantSummary {
       vendorType: VendorType.fromString(json['vendorType'] as String?),
       acceptsPreorders: (json['acceptsPreorders'] as bool?) ?? false,
       preorderLeadHours: json['preorderLeadHours'] as int?,
+      activeOffer: ActiveOffer.tryParse(json['activeOffer']),
     );
   }
 }
@@ -319,6 +325,9 @@ class Restaurant {
   // Évite une 2e requête `/menus/active` sur l'écran de détail vendeur.
   final List<MenuDuJour> menus;
 
+  /// F3-11 — offre boutique en cours, `null` sinon.
+  final ActiveOffer? activeOffer;
+
   Restaurant({
     required this.id,
     required this.name,
@@ -344,6 +353,7 @@ class Restaurant {
     this.preorderLeadHours,
     this.vendorProfile,
     this.menus = const [],
+    this.activeOffer,
   });
 
   /// Retourne le temps de livraison formaté
@@ -376,6 +386,9 @@ class Restaurant {
       categoriesMap: map,
       categories: categories,
       isOpen: isOpen,
+      // Perdu jusqu'ici : un vendeur en pause redevenait « ouvert » dès que
+      // la carte se complétait page à page.
+      pausedUntil: pausedUntil,
       specialties: specialties,
       operatingHours: operatingHours,
       estimatedDeliveryTimeMin: estimatedDeliveryTimeMin,
@@ -389,6 +402,7 @@ class Restaurant {
       preorderLeadHours: preorderLeadHours,
       vendorProfile: vendorProfile,
       menus: menus,
+      activeOffer: activeOffer,
     );
   }
 
@@ -483,6 +497,7 @@ class Restaurant {
             )
           : null,
       menus: menus,
+      activeOffer: ActiveOffer.tryParse(json['activeOffer']),
     );
   }
 }
