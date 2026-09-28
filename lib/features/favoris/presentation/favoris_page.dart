@@ -103,7 +103,9 @@ class ProductCardFavoris extends ConsumerWidget {
   const ProductCardFavoris({super.key, required this.product});
 
   double getDisplayPrice() {
-    if (product.variants.isNotEmpty) return product.variants.first.prix;
+    if (product.variants.isNotEmpty) {
+      return product.startingPrice;
+    }
     return product.prixOriginal;
   }
 
@@ -200,7 +202,9 @@ class ProductCardFavoris extends ConsumerWidget {
                     ],
                     const SizedBox(height: 4),
                     Text(
-                      formatPrice(getDisplayPrice()),
+                      product.variants.length > 1
+                          ? 'À partir de ${formatPrice(getDisplayPrice())}'
+                          : formatPrice(getDisplayPrice()),
                       style: TextStyle(
                         color: cs.primary,
                         fontWeight: FontWeight.bold,

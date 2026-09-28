@@ -16,6 +16,7 @@ import 'package:lilia_app/utils/snackbar.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/features/cart/domain/modifier_selection.dart';
 import 'package:lilia_app/features/cart/presentation/modifier_group_picker.dart';
+import 'widgets/product_stock_widgets.dart';
 
 /// **La fiche produit, adressable.**
 ///
@@ -137,6 +138,14 @@ class _ProductDetailPageState extends ConsumerState<_ProductDetailView>
   bool get _atMaxQuantity {
     final max = _selectedVariant?.availableQuantity;
     return max != null && _quantity >= max;
+  }
+
+  void _selectVariant(ProductVariant variant) {
+    setState(() {
+      _selectedVariant = variant;
+      final max = variant.availableQuantity;
+      if (max != null && max > 0 && _quantity > max) _quantity = max;
+    });
   }
 
   void _shareProduct(BuildContext context) {
@@ -675,104 +684,15 @@ Téléchargez l'app Lilia Food pour commander !
             ],
           ),
           const SizedBox(height: 12),
-          ...widget.product.variants.map((variant) {
-            final isSelected = _selectedVariant?.id == variant.id;
-            // F3-10 — un format épuisé reste affiché (le client sait qu'il
-            // existe) mais ne se choisit pas.
-            final soldOut = variant.isSoldOut;
-            return GestureDetector(
-              onTap: soldOut
-                  ? null
-                  : () {
-                      setState(() {
-                        _selectedVariant = variant;
-                        final max = variant.availableQuantity;
-                        if (max != null && _quantity > max && max > 0) {
-                          _quantity = max;
-                        }
-                      });
-                    },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? theme.colorScheme.primary.withValues(alpha: 0.08)
-                      : theme.colorScheme.surfaceContainerHighest.withValues(
-                          alpha: 0.5,
-                        ),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: isSelected
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.outline.withValues(alpha: 0.3),
-                    width: isSelected ? 2 : 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    // Radio button personnalisé
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isSelected
-                            ? theme.colorScheme.primary
-                            : Colors.transparent,
-                        border: Border.all(
-                          color: isSelected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.outline,
-                          width: 2,
-                        ),
-                      ),
-                      child: isSelected
-                          ? const Icon(
-                              Icons.check,
-                              size: 16,
-                              color: Colors.white,
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 14),
-                    // Label
-                    Expanded(
-                      child: Text(
-                        soldOut
-                            ? '${variant.displayLabel} · Épuisé'
-                            : variant.lowQuantity != null
-                            ? '${variant.displayLabel} · Plus que ${variant.lowQuantity}'
-                            : variant.displayLabel,
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                          color: isSelected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurface,
-                        ),
-                      ),
-                    ),
-                    // Prix
-                    Text(
-                      formatPrice(variant.prix),
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: isSelected
-                            ? theme.colorScheme.primary
-                            : theme.colorScheme.onSurface,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }),
+          // Sélecteur partagé (fiche, Favoris, ajout rapide) : même
+          // comportement F3-10 — épuisé affiché mais non sélectionnable,
+          // « Plus que N » quand le serveur dit LOW — plus la sémantique radio
+          // et des couleurs lisibles en sombre.
+          VariantSelector(
+            variants: widget.product.variants,
+            selected: _selectedVariant,
+            onSelected: _selectVariant,
+          ),
           const SizedBox(height: 16),
         ],
       ),

@@ -107,6 +107,13 @@ extension CategoryJson on Category {
 
 extension ProductVariantJson on ProductVariant {
   Map<String, dynamic> toJson() {
-    return {'id': id, 'label': label, 'prix': prix};
+    return {
+      'id': id,
+      'label': label,
+      'prix': prix,
+      'availableQuantity': availableQuantity,
+      'stockConsumption': stockConsumption,
+      'stockStatus': stockStatus,
+    };
   }
 }

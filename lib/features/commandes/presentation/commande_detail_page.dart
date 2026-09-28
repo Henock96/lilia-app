@@ -1,25 +1,23 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:lilia_app/utils/order_reference.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
-import 'package:intl/intl.dart';
-import 'package:lilia_app/common_widgets/app_cached_image.dart';
-import 'package:lilia_app/features/commandes/presentation/progress_step.dart';
-import 'package:lilia_app/features/commandes/presentation/status_info.dart';
+import 'package:lilia_app/features/commandes/presentation/widgets/order_detail_cards.dart';
+
+// `pickupStatusInfo` vit avec le reste du vocabulaire des statuts ; ré-exporté
+// pour les importeurs historiques de cette page.
+export 'package:lilia_app/features/commandes/presentation/status_info.dart'
+    show pickupStatusInfo;
 import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/features/payments/application/payment_status_controller.dart';
 import 'package:lilia_app/features/payments/data/payment_service.dart';
 import 'package:lilia_app/features/payments/presentation/payment_pending_args.dart';
 import 'package:lilia_app/models/order.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
-import '../../../models/location_precision.dart';
-import '../../../models/order_item.dart';
-import '../../../utils/map_launcher.dart';
 import '../../cart/application/cart_controller.dart';
 import '../data/order_controller.dart';
 import '../data/order_repository.dart';
@@ -27,14 +25,12 @@ import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 import '../../reviews/presentation/widgets/rate_driver_sheet.dart';
 import '../data/delivery_tracking_repository.dart';
-import 'widgets/handover_code_card.dart';
 import 'widgets/pickup_card.dart';
 import 'widgets/report_issue_sheet.dart';
 import '../../../services/analytics_service.dart';
 import '../../../services/notification_router.dart';
 import '../../notifications/application/notification_providers.dart';
 import '../domain/order_status_view.dart';
-import 'package:lilia_app/features/cart/presentation/line_options_text.dart';
 
 /// Statuts pour lesquels le reçu PDF est téléchargeable (payée, non annulée).
 const _receiptStatuses = <OrderStatus>{
@@ -167,13 +163,13 @@ class OrderDetailPage extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Section Header avec statut
-                _buildHeaderCard(context, order),
+                OrderHeaderCard(order: order),
 
                 const SizedBox(height: 16),
 
                 // Barre de progression pour les commandes en cours
                 if (!_terminalStatuses.contains(order.status))
-                  _buildProgressCard(context, order),
+                  OrderProgressCard(order: order),
 
                 // F3-01 : où en est le vendeur (en attente de réponse,
                 // accepté, heure de fin annoncée).
@@ -219,22 +215,22 @@ class OrderDetailPage extends ConsumerWidget {
                 ],
 
                 // Section Restaurant
-                _buildRestaurantCard(context, order),
+                OrderVendorCard(order: order),
 
                 const SizedBox(height: 16),
 
                 // Section Articles
-                _buildItemsCard(context, order),
+                OrderItemsCard(order: order),
 
                 const SizedBox(height: 16),
 
                 // Section Livraison
-                _buildDeliveryCard(context, order),
+                OrderDeliveryCard(order: order),
 
                 const SizedBox(height: 16),
 
                 // Section Sommaire
-                _buildSummaryCard(context, order),
+                OrderSummaryCard(order: order),
 
                 const SizedBox(height: 24),
 
@@ -390,645 +386,12 @@ class OrderDetailPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeaderCard(BuildContext context, Order order) {
-    final cs = Theme.of(context).colorScheme;
-    final formattedDate = DateFormat(
-      'dd MMM yyyy',
-      'fr_FR',
-    ).format(order.createdAt);
-    final formattedTime = DateFormat('HH:mm').format(order.createdAt);
-    final statusInfo = pickupStatusInfo(order) ?? _getStatusInfo(order.status);
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Commande',
-                    style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    refCommande(order.id),
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              _buildStatusBadge(order.status),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: statusInfo.color.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Icon(statusInfo.icon, color: statusInfo.color, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        statusInfo.label,
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: statusInfo.color,
-                        ),
-                      ),
-                      Text(
-                        statusInfo.description,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: statusInfo.color.withValues(alpha: 0.8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Icon(Iconsax.calendar, size: 16, color: cs.onSurfaceVariant),
-              const SizedBox(width: 8),
-              Text(
-                formattedDate,
-                style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
-              ),
-              const SizedBox(width: 16),
-              Icon(Iconsax.clock, size: 16, color: cs.onSurfaceVariant),
-              const SizedBox(width: 8),
-              Text(
-                formattedTime,
-                style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildStatusBadge(OrderStatus status) {
-    final info = _getStatusInfo(status);
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: info.color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: info.color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(info.icon, size: 14, color: info.color),
-          const SizedBox(width: 6),
-          Text(
-            info.label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: info.color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildProgressCard(BuildContext context, Order order) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Iconsax.routing, size: 20, color: cs.onSurfaceVariant),
-              const SizedBox(width: 8),
-              const Text(
-                'Suivi de commande',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          _OrderProgressStepper(status: order.status),
-          // Précision sur l'étape livreur : le stepper est basé sur le statut
-          // de la COMMANDE, qui reste « Prête » tant que le livreur n'a pas
-          // récupéré le repas. Sans cette ligne, le client ne saurait pas
-          // qu'un livreur est déjà en route vers le restaurant.
-          _DeliveryProgressHint(orderId: order.id),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildRestaurantCard(BuildContext context, Order order) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Iconsax.shop, size: 20, color: cs.onSurfaceVariant),
-              const SizedBox(width: 8),
-              const Text(
-                'Restaurant',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SizedBox(
-                  width: 60,
-                  height: 60,
-                  child: order.restaurant.imageUrl != null
-                      ? AppCachedImage(
-                          imageUrl: order.restaurant.imageUrl!,
-                          fit: BoxFit.cover,
-                          errorWidget: _buildPlaceholderImage(context),
-                        )
-                      : _buildPlaceholderImage(context),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      order.restaurant.nom,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Iconsax.location,
-                          size: 14,
-                          color: cs.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            order.restaurant.adresse ??
-                                'Adresse non disponible',
-                            style: TextStyle(
-                              color: cs.onSurfaceVariant,
-                              fontSize: 13,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Iconsax.arrow_right_3, color: cs.outline, size: 20),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildItemsCard(BuildContext context, Order order) {
-    final cs = Theme.of(context).colorScheme;
-    final itemCount = order.items.fold<int>(
-      0,
-      (sum, item) => sum + item.quantite,
-    );
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(Iconsax.bag_2, size: 20, color: cs.onSurfaceVariant),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Articles commandés',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '$itemCount article${itemCount > 1 ? 's' : ''}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          ...order.items.asMap().entries.map((entry) {
-            final index = entry.key;
-            final item = entry.value;
-            return Column(
-              children: [
-                _OrderItemCard(item: item),
-                if (index < order.items.length - 1)
-                  Divider(height: 24, color: cs.outline.withValues(alpha: 0.3)),
-              ],
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDeliveryCard(BuildContext context, Order order) {
-    final cs = Theme.of(context).colorScheme;
-    final isDelivery = order.isDelivery;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    isDelivery ? Iconsax.truck_fast : Iconsax.shop,
-                    size: 20,
-                    color: cs.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    isDelivery ? 'Livraison' : 'Retrait en magasin',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              // `hasDeliveryCoordinates` et non un simple test de nullité :
-              // il exige aussi que le serveur ait qualifié la position. Des
-              // coordonnées résiduelles sur une destination `UNKNOWN`
-              // ouvriraient un itinéraire vers un point que personne n'a posé
-              // — et on s'y rendrait.
-              if (isDelivery && order.hasDeliveryCoordinates)
-                TextButton.icon(
-                  onPressed: () => MapLauncher.openNavigation(
-                    latitude: order.deliveryLatitude!,
-                    longitude: order.deliveryLongitude!,
-                    label: 'Livraison - Commande ${refCommande(order.id)}',
-                    address: order.deliveryAddress,
-                  ),
-                  icon: const Icon(Icons.navigation_outlined, size: 16),
-                  label: const Text(
-                    'Itinéraire',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: isDelivery ? Colors.blue[50] : Colors.orange[50],
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  isDelivery ? Iconsax.location : Iconsax.shop,
-                  color: isDelivery ? Colors.blue[400] : Colors.orange[400],
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      isDelivery
-                          ? 'Adresse de destination'
-                          : 'Adresse du restaurant',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      isDelivery
-                          ? (order.deliveryAddress ?? 'Adresse non spécifiée')
-                          : (order.restaurant.adresse ??
-                                'Adresse non disponible'),
-                      style: TextStyle(
-                        color: cs.onSurfaceVariant,
-                        fontSize: 13,
-                      ),
-                    ),
-                    if (isDelivery &&
-                        order.deliveryLandmark != null &&
-                        order.deliveryLandmark!.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.info_outline, size: 14, color: cs.primary),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              'Repère : ${order.deliveryLandmark}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: cs.primary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    if (order.notes != null && order.notes!.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        'Note : "${order.notes}"',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontStyle: FontStyle.italic,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                    if (order.contactPhone != null &&
-                        order.contactPhone!.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        'Contact : ${order.contactPhone}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                    // Fiabilité de la destination, dans les trois cas.
-                    //
-                    // Seul `exact` était affiché : l'interface rassurait quand
-                    // tout allait bien et se taisait quand il y avait un
-                    // problème. Or c'est l'inverse qui est utile — un client
-                    // qui sait que le livreur va devoir l'appeler garde son
-                    // téléphone à portée, et peut encore situer son adresse.
-                    if (isDelivery) ...[
-                      const SizedBox(height: 6),
-                      switch (order.deliveryPrecision) {
-                        LocationPrecision.exact => _PrecisionLine(
-                          icon: Icons.gps_fixed,
-                          color: Colors.green.shade700,
-                          text: 'Position exacte enregistrée',
-                        ),
-                        LocationPrecision.approximate => _PrecisionLine(
-                          icon: Icons.gps_not_fixed,
-                          color: Colors.orange.shade800,
-                          text:
-                              'Position au quartier — le livreur vous '
-                              'appellera en arrivant',
-                        ),
-                        LocationPrecision.unknown => _PrecisionLine(
-                          icon: Icons.gps_off,
-                          color: cs.error,
-                          text:
-                              'Aucune position enregistrée — le livreur vous '
-                              'appellera',
-                        ),
-                      },
-                    ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSummaryCard(BuildContext context, Order order) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Iconsax.receipt_1, size: 20, color: cs.onSurfaceVariant),
-              const SizedBox(width: 8),
-              const Text(
-                'Récapitulatif',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildSummaryRow(context, 'Sous-total', order.subTotal),
-          const SizedBox(height: 8),
-          if (order.isDelivery) ...[
-            _buildSummaryRow(context, 'Frais de livraison', order.deliveryFee),
-            const SizedBox(height: 8),
-          ],
-          _buildSummaryRow(context, 'Frais de service', order.serviceFee),
-          if (order.discountAmount > 0) ...[
-            const SizedBox(height: 8),
-            _buildSummaryRow(
-              context,
-              'Réduction',
-              -order.discountAmount,
-              isDiscount: true,
-            ),
-          ],
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Divider(color: cs.outline.withValues(alpha: 0.3)),
-          ),
-          _buildSummaryRow(context, 'Total', order.total, isTotal: true),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  _getPaymentIcon(order.paymentMethod),
-                  color: cs.primary,
-                  size: 22,
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Méthode de paiement',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _getDisplayStatusPaiement(order.paymentMethod),
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: cs.primary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSummaryRow(
-    BuildContext context,
-    String label,
-    double value, {
-    bool isTotal = false,
-    bool isDiscount = false,
-  }) {
-    final cs = Theme.of(context).colorScheme;
-    final valueColor = isTotal
-        ? cs.primary
-        : isDiscount
-        ? Colors.green.shade700
-        : cs.onSurface;
-    final formatted = isDiscount ? formatPrice(value) : formatPrice(value);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            if (isDiscount) ...[
-              Icon(Icons.local_offer, size: 14, color: Colors.green.shade700),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: isTotal ? 16 : 14,
-                fontWeight: isTotal ? FontWeight.bold : FontWeight.normal,
-                color: isTotal
-                    ? cs.onSurface
-                    : isDiscount
-                    ? Colors.green.shade700
-                    : cs.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-        Text(
-          formatted,
-          style: TextStyle(
-            fontSize: isTotal ? 18 : 14,
-            fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
-            color: valueColor,
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildCancelButton(
     BuildContext context,
@@ -1209,13 +572,6 @@ class OrderDetailPage extends ConsumerWidget {
     }
   }
 
-  Widget _buildPlaceholderImage(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      color: cs.surfaceContainerHighest,
-      child: Center(child: Icon(Iconsax.shop, size: 30, color: cs.outline)),
-    );
-  }
 
   void _showCancelConfirmationDialog(
     BuildContext context,
@@ -1272,283 +628,7 @@ class OrderDetailPage extends ConsumerWidget {
     );
   }
 
-  StatusInfo _getStatusInfo(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.enAttente:
-        return StatusInfo(
-          label: 'En attente',
-          description: 'Votre commande est en attente de confirmation',
-          color: Colors.orange,
-          icon: Iconsax.timer_1,
-        );
-      case OrderStatus.payer:
-        return StatusInfo(
-          label: 'Payée',
-          description: 'Votre paiement a été confirmé',
-          color: Colors.purple,
-          icon: Iconsax.card_tick,
-        );
-      case OrderStatus.acceptee:
-        return StatusInfo(
-          label: 'Acceptée',
-          description: 'Le vendeur a accepté votre commande',
-          color: Colors.lightGreen,
-          icon: Iconsax.like_1,
-        );
-      case OrderStatus.echecLivraison:
-        return StatusInfo(
-          label: 'Livraison non aboutie',
-          description: 'Votre commande n’a pas pu être livrée — le support revient vers vous',
-          color: Colors.deepOrange,
-          icon: Iconsax.warning_2,
-        );
-      case OrderStatus.enPreparation:
-        return StatusInfo(
-          label: 'En préparation',
-          description: 'Le restaurant prépare votre commande',
-          color: Colors.blue,
-          icon: Iconsax.cake,
-        );
-      case OrderStatus.pret:
-        return StatusInfo(
-          label: 'Prête',
-          description: 'Votre commande est prête pour la livraison',
-          color: Colors.green,
-          icon: Iconsax.tick_circle,
-        );
-      case OrderStatus.enRoute:
-        return StatusInfo(
-          label: 'En route',
-          description: 'Votre livreur est en chemin vers vous',
-          color: Colors.indigo,
-          icon: Iconsax.truck_fast,
-        );
-      case OrderStatus.livrer:
-        return StatusInfo(
-          label: 'Livrée',
-          description: 'Votre commande a été livrée',
-          color: Colors.teal,
-          icon: Iconsax.verify,
-        );
-      case OrderStatus.annuler:
-        return StatusInfo(
-          label: 'Annulée',
-          description: 'Cette commande a été annulée',
-          color: Colors.red,
-          icon: Iconsax.close_circle,
-        );
-      default:
-        return StatusInfo(
-          label: 'Inconnu',
-          description: 'Statut inconnu',
-          color: Colors.grey,
-          icon: Iconsax.info_circle,
-        );
-    }
-  }
 
-  String _getDisplayStatusPaiement(String paymentMethod) {
-    switch (paymentMethod) {
-      case 'MTN_MOMO':
-        return 'MTN Mobile Money';
-      case 'AIRTEL_MONEY':
-        return 'Airtel Money';
-      default:
-        return paymentMethod;
-    }
-  }
-
-  IconData _getPaymentIcon(String paymentMethod) {
-    switch (paymentMethod) {
-      case 'AIRTEL_MONEY':
-        return Iconsax.mobile;
-      default:
-        return Iconsax.mobile;
-    }
-  }
-}
-
-class _OrderItemCard extends StatelessWidget {
-  final OrderItem item;
-
-  const _OrderItemCard({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final String itemImageUrl = item.product.imageUrl ?? '';
-
-    return Row(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: SizedBox(
-            width: 70,
-            height: 70,
-            child: itemImageUrl.isNotEmpty
-                ? AppCachedImage(
-                    imageUrl: itemImageUrl,
-                    fit: BoxFit.cover,
-                    errorWidget: _buildPlaceholderImage(context),
-                  )
-                : _buildPlaceholderImage(context),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                item.product.nom,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                item.variant,
-                style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
-              ),
-              // F3-09 — options figées de la commande.
-              LineOptionsText(item.options),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: cs.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'x${item.quantite}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: cs.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        Text(
-          formatPrice((item.prix * item.quantite)),
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPlaceholderImage(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      color: cs.surfaceContainerHighest,
-      child: Center(child: Icon(Iconsax.gallery, size: 28, color: cs.outline)),
-    );
-  }
-}
-
-class _OrderProgressStepper extends StatelessWidget {
-  final OrderStatus status;
-
-  const _OrderProgressStepper({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final steps = [
-      ProgressStep(
-        icon: Iconsax.tick_circle,
-        label: 'Confirmée',
-        isCompleted: status != OrderStatus.enAttente,
-        isCurrent: status == OrderStatus.enAttente,
-      ),
-      ProgressStep(
-        icon: Iconsax.cake,
-        label: 'En préparation',
-        isCompleted:
-            status == OrderStatus.pret ||
-            status == OrderStatus.enRoute ||
-            status == OrderStatus.livrer,
-        isCurrent: status == OrderStatus.enPreparation,
-      ),
-      ProgressStep(
-        icon: Iconsax.box_tick,
-        label: 'Prête',
-        isCompleted:
-            status == OrderStatus.enRoute || status == OrderStatus.livrer,
-        isCurrent: status == OrderStatus.pret,
-      ),
-      ProgressStep(
-        icon: Iconsax.truck_fast,
-        label: 'En route',
-        isCompleted: status == OrderStatus.livrer,
-        isCurrent: status == OrderStatus.enRoute,
-      ),
-    ];
-
-    return Row(
-      children: List.generate(steps.length * 2 - 1, (index) {
-        if (index.isOdd) {
-          final stepIndex = index ~/ 2;
-          final isCompleted =
-              steps[stepIndex].isCompleted || steps[stepIndex].isCurrent;
-          return Expanded(
-            child: Container(
-              height: 3,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                color: isCompleted
-                    ? Colors.green
-                    : cs.outline.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          );
-        } else {
-          final step = steps[index ~/ 2];
-          return _buildStepItem(context, step);
-        }
-      }),
-    );
-  }
-
-  Widget _buildStepItem(BuildContext context, ProgressStep step) {
-    final cs = Theme.of(context).colorScheme;
-    final color = step.isCompleted || step.isCurrent
-        ? Colors.green
-        : cs.outline;
-
-    return Column(
-      children: [
-        Container(
-          width: step.isCurrent ? 44 : 36,
-          height: step.isCurrent ? 44 : 36,
-          decoration: BoxDecoration(
-            color: step.isCompleted || step.isCurrent
-                ? Colors.green.withValues(alpha: 0.1)
-                : cs.surfaceContainerHighest,
-            shape: BoxShape.circle,
-            border: step.isCurrent
-                ? Border.all(color: Colors.green, width: 2)
-                : null,
-          ),
-          child: Icon(step.icon, size: step.isCurrent ? 22 : 18, color: color),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          step.label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: step.isCurrent ? FontWeight.bold : FontWeight.normal,
-            color: color,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
 }
 
 /// Bouton autonome gérant son propre état de chargement pendant la génération
@@ -1724,63 +804,6 @@ class _RateDriverCard extends ConsumerWidget {
 /// mission et la récupération du repas — c'est voulu : la commande n'est pas
 /// « en route » tant qu'elle est sur le comptoir. Mais le client gagne à savoir
 /// qu'un livreur a pris la course et vient la chercher.
-class _DeliveryProgressHint extends ConsumerWidget {
-  const _DeliveryProgressHint({required this.orderId});
-
-  final String orderId;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tracking = ref.watch(driverLocationControllerProvider(orderId));
-
-    return tracking.maybeWhen(
-      orElse: () => const SizedBox.shrink(),
-      data: (location) {
-        // On ne montre l'indication que pendant les étapes livreur : avant
-        // l'assignation, le stepper suffit.
-        if (location == null ||
-            !(location.isHeadingToRestaurant || location.isOnTheWay)) {
-          return const SizedBox.shrink();
-        }
-
-        final cs = Theme.of(context).colorScheme;
-        final who = location.driverNom?.trim();
-        final label = location.isHeadingToRestaurant && who != null
-            ? '$who va récupérer votre commande'
-            : location.progressLabel;
-
-        final hint = Padding(
-          padding: const EdgeInsets.only(top: 16),
-          child: Row(
-            children: [
-              Icon(
-                location.isOnTheWay
-                    ? Icons.delivery_dining
-                    : Icons.storefront_outlined,
-                size: 18,
-                color: cs.primary,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
-                ),
-              ),
-            ],
-          ),
-        );
-
-        // F-06 : pendant que le repas roule, le client a son code de remise
-        // sous les yeux — c'est lui qui le donnera au livreur à la porte.
-        final code = location.handoverCode;
-        if (!location.isOnTheWay || code == null) return hint;
-        return Column(children: [hint, HandoverCodeCard(code: code)]);
-      },
-    );
-  }
-}
-
 /// Traduit en action l'intention portée par la dernière notification.
 ///
 /// L'invitation à noter est déjà traitée par `_RateDriverCard` : cette
@@ -2233,37 +1256,6 @@ class _PayNowButtonState extends ConsumerState<_PayNowButton> {
 /// Trois états, trois conduites différentes pour le client : ne rien faire,
 /// garder son téléphone à portée, ou compléter son adresse. Les confondre en
 /// un seul message — ou n'en afficher qu'un — revenait à ne rien dire.
-class _PrecisionLine extends StatelessWidget {
-  const _PrecisionLine({
-    required this.icon,
-    required this.color,
-    required this.text,
-  });
-
-  final IconData icon;
-  final Color color;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Icon(icon, size: 12, color: color),
-      const SizedBox(width: 4),
-      Expanded(
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 11,
-            color: color,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    ],
-  );
-}
-
 /// Statuts sur lesquels un signalement a un sens — le serveur applique la
 /// même liste (et une fenêtre de 72 h après livraison).
 const _reportableStatuses = {
@@ -2399,37 +1391,5 @@ class _CancellationCard extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-/// En-tête d'un retrait au comptoir (F3-07) : « prête pour la livraison » et
-/// « livrée » n'ont pas de sens pour une commande qu'on vient chercher.
-/// `null` : le libellé général convient.
-StatusInfo? pickupStatusInfo(Order order) {
-  if (order.isDelivery) return null;
-  switch (order.status) {
-    case OrderStatus.pret:
-      return StatusInfo(
-        label: 'Prête',
-        description: 'Votre commande vous attend au restaurant',
-        color: Colors.green,
-        icon: Iconsax.shop,
-      );
-    case OrderStatus.livrer:
-      return order.deliveryProof == 'PICKUP_VENDOR_DECLARED'
-          ? StatusInfo(
-              label: 'Remise',
-              description: 'Le restaurant indique vous avoir remis la commande',
-              color: Colors.teal,
-              icon: Iconsax.shop,
-            )
-          : StatusInfo(
-              label: 'Récupérée',
-              description: 'Vous avez récupéré votre commande',
-              color: Colors.teal,
-              icon: Iconsax.verify,
-            );
-    default:
-      return null;
   }
 }

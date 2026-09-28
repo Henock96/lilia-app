@@ -1,7 +1,9 @@
-import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lilia_app/core/log.dart';
+import 'package:lilia_app/core/network/api_exception.dart';
 
 class BuildErrorState extends ConsumerWidget {
   const BuildErrorState(this.error, {super.key, this.onRetry});
@@ -14,75 +16,86 @@ class BuildErrorState extends ConsumerWidget {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 48,
-              color: theme.colorScheme.error.withValues(alpha: 0.7),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Erreur de chargement',
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
+        // Annoncé par TalkBack / VoiceOver quand il remplace un chargement :
+        // sans cela, l'échec n'est perçu que par qui regarde l'écran.
+        child: Semantics(
+          liveRegion: true,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 48,
+                color: theme.colorScheme.error.withValues(alpha: 0.7),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _formatError(error),
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.grey[600],
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            if (onRetry != null)
-              ElevatedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Réessayer'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 12,
-                  ),
+              const SizedBox(height: 16),
+              Text(
+                'Impossible de charger',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                _formatError(error),
+                // `onSurfaceVariant` et non `Colors.grey[600]` : le gris fixe
+                // tombait sous le seuil de contraste sur le fond sombre.
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              if (onRetry != null)
+                ElevatedButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Réessayer'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  String _formatError(Object error) {
-    String errorStr = error.toString();
-    // Nettoyer les préfixes techniques
-    if (errorStr.startsWith('Exception: ')) {
-      errorStr = errorStr.substring(11);
-    }
-    // Tenter d'extraire le message JSON du backend
-    if (errorStr.contains('"message"')) {
-      try {
-        final parsed = Map<String, dynamic>.from(
-          const JsonDecoder().convert(errorStr) as Map,
-        );
-        if (parsed['message'] != null) {
-          errorStr = parsed['message'].toString();
-        }
-      } catch (_) {
-        // errorStr n'est pas du JSON valide : on conserve le texte nettoyé.
-      }
-    }
-    // Nettoyer les messages techniques restants
-    errorStr = errorStr
-        .replaceAll(RegExp(r'Failed to \w+ \w+:\s*'), '')
-        .replaceAll(RegExp(r'\{"statusCode":\d+,"message":"'), '')
-        .replaceAll(RegExp(r'"\}$'), '');
-    if (errorStr.length > 150) {
-      errorStr = '${errorStr.substring(0, 150)}...';
-    }
-    return errorStr;
-  }
+  String _formatError(Object error) => userFacingErrorMessage(error);
 }
+
+/// Message affichable d'une erreur de chargement.
+///
+/// `ApiException` porte déjà un message français destiné au client (voir
+/// `ApiClient`). Tout le reste — `TypeError` d'un parsing, `SocketException`,
+/// `TimeoutException`, `DioException` qui aurait échappé au client — est un
+/// détail de développeur : il part dans le journal de debug, et le client lit
+/// une phrase qu'il peut comprendre. Afficher `type 'Null' is not a subtype
+/// of type 'String'` n'aide personne, et expose la structure interne.
+String userFacingErrorMessage(Object error) {
+  if (error is ApiException) return error.message;
+
+  logDebug('BuildErrorState — erreur non traduite : $error');
+  final brut = error.toString();
+  if (error is TimeoutException) {
+    return 'Le serveur met trop de temps à répondre. Réessayez dans un instant.';
+  }
+  if (_transport.hasMatch(brut)) {
+    return 'Connexion impossible. Vérifiez votre accès à internet.';
+  }
+  // `Exception('Message pour le client')` : forme encore utilisée par
+  // quelques dépôts, dont le texte est rédigé pour l'écran.
+  if (error is Exception && brut.startsWith('Exception: ')) {
+    return brut.substring('Exception: '.length);
+  }
+  return 'Une erreur inattendue est survenue. Réessayez dans un instant.';
+}
+
+final _transport = RegExp(
+  r'SocketException|ClientException|HandshakeException|DioException|'
+  r'Failed host lookup|Connection (refused|reset|closed)',
+);

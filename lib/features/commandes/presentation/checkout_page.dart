@@ -3,7 +3,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/utils/order_reference.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
@@ -32,9 +31,12 @@ import '../../../models/promo_validation_result.dart';
 import '../../../models/restaurant.dart';
 import '../../../models/vendor_type.dart';
 import '../data/promo_repository.dart';
+import 'package:lilia_app/common_widgets/lilia_badge.dart';
+import 'package:lilia_app/theme/lilia_tokens.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
-import 'package:lilia_app/features/cart/presentation/line_options_text.dart';
+import 'package:lilia_app/features/commandes/presentation/widgets/checkout_order_summary.dart';
+import 'package:lilia_app/features/commandes/presentation/widgets/payment_instructions_dialog.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
   final DeliveryOptions? deliveryOptions;
@@ -237,8 +239,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           final double subTotal = quote?.subTotal ?? estimate.subTotal;
           final double deliveryFee = quote?.deliveryFee ?? estimate.deliveryFee;
           final double serviceFee = quote?.serviceFee ?? estimate.serviceFee;
-          final double discountAmount =
-              quote?.promoDiscount ?? estimate.promoDiscount;
           final double loyaltyDiscount =
               quote?.loyaltyDiscount ?? estimate.loyaltyDiscount;
           final double total = quote?.total ?? estimate.total;
@@ -318,28 +318,36 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   if (userPoints >= settings.loyaltyMinRedemption) ...[
                     _buildSectionTitle('Points de fidélité'),
                     const SizedBox(height: 8),
+                    // Surface du thème et non `Colors.amber[50]` : en sombre,
+                    // le titre clair sur ce fond pâle devenait illisible.
                     Material(
-                      color: Colors.amber[50],
+                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
                       clipBehavior: Clip.antiAlias,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: LiliaRadius.mdAll,
                         side: BorderSide(
-                          color: Colors.amber.withValues(alpha: 0.4),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.warningText.withValues(alpha: 0.4),
                         ),
                       ),
                       child: SwitchListTile(
                         value: _useLoyaltyPoints,
                         onChanged: (v) => setState(() => _useLoyaltyPoints = v),
-                        title: Text(
+                        title: const Text(
                           'Utiliser mes points',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                          style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                         subtitle: Text(
-                          'Reduction de ${formatPrice(potentialLoyaltyDiscount)}',
-                          style: TextStyle(color: Colors.amber[800]),
+                          'Réduction de ${formatPrice(potentialLoyaltyDiscount)}',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.warningText,
+                          ),
                         ),
-                        secondary: const Icon(Icons.stars, color: Colors.amber),
-                        activeThumbColor: Colors.amber[700],
+                        secondary: Icon(
+                          Icons.stars,
+                          color: Theme.of(context).colorScheme.warningText,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 24),
@@ -358,16 +366,18 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   // === SECTION RÉSUMÉ ===
                   _buildSectionTitle('Resume de la commande'),
                   const SizedBox(height: 12),
-                  _buildOrderSummary(
+                  CheckoutOrderSummary(
                     cart: cart,
+                    isDelivery: options.isDelivery,
                     subTotal: subTotal,
                     deliveryFee: deliveryFee,
                     originalDeliveryFee: options.deliveryFee,
+                    deliverySubsidy:
+                        widget.deliveryOptions?.deliverySubsidy ?? 0,
                     serviceFee: serviceFee,
-                    discountAmount: discountAmount,
-                    loyaltyDiscount: loyaltyDiscount,
+                    promo: _promoResult,
+                    loyaltyDiscount: _useLoyaltyPoints ? loyaltyDiscount : 0,
                     total: total,
-                    options: options,
                     vendorOffer: quote?.vendorOffer,
                   ).fadeSlideIn(),
                   const SizedBox(height: 24),
@@ -478,12 +488,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       decoration: BoxDecoration(
         color: options.isDelivery
             ? cs.primary.withValues(alpha: 0.1)
-            : Colors.green.withValues(alpha: 0.1),
+            : cs.successText.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: options.isDelivery
               ? cs.primary.withValues(alpha: 0.3)
-              : Colors.green.withValues(alpha: 0.3),
+              : cs.successText.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -496,7 +506,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             ),
             child: Icon(
               options.isDelivery ? Icons.delivery_dining : Icons.store,
-              color: options.isDelivery ? cs.primary : Colors.green,
+              color: options.isDelivery ? cs.primary : cs.successText,
               size: 28,
             ),
           ),
@@ -588,23 +598,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 ),
               ),
               if (!hasSlot)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Text(
-                    'Requis',
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange,
-                    ),
-                  ),
+                const LiliaBadge(
+                  label: 'Requis',
+                  variant: LiliaBadgeVariant.warning,
+                  icon: Icons.error_outline,
                 ),
             ],
           ),
@@ -695,32 +692,31 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   // ─── Disclaimer preorder (LIL-122 décision 4b) ─────────────────────────
 
   Widget _buildPreorderDisclaimer() {
+    final cs = Theme.of(context).colorScheme;
+    // Titre et icône en `warningText`, texte courant en `onSurface` : le
+    // titre était orange sur voile orange (≈ 2.2:1), en 12 px.
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(LiliaSpacing.sp3),
       decoration: BoxDecoration(
-        color: Colors.orange.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+        color: cs.warningText.withValues(alpha: 0.08),
+        borderRadius: const BorderRadius.all(Radius.circular(10)),
+        border: Border.all(color: cs.warningText.withValues(alpha: 0.4)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
-            Icons.warning_amber_rounded,
-            color: Colors.orange,
-            size: 20,
-          ),
-          const SizedBox(width: 8),
+          Icon(Icons.warning_amber_rounded, color: cs.warningText, size: 20),
+          const SizedBox(width: LiliaSpacing.sm),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Commande sur commande',
                   style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.bold,
-                    color: Colors.orange,
+                    color: cs.warningText,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -729,7 +725,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   style: TextStyle(
                     fontSize: 11.5,
                     height: 1.35,
-                    color: Colors.orange[900],
+                    color: cs.onSurface,
                   ),
                 ),
               ],
@@ -914,18 +910,21 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     required double subTotal,
     required double originalDeliveryFee,
   }) {
+    final cs = Theme.of(context).colorScheme;
     // Code promo déjà appliqué : afficher un récap avec bouton supprimer
     if (_promoResult != null) {
       return Container(
         padding: const EdgeInsets.all(12),
+        // Voile « succès » du thème : `Colors.green.shade50` restait un
+        // rectangle pâle en mode sombre.
         decoration: BoxDecoration(
-          color: Colors.green.shade50,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.green.shade200),
+          color: cs.successText.withValues(alpha: 0.1),
+          borderRadius: LiliaRadius.mdAll,
+          border: Border.all(color: cs.successText.withValues(alpha: 0.3)),
         ),
         child: Row(
           children: [
-            Icon(Icons.check_circle, color: Colors.green.shade700, size: 24),
+            Icon(Icons.check_circle, color: cs.successText, size: 24),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -936,7 +935,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 15,
-                      color: Colors.green.shade800,
+                      color: cs.successText,
                     ),
                   ),
                   if (_promoResult!.description != null) ...[
@@ -945,7 +944,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                       _promoResult!.description!,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Colors.green.shade700,
+                        color: cs.onSurface,
                       ),
                     ),
                   ],
@@ -955,7 +954,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
-                      color: Colors.green.shade800,
+                      color: cs.successText,
                     ),
                   ),
                 ],
@@ -1117,355 +1116,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     );
     _lastQuote = async.hasValue && !async.hasError ? async.value : null;
     return _lastQuote;
-  }
-
-  Widget _buildOrderSummary({
-    required Cart cart,
-    required double subTotal,
-    required double deliveryFee,
-    required double originalDeliveryFee,
-    required double serviceFee,
-    required double discountAmount,
-    required double loyaltyDiscount,
-    required double total,
-    required DeliveryOptions options,
-    QuotedVendorOffer? vendorOffer,
-  }) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: cs.outline.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        children: [
-          // Menus groupés
-          ...cart.menuGroups.entries.map((entry) {
-            final groupItems = entry.value;
-            final menuInfo = groupItems.first.menu;
-            final quantite = groupItems.first.quantite;
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          '${quantite}x ${menuInfo?.nom ?? "Menu"}',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Text(
-                        formatPrice(((menuInfo?.prix ?? 0) * quantite)),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  ...groupItems.map(
-                    (item) => Padding(
-                      padding: const EdgeInsets.only(left: 16, top: 2),
-                      child: Text(
-                        '- ${item.product.nom}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: cs.onSurfaceVariant,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-          // Items individuels
-          ...cart.individualItems.map((item) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '${item.quantite}x ${item.product.nom}',
-                          style: const TextStyle(fontSize: 14),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        LineOptionsText(item.options),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    // F3-09 — prix unitaire serveur (variante + options).
-                    formatPrice(item.quantite * item.unitPrice),
-                    style: const TextStyle(fontSize: 14),
-                  ),
-                ],
-              ),
-            );
-          }),
-          const Divider(height: 24),
-          _buildSummaryRow('Sous-total', subTotal),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Frais de livraison', style: TextStyle(fontSize: 15)),
-              _buildDeliveryFeeLabel(
-                isDelivery: options.isDelivery,
-                deliveryFee: deliveryFee,
-                originalDeliveryFee: originalDeliveryFee,
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Frais de service', style: TextStyle(fontSize: 15)),
-              Text(
-                formatPrice(serviceFee),
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          // F3-11 — offre boutique, financée par le vendeur. Distincte du
-          // code promo : ce n'est pas la même remise, ni le même payeur.
-          if (vendorOffer != null && vendorOffer.discount > 0) ...[
-            const SizedBox(height: 8),
-            Row(
-              key: const Key('checkout_vendor_offer'),
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.local_offer,
-                        size: 16,
-                        color: Colors.green,
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          vendorOffer.label,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            color: Colors.green,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  '- ${formatPrice(vendorOffer.discount)}',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.green,
-                  ),
-                ),
-              ],
-            ),
-          ],
-          // Ligne réduction promo
-          if (_promoResult != null) ...[
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.local_offer,
-                        size: 16,
-                        color: Colors.green,
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          'Promo ${_promoResult!.code}',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            color: Colors.green,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  _promoResult!.discountLabel,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.green,
-                  ),
-                ),
-              ],
-            ),
-          ],
-          // Ligne reduction fidelite
-          if (_useLoyaltyPoints && loyaltyDiscount > 0) ...[
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.stars, size: 16, color: Colors.amber),
-                    SizedBox(width: 4),
-                    Text(
-                      'Points fidélité',
-                      style: TextStyle(fontSize: 15, color: Colors.amber),
-                    ),
-                  ],
-                ),
-                Text(
-                  '- ${formatPrice(loyaltyDiscount)}',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.amber,
-                  ),
-                ),
-              ],
-            ),
-          ],
-          const Divider(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Total',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                formatPrice(total),
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: cs.primary,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDeliveryFeeLabel({
-    required bool isDelivery,
-    required double deliveryFee,
-    required double originalDeliveryFee,
-  }) {
-    if (!isDelivery) {
-      return const Text(
-        'Gratuit',
-        style: TextStyle(
-          fontSize: 15,
-          fontWeight: FontWeight.w500,
-          color: Colors.green,
-        ),
-      );
-    }
-
-    final isFreeDeliveryPromo =
-        _promoResult != null &&
-        _promoResult!.discountType == DiscountType.freeDelivery;
-
-    if (isFreeDeliveryPromo) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            formatPrice(originalDeliveryFee),
-            style: TextStyle(
-              fontSize: 14,
-              decoration: TextDecoration.lineThrough,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(width: 6),
-          const Text(
-            'Gratuit',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Colors.green,
-            ),
-          ),
-        ],
-      );
-    }
-
-    // F3-02 — part offerte par le vendeur : le devis l'a déjà déduite, on
-    // montre seulement le prix de base barré.
-    final subsidy = widget.deliveryOptions?.deliverySubsidy ?? 0;
-    if (subsidy > 0) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            formatPrice(deliveryFee + subsidy),
-            style: TextStyle(
-              fontSize: 14,
-              decoration: TextDecoration.lineThrough,
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            deliveryFee == 0 ? 'Offerte' : formatPrice(deliveryFee),
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Colors.green,
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Text(
-      formatPrice(deliveryFee),
-      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-    );
-  }
-
-  Widget _buildSummaryRow(String label, double value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 15)),
-        Text(
-          formatPrice(value),
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
-        ),
-      ],
-    );
   }
 
   Future<void> _saveDraft(Cart cart, String restaurantId) async {
@@ -1879,281 +1529,26 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         (isMtn ? 'MTN Mobile Money' : 'Airtel Money');
     final reference = instructions?.reference ?? payment.referenceId;
 
-    final dialogIsDark = Theme.of(context).brightness == Brightness.dark;
-    final rawMethodColor = isMtn ? Colors.amber.shade700 : Colors.red.shade600;
-    final methodColor = dialogIsDark
-        ? Color.lerp(rawMethodColor, Colors.white, 0.45)!
-        : rawMethodColor;
-
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (BuildContext dialogContext) {
-        final cs = Theme.of(context).colorScheme;
-        final isDark = dialogIsDark;
-        final cardBg = isDark
-            ? methodColor.withValues(alpha: 0.15)
-            : methodColor.withValues(alpha: 0.08);
-        final cardBorder = methodColor.withValues(alpha: 0.3);
-
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              Icon(Icons.payment, color: methodColor, size: 24),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'Instructions de paiement',
-                  style: TextStyle(fontSize: 18),
-                ),
-              ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Pour valider votre commande, effectuez le paiement via $methodLabel:',
-                  style: const TextStyle(fontSize: 14),
-                ),
-                const SizedBox(height: 16),
-                // Numéro de paiement — fourni par le backend
-                Semantics(
-                  label: 'Numéro $methodLabel : $paymentPhoneNumber',
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: cardBg,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: cardBorder),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Numéro $methodLabel',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: cs.onSurfaceVariant,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                paymentPhoneNumber,
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: cs.onSurface,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: Icon(Icons.copy, color: methodColor),
-                          tooltip: 'Copier le numéro',
-                          onPressed: () {
-                            Clipboard.setData(
-                              ClipboardData(text: paymentPhoneNumber),
-                            );
-                            context.showSnack('Numéro copié');
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                // Montant — celui de la commande créée, pas un recalcul client
-                Semantics(
-                  label: 'Montant à envoyer : ${formatPrice(amountDue)}',
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? Colors.green.withValues(alpha: 0.15)
-                          : Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Text('Montant: ', style: TextStyle(fontSize: 14)),
-                        Text(
-                          formatPrice(amountDue),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (reference.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  // Référence : seul moyen fiable pour l'admin de rapprocher un
-                  // virement d'une commande. Elle n'était jamais affichée.
-                  Semantics(
-                    label: 'Référence de paiement : $reference',
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: cs.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Reference a rappeler',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: cs.onSurfaceVariant,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  reference,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.2,
-                                    color: cs.onSurface,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.copy, color: methodColor),
-                            tooltip: 'Copier la référence',
-                            onPressed: () {
-                              Clipboard.setData(ClipboardData(text: reference));
-                              context.showSnack('Reference copiee!');
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                // Instructions USSD
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? Colors.blue.withValues(alpha: 0.12)
-                        : Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Etapes:',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      if (isMtn) ...[
-                        const Text(
-                          '1. Composez *105#',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        const Text(
-                          '2. Choisir "Envoi d\'argent"',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        const Text(
-                          '3. Choisir "Abonne Mobile Money"',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        const Text(
-                          '4. Entrer le numero ci-dessus',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        const Text(
-                          '5. Entrer le montant',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        const Text(
-                          '6. Confirmer avec votre code PIN',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                      ] else ...[
-                        const Text(
-                          '1. Composez *555#',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        const Text(
-                          '2. Choisir "Envoyer de l\'argent"',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        const Text(
-                          '3. Entrer le numero ci-dessus',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        const Text(
-                          '4. Entrer le montant',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        const Text(
-                          '5. Confirmer avec votre code PIN',
-                          style: TextStyle(fontSize: 13),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              // La commande existe déjà : « Plus tard » ne l'annule pas, elle
-              // reste payable depuis « Mes commandes » jusqu'à expiration.
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
-                context.goNamed(AppRoutes.commandes.routeName);
-              },
-              child: const Text('Plus tard'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(dialogContext).pop();
-                ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
-                context.goNamed(AppRoutes.orderSuccess.routeName);
-              },
-              style: ElevatedButton.styleFrom(backgroundColor: methodColor),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: Text(
-                  'J\'ai paye',
-                  style: TextStyle(color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+      builder: (dialogContext) => PaymentInstructionsDialog(
+        isMtn: isMtn,
+        methodLabel: methodLabel,
+        paymentPhoneNumber: paymentPhoneNumber,
+        amountDue: amountDue,
+        reference: reference,
+        onLater: () {
+          Navigator.of(dialogContext).pop();
+          ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
+          context.goNamed(AppRoutes.commandes.routeName);
+        },
+        onPaid: () {
+          Navigator.of(dialogContext).pop();
+          ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
+          context.goNamed(AppRoutes.orderSuccess.routeName);
+        },
+      ),
     );
   }
 

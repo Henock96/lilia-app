@@ -9,6 +9,7 @@ import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/commandes/presentation/order_progress_bar.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
 import 'package:lilia_app/models/order.dart';
+import 'package:lilia_app/features/commandes/presentation/status_info.dart';
 import 'package:intl/intl.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/utils/currency.dart';
@@ -434,7 +435,7 @@ class _OrderCard extends ConsumerWidget {
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
                             ),
-                            _StatusBadge(status: order.status),
+                            OrderStatusBadge(compact: true, status: order.status),
                           ],
                         ),
 
@@ -657,112 +658,4 @@ class _OrderCard extends ConsumerWidget {
       },
     );
   }
-}
-
-class _StatusBadge extends StatelessWidget {
-  final OrderStatus status;
-
-  const _StatusBadge({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    final info = getStatusInfo(status);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: info.color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: info.color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(info.icon, size: 12, color: info.color),
-          const SizedBox(width: 4),
-          Text(
-            info.label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: info.color,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  _StatusInfo getStatusInfo(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.enAttente:
-        return _StatusInfo(
-          label: 'En attente',
-          color: Colors.orange,
-          icon: Icons.hourglass_empty,
-        );
-      case OrderStatus.payer:
-        return _StatusInfo(
-          label: 'Payée',
-          color: Colors.purple,
-          icon: Icons.payment,
-        );
-      case OrderStatus.acceptee:
-        return _StatusInfo(
-          label: 'Acceptée',
-          color: Colors.lightGreen,
-          icon: Icons.thumb_up_alt_outlined,
-        );
-      case OrderStatus.echecLivraison:
-        return _StatusInfo(
-          label: 'Livraison non aboutie',
-          color: Colors.deepOrange,
-          icon: Icons.report_problem_outlined,
-        );
-      case OrderStatus.enPreparation:
-        return _StatusInfo(
-          label: 'En préparation',
-          color: Colors.blue,
-          icon: Icons.restaurant,
-        );
-      case OrderStatus.pret:
-        return _StatusInfo(
-          label: 'Prête',
-          color: Colors.green,
-          icon: Icons.check_circle,
-        );
-      case OrderStatus.enRoute:
-        return _StatusInfo(
-          label: 'En route',
-          color: Colors.indigo,
-          icon: Icons.delivery_dining,
-        );
-      case OrderStatus.livrer:
-        return _StatusInfo(
-          label: 'Livrée',
-          color: Colors.teal,
-          icon: Icons.local_shipping,
-        );
-      case OrderStatus.annuler:
-        return _StatusInfo(
-          label: 'Annulée',
-          color: Colors.red,
-          icon: Icons.cancel,
-        );
-      default:
-        return _StatusInfo(
-          label: 'Inconnu',
-          color: Colors.grey,
-          icon: Icons.help_outline,
-        );
-    }
-  }
-}
-
-class _StatusInfo {
-  final String label;
-  final Color color;
-  final IconData icon;
-
-  _StatusInfo({required this.label, required this.color, required this.icon});
 }

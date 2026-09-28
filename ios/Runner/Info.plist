@@ -51,7 +51,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Votre position est utilisée pour afficher les restaurants proches et permettre la livraison.</string>
+	<string>Votre position est utilisée pour afficher les restaurants proches et faciliter la livraison de votre commande.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Lilia Food utilise votre position uniquement lorsque l’application est ouverte, pour placer votre adresse de livraison sur la carte.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -101,6 +103,8 @@
 	<string>Main</string>
 	<key>UIStatusBarStyle</key>
 	<string></string>
+	<key>UIRequiresFullScreen</key>
+	<true/>
 	<!-- Portrait uniquement. Toute l'interface est composée en colonne — pied
 	     de panier, tunnel de commande, carte de suivi — et le paysage y
 	     produisait des débordements. Autoriser une orientation qu'aucun écran

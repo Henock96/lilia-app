@@ -20,8 +20,8 @@ import '../data/remote/home_controller.dart';
 import '../data/remote/restaurant_controller.dart';
 import 'widgets/popular_dishes_section.dart';
 import 'widgets/search_bar_widget.dart';
-import 'widgets/section_header.dart';
 import 'widgets/vendor_type_filter_bar.dart';
+import 'package:lilia_app/utils/async_value_ui.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -38,15 +38,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   bool get wantKeepAlive => true;
 
-  int _currentSlide = 0;
+  /// Bannière affichée. Un `ValueNotifier` et non un champ + `setState` :
+  /// le carrousel tourne toutes les 4 s, et chaque `setState` reconstruisait
+  /// l'écran d'accueil entier — dont la liste des vendeurs, construite en
+  /// `shrinkWrap` donc intégralement mise en page — pour déplacer un point.
+  final ValueNotifier<int> _currentSlide = ValueNotifier(0);
+
+  @override
+  void dispose() {
+    _currentSlide.dispose();
+    super.dispose();
+  }
+
   final CarouselSliderController _carouselController =
       CarouselSliderController();
 
-  // Bannières par défaut (fallback si aucune bannière API)
+  // Contenu éditorial utilisable même si l'API ou les images sont indisponibles.
   static const List<Map<String, String>> _defaultBanners = [
-    {'image': 'assets/images/banner.png', 'title': 'Bienvenue sur Lilia Food'},
-    {'image': 'assets/images/banner.png', 'title': 'Livraison rapide'},
-    {'image': 'assets/images/banner.png', 'title': 'Nouveaux restaurants'},
+    {'title': 'Bienvenue sur Lilia Food'},
+    {'title': 'Livraison rapide'},
+    {'title': 'Découvrez nos menus'},
   ];
 
   @override
@@ -110,12 +121,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
                 const SizedBox(height: 20),
 
-                // 4. Plats Populaires
-                const SectionHeader(title: 'Plats Populaires'),
-                const SizedBox(height: 12),
+                // 4. Plats Populaires — porte son propre titre, pour que la
+                // section disparaisse en entier quand elle n'a rien à montrer.
                 const PopularDishesSection(),
-
-                const SizedBox(height: 20),
 
                 // 7. Marketplace (LIL-117) : filtre vendor type + liste
                 Padding(
@@ -172,8 +180,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         backgroundColor: Colors.red,
         child: IconButton(
           tooltip: 'Notifications',
-          onPressed: () =>
-              context.pushNamed(AppRoutes.notifications.routeName),
+          onPressed: () => context.pushNamed(AppRoutes.notifications.routeName),
           icon: const Icon(Icons.notifications_outlined),
         ),
       ),
@@ -191,7 +198,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _buildSimpleSlider(AsyncValue<List<AppBanner>> bannersAsync) {
-    return bannersAsync.when(
+    return bannersAsync.whenUi(
       data: (apiBanners) {
         if (apiBanners.isNotEmpty) {
           return _buildSliderContent(
@@ -199,10 +206,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             imageBuilder: (index) => AppCachedImage(
               imageUrl: apiBanners[index].imageUrl,
               fit: BoxFit.cover,
-              errorWidget: Image.asset(
-                'assets/images/banner.png',
-                fit: BoxFit.cover,
-              ),
+              errorWidget: _bannerFallback(),
             ),
             titleBuilder: (index) => apiBanners[index].title,
             hasTitle: (index) =>
@@ -220,11 +224,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget _buildFallbackSlider() {
     return _buildSliderContent(
       itemCount: _defaultBanners.length,
-      imageBuilder: (index) =>
-          Image.asset(_defaultBanners[index]['image']!, fit: BoxFit.cover),
+      imageBuilder: (_) => _bannerFallback(),
       titleBuilder: (index) => _defaultBanners[index]['title']!,
     );
   }
+
+  /// Repli local des bannières : API en panne, liste vide ou image distante
+  /// en échec. Aucun asset — `assets/images/banner.png`, référencé ici
+  /// jusqu'au 27/09/2026, n'a jamais existé : la panne de l'API se doublait
+  /// d'une erreur de chargement d'asset.
+  Widget _bannerFallback() => DecoratedBox(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [
+          Theme.of(context).colorScheme.primary,
+          Theme.of(context).colorScheme.tertiary,
+        ],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+    ),
+    child: Center(
+      child: Icon(
+        Icons.restaurant_rounded,
+        size: 54,
+        color: Theme.of(context).colorScheme.onPrimary.withValues(alpha: .8),
+      ),
+    ),
+  );
 
   Widget _buildSliderContent({
     required int itemCount,
@@ -238,16 +265,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           itemCount: itemCount,
           carouselController: _carouselController,
           options: CarouselOptions(
-            autoPlay: true,
             autoPlayInterval: const Duration(seconds: 4),
             enlargeCenterPage: true,
             aspectRatio: 2.2,
             viewportFraction: 0.92,
-            onPageChanged: (index, reason) {
-              setState(() {
-                _currentSlide = index;
-              });
-            },
+            // « Réduire les animations » (iOS) / « Supprimer les animations »
+            // (Android) : un contenu qui défile seul est justement ce que ce
+            // réglage demande d'arrêter. Le balayage manuel reste possible.
+            autoPlay: !MediaQuery.disableAnimationsOf(context),
+            onPageChanged: (index, reason) => _currentSlide.value = index,
           ),
           itemBuilder: (context, index, realIndex) {
             return Container(
@@ -302,23 +328,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           },
         ),
         const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(itemCount, (index) {
-            final isActive = _currentSlide == index;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: isActive ? 20 : 6,
-              height: 6,
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(3),
-                color: isActive
-                    ? Theme.of(context).colorScheme.primary
-                    : Theme.of(context).colorScheme.outline,
-              ),
-            );
-          }),
+        ValueListenableBuilder<int>(
+          valueListenable: _currentSlide,
+          builder: (context, current, _) => Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(itemCount, (index) {
+              final isActive = current == index;
+              return AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: isActive ? 20 : 6,
+                height: 6,
+                margin: const EdgeInsets.symmetric(horizontal: 3),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(3),
+                  color: isActive
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.outline,
+                ),
+              );
+            }),
+          ),
         ),
       ],
     );
@@ -327,7 +356,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   Widget _buildRestaurantsList(
     AsyncValue<List<RestaurantSummary>> restaurantsAsync,
   ) {
-    return restaurantsAsync.when(
+    return restaurantsAsync.whenUi(
       data: (restaurants) {
         if (restaurants.isEmpty) {
           return const Padding(
@@ -364,9 +393,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         );
       },
       loading: () => const BuildLoadingState(),
+      // ⚠️ `vendorsListProvider`, celui que l'écran observe. Le bouton
+      // invalidait `restaurantsListProvider`, dont `vendorsList` ne dépend
+      // pas : « Réessayer » ne relançait rien.
       error: (err, stack) => BuildErrorState(
         err,
-        onRetry: () => ref.invalidate(restaurantsListProvider),
+        onRetry: () => ref.invalidate(vendorsListProvider),
       ),
     );
   }

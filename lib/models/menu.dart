@@ -97,6 +97,9 @@ class MenuProduct {
   final String id;
   final String menuId;
   final String productId;
+
+  /// Format réellement inclus, défini par `MenuProduct.variantId` côté API.
+  final String variantId;
   final int ordre;
   final Product product;
   final DateTime createdAt;
@@ -105,6 +108,7 @@ class MenuProduct {
     required this.id,
     required this.menuId,
     required this.productId,
+    this.variantId = '',
     required this.ordre,
     required this.product,
     required this.createdAt,
@@ -115,6 +119,7 @@ class MenuProduct {
       id: json['id'] as String,
       menuId: json['menuId'] as String,
       productId: json['productId'] as String,
+      variantId: json['variantId'] as String? ?? '',
       ordre: (json['ordre'] as int?) ?? 0,
       product: Product.fromJson(json['product'] as Map<String, dynamic>),
       createdAt: DateTime.parse(json['createdAt'] as String),

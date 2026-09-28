@@ -2,6 +2,9 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/painting.dart' show Color;
+import 'package:lilia_app/common_widgets/lilia_badge.dart';
+import 'package:lilia_app/theme/app_theme.dart';
 import 'package:lilia_app/theme/lilia_tokens.dart';
 
 /// Ratio de contraste WCAG 2.x entre deux couleurs opaques.
@@ -97,6 +100,58 @@ void main() {
         }
       }
     });
+  });
+
+  /// Un badge est un voile translucide : son fond réel dépend de la surface
+  /// où il est posé. Les teintes de marque sur leur propre voile tombaient
+  /// entre 2.2 et 3.9:1 en clair — pour du texte de 11 px (stock, ouverture).
+  group('Badges — texte sur voile, sur chaque surface', () {
+    for (final isDark in [false, true]) {
+      final t = isDark ? LiliaSemantics.dark : LiliaSemantics.light;
+      for (final variant in LiliaBadgeVariant.values) {
+        test('${isDark ? 'sombre' : 'clair'} — ${variant.name}', () {
+          final (bg, fg) = liliaBadgeColors(variant, isDark: isDark);
+          for (final surface in [t.bgPrimary, t.bgSecondary, t.bgElevated]) {
+            expect(
+              contrastRatio(fg, Color.alphaBlend(bg, surface)),
+              greaterThanOrEqualTo(kAaNormalText),
+              reason: 'sur $surface',
+            );
+          }
+        });
+      }
+    }
+  });
+
+  group('Texte de feedback (remises, points) sur les surfaces', () {
+    for (final theme in [AppTheme.light, AppTheme.dark]) {
+      final cs = theme.colorScheme;
+      test(cs.brightness.name, () {
+        for (final fg in [cs.successText, cs.warningText]) {
+          for (final bg in [
+            cs.surface,
+            cs.surfaceContainerHighest,
+            theme.scaffoldBackgroundColor,
+          ]) {
+            expect(
+              contrastRatio(fg, bg),
+              greaterThanOrEqualTo(kAaNormalText),
+              reason: '$fg sur $bg',
+            );
+          }
+        }
+      });
+    }
+  });
+
+  test('pastille ouvert / fermé posée sur photo : blanc lisible', () {
+    for (final fond in [LiliaColors.green700, LiliaColors.red500]) {
+      expect(
+        contrastRatio(const Color(0xFFFFFFFF), fond),
+        greaterThanOrEqualTo(kAaNormalText),
+        reason: '$fond',
+      );
+    }
   });
 
   test('le calcul de ratio est correct sur les bornes connues', () {

@@ -200,7 +200,7 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.13.0")
 
     // Firebase dependencies
-    implementation(platform("com.google.firebase:firebase-bom:34.18.0"))
+    implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
     implementation("com.google.firebase:firebase-messaging")
     implementation("com.google.firebase:firebase-analytics")
 }
