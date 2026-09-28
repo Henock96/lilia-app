@@ -63,8 +63,10 @@ void main() {
     });
 
     test('même vendeur, même mode : accepté', () {
-      expect(validateAddItem(panier([ligne()]), apercu(variantId: 'var-2')),
-          isNull);
+      expect(
+        validateAddItem(panier([ligne()]), apercu(variantId: 'var-2')),
+        isNull,
+      );
     });
 
     test('autre vendeur : refusé', () {
@@ -94,15 +96,12 @@ void main() {
       );
     });
 
-    test(
-      'le stock n\'est PAS validé localement : il a pu bouger depuis '
-      'le chargement du catalogue',
-      () {
-        // Aucun champ de stock n'entre dans la décision — refuser sur une
-        // donnée périmée ferait perdre des ventes possibles.
-        expect(validateAddItem(panier([ligne()]), apercu()), isNull);
-      },
-    );
+    test('le stock n\'est PAS validé localement : il a pu bouger depuis '
+        'le chargement du catalogue', () {
+      // Aucun champ de stock n'entre dans la décision — refuser sur une
+      // donnée périmée ferait perdre des ventes possibles.
+      expect(validateAddItem(panier([ligne()]), apercu()), isNull);
+    });
   });
 
   group('applyAddItem', () {
@@ -114,11 +113,7 @@ void main() {
     });
 
     test('variante déjà présente : incrémente, ne duplique pas', () {
-      final resultat = applyAddItem(
-        panier([ligne(quantite: 2)]),
-        apercu(),
-        3,
-      );
+      final resultat = applyAddItem(panier([ligne(quantite: 2)]), apercu(), 3);
       expect(resultat.items, hasLength(1));
       expect(resultat.items.single.quantite, 5);
       expect(
@@ -147,7 +142,8 @@ void main() {
       expect(
         origine.items.single.quantite,
         1,
-        reason: 'Sans copie, le rollback restaurerait un instantané déjà '
+        reason:
+            'Sans copie, le rollback restaurerait un instantané déjà '
             'modifié — donc ne restaurerait rien.',
       );
     });
@@ -212,10 +208,11 @@ void main() {
           updatedAt: DateTime(2026, 9, 19),
         );
 
-    MenuProduct ligne(Product p) => MenuProduct(
+    MenuProduct ligne(Product p, {String variantId = ''}) => MenuProduct(
       id: 'mp-${p.id}',
       menuId: 'menu-1',
       productId: p.id,
+      variantId: variantId,
       ordre: 0,
       product: p,
       createdAt: DateTime(2026, 9, 19),
@@ -224,9 +221,8 @@ void main() {
     ProductVariant variante(String id, {double prix = 1500}) =>
         ProductVariant(id: id, label: 'Normale', prix: prix);
 
-    /// La règle du serveur, mot pour mot : une ligne par produit, la PREMIÈRE
-    /// variante de chacun.
-    test('une ligne par produit, sur sa première variante', () {
+    /// Les caches antérieurs au contrat variantId restent lisibles.
+    test('un menu legacy utilise la première variante en repli', () {
       final preview = MenuCartPreview.fromMenu(
         menu([
           ligne(produit('a', variants: [variante('va1'), variante('va2')])),
@@ -237,6 +233,36 @@ void main() {
       expect(preview.lines.map((l) => l.variantId), ['va1', 'vb1']);
       expect(preview.menuId, 'menu-1');
       expect(preview.menu.prix, 4000);
+    });
+
+    test(
+      'respecte la variante explicitement configurée sur chaque composant',
+      () {
+        final preview = MenuCartPreview.fromMenu(
+          menu([
+            ligne(
+              produit('a', variants: [variante('va1'), variante('va2')]),
+              variantId: 'va2',
+            ),
+          ]),
+        )!;
+
+        expect(preview.lines.single.variantId, 'va2');
+      },
+    );
+
+    test('refuse un variantId configuré absent du produit', () {
+      expect(
+        MenuCartPreview.fromMenu(
+          menu([
+            ligne(
+              produit('a', variants: [variante('va1')]),
+              variantId: 'deleted-variant',
+            ),
+          ]),
+        ),
+        isNull,
+      );
     });
 
     /// `CartMenusService` lève « n'a pas de variante disponible ». Le client
@@ -286,9 +312,11 @@ void main() {
       expect(applyRemoveMenu(panier, 'menu-1')!.items, isEmpty);
       expect(applySetMenuQuantity(panier, 'menu-1', 0)!.items, isEmpty);
       expect(
-        applySetMenuQuantity(panier, 'menu-1', 3)!.items.every(
-          (i) => i.quantite == 3,
-        ),
+        applySetMenuQuantity(
+          panier,
+          'menu-1',
+          3,
+        )!.items.every((i) => i.quantite == 3),
         isTrue,
       );
     });

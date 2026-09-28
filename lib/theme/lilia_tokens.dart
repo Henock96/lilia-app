@@ -45,10 +45,20 @@ class LiliaColors {
   // Semantic feedback
   static const green400 = Color(0xFF27A660);
   static const green500 = Color(0xFF1A8A4A);
+
+  /// Texte « succès » sur fond clair teinté : green400/500 plafonnaient à
+  /// 3.75:1 sur leur propre voile (badges 11 px).
+  static const green700 = Color(0xFF146B3A);
   static const amber300 = Color(0xFFF5C44A);
   static const amber400 = Color(0xFFD4970A);
+
+  /// Texte « attention » sur fond clair : amber400 ne donnait que 2.24:1.
+  static const amber700 = Color(0xFF8A5A00);
   static const red300 = Color(0xFFF4826E);
   static const red400 = Color(0xFFD63F28);
+
+  /// Texte « danger » sur fond clair teinté : red400 = 3.86:1.
+  static const red500 = Color(0xFFB83220);
 
   // Dark mode surfaces
   static const darkBg = Color(0xFF0F0D0B);
@@ -157,6 +167,26 @@ class LiliaThemeTokens {
   final Color warning;
   final Color danger;
   final Color info;
+}
+
+// ─── Texte de feedback ───────────────────────────────────────────────────────
+
+/// Couleurs de **texte** « succès » / « attention », lisibles (≥ 4.5:1) sur
+/// toutes les surfaces du thème, y compris `surfaceContainerHighest`.
+///
+/// `ColorScheme.tertiary` (green400) et les `Colors.green` / `Colors.amber`
+/// de Material sont des couleurs de *remplissage* : posés en texte sur
+/// `cream200`, ils tombaient à 2.3:1 et 1.35:1 — la remise promo et la remise
+/// fidélité du checkout étaient à peine lisibles.
+extension LiliaFeedbackText on ColorScheme {
+  bool get _dark => brightness == Brightness.dark;
+
+  /// Montant gagné, remise appliquée, état favorable.
+  Color get successText =>
+      _dark ? const Color(0xFF4DC280) : LiliaColors.green700;
+
+  /// Mise en garde, points de fidélité, stock bas.
+  Color get warningText => _dark ? LiliaColors.amber300 : LiliaColors.amber700;
 }
 
 // ─── Spacing ─────────────────────────────────────────────────────────────────

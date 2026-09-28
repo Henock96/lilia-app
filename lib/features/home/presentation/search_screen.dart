@@ -1,23 +1,20 @@
 import 'dart:async';
 
 import 'package:lilia_app/features/home/domain/opening_label.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
+import 'package:lilia_app/common_widgets/build_error_state.dart';
+import 'package:lilia_app/theme/lilia_tokens.dart';
+import 'package:lilia_app/utils/async_value_ui.dart';
 
-import '../../../features/cart/application/cart_controller.dart';
 import '../../../models/produit.dart';
 import '../../../models/restaurant.dart';
 import '../../../routing/app_route_enum.dart';
 import '../data/remote/home_controller.dart';
-import 'package:lilia_app/utils/currency.dart';
-import 'package:lilia_app/utils/snackbar.dart';
-import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
-import 'package:lilia_app/features/cart/data/cart_repository.dart';
-import 'package:lilia_app/features/cart/presentation/product_options_gate.dart';
+import 'package:lilia_app/features/cart/presentation/quick_add.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -103,7 +100,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Widget _buildSearchResults(ColorScheme cs) {
     final resultsAsync = ref.watch(searchResultsProvider(_query));
 
-    return resultsAsync.when(
+    return resultsAsync.whenUi(
       data: (results) {
         // ⚠️ Aucun événement de recherche ici, et pour deux raisons.
         //
@@ -165,13 +162,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, _) => Center(
-        child: Text(
-          'Erreur: $err',
-          style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-        ),
+      error: (err, _) => BuildErrorState(
+        err,
+        onRetry: () => ref.invalidate(searchResultsProvider(_query)),
       ),
     );
   }
@@ -238,7 +231,11 @@ class _SearchRestaurantTile extends StatelessWidget {
                   height: 8,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: restaurant.isOpen ? Colors.green : Colors.red,
+                    // Le libellé à côté porte l'information ; la pastille
+                    // n'est qu'un rappel visuel.
+                    color: restaurant.isOpen
+                        ? cs.successText
+                        : cs.error,
                   ),
                 ),
                 const SizedBox(width: 4),
@@ -325,7 +322,7 @@ class _SearchProductTile extends ConsumerWidget {
                 style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
               ),
             Text(
-              formatPrice(product.displayPrice),
+              product.priceLabel,
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -335,30 +332,7 @@ class _SearchProductTile extends ConsumerWidget {
           ],
         ),
         trailing: product.isOrderable
-            ? GestureDetector(
-                onTap: () {
-                  final user = FirebaseAuth.instance.currentUser;
-                  if (user == null) {
-                    context.showSnack('Connectez-vous pour ajouter au panier');
-                    return;
-                  }
-                  if (openProductForOptions(context, product)) return;
-                  if (product.variants.length > 1) {
-                    _showVariantBottomSheet(context, ref);
-                  } else if (product.variants.isNotEmpty) {
-                    _addToCart(context, ref, product.variants.first);
-                  }
-                },
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: cs.primary,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.add, color: Colors.white, size: 20),
-                ),
-              )
+            ? QuickAddButton(product: product)
             : Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                 decoration: BoxDecoration(
@@ -387,100 +361,4 @@ class _SearchProductTile extends ConsumerWidget {
     );
   }
 
-  void _addToCart(BuildContext context, WidgetRef ref, ProductVariant variant) {
-    // F3-09 — un produit à options s'ajoute depuis sa fiche.
-    if (openProductForOptions(context, product)) return;
-    // Le panier est mis à jour localement puis synchronisé : le message part
-    // dans la foulée du tap. `add_to_cart` est déclenché par le contrôleur à
-    // l'acceptation du serveur, et un échec de synchronisation défait l'ajout
-    // et s'affiche depuis la coque de navigation.
-    try {
-      ref
-          .read(cartControllerProvider.notifier)
-          .addItem(
-            variantId: variant.id,
-            preview: CartItemPreview.fromProduct(product, variant),
-          );
-      context.showSnack('${product.name} ajouté au panier');
-    } on CartException catch (e) {
-      context.showErrorSnack(e.message);
-    }
-  }
-
-  void _showVariantBottomSheet(BuildContext context, WidgetRef ref) {
-    showModalBottomSheet<void>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        final sheetCs = Theme.of(ctx).colorScheme;
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                product.name,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Choisir une option',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              ...product.variants.map((variant) {
-                return InkWell(
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _addToCart(context, ref, variant);
-                  },
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                    margin: const EdgeInsets.only(bottom: 6),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: sheetCs.outline.withValues(alpha: 0.3),
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          variant.displayLabel,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: sheetCs.onSurface,
-                          ),
-                        ),
-                        Text(
-                          formatPrice(variant.prix),
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: sheetCs.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
 }

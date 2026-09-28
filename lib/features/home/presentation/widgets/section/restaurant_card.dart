@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/theme/lilia_tokens.dart';
 import 'package:lilia_app/features/home/domain/opening_label.dart';
 import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 import 'package:lilia_app/features/quartiers/domain/delivery_fee_label.dart';
@@ -100,6 +101,10 @@ class RestaurantCard extends ConsumerWidget {
                         left: 10,
                         child: Row(
                           children: [
+                            // Pastille posée sur la photo : couleurs fixes,
+                            // indépendantes du thème, choisies pour le blanc
+                            // (green700 ≈ 6.9:1, red500 ≈ 5.9:1). Le vert et
+                            // le rouge Material tombaient à 2.8 et 3.7:1.
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 10,
@@ -107,17 +112,33 @@ class RestaurantCard extends ConsumerWidget {
                               ),
                               decoration: BoxDecoration(
                                 color: restaurant.isOpen
-                                    ? Colors.green
-                                    : Colors.red,
-                                borderRadius: BorderRadius.circular(20),
+                                    ? LiliaColors.green700
+                                    : LiliaColors.red500,
+                                borderRadius: LiliaRadius.pillAll,
                               ),
-                              child: Text(
-                                openingLabel(restaurant.isOpen, restaurant.pausedUntil),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    restaurant.isOpen
+                                        ? Icons.check_circle_outline
+                                        : Icons.schedule,
+                                    size: 12,
+                                    color: Colors.white,
+                                  ),
+                                  const SizedBox(width: LiliaSpacing.xs),
+                                  Text(
+                                    openingLabel(
+                                      restaurant.isOpen,
+                                      restaurant.pausedUntil,
+                                    ),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             const SizedBox(width: 6),

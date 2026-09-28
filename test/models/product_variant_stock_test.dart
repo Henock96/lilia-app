@@ -34,4 +34,17 @@ void main() {
     expect(v.availableQuantity, isNull);
     expect(v.isSoldOut, isFalse);
   });
+
+  test('isInStock est la négation de isSoldOut — une seule règle', () {
+    for (final statut in [
+      null,
+      'UNLIMITED',
+      'AVAILABLE',
+      'LOW',
+      'OUT_OF_STOCK',
+    ]) {
+      final v = ProductVariant(id: 'v', prix: 1000, stockStatus: statut);
+      expect(v.isInStock, !v.isSoldOut, reason: '$statut');
+    }
+  });
 }

@@ -6,11 +6,12 @@ import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
 import 'package:lilia_app/features/home/data/remote/home_controller.dart';
 import 'package:lilia_app/models/produit.dart';
-import 'package:lilia_app/features/cart/application/cart_controller.dart';
+import 'package:lilia_app/features/cart/presentation/cart_mode_conflict_dialog.dart';
 import 'package:lilia_app/features/cart/data/cart_repository.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 import 'package:lilia_app/features/cart/presentation/product_options_gate.dart';
+import 'package:lilia_app/features/home/presentation/widgets/product_stock_widgets.dart';
 
 /// La route porte `/profile/favoris/details/:productId`.
 class FavorisDetailPage extends ConsumerWidget {
@@ -47,8 +48,13 @@ class _FavorisDetailPageState extends ConsumerState<_FavorisDetailView> {
   @override
   void initState() {
     super.initState();
-    if (widget.product.variants.isNotEmpty) {
-      _selectedVariant = widget.product.variants.first;
+    // Même règle que la fiche produit : sélection d'office **uniquement**
+    // quand il n'existe qu'un format, et qu'il est vendable. Présélectionner
+    // « le seul format encore en stock » parmi plusieurs choisissait à la
+    // place du client.
+    final variants = widget.product.variants;
+    if (variants.length == 1 && variants.single.isInStock) {
+      _selectedVariant = variants.single;
     }
   }
 
@@ -153,29 +159,11 @@ class _FavorisDetailPageState extends ConsumerState<_FavorisDetailView> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: widget.product.variants.map((variant) {
-                        final isSelected = _selectedVariant?.id == variant.id;
-                        return ChoiceChip(
-                          label: Text(
-                            '${variant.displayLabel} (${formatPrice(variant.prix)})',
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.black87,
-                            ),
-                          ),
-                          selected: isSelected,
-                          selectedColor: Theme.of(context).primaryColor,
-                          onSelected: (selected) {
-                            if (selected) {
-                              setState(() {
-                                _selectedVariant = variant;
-                              });
-                            }
-                          },
-                        );
-                      }).toList(),
+                    VariantSelector(
+                      variants: widget.product.variants,
+                      selected: _selectedVariant,
+                      onSelected: (variant) =>
+                          setState(() => _selectedVariant = variant),
                     ),
                   ],
                 ],
@@ -188,38 +176,46 @@ class _FavorisDetailPageState extends ConsumerState<_FavorisDetailView> {
               width: double.infinity,
               height: 60,
               child: ElevatedButton(
-                onPressed: () {
-                  // F3-09 — les options se choisissent sur la fiche produit.
-                  if (openProductForOptions(context, widget.product)) return;
-                  if (_selectedVariant == null &&
-                      widget.product.variants.isNotEmpty) {
-                    context.showSnack('Veuillez sélectionner une variante!');
-                    return;
-                  }
-                  try {
-                    ref
-                        .read(cartControllerProvider.notifier)
-                        .addItem(
-                          variantId: _selectedVariant!.id,
-                          quantity: _quantity,
-                          preview: CartItemPreview.fromProduct(
-                            widget.product,
-                            _selectedVariant!,
-                          ),
-                        );
-                    context.showSnack(
-                      '${widget.product.name} a été ajouté au panier.',
-                    );
-                  } on CartException catch (e) {
-                    context.showErrorSnack(e.message);
-                  }
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
-                ),
+                onPressed:
+                    !widget.product.hasModifiers &&
+                        (widget.product.variants.isEmpty ||
+                            _selectedVariant == null ||
+                            !_selectedVariant!.isInStock)
+                    ? null
+                    : () async {
+                        // F3-09 — les options se choisissent sur la fiche produit.
+                        if (openProductForOptions(context, widget.product)) {
+                          return;
+                        }
+                        // Garanti non nul et vendable par la garde du bouton.
+                        final variant = _selectedVariant!;
+                        try {
+                          // `addToCartSafely` : un conflit « sur commande /
+                          // immédiat » ouvre la modale qui propose de vider le
+                          // panier, au lieu d'échouer en message d'erreur.
+                          final added = await addToCartSafely(
+                            context: context,
+                            ref: ref,
+                            quantity: _quantity,
+                            preview: CartItemPreview.fromProduct(
+                              widget.product,
+                              variant,
+                            ),
+                          );
+                          if (added && context.mounted) {
+                            context.showSuccessSnack(
+                              '${widget.product.name} a été ajouté au panier.',
+                            );
+                          }
+                        } on CartException catch (e) {
+                          if (context.mounted) context.showErrorSnack(e.message);
+                        }
+                      },
                 child: const Text(
                   'Ajouter au panier',
-                  style: TextStyle(color: Colors.white, fontSize: 19),
+                  // Couleur du thème (`textOnAction`) : le blanc imposé tombait à
+                  // 2.84:1 sur l'action orange clair du mode sombre.
+                  style: TextStyle(fontSize: 19),
                 ),
               ),
             ),

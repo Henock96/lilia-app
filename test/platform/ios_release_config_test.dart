@@ -130,16 +130,29 @@ void main() {
       );
     });
 
+    // La chaîne « Always » est **requise** par App Store Connect
+    // (avertissement ITMS-90683) : le binaire de `geolocator_apple` référence
+    // `requestAlwaysAuthorization`, même si l'app ne l'appelle jamais — le
+    // plugin demande « quand utilisée » dès que cette clé-là existe. Son
+    // interrupteur `BYPASS_PERMISSION_LOCATION_ALWAYS` ne s'applique pas : le
+    // plugin est compilé par Swift Package Manager, pas par le Podfile.
+    //
+    // Ce qui reste interdit, c'est de **décrire** un usage en arrière-plan qui
+    // n'existe pas (et le mode `location`, vérifié plus haut).
     test(
-      'pas de chaîne « Always » : elle décrirait un usage qui n’existe pas',
+      'chaîne « Always » présente, sans promettre d’usage en arrière-plan',
       () {
+        final always = _valeurTexte(
+          plist,
+          'NSLocationAlwaysAndWhenInUseUsageDescription',
+        );
+        expect(always, isNotNull, reason: 'avertissement ITMS-90683 d’Apple');
         expect(
-          _valeurTexte(plist, 'NSLocationAlwaysAndWhenInUseUsageDescription'),
-          isNull,
+          always!.toLowerCase(),
+          isNot(contains('arrière-plan')),
           reason:
-              'ajouter cette clé pour accompagner `UIBackgroundModes: location` '
-              'aurait été corriger le symptôme : c’est le mode qui était de '
-              'trop, pas la chaîne qui manquait',
+              'aucun suivi de position hors premier plan : le dire serait faux '
+              'et appellerait une question du relecteur (2.5.4)',
         );
       },
     );

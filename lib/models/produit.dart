@@ -343,6 +343,11 @@ class ProductVariant {
   /// « Plus que N » — seulement quand le serveur le dit.
   int? get lowQuantity => stockStatus == 'LOW' ? availableQuantity : null;
 
+  /// Vendable d'après le serveur. Négation de [isSoldOut] — une seule règle ;
+  /// sans verdict (endpoint qui ne le publie pas), le serveur arbitre à
+  /// l'ajout.
+  bool get isInStock => !isSoldOut;
+
   factory ProductVariant.fromJson(Map<String, dynamic> json) {
     return ProductVariant(
       id: json['id'] as String,

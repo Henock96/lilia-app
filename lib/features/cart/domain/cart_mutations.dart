@@ -192,13 +192,19 @@ class MenuCartPreview {
 
     final lignes = <CartItemPreview>[];
     for (final mp in menu.products) {
-      // `variants.first` : la règle du serveur, mot pour mot.
       if (mp.product.variants.isEmpty) return null;
-      final variante = mp.product.variants.first;
+      // Le backend fixe le format de chaque composant dans MenuProduct.
+      // `variants.first` ne sert que de compatibilité avec les menus mis en
+      // cache par des versions de l'API antérieures à `variantId`.
+      final variante = mp.product.variants
+          .where((v) => v.id == mp.variantId)
+          .firstOrNull;
+      if (mp.variantId.isNotEmpty && variante == null) return null;
+      final format = variante ?? mp.product.variants.first;
       lignes.add(
         CartItemPreview(
           productId: mp.productId,
-          variantId: variante.id,
+          variantId: format.id,
           product: ProductItem(
             nom: mp.product.name,
             imageUrl: mp.product.imageUrl,
@@ -206,8 +212,8 @@ class MenuCartPreview {
             madeToOrder: mp.product.madeToOrder,
           ),
           variant: VariantItem(
-            label: variante.displayLabel,
-            prix: variante.prix.round(),
+            label: format.displayLabel,
+            prix: format.prix.round(),
           ),
         ),
       );

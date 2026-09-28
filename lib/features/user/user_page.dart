@@ -9,6 +9,7 @@ import 'package:lilia_app/features/settings/data/platform_settings_service.dart'
 import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/theme/theme_mode_provider.dart';
+import 'package:lilia_app/features/user/presentation/widgets/loyalty_card.dart';
 
 import '../../common_widgets/build_error_state.dart';
 import 'package:lilia_app/utils/snackbar.dart';
@@ -143,7 +144,7 @@ class UserPage extends ConsumerWidget {
                       const SizedBox(height: 20),
 
                       // Carte Points de fidélité
-                      _LoyaltyCard(ref: ref),
+                      const LoyaltyCard(),
 
                       const SizedBox(height: 16),
 
@@ -542,183 +543,6 @@ class _ProfileMenuItem extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _LoyaltyCard extends ConsumerStatefulWidget {
-  final WidgetRef ref;
-  const _LoyaltyCard({required this.ref});
-
-  @override
-  ConsumerState<_LoyaltyCard> createState() => _LoyaltyCardState();
-}
-
-class _LoyaltyCardState extends ConsumerState<_LoyaltyCard> {
-  bool _showHistory = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final userAsync = ref.watch(userProfileProvider);
-    final transactionsAsync = ref.watch(loyaltyTransactionsProvider);
-    // Le barème vient du serveur. Aucune conversion points → FCFA ne doit être
-    // écrite en dur ici : le jour où l'administrateur change la valeur du
-    // point, toutes les versions installées afficheraient encore l'ancienne.
-    // Nullable, et volontairement : le repli valait 1 pt = 50 XAF quand la
-    // production en applique 100. Annoncer « Valeur : 500 FCFA » sur un solde
-    // qui en vaut 1 000 n'est pas une approximation, c'est un chiffre faux.
-    // Sans barème on affiche le solde — qui, lui, vient du profil et est juste
-    // — et on tait la conversion.
-    final settings = ref.watch(platformSettingsProvider).value;
-
-    return userAsync.when(
-      data: (user) => Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFF8C00), Color(0xFFFFB347)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.orange.withValues(alpha: 0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.stars, color: Colors.white, size: 22),
-                    SizedBox(width: 8),
-                    Text(
-                      'Points de fidélité',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ],
-                ),
-                TextButton(
-                  onPressed: () => setState(() => _showHistory = !_showHistory),
-                  child: Text(
-                    _showHistory ? 'Masquer' : 'Historique',
-                    style: const TextStyle(color: Colors.white, fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Text(
-                  '${user.loyaltyPoints}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'points',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
-                    if (settings != null)
-                      Text(
-                        '= ${settings.loyaltyPointsPerOrder} pt par commande livree',
-                        style: const TextStyle(
-                          color: Colors.white60,
-                          fontSize: 11,
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              settings == null
-                  ? 'Valeur indisponible pour le moment'
-                  : 'Valeur : ${formatPrice(settings.pointsToXaf(user.loyaltyPoints).toDouble())} de réduction '
-                        '(min. ${settings.loyaltyMinRedemption} pt)',
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-            if (_showHistory) ...[
-              const SizedBox(height: 12),
-              const Divider(color: Colors.white30),
-              const SizedBox(height: 8),
-              transactionsAsync.when(
-                data: (transactions) => transactions.isEmpty
-                    ? const Text(
-                        'Aucune transaction',
-                        style: TextStyle(color: Colors.white70, fontSize: 13),
-                      )
-                    : Column(
-                        children: transactions
-                            .take(10)
-                            .map(
-                              (t) => Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 4,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        t.reason,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    Text(
-                                      '${t.points > 0 ? "+" : ""}${t.points} pts',
-                                      style: TextStyle(
-                                        color: t.points > 0
-                                            ? Colors.white
-                                            : Colors.white70,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      ),
-                loading: () => const Center(
-                  child: CircularProgressIndicator(color: Colors.white),
-                ),
-                error: (_, _) => const Text(
-                  'Erreur chargement',
-                  style: TextStyle(color: Colors.white70),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-      loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
     );
   }
 }

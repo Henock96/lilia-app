@@ -1,4 +1,3 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,8 +8,6 @@ import 'package:lilia_app/utils/snackbar.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
-import 'package:lilia_app/features/cart/data/cart_repository.dart';
-import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/features/home/data/remote/home_controller.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:lilia_app/models/cart.dart';
@@ -18,7 +15,7 @@ import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/services/analytics_service.dart';
 import 'package:lilia_app/utils/currency.dart';
-import 'package:lilia_app/features/cart/presentation/product_options_gate.dart';
+import 'package:lilia_app/features/cart/presentation/quick_add.dart';
 import 'package:lilia_app/features/cart/presentation/line_options_text.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
@@ -212,6 +209,20 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                         // soustraction ; « ajoutez encore 1 200 FCFA » donne
                         // le geste.
                         _MinimumVendeur(cart: cartState.value!),
+                        if (cartState.value!.hasIssues)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: cs.errorContainer,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              'Certains articles ne sont plus disponibles. Corrigez le panier pour continuer.',
+                              style: TextStyle(color: cs.onErrorContainer),
+                            ),
+                          ),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -236,7 +247,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               ],
                             ),
                             ElevatedButton(
-                              onPressed: _minimumAtteint(cartState.value!)
+                              onPressed:
+                                  _minimumAtteint(cartState.value!) &&
+                                      !cartState.value!.hasIssues
                                   ? () {
                                       // `begin_checkout` — l'action délibérée qui
                                       // engage la commande, et non l'affichage d'un
@@ -881,7 +894,7 @@ class _SuggestionTile extends ConsumerWidget {
                       ],
                       const SizedBox(height: 4),
                       Text(
-                        formatPrice(product.displayPrice),
+                        product.priceLabel,
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
@@ -892,22 +905,7 @@ class _SuggestionTile extends ConsumerWidget {
                   ),
                 ),
                 if (isAvailable)
-                  GestureDetector(
-                    onTap: () => _handleAddToCart(context, ref),
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Icon(
-                        Icons.add,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  )
+                  QuickAddButton(product: product, visualSize: 36)
                 else
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -945,111 +943,4 @@ class _SuggestionTile extends ConsumerWidget {
     );
   }
 
-  void _handleAddToCart(BuildContext context, WidgetRef ref) {
-    // F3-09 — un produit à options s'ajoute depuis sa fiche.
-    if (openProductForOptions(context, product)) return;
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      context.showSnack('Connectez-vous pour ajouter au panier');
-      return;
-    }
-
-    if (product.variants.length > 1) {
-      _showVariantBottomSheet(context, ref);
-    } else if (product.variants.isNotEmpty) {
-      _addToCart(context, ref, product.variants.first);
-    }
-  }
-
-  void _addToCart(BuildContext context, WidgetRef ref, ProductVariant variant) {
-    // Le panier est mis à jour localement puis synchronisé : le message part
-    // dans la foulée du tap. `add_to_cart` est déclenché par le contrôleur à
-    // l'acceptation du serveur, et un échec de synchronisation défait l'ajout
-    // et s'affiche depuis la coque de navigation.
-    try {
-      ref
-          .read(cartControllerProvider.notifier)
-          .addItem(
-            variantId: variant.id,
-            preview: CartItemPreview.fromProduct(product, variant),
-          );
-      context.showSuccessSnack('${product.name} ajouté au panier');
-    } on CartException catch (e) {
-      context.showErrorSnack(e.message);
-    }
-  }
-
-  void _showVariantBottomSheet(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    showModalBottomSheet<void>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                product.name,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Choisir une option',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 8),
-              ...product.variants.map((variant) {
-                return InkWell(
-                  onTap: () {
-                    Navigator.pop(ctx);
-                    _addToCart(context, ref, variant);
-                  },
-                  borderRadius: BorderRadius.circular(10),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                    margin: const EdgeInsets.only(bottom: 6),
-                    decoration: BoxDecoration(
-                      border: Border.all(
-                        color: theme.colorScheme.outline.withValues(alpha: 0.2),
-                      ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          variant.displayLabel,
-                          style: const TextStyle(fontSize: 14),
-                        ),
-                        Text(
-                          formatPrice(variant.prix),
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
 }

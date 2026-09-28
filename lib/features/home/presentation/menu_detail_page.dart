@@ -335,6 +335,9 @@ class _MenuDetailPageState extends ConsumerState<_MenuDetailView> {
                 final menuProduct = menu.products[index];
                 return _ProductTile(
                   product: menuProduct.product,
+                  variant: menuProduct.product.variants
+                      .where((v) => v.id == menuProduct.variantId)
+                      .firstOrNull,
                   ordre: menuProduct.ordre,
                   onTap: () {
                     context.pushNamed(
@@ -463,11 +466,13 @@ class _MenuDetailPageState extends ConsumerState<_MenuDetailView> {
 
 class _ProductTile extends StatelessWidget {
   final Product product;
+  final ProductVariant? variant;
   final int ordre;
   final VoidCallback onTap;
 
   const _ProductTile({
     required this.product,
+    required this.variant,
     required this.ordre,
     required this.onTap,
   });
@@ -538,6 +543,17 @@ class _ProductTile extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      if (variant != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          'Format inclus : ${variant!.displayLabel}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
