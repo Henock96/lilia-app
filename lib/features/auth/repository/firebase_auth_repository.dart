@@ -157,6 +157,100 @@ class FirebaseAuthenticationRepository {
 
     // Étape 7: Se connecter à Firebase avec les credentials
     final userCred = await _firebaseAuth.signInWithCredential(credential);
+
+    // Étape 8: Synchroniser avec le backend
+    return _synchroniserConnexionFournisseur(
+      userCred,
+      referralCode: referralCode,
+    );
+  }
+
+  /// Connexion Apple — iOS uniquement (le bouton n'existe pas ailleurs).
+  ///
+  /// ## Pourquoi `signInWithProvider` et pas `OAuthProvider('apple.com')`
+  ///
+  /// Sur iOS, `firebase_auth` ouvre lui-même la feuille système Apple
+  /// (`ASAuthorizationController`), **génère le nonce**, envoie son SHA-256 à
+  /// Apple et le nonce brut à Firebase : c'est la protection anti-rejeu du
+  /// jeton Apple, et elle n'a pas à être recodée ici. Il transmet aussi le nom
+  /// complet à Firebase, qui en fait le `displayName` du compte.
+  ///
+  /// Le montage « à la main » qu'on trouve partout —
+  /// `OAuthProvider('apple.com').credential(idToken:, accessToken:)` sans
+  /// `rawNonce` — est refusé par Firebase, et perd le nom.
+  ///
+  /// ## Ce qu'Apple ne rend qu'une fois
+  ///
+  /// Le nom (et l'adresse, dans la feuille) n'est fourni **qu'à la première
+  /// autorisation**. Aux connexions suivantes il est absent : c'est Firebase
+  /// qui le garde, dans `displayName`. Rien ici ne suppose donc qu'il existe —
+  /// le backend a son propre repli (préfixe de l'adresse).
+  ///
+  /// L'adresse peut être un relais `…@privaterelay.appleid.com` : c'est une
+  /// adresse valide, conservée telle quelle. Le backend la lit dans le jeton
+  /// Firebase, jamais dans ce que ce dépôt lui envoie.
+  ///
+  /// ## Adresse déjà inscrite par e-mail ou Google
+  ///
+  /// Le projet impose « un compte par adresse » : Firebase lève alors
+  /// `account-exists-with-different-credential` et **ne crée rien**. L'échec
+  /// remonte tel quel ; `mapAuthError` invite le client à utiliser sa méthode
+  /// d'origine. Aucune liaison automatique : une adresse identique ne prouve
+  /// pas que c'est la même personne.
+  ///
+  // TODO(apple-linking): proposer « Lier mon identifiant Apple » depuis le
+  // profil, APRÈS connexion par la méthode d'origine :
+  // `currentUser.linkWithProvider(AppleAuthProvider())` (flux natif, nonce
+  // géré par Firebase). Ne pas réutiliser `FirebaseAuthException.credential`
+  // de l'erreur : sur iOS c'est un identifiant natif opaque, et la protection
+  // contre l'énumération des e-mails (activée) peut en retirer l'adresse.
+  Future<AppUser> signInWithApple({String? referralCode}) async {
+    final userCred =
+        await _firebaseAuth.signInWithProvider(_appleProvider(profil: true));
+
+    // Le nom Apple vient d'être posé sur le compte Firebase. Rien ne garantit
+    // que le jeton déjà en cache le porte : sans rafraîchissement, le serveur
+    // pourrait créer le client sous le préfixe aléatoire de son adresse relais
+    // (`x7k2p9…`) alors que le vrai nom est connu. Uniquement à la création, et
+    // jamais bloquant : le repli du serveur reste acceptable.
+    final user = userCred.user;
+    final isNewUser = userCred.additionalUserInfo?.isNewUser ?? false;
+    if (user != null &&
+        isNewUser &&
+        (user.displayName?.trim().isNotEmpty ?? false)) {
+      try {
+        await user.getIdToken(true);
+      } catch (_) {}
+    }
+
+    return _synchroniserConnexionFournisseur(
+      userCred,
+      referralCode: referralCode,
+    );
+  }
+
+  /// Fournisseur Apple. [profil] demande le nom et l'adresse — utile à la
+  /// connexion, inutile à la ré-authentification qui précède une suppression.
+  static AppleAuthProvider _appleProvider({required bool profil}) {
+    final provider = AppleAuthProvider();
+    if (profil) {
+      provider
+        ..addScope('email')
+        ..addScope('name');
+    }
+    return provider;
+  }
+
+  /// Ce qui suit une connexion Google **ou** Apple : `/users/sync`, avec la
+  /// même politique d'échec pour les deux.
+  ///
+  /// Le corps envoyé n'est qu'indicatif : le serveur prend l'identité
+  /// (`uid`, `email`, `name`) **dans le jeton Firebase vérifié** et ne lit ici
+  /// que `telephone` et `referralCode`.
+  Future<AppUser> _synchroniserConnexionFournisseur(
+    UserCredential userCred, {
+    String? referralCode,
+  }) async {
     final user = userCred.user;
     if (user == null) {
       throw kAuthUnknown;
@@ -164,11 +258,10 @@ class FirebaseAuthenticationRepository {
 
     final isNewUser = userCred.additionalUserInfo?.isNewUser ?? false;
 
-    // Étape 8: Synchroniser avec le backend
     // Note: Le backend utilise UPSERT donc gère inscription ET connexion
     try {
       if (kDebugMode) {
-        logDebug('Synchronizing Google user with backend...');
+        logDebug('Synchronizing provider user with backend...');
       }
 
       await _api.postJson(
@@ -227,6 +320,52 @@ class FirebaseAuthenticationRepository {
       return true;
     } on Exception {
       return false;
+    }
+  }
+
+  /// Révoque l'autorisation Apple du compte connecté, s'il en a une.
+  ///
+  /// **Exigence App Store** (5.1.1(v)) : supprimer un compte ouvert avec Apple
+  /// doit révoquer ses jetons auprès d'Apple. La suppression Firebase faite par
+  /// le backend (`deleteUserSafe`) ne le fait pas.
+  ///
+  /// La révocation exige un `authorizationCode` **frais** (valable cinq
+  /// minutes) : on le demande par une ré-authentification Apple, qui présente
+  /// la feuille système au client. S'il l'annule, ou si elle échoue, l'échec
+  /// remonte et **rien n'est supprimé** — c'est à l'appelant de s'arrêter.
+  ///
+  /// Sans effet pour un compte e-mail ou Google.
+  Future<void> revokeAppleSignInIfLinked() async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) return;
+    final lieAApple = user.providerData
+        .any((p) => p.providerId == AppleAuthProvider.PROVIDER_ID);
+    if (!lieAApple) return;
+
+    try {
+      final cred = await user.reauthenticateWithProvider(
+        _appleProvider(profil: false),
+      );
+      final code = cred.additionalUserInfo?.authorizationCode;
+      if (code == null || code.isEmpty) {
+        throw kAuthAppleVerificationFailed;
+      }
+      await _firebaseAuth.revokeTokenWithAuthorizationCode(code);
+    } on FirebaseAuthException catch (e) {
+      // Dans ce contexte, la traduction ordinaire tromperait : un
+      // `invalid-credential` y deviendrait « Adresse e-mail ou mot de passe
+      // incorrect », à un client qui n'a saisi ni l'un ni l'autre. On ne garde
+      // que les causes qui disent au client quoi faire ; tout le reste devient
+      // « la vérification a échoué, rien n'a été supprimé ».
+      const parlants = {
+        'canceled',
+        'web-context-canceled',
+        'network-request-failed',
+        'too-many-requests',
+        'user-mismatch',
+      };
+      if (parlants.contains(e.code)) rethrow;
+      throw kAuthAppleVerificationFailed;
     }
   }
 

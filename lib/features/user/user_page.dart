@@ -447,7 +447,9 @@ class UserPage extends ConsumerWidget {
                     .deleteAccount();
                 if (!context.mounted) return;
                 if (echec != null) {
-                  context.showErrorSnack(echec.message);
+                  // Feuille Apple fermée par le client : il sait déjà que
+                  // rien n'a été supprimé, il l'a voulu.
+                  if (!echec.isSilent) context.showErrorSnack(echec.message);
                   return;
                 }
                 // Compte supprimé : même destination que la déconnexion.

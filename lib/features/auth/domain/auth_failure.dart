@@ -127,6 +127,10 @@ const _kAccountConflict = 'Un compte existe déjà avec cette adresse e-mail. '
 const _kOperationNotAllowed = 'Cette méthode de connexion n’est pas disponible '
     'pour le moment.';
 const _kUnknown = 'Une erreur est survenue. Veuillez réessayer.';
+const _kAppleFailed = 'La connexion avec Apple n’a pas abouti. Réessayez dans '
+    'un instant.';
+const _kUserMismatch = 'Ce compte Apple ne correspond pas au compte connecté. '
+    'Utilisez l’identifiant Apple avec lequel vous vous êtes inscrit.';
 
 /// Annulation — le seul échec sans message.
 const kAuthCancelled = AuthFailure(AuthFailureKind.cancelled, '');
@@ -145,6 +149,15 @@ const kAuthAccountGone = AuthFailure(
   AuthFailureKind.sessionExpired,
   'Ce compte n’est plus disponible sur Lilia Food. '
   'Connectez-vous avec un autre compte.',
+);
+
+/// La ré-authentification Apple qui précède une suppression de compte n'a pas
+/// abouti. Le message dit **aussi** que rien n'a été supprimé : c'est la seule
+/// chose que le client a besoin de savoir pour réessayer sans crainte.
+const kAuthAppleVerificationFailed = AuthFailure(
+  AuthFailureKind.unknown,
+  'La vérification Apple n’a pas abouti : votre compte n’a pas été supprimé. '
+  'Réessayez dans un instant.',
 );
 
 /// Traduit **n'importe quel** échec technique en [AuthFailure].
@@ -202,6 +215,28 @@ AuthFailure _fromFirebase(FirebaseAuthException e) {
     case 'provider-already-linked':
       return const AuthFailure(AuthFailureKind.accountConflict,
           _kAccountConflict);
+
+    // ─── Sign in with Apple (feuille système iOS) ───
+    //
+    // `firebase_auth` traduit les `ASAuthorizationError` en codes à lui.
+    // Fermer la feuille Apple est un geste normal, comme fermer le sélecteur
+    // Google : aucun message. `web-context-canceled` est son équivalent quand
+    // le flux passe par une page web (Android, non proposé aujourd'hui).
+    case 'canceled':
+    case 'web-context-canceled':
+      return kAuthCancelled;
+
+    // Le reste ne dit rien d'actionnable au client : `message` porte du texte
+    // de plateforme (« The authorization attempt failed. (Domain=… Code=…) »)
+    // qui ne sort pas d'ici.
+    case 'failed':
+    case 'invalid-response':
+    case 'not-handled':
+      return const AuthFailure(AuthFailureKind.unknown, _kAppleFailed);
+
+    // Ré-authentification avec un autre identifiant Apple que celui du compte.
+    case 'user-mismatch':
+      return const AuthFailure(AuthFailureKind.badCredentials, _kUserMismatch);
 
     case 'user-token-expired':
     case 'user-token-revoked':

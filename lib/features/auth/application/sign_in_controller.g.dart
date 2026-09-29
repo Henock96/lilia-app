@@ -9,7 +9,7 @@ part of 'sign_in_controller.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// Les opérations **ponctuelles** d'ouverture de session : connexion par
-/// e-mail, inscription, connexion Google.
+/// e-mail, inscription, connexion Google, connexion Apple.
 ///
 /// ## Pourquoi elles ne vivent plus dans `AuthController`
 ///
@@ -40,7 +40,7 @@ part of 'sign_in_controller.dart';
 final signInControllerProvider = SignInControllerProvider._();
 
 /// Les opérations **ponctuelles** d'ouverture de session : connexion par
-/// e-mail, inscription, connexion Google.
+/// e-mail, inscription, connexion Google, connexion Apple.
 ///
 /// ## Pourquoi elles ne vivent plus dans `AuthController`
 ///
@@ -69,7 +69,7 @@ final signInControllerProvider = SignInControllerProvider._();
 final class SignInControllerProvider
     extends $NotifierProvider<SignInController, SignInState> {
   /// Les opérations **ponctuelles** d'ouverture de session : connexion par
-  /// e-mail, inscription, connexion Google.
+  /// e-mail, inscription, connexion Google, connexion Apple.
   ///
   /// ## Pourquoi elles ne vivent plus dans `AuthController`
   ///
@@ -122,10 +122,10 @@ final class SignInControllerProvider
   }
 }
 
-String _$signInControllerHash() => r'147888602fb8add30d57745c924c8ee85c0cec13';
+String _$signInControllerHash() => r'07d387e7261f0c1b0f1f5dffbf2026216ab5a6a2';
 
 /// Les opérations **ponctuelles** d'ouverture de session : connexion par
-/// e-mail, inscription, connexion Google.
+/// e-mail, inscription, connexion Google, connexion Apple.
 ///
 /// ## Pourquoi elles ne vivent plus dans `AuthController`
 ///

@@ -7,8 +7,8 @@ import 'auth_failure_announcer.dart';
 
 part 'sign_in_controller.g.dart';
 
-/// Les trois façons d'ouvrir une session.
-enum AuthOperation { emailSignIn, emailSignUp, google }
+/// Les façons d'ouvrir une session.
+enum AuthOperation { emailSignIn, emailSignUp, google, apple }
 
 /// Ce que les écrans d'authentification ont besoin de savoir : **quelle**
 /// opération tourne, s'il y en a une.
@@ -41,7 +41,7 @@ class SignInState {
 }
 
 /// Les opérations **ponctuelles** d'ouverture de session : connexion par
-/// e-mail, inscription, connexion Google.
+/// e-mail, inscription, connexion Google, connexion Apple.
 ///
 /// ## Pourquoi elles ne vivent plus dans `AuthController`
 ///
@@ -110,6 +110,17 @@ class SignInController extends _$SignInController {
           .read(authRepositoryProvider)
           .signInWithGoogle(referralCode: referralCode),
       surSucces: () => AnalyticsService.trackLogin(method: 'google'),
+    );
+  }
+
+  /// [referralCode] n'a d'effet que si la connexion Apple crée le compte.
+  Future<AuthFailure?> signInWithApple({String? referralCode}) {
+    return _executer(
+      AuthOperation.apple,
+      () => ref
+          .read(authRepositoryProvider)
+          .signInWithApple(referralCode: referralCode),
+      surSucces: () => AnalyticsService.trackLogin(method: 'apple'),
     );
   }
 

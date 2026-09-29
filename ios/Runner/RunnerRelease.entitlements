@@ -17,5 +17,15 @@
 	     d'être. -->
 	<key>aps-environment</key>
 	<string>production</string>
+	<!-- Sign in with Apple. Présent dans les DEUX fichiers d'entitlements
+	     (Debug/Profile ici, Release dans l'autre) : oublié d'un côté, la
+	     connexion Apple marche en `flutter run` et échoue sur TestFlight
+	     (ASAuthorizationError 1000), ou l'inverse. L'App ID
+	     com.dreesis.lilia.liliaApp doit porter la même capability dans Apple
+	     Developer, sinon le profil de signature est refusé. -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
 </dict>
 </plist>
