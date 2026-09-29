@@ -1,3 +1,4 @@
+import 'package:lilia_app/utils/currency.dart';
 /// Résultat de la validation d'un code promo via POST /promo/validate.
 class PromoValidationResult {
   final bool valid;
@@ -36,10 +37,11 @@ class PromoValidationResult {
   /// Label lisible pour l'affichage du type de réduction.
   String get discountLabel {
     switch (discountType) {
+      // `formatPrice` : « - 500 FCFA » avec séparateur de milliers, comme
+      // partout ailleurs. « -500 XAF » était la seule devise divergente.
       case DiscountType.fixed:
-        return '-${discountAmount.toStringAsFixed(0)} XAF';
       case DiscountType.percent:
-        return '-${discountAmount.toStringAsFixed(0)} XAF';
+        return '- ${formatPrice(discountAmount)}';
       case DiscountType.freeDelivery:
         return 'Livraison gratuite';
     }

@@ -168,7 +168,10 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                       data: (quartiers) => _buildQuartierSection(quartiers),
                       loading: () =>
                           const Center(child: CircularProgressIndicator()),
-                      error: (err, stack) => Text('Erreur: $err'),
+                      error: (err, stack) => BuildErrorState(
+                        err,
+                        onRetry: () => ref.invalidate(quartiersListProvider),
+                      ),
                     ),
                     const SizedBox(height: 24),
 
@@ -179,7 +182,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                       data: (addresses) => _buildAddressSection(addresses),
                       loading: () =>
                           const Center(child: CircularProgressIndicator()),
-                      error: (err, stack) => Text('Erreur: $err'),
+                      error: (err, stack) => Text(userFacingErrorMessage(err)),
                     ),
                     const SizedBox(height: 24),
                   ],
@@ -203,10 +206,10 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Continuer',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -303,7 +306,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 subtitle: Text(
-                  'Pas de frais supplementaires',
+                  'Pas de frais supplémentaires',
                   style: TextStyle(fontSize: 13, color: Colors.green[600]),
                 ),
                 secondary: Container(
@@ -832,7 +835,7 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                     _isDelivery
                         ? (_calculatedDeliveryFee != null
                               ? formatPrice(_calculatedDeliveryFee!)
-                              : 'Selectionnez un quartier')
+                              : 'Sélectionnez un quartier')
                         : 'Gratuit',
                     style: TextStyle(
                       fontSize: 15,

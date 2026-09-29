@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/common_widgets/lilia_badge.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
@@ -11,6 +12,25 @@ import 'section_header.dart';
 import 'shimmer_box.dart';
 import 'package:lilia_app/utils/async_value_ui.dart';
 import 'package:lilia_app/features/cart/presentation/quick_add.dart';
+
+/// Hauteur d'une carte « Plat populaire » pour la taille de texte courante.
+///
+/// Elle était fixée à 220 : dès 1.5× le texte ne tenait plus sous l'image, et
+/// à 2× le prix et le « + » disparaissaient (P3-02). Image (110) + textes
+/// mis à l'échelle + zone de tap du « + » (48). Jamais sous 220, pour ne rien
+/// changer au rendu à 1×.
+double popularDishCardHeight(TextScaler scaler) {
+  double ligne(double fontSize) => scaler.scale(fontSize) * 1.5;
+  final infos =
+      12 + // padding vertical
+      ligne(13) * 2 + // nom, 2 lignes
+      2 +
+      ligne(11) + // vendeur
+      4 +
+      [48.0, ligne(12) * 2].reduce((a, b) => a > b ? a : b); // prix / « + »
+  final h = 110 + 2 + infos;
+  return h < 220 ? 220 : h;
+}
 
 class PopularDishesSection extends ConsumerWidget {
   const PopularDishesSection({super.key});
@@ -27,7 +47,7 @@ class PopularDishesSection extends ConsumerWidget {
         if (dishes.isEmpty) return const SizedBox.shrink();
         return _withHeader(
           SizedBox(
-            height: 220,
+            height: popularDishCardHeight(MediaQuery.textScalerOf(context)),
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -116,7 +136,9 @@ class _DishCard extends ConsumerWidget {
       button: true,
       // L'indisponibilité n'était portée que par `Opacity(0.5)` et un badge
       // rouge : muette pour TalkBack / VoiceOver.
-      label: isAvailable ? product.name : '${product.name}, épuisé',
+      label: isAvailable
+          ? product.name
+          : '${product.name}, ${product.unavailability?.badge.toLowerCase() ?? 'indisponible'}',
       enabled: isAvailable,
       child: GestureDetector(
         // Aucun événement ici : ce geste **ouvre** la fiche produit, qui
@@ -199,23 +221,9 @@ class _DishCard extends ConsumerWidget {
                       Positioned(
                         top: 6,
                         right: 6,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Text(
-                            'Epuise',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                        child: LiliaBadge(
+                          label: product.unavailability?.badge ?? 'Indisponible',
+                          variant: LiliaBadgeVariant.danger,
                         ),
                       ),
                   ],
@@ -233,7 +241,7 @@ class _DishCard extends ConsumerWidget {
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
                           ),
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),

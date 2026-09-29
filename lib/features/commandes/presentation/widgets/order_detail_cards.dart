@@ -6,7 +6,8 @@ import 'package:intl/intl.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/features/cart/presentation/line_options_text.dart';
 import 'package:lilia_app/features/commandes/data/delivery_tracking_repository.dart';
-import 'package:lilia_app/features/commandes/presentation/progress_step.dart';
+import 'package:lilia_app/features/commandes/domain/order_timeline.dart';
+import 'package:lilia_app/features/commandes/presentation/widgets/order_timeline_view.dart';
 import 'package:lilia_app/features/commandes/presentation/status_info.dart';
 import 'package:lilia_app/features/commandes/presentation/widgets/handover_code_card.dart';
 import 'package:lilia_app/models/location_precision.dart';
@@ -147,7 +148,7 @@ class OrderProgressCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          _OrderProgressStepper(status: order.status),
+          OrderTimelineView(order: order),
           // Précision sur l'étape livreur : le stepper est basé sur le statut
           // de la COMMANDE, qui reste « Prête » tant que le livreur n'a pas
           // récupéré le repas. Sans cette ligne, le client ne saurait pas
@@ -236,7 +237,7 @@ class OrderVendorCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Iconsax.arrow_right_3, color: cs.outline, size: 20),
+              Icon(Iconsax.arrow_right_3, color: cs.onSurfaceVariant, size: 20),
             ],
           ),
         ],
@@ -748,123 +749,6 @@ class _OrderItemCard extends StatelessWidget {
   }
 }
 
-class _OrderProgressStepper extends StatelessWidget {
-  final OrderStatus status;
-
-  const _OrderProgressStepper({required this.status});
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final steps = [
-      ProgressStep(
-        icon: Iconsax.tick_circle,
-        label: 'Confirmée',
-        isCompleted: status != OrderStatus.enAttente,
-        isCurrent: status == OrderStatus.enAttente,
-      ),
-      ProgressStep(
-        icon: Iconsax.cake,
-        label: 'En préparation',
-        isCompleted:
-            status == OrderStatus.pret ||
-            status == OrderStatus.enRoute ||
-            status == OrderStatus.livrer,
-        isCurrent: status == OrderStatus.enPreparation,
-      ),
-      ProgressStep(
-        icon: Iconsax.box_tick,
-        label: 'Prête',
-        isCompleted:
-            status == OrderStatus.enRoute || status == OrderStatus.livrer,
-        isCurrent: status == OrderStatus.pret,
-      ),
-      ProgressStep(
-        icon: Iconsax.truck_fast,
-        label: 'En route',
-        isCompleted: status == OrderStatus.livrer,
-        isCurrent: status == OrderStatus.enRoute,
-      ),
-    ];
-
-    return Row(
-      children: List.generate(steps.length * 2 - 1, (index) {
-        if (index.isOdd) {
-          final stepIndex = index ~/ 2;
-          final isCompleted =
-              steps[stepIndex].isCompleted || steps[stepIndex].isCurrent;
-          return Expanded(
-            child: Container(
-              height: 3,
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              decoration: BoxDecoration(
-                color: isCompleted
-                    ? cs.successText
-                    : cs.outline.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          );
-        } else {
-          final step = steps[index ~/ 2];
-          return _buildStepItem(context, step);
-        }
-      }),
-    );
-  }
-
-  Widget _buildStepItem(BuildContext context, ProgressStep step) {
-    final cs = Theme.of(context).colorScheme;
-    final atteinte = step.isCompleted || step.isCurrent;
-    // Texte : `successText` / `onSurfaceVariant`. L'étape à venir était
-    // écrite en `outline` (≈ 1.2:1 en clair) et l'étape faite en
-    // `Colors.green` (≈ 2.5:1), en 11 px.
-    final textColor = atteinte ? cs.successText : cs.onSurfaceVariant;
-    final etat = step.isCurrent
-        ? 'en cours'
-        : step.isCompleted
-        ? 'terminée'
-        : 'à venir';
-
-    return Semantics(
-      label: '${step.label}, $etat',
-      excludeSemantics: true,
-      child: Column(
-        children: [
-          Container(
-            width: step.isCurrent ? 44 : 36,
-            height: step.isCurrent ? 44 : 36,
-            decoration: BoxDecoration(
-              color: atteinte
-                  ? cs.successText.withValues(alpha: 0.1)
-                  : cs.surfaceContainerHighest,
-              shape: BoxShape.circle,
-              border: step.isCurrent
-                  ? Border.all(color: cs.successText, width: 2)
-                  : null,
-            ),
-            child: Icon(
-              step.icon,
-              size: step.isCurrent ? 22 : 18,
-              color: atteinte ? cs.successText : cs.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            step.label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: step.isCurrent ? FontWeight.bold : FontWeight.normal,
-              color: textColor,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _DeliveryProgressHint extends ConsumerWidget {
   const _DeliveryProgressHint({required this.orderId});
 
@@ -890,9 +774,18 @@ class _DeliveryProgressHint extends ConsumerWidget {
             ? '$who va récupérer votre commande'
             : location.progressLabel;
 
+        // P3.1.7 — l'ETA serveur, jusqu'ici cachée dans l'info-bulle d'un
+        // marqueur de carte. `null` tant que le repas ne roule pas.
+        final eta = etaLine(
+          onTheWay: location.isOnTheWay,
+          etaMinutes: location.etaMinutes,
+          positionAt: location.updatedAt,
+          now: DateTime.now(),
+        );
         final hint = Padding(
           padding: const EdgeInsets.only(top: 16),
           child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Icon(
                 location.isOnTheWay
@@ -903,9 +796,29 @@ class _DeliveryProgressHint extends ConsumerWidget {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: cs.onSurfaceVariant,
+                      ),
+                    ),
+                    if (eta != null)
+                      Semantics(
+                        liveRegion: true,
+                        child: Text(
+                          eta,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: cs.onSurface,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
             ],

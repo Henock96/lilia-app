@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'package:lilia_app/utils/cloudinary_url.dart';
 
 /// Cache manager partagé pour toutes les images réseau de l'app (LIL-37).
 ///
@@ -90,7 +91,7 @@ class AppCachedImage extends StatelessWidget {
           errorWidget ??
           _DefaultError(width: width, height: height, icon: errorIcon);
     } else {
-      child = CachedNetworkImage(
+      Widget original() => CachedNetworkImage(
         imageUrl: imageUrl!,
         cacheManager: LiliaImageCache.instance,
         width: width,
@@ -103,6 +104,34 @@ class AppCachedImage extends StatelessWidget {
             errorWidget ??
             _DefaultError(width: width, height: height, icon: errorIcon),
       );
+
+      // P3-21 — variante Cloudinary à la taille affichée (−62 % d'octets
+      // mesurés sur la production le 29/09). Largeur : celle du widget, ou
+      // de l'écran pour `double.infinity`, en pixels physiques.
+      final mq = MediaQuery.maybeOf(context);
+      final logical = (width != null && width!.isFinite)
+          ? width!
+          : (mq?.size.width ?? 0);
+      final sized = cloudinarySized(
+        imageUrl!,
+        logical * (mq?.devicePixelRatio ?? 1),
+      );
+      child = sized == imageUrl
+          ? original()
+          : CachedNetworkImage(
+              imageUrl: sized,
+              cacheManager: LiliaImageCache.instance,
+              width: width,
+              height: height,
+              fit: fit,
+              fadeInDuration: const Duration(milliseconds: 200),
+              placeholder: (_, _) =>
+                  placeholder ?? AppShimmerBox(width: width, height: height),
+              // Repli sur l'original si la variante échoue : mesuré le 29/09,
+              // deux photos vendeur supprimées de Cloudinary restent servies
+              // par le cache du CDN en original, mais la variante répond 404.
+              errorWidget: (_, _, _) => original(),
+            );
     }
 
     // `image: true` annonce le rôle ; sans label on masque le nœud, qui

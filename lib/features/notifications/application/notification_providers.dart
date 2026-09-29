@@ -58,3 +58,37 @@ class NotificationHistory extends _$NotificationHistory {
     await ref.read(notificationRepositoryProvider).clearNotifications();
   }
 }
+
+/// Date de dernière consultation de l'historique (P3-07), par compte.
+@riverpod
+class NotificationsLastSeen extends _$NotificationsLastSeen {
+  @override
+  Future<DateTime?> build() =>
+      ref.watch(notificationRepositoryProvider).getLastSeen();
+
+  /// Appelé à l'ouverture de l'historique : tout ce qui est affiché est lu.
+  Future<void> markAllSeen({DateTime? at}) async {
+    final now = at ?? DateTime.now();
+    state = AsyncData(now);
+    await ref.read(notificationRepositoryProvider).setLastSeen(now);
+  }
+}
+
+/// Nombre de notifications arrivées depuis la dernière consultation.
+///
+/// Fonction pure, testée : c'est elle qui décide du badge.
+int countUnread(List<AppNotification> notifications, DateTime? lastSeen) =>
+    lastSeen == null
+    ? notifications.length
+    : notifications.where((n) => n.timestamp.isAfter(lastSeen)).length;
+
+@riverpod
+int unreadNotificationCount(Ref ref) {
+  final history = ref.watch(notificationHistoryProvider).value;
+  if (history == null) return 0;
+  // Tant que la date n'est pas lue, on ne compte rien plutôt que tout : un
+  // badge « 23 » qui clignote puis s'éteint au démarrage serait pire.
+  final lastSeen = ref.watch(notificationsLastSeenProvider);
+  if (!lastSeen.hasValue) return 0;
+  return countUnread(history, lastSeen.value);
+}

@@ -148,9 +148,11 @@ class RestaurantCard extends ConsumerWidget {
                         ),
                       ),
                       // Bouton favori
+                      // Zone de tap 48 × 48 (elle faisait 36) ; le dessin reste
+                      // au même endroit : 4 + 24 = 10 + 18.
                       Positioned(
-                        top: 10,
-                        right: 10,
+                        top: 4,
+                        right: 4,
                         child: Semantics(
                           button: true,
                           label: isFavorite
@@ -172,22 +174,30 @@ class RestaurantCard extends ConsumerWidget {
                                     : '${restaurant.name} ajouté aux favoris',
                               );
                             },
-                            child: Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.surface.withValues(
-                                  alpha: 0.9,
+                            behavior: HitTestBehavior.opaque,
+                            child: SizedBox.square(
+                              dimension: 48,
+                              child: Center(
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: theme.colorScheme.surface
+                                        .withValues(alpha: 0.9),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  // `outline` en icône : 1,26:1, cœur
+                                  // invisible (P3-04). `onSurfaceVariant` et
+                                  // `error` passent 3:1 sur la pastille.
+                                  child: Icon(
+                                    isFavorite
+                                        ? Icons.favorite
+                                        : Icons.favorite_border,
+                                    color: isFavorite
+                                        ? theme.colorScheme.error
+                                        : theme.colorScheme.onSurfaceVariant,
+                                    size: 20,
+                                  ),
                                 ),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                isFavorite
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: isFavorite
-                                    ? Colors.red
-                                    : theme.colorScheme.outline,
-                                size: 20,
                               ),
                             ),
                           ),

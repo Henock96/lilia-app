@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/features/reviews/data/review_repository.dart';
 import 'package:lilia_app/features/reviews/presentation/widgets/star_rating.dart';
@@ -179,7 +180,7 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
       case 5:
         return 'Tres satisfait';
       default:
-        return 'Selectionnez une note';
+        return 'Sélectionnez une note';
     }
   }
 
@@ -213,7 +214,7 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
       }
     } catch (e) {
       if (mounted) {
-        context.showErrorSnack('Erreur: $e');
+        context.showErrorSnack(userFacingErrorMessage(e));
       }
     } finally {
       if (mounted) {

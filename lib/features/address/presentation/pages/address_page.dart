@@ -52,7 +52,7 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                     'Ajoutez une adresse de livraison',
                     style: TextStyle(
                       fontSize: 14,
-                      color: Theme.of(context).colorScheme.outline,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -84,7 +84,7 @@ class _AddressPageState extends ConsumerState<AddressPage> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showAddAddressSheet(context),
         backgroundColor: theme.colorScheme.primary,
-        foregroundColor: Colors.white,
+        foregroundColor: theme.colorScheme.onPrimary,
         icon: const Icon(Iconsax.add),
         label: const Text(
           'Nouvelle adresse',
@@ -132,8 +132,8 @@ class _AddressPageState extends ConsumerState<AddressPage> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
               ),
               onPressed: () async {
                 Navigator.of(dialogContext).pop();
@@ -145,7 +145,7 @@ class _AddressPageState extends ConsumerState<AddressPage> {
                   context.showSuccessSnack('Adresse supprimée');
                 } catch (e) {
                   if (!context.mounted) return;
-                  context.showErrorSnack('Erreur: $e');
+                  context.showErrorSnack(userFacingErrorMessage(e));
                 }
               },
               child: const Text('Supprimer'),
@@ -173,7 +173,7 @@ class _AddressCard extends ConsumerWidget {
         context.showSuccessSnack('Adresse principale mise à jour');
       }
     } catch (e) {
-      if (context.mounted) context.showErrorSnack('Erreur: $e');
+      if (context.mounted) context.showErrorSnack(userFacingErrorMessage(e));
     }
   }
 
@@ -227,7 +227,7 @@ class _AddressCard extends ConsumerWidget {
       if (context.mounted) context.showSuccessSnack('Position enregistrée');
     } catch (e) {
       // Le `\$` était échappé : le client lisait littéralement « Erreur: $e ».
-      if (context.mounted) context.showErrorSnack('Erreur: $e');
+      if (context.mounted) context.showErrorSnack(userFacingErrorMessage(e));
     }
   }
 
@@ -520,7 +520,7 @@ class _AddAddressSheetState extends ConsumerState<_AddAddressSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      context.showErrorSnack('Erreur: $e');
+      context.showErrorSnack(userFacingErrorMessage(e));
     }
   }
 
@@ -882,7 +882,7 @@ class _EditAddressSheetState extends ConsumerState<_EditAddressSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
-      context.showErrorSnack('Erreur: $e');
+      context.showErrorSnack(userFacingErrorMessage(e));
     }
   }
 

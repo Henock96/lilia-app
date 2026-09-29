@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
+import 'package:lilia_app/features/commandes/domain/order_error_presentation.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/cart/application/draft_orders_provider.dart';
@@ -364,7 +365,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   ],
 
                   // === SECTION RÉSUMÉ ===
-                  _buildSectionTitle('Resume de la commande'),
+                  _buildSectionTitle('Résumé de la commande'),
                   const SizedBox(height: 12),
                   CheckoutOrderSummary(
                     cart: cart,
@@ -427,12 +428,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                       // `CheckoutController` : sinon il s'éteignait pendant la
                       // création de l'adresse et pendant l'ouverture du
                       // paiement, laissant croire que rien ne se passait.
+                      // `onPrimary` et non blanc : en sombre l'action est un
+                      // orange clair, le blanc y tombait à 2,84:1 (P3-03).
                       child: _envoiEnCours || checkoutState.isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
+                          ? CircularProgressIndicator(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            )
+                          : Text(
                               'Valider et payer',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.onPrimary,
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
@@ -462,7 +467,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         side: BorderSide(
-                          color: Theme.of(context).colorScheme.outline,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -1025,18 +1030,18 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                 ),
                 child: _promoLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                           strokeWidth: 2,
                         ),
                       )
-                    : const Text(
+                    : Text(
                         'Appliquer',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1082,12 +1087,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       });
     } catch (e) {
       if (!mounted) return;
-      String message = e.toString();
-      if (message.startsWith('Exception: ')) {
-        message = message.substring(11);
-      }
       setState(() {
-        _promoError = message;
+        _promoError = userFacingErrorMessage(e);
         _promoLoading = false;
       });
     }
@@ -1132,7 +1133,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
       if (!mounted) return;
 
-      context.showSnack('Commande enregistree pour plus tard');
+      context.showSnack('Commande enregistrée pour plus tard');
 
       // Depiler checkout et delivery-options du tab panier
       // pour que le retour au tab panier affiche le CartScreen
@@ -1142,7 +1143,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       context.goNamed(AppRoutes.draftOrders.routeName);
     } catch (e) {
       if (!mounted) return;
-      context.showErrorSnack('Erreur: $e');
+      context.showErrorSnack(userFacingErrorMessage(e));
     }
   }
 
@@ -1553,47 +1554,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   }
 
   void _showOrderError(BuildContext context, Object error) {
-    // Nettoyer le message d'erreur
-    String message = error.toString();
-    if (message.startsWith('Exception: ')) {
-      message = message.substring(11);
-    }
-
-    // Déterminer l'icône et la couleur selon le type d'erreur
-    IconData icon = Icons.error_outline;
-    Color iconColor = Colors.red;
-    String title = 'Erreur de commande';
-
-    if (message.contains('fermé')) {
-      icon = Icons.store;
-      iconColor = Colors.orange;
-      title = 'Restaurant fermé';
-    } else if (message.contains('rupture') || message.contains('stock')) {
-      icon = Icons.remove_shopping_cart;
-      iconColor = Colors.orange;
-      title = 'Produit indisponible';
-    } else if (message.contains('minimum') || message.contains('montant')) {
-      icon = Icons.monetization_on;
-      iconColor = Colors.amber.shade700;
-      title = 'Montant insuffisant';
-    } else if (message.contains('panier') && message.contains('vide')) {
-      icon = Icons.shopping_cart_outlined;
-      iconColor = Colors.grey;
-      title = 'Panier vide';
-    } else if (message.contains('adresse')) {
-      icon = Icons.location_off;
-      iconColor = Colors.blue;
-      title = 'Problème d\'adresse';
-    } else if (message.contains('promo') || message.contains('code')) {
-      icon = Icons.local_offer;
-      iconColor = Colors.purple;
-      title = 'Code promo invalide';
-    } else if (message.contains('reconnecter') ||
-        message.contains('authentif')) {
-      icon = Icons.lock_outline;
-      iconColor = Colors.red;
-      title = 'Session expirée';
-    }
+    // Titre, message et icône d'après la nature de l'échec — dont l'issue
+    // inconnue d'un délai dépassé (P3-05). Jamais `error.toString()`.
+    final presentation = OrderErrorPresentation.from(error);
+    final title = presentation.title;
+    final message = presentation.message;
+    final icon = presentation.icon;
+    final iconColor = presentation.kind == OrderErrorKind.outcomeUnknown
+        ? Theme.of(context).colorScheme.warningText
+        : Theme.of(context).colorScheme.error;
 
     showDialog<void>(
       context: context,

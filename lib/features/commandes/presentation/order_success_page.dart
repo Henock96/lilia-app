@@ -62,9 +62,9 @@ class _OrderSuccessPageState extends ConsumerState<OrderSuccessPage> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Voir mes commandes',
-                    style: TextStyle(color: Colors.white, fontSize: 16),
+                    style: TextStyle(color: cs.onPrimary, fontSize: 16),
                   ),
                 ),
                 const SizedBox(height: 16),

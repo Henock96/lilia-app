@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
@@ -58,7 +59,11 @@ class _ClaimFormPageState extends ConsumerState<ClaimFormPage> {
       final url = await ref.read(claimsRepositoryProvider).uploadPhoto(image);
       if (mounted) setState(() => _photos.add(url));
     } catch (e) {
-      if (mounted) context.showErrorSnack('Photo non envoyée : $e');
+      if (mounted) {
+        context.showErrorSnack(
+          'Photo non envoyée : ${userFacingErrorMessage(e)}',
+        );
+      }
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -87,7 +92,7 @@ class _ClaimFormPageState extends ConsumerState<ClaimFormPage> {
       }
       if (mounted) context.showErrorSnack(e.message);
     } catch (e) {
-      if (mounted) context.showErrorSnack('$e');
+      if (mounted) context.showErrorSnack(userFacingErrorMessage(e));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -106,7 +111,10 @@ class _ClaimFormPageState extends ConsumerState<ClaimFormPage> {
       appBar: AppBar(title: const Text('Un problème avec ma commande ?')),
       body: orderAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('$e')),
+        error: (e, _) => BuildErrorState(
+          e,
+          onRetry: () => ref.invalidate(orderDetailProvider(widget.orderId)),
+        ),
         data: (order) => ListView(
           padding: const EdgeInsets.all(20),
           children: [

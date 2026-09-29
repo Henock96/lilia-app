@@ -23,30 +23,58 @@ class AppMotion {
 
 /// Raccourcis d'animation d'entrée cohérents, appliqués sur n'importe quel
 /// widget : `monWidget.fadeSlideIn()`.
+///
+/// Tous respectent « Réduire les animations » (iOS) / « Supprimer les
+/// animations » (Android) : le widget apparaît alors directement, sans
+/// glissement ni zoom (P3-26). Le carrousel le faisait déjà ; ces entrées,
+/// présentes sur chaque liste, non.
 extension AppAnimateX on Widget {
   /// Apparition fondu + léger glissement vertical.
-  Widget fadeSlideIn({Duration? delay, double dy = 0.12}) => animate()
-      .fadeIn(duration: AppMotion.base, delay: delay, curve: AppMotion.curve)
-      .slideY(
-        begin: dy,
-        end: 0,
-        duration: AppMotion.base,
-        curve: AppMotion.curve,
-      );
+  Widget fadeSlideIn({Duration? delay, double dy = 0.12}) => _ReducedMotionGate(
+    animated: (child) => child
+        .animate()
+        .fadeIn(duration: AppMotion.base, delay: delay, curve: AppMotion.curve)
+        .slideY(
+          begin: dy,
+          end: 0,
+          duration: AppMotion.base,
+          curve: AppMotion.curve,
+        ),
+    child: this,
+  );
 
   /// Apparition fondu + léger zoom (cartes, vignettes).
-  Widget fadeScaleIn({Duration? delay}) => animate()
-      .fadeIn(duration: AppMotion.base, delay: delay, curve: AppMotion.curve)
-      .scaleXY(
-        begin: 0.96,
-        end: 1,
-        duration: AppMotion.base,
-        curve: AppMotion.curve,
-      );
+  Widget fadeScaleIn({Duration? delay}) => _ReducedMotionGate(
+    animated: (child) => child
+        .animate()
+        .fadeIn(duration: AppMotion.base, delay: delay, curve: AppMotion.curve)
+        .scaleXY(
+          begin: 0.96,
+          end: 1,
+          duration: AppMotion.base,
+          curve: AppMotion.curve,
+        ),
+    child: this,
+  );
 
   /// Entrée en cascade selon l'index dans une liste/grille.
   Widget staggeredIn(int index, {double dy = 0.12}) =>
       fadeSlideIn(delay: AppMotion.stagger * index, dy: dy);
+}
+
+/// Rend [child] tel quel si le système demande de réduire les animations,
+/// sinon l'enveloppe dans [animated].
+class _ReducedMotionGate extends StatelessWidget {
+  const _ReducedMotionGate({required this.animated, required this.child});
+
+  final Widget Function(Widget child) animated;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      MediaQuery.maybeDisableAnimationsOf(context) ?? false
+      ? child
+      : animated(child);
 }
 
 /// Enveloppe un widget tactile d'un retour visuel d'appui (léger scale-down).

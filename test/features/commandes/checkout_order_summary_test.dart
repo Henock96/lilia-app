@@ -123,7 +123,7 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        final promo = tester.widget<Text>(find.text('-500 XAF'));
+        final promo = tester.widget<Text>(find.text('- ${formatPrice(500)}'));
         final points = tester.widget<Text>(find.text('- ${formatPrice(750)}'));
         // Et non `Colors.green` / `Colors.amber` : 2.3:1 et 1.35:1 sur
         // `surfaceContainerHighest` en clair.

@@ -31,6 +31,10 @@ enum QuickAddAction {
 }
 
 QuickAddAction quickAddActionFor(Product product) {
+  // Verdict produit d'abord (boutique fermée, retiré, hors créneau…) : un
+  // « + » actif sur un produit non commandable promet un ajout que le serveur
+  // refusera.
+  if (!product.isOrderable) return QuickAddAction.unavailable;
   if (product.hasModifiers) return QuickAddAction.openProduct;
   final variants = product.variants;
   if (variants.isEmpty) return QuickAddAction.unavailable;
@@ -50,6 +54,25 @@ String quickAddSemanticLabel(Product product) =>
       QuickAddAction.chooseVariant => 'Choisir un format pour ${product.name}',
       QuickAddAction.openProduct => 'Personnaliser ${product.name}',
       QuickAddAction.unavailable => '${product.name} indisponible',
+    };
+
+/// Pourquoi l'ajout rapide est refusé, dit au client dans ses mots.
+String quickAddUnavailableMessage(Product product) =>
+    switch (product.unavailability) {
+      ProductUnavailability.boutiqueFermee =>
+        '${product.restaurantName ?? 'La boutique'} est fermée pour le moment.',
+      ProductUnavailability.retire =>
+        '${product.name} n\'est plus proposé pour le moment.',
+      ProductUnavailability.horsCreneau =>
+        '${product.name} n\'est pas disponible à cette heure-ci.',
+      ProductUnavailability.optionsIndisponibles =>
+        '${product.name} est indisponible pour le moment.',
+      ProductUnavailability.epuise =>
+        '${product.name} est épuisé pour le moment.',
+      null =>
+        product.variants.isEmpty
+            ? '${product.name} n\'a pas de format disponible.'
+            : '${product.name} est épuisé pour le moment.',
     };
 
 /// **Le seul chemin d'ajout rapide** depuis une carte produit (accueil,
@@ -83,11 +106,7 @@ Future<void> quickAddProduct(
     case QuickAddAction.openProduct:
       return; // traité par openProductForOptions
     case QuickAddAction.unavailable:
-      context.showSnack(
-        product.variants.isEmpty
-            ? '${product.name} n\'a pas de format disponible.'
-            : '${product.name} est épuisé pour le moment.',
-      );
+      context.showSnack(quickAddUnavailableMessage(product));
       return;
     case QuickAddAction.addDirectly:
       variant = product.variants.single;

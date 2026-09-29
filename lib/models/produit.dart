@@ -18,6 +18,15 @@ const String kUncategorizedLabel = 'Autres';
 /// Trois valeurs, parce que ce sont les trois seules qui appellent une conduite
 /// différente du client : attendre demain, chercher ailleurs, revenir à l'heure.
 enum ProductUnavailability {
+  /// La boutique est explicitement fermée (`restaurant.isOpen == false`).
+  ///
+  /// Vient en premier : un produit en stock d'une boutique fermée n'est pas
+  /// commandable, et l'accueil l'affichait « Disponible » avec un « + » actif
+  /// pendant que sa fiche disait « Boutique fermée » (P3-01). `null` (champ
+  /// absent de la réponse) n'est **pas** une fermeture : le serveur arbitre
+  /// au panier et au checkout.
+  boutiqueFermee,
+
   /// Épuisé pour aujourd'hui (`stockRestant == 0`).
   epuise,
 
@@ -33,6 +42,7 @@ enum ProductUnavailability {
 
   /// Libellé court, pour un badge sur une carte produit.
   String get badge => switch (this) {
+    ProductUnavailability.boutiqueFermee => 'Fermé',
     ProductUnavailability.epuise => 'Épuisé',
     ProductUnavailability.retire => 'Indisponible',
     ProductUnavailability.horsCreneau => 'Hors créneau',
@@ -155,11 +165,10 @@ class Product {
   /// que chacun en recompose sa propre version — et en oublie la moitié : la
   /// fenêtre horaire manquait ici, si bien qu'une viennoiserie « 06:00 → 11:00 »
   /// restait proposée à 15 h, jusqu'au refus du serveur au checkout.
-  bool get isOrderable =>
-      isAvailable &&
-      isInStock &&
-      isWithinAvailabilityWindow &&
-      modifiersUnavailableReason == null;
+  ///
+  /// Inclut la boutique : un produit d'une boutique **explicitement** fermée
+  /// n'est pas commandable (P3-01). Une seule règle, [unavailability].
+  bool get isOrderable => unavailability == null;
 
   /// Pourquoi ce produit n'est-il pas commandable ? `null` s'il l'est.
   ///
@@ -169,6 +178,7 @@ class Product {
   /// « hors créneau » un horaire. Un même mot pour les trois tromperait le
   /// client sur ce qu'il peut faire.
   ProductUnavailability? get unavailability {
+    if (restaurantIsOpen == false) return ProductUnavailability.boutiqueFermee;
     if (!isAvailable) return ProductUnavailability.retire;
     if (!isInStock) return ProductUnavailability.epuise;
     if (!isWithinAvailabilityWindow) return ProductUnavailability.horsCreneau;

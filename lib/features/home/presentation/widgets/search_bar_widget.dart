@@ -50,7 +50,7 @@ class SearchBarWidget extends StatelessWidget {
               ),
               Icon(
                 Icons.tune_rounded,
-                color: theme.colorScheme.outline,
+                color: theme.colorScheme.onSurfaceVariant,
                 size: 20,
               ),
             ],

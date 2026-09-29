@@ -51,7 +51,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Votre position est utilisée pour afficher les restaurants proches et faciliter la livraison de votre commande.</string>
+	<string>Votre position sert à placer votre adresse de livraison sur la carte, lorsque vous le demandez.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Lilia Food utilise votre position uniquement lorsque l’application est ouverte, pour placer votre adresse de livraison sur la carte.</string>
 	<key>UIApplicationSceneManifest</key>

@@ -169,7 +169,7 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
             ),
             keyboardType: TextInputType.phone,
             validator: (v) => (v == null || v.isEmpty)
-                ? 'Veuillez entrer votre numero'
+                ? 'Veuillez entrer votre numéro'
                 : null,
           ),
           gapH12,

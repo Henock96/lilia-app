@@ -20,9 +20,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
 
   final List<_PageData> _pages = [
     _PageData(
-      title: 'Decouvrez les saveurs',
+      title: 'Découvrez les saveurs',
       description:
-          'Les meilleurs restaurants de Brazzaville reunis dans une seule app. Commandez vos plats preferes en quelques clics.',
+          'Les meilleures boutiques de Brazzaville réunies dans une seule app. Commandez vos plats préférés en quelques clics.',
       gradientStart: Color(0xFFFF6B35),
       gradientEnd: Color(0xFFE84545),
       bgGradientStart: Color(0xFFFFF5F0),

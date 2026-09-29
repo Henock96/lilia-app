@@ -5,6 +5,8 @@ import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
+import 'package:lilia_app/common_widgets/stale_data_banner.dart';
+import 'package:lilia_app/models/vendor_type.dart';
 import 'package:lilia_app/features/home/presentation/widgets/section/banner_shimmer.dart';
 import 'package:lilia_app/features/home/presentation/widgets/section/restaurant_card.dart';
 import 'package:go_router/go_router.dart';
@@ -44,6 +46,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   /// `shrinkWrap` donc intégralement mise en page — pour déplacer un point.
   final ValueNotifier<int> _currentSlide = ValueNotifier(0);
 
+  /// Dernier chargement **réussi** de la liste des vendeurs : pour quel
+  /// filtre, et quand (P3-12).
+  ///
+  /// Après un rechargement raté, Riverpod garde la valeur précédente dans
+  /// l'erreur — mais `when` affichait l'erreur **à la place** de la liste :
+  /// hors ligne, l'accueil passait à « 0 disponibles ». On garde désormais la
+  /// liste, avec un bandeau daté. Le filtre est mémorisé parce que la valeur
+  /// retenue est celle du dernier succès : après un changement de puce raté,
+  /// ce serait la liste d'un **autre** filtre sous le nouveau titre.
+  ({VendorType? filter, DateTime at})? _vendorsLoaded;
+
   @override
   void dispose() {
     _currentSlide.dispose();
@@ -70,6 +83,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     // marketplace approuvé-actif via /vendors.
     final restaurantsAsync = ref.watch(vendorsListProvider);
     final currentFilter = ref.watch(marketplaceFilterProvider);
+    ref.listen(vendorsListProvider, (_, next) {
+      if (next.hasValue && !next.hasError && !next.isLoading) {
+        _vendorsLoaded = (
+          filter: ref.read(marketplaceFilterProvider),
+          at: DateTime.now(),
+        );
+      }
+    });
+    // Premier succès déjà là au montage (cache) : l'écouteur ne l'a pas vu.
+    if (_vendorsLoaded == null &&
+        restaurantsAsync.hasValue &&
+        !restaurantsAsync.hasError &&
+        !restaurantsAsync.isLoading) {
+      _vendorsLoaded = (filter: currentFilter, at: DateTime.now());
+    }
+    final staleVendors = _staleVendors(restaurantsAsync, currentFilter);
     final notificationHistory = ref.watch(notificationHistoryProvider);
     final bannersAsync = ref.watch(bannersListProvider);
 
@@ -82,7 +111,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
-          _buildNotificationButton(notificationHistory),
+          _buildNotificationButton(
+            notificationHistory,
+            ref.watch(unreadNotificationCountProvider),
+          ),
           const SizedBox(width: 8),
         ],
       ),
@@ -141,7 +173,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         ),
                       ),
                       Text(
-                        '${restaurantsAsync.value?.length ?? 0} disponibles',
+                        // Rien tant qu'aucune liste n'est affichée : « 0
+                        // disponibles » pendant une panne affirmait qu'il n'y
+                        // avait aucune boutique.
+                        restaurantsAsync.hasValue &&
+                                (!restaurantsAsync.hasError ||
+                                    staleVendors != null)
+                            ? _affiches(restaurantsAsync.value!.length)
+                            : '',
                         style: TextStyle(
                           fontSize: 13,
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -170,16 +209,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
+  /// Badge = notifications **non lues** (P3-07), plafonné à « 9+ ».
   Widget _buildNotificationButton(
     AsyncValue<List<dynamic>> notificationHistory,
+    int unread,
   ) {
     return notificationHistory.when(
-      data: (notifications) => Badge(
-        label: Text(notifications.length.toString()),
-        isLabelVisible: notifications.isNotEmpty,
-        backgroundColor: Colors.red,
+      data: (_) => Badge(
+        label: Text(unread > 9 ? '9+' : '$unread'),
+        isLabelVisible: unread > 0,
         child: IconButton(
-          tooltip: 'Notifications',
+          tooltip: unread > 0
+              ? 'Notifications, $unread non lue${unread > 1 ? 's' : ''}'
+              : 'Notifications',
           onPressed: () => context.pushNamed(AppRoutes.notifications.routeName),
           icon: const Icon(Icons.notifications_outlined),
         ),
@@ -189,10 +231,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         onPressed: null,
         icon: Icon(Icons.notifications_outlined),
       ),
-      error: (_, _) => const IconButton(
+      // L'historique est local : illisible, il n'empêche pas d'ouvrir l'écran
+      // (qui dira pourquoi) — l'icône rouge sans action n'expliquait rien.
+      error: (_, _) => IconButton(
         tooltip: 'Notifications',
-        onPressed: null,
-        icon: Icon(Icons.notifications_outlined, color: Colors.red),
+        onPressed: () => context.pushNamed(AppRoutes.notifications.routeName),
+        icon: const Icon(Icons.notifications_outlined),
       ),
     );
   }
@@ -353,44 +397,75 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
+  static String _affiches(int n) => '$n affiché${n > 1 ? 's' : ''}';
+
+  /// Date du dernier chargement réussi **pour ce filtre**, si la liste
+  /// affichée est une liste conservée après un échec ; `null` sinon.
+  DateTime? _staleVendors(
+    AsyncValue<List<RestaurantSummary>> async,
+    VendorType? filter,
+  ) {
+    final loaded = _vendorsLoaded;
+    if (!async.hasError || !async.hasValue || loaded == null) return null;
+    return loaded.filter == filter ? loaded.at : null;
+  }
+
   Widget _buildRestaurantsList(
     AsyncValue<List<RestaurantSummary>> restaurantsAsync,
   ) {
+    final filter = ref.read(marketplaceFilterProvider);
+    final staleAt = _staleVendors(restaurantsAsync, filter);
+    if (staleAt != null) {
+      return Column(
+        children: [
+          StaleDataBanner(
+            loadedAt: staleAt,
+            onRetry: () => ref.invalidate(vendorsListProvider),
+          ),
+          _vendorsListView(restaurantsAsync.value!),
+        ],
+      );
+    }
     return restaurantsAsync.whenUi(
       data: (restaurants) {
         if (restaurants.isEmpty) {
-          return const Padding(
-            padding: EdgeInsets.all(32.0),
+          // Liste réellement vide (réponse du serveur) — distincte d'une
+          // panne, qui passe par `BuildErrorState`. Avec un filtre, on
+          // propose le geste qui sort de l'impasse.
+          final cs = Theme.of(context).colorScheme;
+          return Padding(
+            padding: const EdgeInsets.all(32.0),
             child: Center(
               child: Column(
                 children: [
-                  Icon(Icons.restaurant, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'Aucun restaurant disponible',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                  Icon(
+                    Icons.storefront_outlined,
+                    size: 64,
+                    color: cs.onSurfaceVariant,
                   ),
+                  const SizedBox(height: 16),
+                  Text(
+                    filter == null
+                        ? 'Aucune boutique disponible pour le moment'
+                        : 'Aucune boutique « ${filter.label} » pour le moment',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, color: cs.onSurfaceVariant),
+                  ),
+                  if (filter != null) ...[
+                    const SizedBox(height: 12),
+                    OutlinedButton(
+                      onPressed: () =>
+                          ref.read(marketplaceFilterProvider.notifier).reset(),
+                      child: const Text('Voir toutes les boutiques'),
+                    ),
+                  ],
                 ],
               ),
             ),
           );
         }
 
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          itemCount: restaurants.length,
-          itemBuilder: (context, index) {
-            final restaurant = restaurants[index];
-            // Entrée en cascade pour les premières cartes (visibles d'emblée) ;
-            // au-delà, simple fondu/glissé au scroll (évite les longs délais).
-            return RestaurantCard(
-              restaurant: restaurant,
-              restaurantId: restaurant.id,
-            ).staggeredIn(index < 6 ? index : 0);
-          },
-        );
+        return _vendorsListView(restaurants);
       },
       loading: () => const BuildLoadingState(),
       // ⚠️ `vendorsListProvider`, celui que l'écran observe. Le bouton
@@ -400,6 +475,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         err,
         onRetry: () => ref.invalidate(vendorsListProvider),
       ),
+    );
+  }
+
+  Widget _vendorsListView(List<RestaurantSummary> restaurants) {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: restaurants.length,
+      itemBuilder: (context, index) {
+        final restaurant = restaurants[index];
+        // Entrée en cascade pour les premières cartes (visibles d'emblée) ;
+        // au-delà, simple fondu/glissé au scroll (évite les longs délais).
+        return RestaurantCard(
+          restaurant: restaurant,
+          restaurantId: restaurant.id,
+        ).staggeredIn(index < 6 ? index : 0);
+      },
     );
   }
 }

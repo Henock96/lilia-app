@@ -2,10 +2,10 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter/painting.dart' show Color;
 import 'package:lilia_app/common_widgets/lilia_badge.dart';
 import 'package:lilia_app/theme/app_theme.dart';
 import 'package:lilia_app/theme/lilia_tokens.dart';
+import 'package:lilia_app/utils/snackbar.dart';
 
 /// Ratio de contraste WCAG 2.x entre deux couleurs opaques.
 double contrastRatio(Color a, Color b) {
@@ -142,6 +142,90 @@ void main() {
         }
       });
     }
+  });
+
+  // Phase 3 (P3-03 / P3-04) — paires réellement posées par les écrans corrigés.
+  group('Phase 3 — paires des écrans corrigés', () {
+    for (final theme in [AppTheme.light, AppTheme.dark]) {
+      final cs = theme.colorScheme;
+      final nom = cs.brightness.name;
+
+      test('$nom — CTA « Valider et payer », pastille prix : onPrimary', () {
+        expect(
+          contrastRatio(cs.onPrimary, cs.primary),
+          greaterThanOrEqualTo(kAaNormalText),
+        );
+      });
+
+      test('$nom — le blanc sur primary est bien le défaut corrigé', () {
+        // Garde du diagnostic : en sombre, blanc sur primary < 3:1. Si ce test
+        // échoue un jour, la palette a changé et P3-03 est à revoir.
+        if (cs.brightness == Brightness.dark) {
+          expect(
+            contrastRatio(const Color(0xFFFFFFFF), cs.primary),
+            lessThan(3),
+          );
+        }
+      });
+
+      test('$nom — boutons destructifs : onError sur error', () {
+        expect(
+          contrastRatio(cs.onError, cs.error),
+          greaterThanOrEqualTo(kAaNormalText),
+        );
+      });
+
+      test('$nom — icônes et textes secondaires : onSurfaceVariant', () {
+        for (final bg in [cs.surface, theme.scaffoldBackgroundColor]) {
+          expect(
+            contrastRatio(cs.onSurfaceVariant, bg),
+            greaterThanOrEqualTo(kAaNormalText),
+            reason: '$bg',
+          );
+        }
+      });
+
+      test('$nom — cœur favori (≥ 3:1, composant graphique)', () {
+        for (final fg in [cs.onSurfaceVariant, cs.error]) {
+          expect(
+            contrastRatio(fg, cs.surface),
+            greaterThanOrEqualTo(3),
+            reason: '$fg',
+          );
+        }
+      });
+
+      test('$nom — `outline` n\'est pas une couleur de texte', () {
+        // 1,26:1 en clair : réservé aux bordures décoratives.
+        if (cs.brightness == Brightness.light) {
+          expect(contrastRatio(cs.outline, cs.surface), lessThan(3));
+        }
+      });
+    }
+  });
+
+  test('snackbars : texte blanc lisible sur les trois fonds', () {
+    for (final type in SnackType.values) {
+      expect(
+        contrastRatio(const Color(0xFFFFFFFF), snackBarBackground(type)),
+        greaterThanOrEqualTo(kAaNormalText),
+        reason: '$type',
+      );
+    }
+  });
+
+  test('snackbars : un message long reste affiché le temps d\'être lu', () {
+    const court = Duration(seconds: 2);
+    expect(snackBarDuration('Ajouté', minimum: court), court);
+    final long = 'x' * 150;
+    expect(
+      snackBarDuration(long, minimum: court),
+      greaterThan(const Duration(seconds: 8)),
+    );
+    expect(
+      snackBarDuration('x' * 1000, minimum: court),
+      const Duration(seconds: 10),
+    );
   });
 
   test('pastille ouvert / fermé posée sur photo : blanc lisible', () {

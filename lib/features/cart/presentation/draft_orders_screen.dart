@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
@@ -44,7 +45,7 @@ class DraftOrdersScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Vos commandes enregistrees\napparaitront ici',
+                    'Vos commandes enregistrées\napparaîtront ici',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
                   ),
@@ -62,7 +63,10 @@ class DraftOrdersScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Erreur: $err')),
+        error: (err, _) => BuildErrorState(
+          err,
+          onRetry: () => ref.invalidate(draftOrdersProvider),
+        ),
       ),
     );
   }
@@ -104,7 +108,7 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
       context.goNamed(AppRoutes.cart.routeName);
     } catch (e) {
       if (!mounted) return;
-      context.showErrorSnack('Erreur: $e');
+      context.showErrorSnack(userFacingErrorMessage(e));
       setState(() => _isRestoring = false);
     }
   }

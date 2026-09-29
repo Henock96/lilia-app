@@ -268,7 +268,7 @@ class _RestaurantFavoritesTab extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Explorez et ajoutez vos restaurants preferes',
+                  'Explorez et ajoutez vos boutiques préférées',
                   style: TextStyle(
                     fontSize: 13,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,

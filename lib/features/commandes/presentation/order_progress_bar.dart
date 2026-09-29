@@ -1,92 +1,73 @@
 import 'package:flutter/material.dart';
+
+import 'package:lilia_app/features/commandes/domain/order_timeline.dart';
 import 'package:lilia_app/models/order.dart';
+import 'package:lilia_app/theme/lilia_tokens.dart';
 
+/// Progression compacte d'une commande dans la **liste** des commandes.
+///
+/// Même règle que la timeline du détail ([orderTimeline]) : elle recopiait
+/// l'ancien stepper à 4 étapes — « Confirmée » pour une commande qui attend
+/// son paiement, « En route » pour un retrait, aucune étape en cours pour
+/// `PAYER` / `ACCEPTEE` (P3-09). Une ligne de texte plutôt que quatre
+/// libellés de 9 px : lisible, et elle tient avec le texte agrandi.
 class OrderProgressBar extends StatelessWidget {
-  final OrderStatus status;
+  const OrderProgressBar({super.key, required this.order});
 
-  const OrderProgressBar({super.key, required this.status});
+  final Order order;
 
   @override
   Widget build(BuildContext context) {
-    final steps = ['Confirmée', 'En préparation', 'Prête', 'En route'];
-    int currentStep = 0;
-
-    switch (status) {
-      case OrderStatus.enAttente:
-        currentStep = 0;
-        break;
-      case OrderStatus.enPreparation:
-        currentStep = 1;
-        break;
-      case OrderStatus.pret:
-        currentStep = 2;
-        break;
-      case OrderStatus.enRoute:
-        currentStep = 3;
-        break;
-      default:
-        currentStep = 0;
-    }
-
+    final steps = orderTimeline(order);
+    if (steps.isEmpty) return const SizedBox.shrink();
     final cs = Theme.of(context).colorScheme;
-    final activeColor = cs.tertiary;
+    final index = steps.indexWhere((s) => s.state == TimelineStepState.current);
+    final current = index < 0 ? null : steps[index];
+    final label = current == null
+        ? steps.last.label
+        : [current.label, ?current.detail].join(' · ');
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
-        border: Border(
-          top: BorderSide(color: cs.outline.withValues(alpha: 0.15)),
+    return Semantics(
+      label:
+          'Étape ${index < 0 ? steps.length : index + 1} sur '
+          '${steps.length} : $label',
+      excludeSemantics: true,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
+          border: Border(
+            top: BorderSide(color: cs.outline.withValues(alpha: 0.15)),
+          ),
         ),
-      ),
-      child: Row(
-        children: List.generate(steps.length * 2 - 1, (index) {
-          if (index.isOdd) {
-            final stepIndex = index ~/ 2;
-            return Expanded(
-              child: Container(
-                height: 2,
-                color: stepIndex < currentStep
-                    ? activeColor
-                    : cs.outline.withValues(alpha: 0.3),
-              ),
-            );
-          } else {
-            final stepIndex = index ~/ 2;
-            final isCompleted = stepIndex <= currentStep;
-            final isCurrent = stepIndex == currentStep;
-
-            return Column(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Container(
-                  width: isCurrent ? 16 : 12,
-                  height: isCurrent ? 16 : 12,
-                  decoration: BoxDecoration(
-                    color: isCompleted
-                        ? activeColor
-                        : cs.outline.withValues(alpha: 0.3),
-                    shape: BoxShape.circle,
-                    border: isCurrent
-                        ? Border.all(color: activeColor, width: 2)
-                        : null,
+                for (var i = 0; i < steps.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 4),
+                  Expanded(
+                    child: Container(
+                      height: 4,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(2),
+                        color: steps[i].state == TimelineStepState.upcoming
+                            ? cs.onSurfaceVariant.withValues(alpha: 0.25)
+                            : cs.successText,
+                      ),
+                    ),
                   ),
-                  child: isCompleted && !isCurrent
-                      ? const Icon(Icons.check, size: 8, color: Colors.white)
-                      : null,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  steps[stepIndex],
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
-                    color: isCompleted ? activeColor : cs.onSurfaceVariant,
-                  ),
-                ),
+                ],
               ],
-            );
-          }
-        }),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(fontSize: 12.5, color: cs.onSurfaceVariant),
+            ),
+          ],
+        ),
       ),
     );
   }

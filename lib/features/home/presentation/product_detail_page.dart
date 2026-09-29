@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/resolution_par_identifiant.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/features/favoris/application/favorites_provider.dart';
@@ -17,6 +18,7 @@ import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
 import 'package:lilia_app/features/cart/domain/modifier_selection.dart';
 import 'package:lilia_app/features/cart/presentation/modifier_group_picker.dart';
 import 'widgets/product_stock_widgets.dart';
+import 'widgets/product_availability_badge.dart';
 
 /// **La fiche produit, adressable.**
 ///
@@ -176,6 +178,8 @@ Téléchargez l'app Lilia Food pour commander !
     final p = widget.product;
     if (p.restaurantIsOpen == false) return 'Boutique fermée';
     switch (p.unavailability) {
+      case ProductUnavailability.boutiqueFermee:
+        return 'Boutique fermée';
       case ProductUnavailability.epuise:
         return 'Épuisé';
       case ProductUnavailability.retire:
@@ -231,7 +235,7 @@ Téléchargez l'app Lilia Food pour commander !
       }
     } catch (e) {
       if (mounted) {
-        context.showErrorSnack(e.toString());
+        context.showErrorSnack(userFacingErrorMessage(e));
       }
     }
   }
@@ -456,42 +460,20 @@ Téléchargez l'app Lilia Food pour commander !
                 ),
                 child: Text(
                   formatPrice(_unitPrice),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    // `onPrimary` et non blanc : 2,84:1 en sombre (P3-03).
+                    color: theme.colorScheme.onPrimary,
                   ),
                 ),
               ),
               const Spacer(),
-              // Badge disponibilité
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.green.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.green, size: 16),
-                    SizedBox(width: 4),
-                    Text(
-                      'Disponible',
-                      style: TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
+              // Badge disponibilité — verdict produit (boutique fermée,
+              // épuisé, retiré, hors créneau). Il affichait « Disponible »
+              // sans condition, y compris sous « Boutique fermée » (P3-01).
+              Flexible(
+                child: ProductAvailabilityBadge(product: widget.product),
               ),
             ],
           ),
@@ -816,7 +798,7 @@ Téléchargez l'app Lilia Food pour commander !
           child: Icon(
             icon,
             color: isPrimary
-                ? Colors.white
+                ? theme.colorScheme.onPrimary
                 : (enabled
                       ? theme.colorScheme.onSurface
                       : theme.colorScheme.outline),

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:lilia_app/common_widgets/lilia_badge.dart';
 
 import 'package:lilia_app/features/home/domain/opening_label.dart';
 import 'package:flutter/material.dart';
@@ -333,21 +334,10 @@ class _SearchProductTile extends ConsumerWidget {
         ),
         trailing: product.isOrderable
             ? QuickAddButton(product: product)
-            : Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  'Epuise',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+            : LiliaBadge(
+              label: product.unavailability?.badge ?? 'Indisponible',
+              variant: LiliaBadgeVariant.danger,
+            ),
       ),
     );
   }

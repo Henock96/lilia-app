@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/models/order.dart';
 
 /// Retrait au comptoir (F3-07) : le code à montrer, puis la confirmation.
@@ -85,8 +86,8 @@ class _PickupCardState extends State<PickupCard> {
       if (!mounted) return;
       setState(() {
         _busy = false;
-        // `ApiException.toString()` est un message français prêt à afficher.
-        _error = e.toString();
+        // Message du serveur si c'en est un, phrase générique sinon.
+        _error = userFacingErrorMessage(e);
       });
     }
   }

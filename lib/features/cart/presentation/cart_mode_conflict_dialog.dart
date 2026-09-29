@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/cart/data/cart_repository.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
+import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 
 /// Modal affichée quand on tente d'ajouter au panier un produit dont le mode
 /// (`madeToOrder` true/false) ne matche pas celui des items existants (LIL-122).
@@ -101,7 +102,71 @@ class CartModeConflictDialog extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(true),
           icon: const Icon(Icons.delete_outline, size: 18),
           label: const Text('Vider et ajouter'),
-          style: FilledButton.styleFrom(backgroundColor: Colors.red),
+          // `error`/`onError` : `Colors.red` + blanc = 3,68:1 (P3-03).
+          style: FilledButton.styleFrom(
+            backgroundColor: scheme.error,
+            foregroundColor: scheme.onError,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Panier d'une autre boutique (P3-13) : garder, ou vider et ajouter.
+///
+/// Même geste que [CartModeConflictDialog] : `true` = vider et ajouter.
+class VendorConflictDialog extends StatelessWidget {
+  const VendorConflictDialog({
+    super.key,
+    required this.currentVendorName,
+    required this.incomingProductName,
+  });
+
+  /// `null` si la fiche de la boutique n'est pas en cache.
+  final String? currentVendorName;
+  final String incomingProductName;
+
+  static Future<bool?> show(
+    BuildContext context, {
+    required String? currentVendorName,
+    required String incomingProductName,
+  }) => showDialog<bool>(
+    context: context,
+    builder: (_) => VendorConflictDialog(
+      currentVendorName: currentVendorName,
+      incomingProductName: incomingProductName,
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final chez = currentVendorName == null
+        ? 'd\'une autre boutique'
+        : 'de $currentVendorName';
+    return AlertDialog(
+      icon: Icon(Icons.storefront_outlined, color: scheme.primary, size: 32),
+      title: const Text('Changer de boutique ?'),
+      content: Text(
+        'Votre panier contient des articles $chez. Une commande ne peut '
+        'venir que d\'une seule boutique : pour ajouter '
+        '« $incomingProductName », videz d\'abord votre panier.',
+        style: const TextStyle(fontSize: 14, height: 1.4),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Garder mon panier'),
+        ),
+        FilledButton.icon(
+          onPressed: () => Navigator.of(context).pop(true),
+          icon: const Icon(Icons.delete_outline, size: 18),
+          label: const Text('Vider et ajouter'),
+          style: FilledButton.styleFrom(
+            backgroundColor: scheme.error,
+            foregroundColor: scheme.onError,
+          ),
         ),
       ],
     );
@@ -131,7 +196,24 @@ Future<bool> addToCartSafely({
   final notifier = ref.read(cartControllerProvider.notifier);
   final productMadeToOrder = preview.product.madeToOrder;
 
-  if (notifier.wouldConflictWithCart(productMadeToOrder)) {
+  // P3-13 — autre boutique : on propose de vider au lieu d'un message
+  // d'erreur sans action (« Videz votre panier… », 4 gestes plus loin).
+  final autreBoutique = notifier.conflictingVendorId(
+    preview.product.restaurantId,
+  );
+  if (autreBoutique != null) {
+    final nom = ref
+        .read(restaurantControllerProvider(autreBoutique))
+        .value
+        ?.name;
+    final shouldClear = await VendorConflictDialog.show(
+      context,
+      currentVendorName: nom,
+      incomingProductName: preview.product.nom,
+    );
+    if (shouldClear != true) return false;
+    await notifier.clearCart();
+  } else if (notifier.wouldConflictWithCart(productMadeToOrder)) {
     // Le panier existant est dans le mode opposé à celui du nouvel item :
     // si le nouvel item est `madeToOrder=true`, alors le panier est immédiat
     // (cartIsPreorder=false), et inversement.
