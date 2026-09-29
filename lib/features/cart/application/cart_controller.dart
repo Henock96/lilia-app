@@ -561,6 +561,15 @@ class CartController extends _$CartController {
   /// `true` si l'ajout ferait un panier mixte → le caller doit afficher la
   /// modal "Vider le panier ?" avant d'appeler addItem. Backend bloque aussi
   /// défensivement (CartService.assertSameMadeToOrderMode).
+  /// Le panier contient-il déjà les articles d'**une autre boutique** ?
+  /// Renvoie l'identifiant de cette boutique, `null` sinon (P3-13).
+  String? conflictingVendorId(String newRestaurantId) {
+    final cart = state.value;
+    if (cart == null || cart.items.isEmpty) return null;
+    final existing = cart.items.first.product.restaurantId;
+    return existing == newRestaurantId ? null : existing;
+  }
+
   bool wouldConflictWithCart(bool newMadeToOrder) {
     final cart = state.value;
     if (cart == null || cart.items.isEmpty) return false;

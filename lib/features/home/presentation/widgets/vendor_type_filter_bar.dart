@@ -13,8 +13,14 @@ class VendorTypeFilterBar extends ConsumerWidget {
     final selected = ref.watch(marketplaceFilterProvider);
     final controller = ref.read(marketplaceFilterProvider.notifier);
 
+    // Hauteur dérivée du texte : fixée à 40, les puces étaient rognées
+    // verticalement à 2× (P3-02). 16 = padding vertical de la puce.
+    final scaler = MediaQuery.textScalerOf(context);
+    final height = [40.0, scaler.scale(14) * 1.4 + 16].reduce(
+      (a, b) => a > b ? a : b,
+    );
     return SizedBox(
-      height: 40,
+      height: height,
       child: ListView(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12),

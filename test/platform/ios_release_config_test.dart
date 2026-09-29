@@ -130,6 +130,15 @@ void main() {
       );
     });
 
+    test('« quand utilisée » ne promet pas un usage que l’app n’a pas', () {
+      // P3-27 (Guideline 5.1.1) : elle annonçait « afficher les restaurants
+      // proches » alors que l'accueil ne trie pas par proximité — la position
+      // ne sert qu'à placer l'adresse de livraison sur la carte.
+      final texte = _valeurTexte(plist, 'NSLocationWhenInUseUsageDescription');
+      expect(texte, isNot(contains('proche')));
+      expect(texte, contains('adresse'));
+    });
+
     // La chaîne « Always » est **requise** par App Store Connect
     // (avertissement ITMS-90683) : le binaire de `geolocator_apple` référence
     // `requestAlwaysAuthorization`, même si l'app ne l'appelle jamais — le

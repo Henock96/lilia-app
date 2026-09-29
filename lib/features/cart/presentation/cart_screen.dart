@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/features/cart/presentation/cart_price_summary.dart';
+import 'package:lilia_app/common_widgets/lilia_badge.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
@@ -99,7 +101,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       await ref.read(cartControllerProvider.notifier).clearCart();
     } catch (e) {
       if (mounted) {
-        context.showErrorSnack(e.toString());
+        context.showErrorSnack(userFacingErrorMessage(e));
       }
     } finally {
       if (mounted) setState(() => _isClearing = false);
@@ -223,66 +225,49 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                               style: TextStyle(color: cs.onErrorContainer),
                             ),
                           ),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  '${cartState.value!.totalItems} article(s)',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: cs.onSurfaceVariant,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  cartState.value!.formattedTotalPrice,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            ElevatedButton(
-                              onPressed:
-                                  _minimumAtteint(cartState.value!) &&
-                                      !cartState.value!.hasIssues
-                                  ? () {
-                                      // `begin_checkout` — l'action délibérée qui
-                                      // engage la commande, et non l'affichage d'un
-                                      // écran. Sur le web, le panier et la saisie de
-                                      // commande vivent sur la même page : mesurer
-                                      // l'affichage rendrait cette étape égale à
-                                      // `view_cart` d'un côté et pas de l'autre, et
-                                      // les deux tunnels cesseraient d'être
-                                      // comparables.
-                                      AnalyticsService.trackBeginCheckout(
-                                        itemCount: cartState.value!.totalItems,
-                                        cartTotal: cartState.value!.totalPrice,
-                                      );
-                                      context.goNamed(
-                                        AppRoutes.deliveryOptions.routeName,
-                                      );
-                                    }
-                                  : null,
-                              child: const Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 10.0,
-                                  vertical: 12.0,
-                                ),
-                                child: Text(
-                                  'Passer la commande',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                        // P3-11 — sous-total, frais de service au taux
+                        // serveur, livraison annoncée : le client connaît
+                        // l'ordre de grandeur avant le tunnel.
+                        CartPriceSummary(cart: cartState.value!),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed:
+                                _minimumAtteint(cartState.value!) &&
+                                    !cartState.value!.hasIssues
+                                ? () {
+                                    // `begin_checkout` — l'action délibérée qui
+                                    // engage la commande, et non l'affichage d'un
+                                    // écran. Sur le web, le panier et la saisie de
+                                    // commande vivent sur la même page : mesurer
+                                    // l'affichage rendrait cette étape égale à
+                                    // `view_cart` d'un côté et pas de l'autre, et
+                                    // les deux tunnels cesseraient d'être
+                                    // comparables.
+                                    AnalyticsService.trackBeginCheckout(
+                                      itemCount: cartState.value!.totalItems,
+                                      cartTotal: cartState.value!.totalPrice,
+                                    );
+                                    context.goNamed(
+                                      AppRoutes.deliveryOptions.routeName,
+                                    );
+                                  }
+                                : null,
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 10.0,
+                                vertical: 12.0,
+                              ),
+                              child: Text(
+                                'Passer la commande',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ),
-                          ],
+                          ),
                         ),
                       ],
                     ),
@@ -375,7 +360,7 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
           .updateMenuQuantity(menuId: widget.menuId, quantity: newQuantity);
     } catch (e) {
       if (mounted) {
-        context.showErrorSnack(e.toString());
+        context.showErrorSnack(userFacingErrorMessage(e));
       }
     } finally {
       if (mounted) {
@@ -392,7 +377,7 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
           .removeMenu(menuId: widget.menuId);
     } catch (e) {
       if (mounted) {
-        context.showErrorSnack(e.toString());
+        context.showErrorSnack(userFacingErrorMessage(e));
         setState(() => _isLoading = false);
       }
     }
@@ -581,7 +566,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
           );
     } catch (e) {
       if (mounted) {
-        context.showErrorSnack(e.toString());
+        context.showErrorSnack(userFacingErrorMessage(e));
       }
     } finally {
       if (mounted) {
@@ -598,7 +583,7 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
           .removeItem(cartItemId: widget.item.id);
     } catch (e) {
       if (mounted) {
-        context.showErrorSnack(e.toString());
+        context.showErrorSnack(userFacingErrorMessage(e));
         setState(() => _isLoading = false);
       }
     }
@@ -907,23 +892,9 @@ class _SuggestionTile extends ConsumerWidget {
                 if (isAvailable)
                   QuickAddButton(product: product, visualSize: 36)
                 else
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.red,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'Epuise',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                  LiliaBadge(
+                    label: product.unavailability?.badge ?? 'Indisponible',
+                    variant: LiliaBadgeVariant.danger,
                   ),
               ],
             ),

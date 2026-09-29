@@ -152,7 +152,7 @@ class _FavorisDetailPageState extends ConsumerState<_FavorisDetailView> {
                   const SizedBox(height: 24),
                   if (widget.product.variants.isNotEmpty) ...[
                     const Text(
-                      'Selectionnez une variante',
+                      'Sélectionnez un format',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

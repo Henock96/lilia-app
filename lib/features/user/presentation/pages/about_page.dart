@@ -1,10 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+
+import 'package:lilia_app/core/support/support_contact.dart';
+
+/// Version **du binaire installé**, lue par `package_info_plus`.
+///
+/// Elle était codée en dur (`'1.3.3'`) quand le `pubspec` disait `1.3.5+39` :
+/// le support ne savait pas quelle version le client utilisait (P3-08).
+String aboutVersionLabel(PackageInfo info) => info.buildNumber.isEmpty
+    ? 'Version ${info.version}'
+    : 'Version ${info.version} (${info.buildNumber})';
 
 class AboutPage extends StatelessWidget {
-  const AboutPage({super.key});
+  const AboutPage({super.key, this.launcher});
 
-  static const String _appVersion = '1.3.3';
+  /// Injectable pour les tests ; `launchUrl` sinon.
+  final ExternalLauncher? launcher;
+
   static const String _appName = 'Lilia Food';
 
   @override
@@ -59,11 +72,14 @@ class AboutPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      'Version $_appVersion',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: theme.colorScheme.onSurfaceVariant,
+                    FutureBuilder<PackageInfo>(
+                      future: PackageInfo.fromPlatform(),
+                      builder: (context, snap) => Text(
+                        snap.hasData ? aboutVersionLabel(snap.data!) : ' ',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -135,16 +151,26 @@ class AboutPage extends StatelessWidget {
                       icon: Iconsax.sms,
                       iconColor: Colors.orange[400]!,
                       title: 'Nous contacter',
-                      subtitle: 'contact@liliafood.com',
-                      onTap: () {},
+                      subtitle: SupportContact.email,
+                      semanticHint: 'Écrire un e-mail au support',
+                      onTap: () => _open(
+                        context,
+                        SupportContact.emailUri(),
+                        SupportContact.email,
+                      ),
                       showTopBorder: false,
                     ),
                     _AboutMenuItem(
                       icon: Iconsax.call,
                       iconColor: Colors.teal[400]!,
                       title: 'Assistance téléphonique',
-                      subtitle: '+242 06 745 46 10',
-                      onTap: () {},
+                      subtitle: SupportContact.phoneDisplay,
+                      semanticHint: 'Appeler le support',
+                      onTap: () => _open(
+                        context,
+                        SupportContact.phoneUri(),
+                        SupportContact.phoneDisplay,
+                      ),
                       showBottomBorder: false,
                     ),
                   ],
@@ -176,6 +202,18 @@ class AboutPage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _open(BuildContext context, Uri uri, String fallback) {
+    final l = launcher;
+    return l == null
+        ? openSupportChannel(context, uri, fallbackValue: fallback)
+        : openSupportChannel(
+            context,
+            uri,
+            fallbackValue: fallback,
+            launcher: l,
+          );
   }
 
   void _showTextPage(
@@ -322,6 +360,7 @@ class _AboutMenuItem extends StatelessWidget {
   final Color iconColor;
   final String title;
   final String? subtitle;
+  final String? semanticHint;
   final VoidCallback onTap;
   final bool showTopBorder;
   final bool showBottomBorder;
@@ -332,56 +371,70 @@ class _AboutMenuItem extends StatelessWidget {
     required this.title,
     required this.onTap,
     this.subtitle,
+    this.semanticHint,
     this.showTopBorder = true,
     this.showBottomBorder = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          border: showBottomBorder
-              ? Border(bottom: BorderSide(color: Colors.grey[200]!))
-              : null,
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: iconColor, size: 22),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
+    final cs = Theme.of(context).colorScheme;
+    return Semantics(
+      button: true,
+      hint: semanticHint,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            border: showBottomBorder
+                ? Border(
+                    bottom: BorderSide(
+                      color: cs.outline.withValues(alpha: 0.2),
                     ),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
+                  )
+                : null,
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: iconColor, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      subtitle!,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle!,
+                        // `onSurfaceVariant` : `grey[500]` = 2,6:1 sur blanc.
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            Icon(Iconsax.arrow_right_3, color: Colors.grey[400], size: 20),
-          ],
+              Icon(Iconsax.arrow_right_3, color: cs.onSurfaceVariant, size: 20),
+            ],
+          ),
         ),
       ),
     );

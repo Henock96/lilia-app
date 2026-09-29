@@ -1,4 +1,8 @@
 import 'dart:io';
+import 'package:lilia_app/common_widgets/build_error_state.dart';
+import 'package:lilia_app/core/support/support_contact.dart';
+import 'package:lilia_app/utils/order_reference.dart';
+import 'package:lilia_app/features/commandes/presentation/reorder_action.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,7 +22,6 @@ import 'package:lilia_app/features/payments/data/payment_service.dart';
 import 'package:lilia_app/features/payments/presentation/payment_pending_args.dart';
 import 'package:lilia_app/models/order.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
-import '../../cart/application/cart_controller.dart';
 import '../data/order_controller.dart';
 import '../data/order_repository.dart';
 import 'package:lilia_app/utils/currency.dart';
@@ -278,6 +281,12 @@ class OrderDetailPage extends ConsumerWidget {
                   const SizedBox(height: 16),
                 ],
 
+                // P3.5.7 — aide joignable depuis la commande, référence
+                // pré-remplie : quel que soit le statut, y compris en attente
+                // de paiement, où la réclamation n'est pas ouverte.
+                OrderSupportLinks(orderId: order.id),
+                const SizedBox(height: 16),
+
                 // Bouton Commander à nouveau pour les commandes livrées ou annulées
                 if (order.status == OrderStatus.livrer ||
                     order.status == OrderStatus.annuler)
@@ -293,8 +302,13 @@ class OrderDetailPage extends ConsumerWidget {
   }
 
   Widget _buildTrackingButton(BuildContext context, String orderId) {
-    //final cs = Theme.of(context).colorScheme;
-    return GestureDetector(
+    // `Semantics(button:)` : un `GestureDetector` nu était lu comme du texte
+    // par TalkBack / VoiceOver, sans dire qu'on pouvait l'activer.
+    return Semantics(
+      button: true,
+      label: 'Suivre le livreur en direct',
+      excludeSemantics: true,
+      child: GestureDetector(
       onTap: () => context.pushNamed(
         AppRoutes.orderTracking.routeName,
         pathParameters: {'orderId': orderId},
@@ -383,6 +397,7 @@ class OrderDetailPage extends ConsumerWidget {
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -463,7 +478,7 @@ class OrderDetailPage extends ConsumerWidget {
         onPressed: () => _handleReorder(context, ref, orderId),
         style: ElevatedButton.styleFrom(
           backgroundColor: Theme.of(context).colorScheme.primary,
-          foregroundColor: Colors.white,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
           padding: const EdgeInsets.symmetric(vertical: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
@@ -473,7 +488,7 @@ class OrderDetailPage extends ConsumerWidget {
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Iconsax.refresh, color: Colors.white),
+            Icon(Iconsax.refresh),
             SizedBox(width: 10),
             Text(
               'Commander à nouveau',
@@ -485,93 +500,10 @@ class OrderDetailPage extends ConsumerWidget {
     );
   }
 
-  /// Raisons des lignes non rachetées (au plus trois), telles que le serveur
-  /// les formule.
-  List<String> _reorderReasons(Map<String, dynamic> result) {
-    final details = result['details'];
-    final unavailable = details is Map<String, dynamic>
-        ? details['unavailable']
-        : null;
-    if (unavailable is! List) return const [];
-    return unavailable
-        .whereType<Map<String, dynamic>>()
-        .map((u) => u['reason'])
-        .whereType<String>()
-        .take(3)
-        .map((r) => '• $r')
-        .toList();
-  }
-
-  void _handleReorder(
-    BuildContext context,
-    WidgetRef ref,
-    String orderId,
-  ) async {
-    // Show loading dialog
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      final result = await ref
-          .read(cartControllerProvider.notifier)
-          .reorder(orderId: orderId);
-
-      if (!context.mounted) return;
-      Navigator.of(context, rootNavigator: true).pop(); // Close loading dialog
-
-      final summary = result['summary'] as Map<String, dynamic>? ?? {};
-      // Typés explicitement : ces valeurs viennent d'un Map<String, dynamic>
-      // et servaient directement de condition (`totalAdded > 0`).
-      final int totalAdded =
-          (summary['totalAdded'] as int?) ??
-          (result['totalAdded'] as int?) ??
-          0;
-      final int totalUnavailable =
-          (summary['totalUnavailable'] as int?) ??
-          (result['totalUnavailable'] as int?) ??
-          0;
-
-      if (totalAdded > 0) {
-        String message =
-            '$totalAdded article${totalAdded > 1 ? 's' : ''} ajouté${totalAdded > 1 ? 's' : ''} au panier';
-        if (totalUnavailable > 0) {
-          message +=
-              '\n$totalUnavailable article${totalUnavailable > 1 ? 's' : ''} indisponible${totalUnavailable > 1 ? 's' : ''}';
-          // F3-10 — dire pourquoi (format retiré, stock insuffisant…) : le
-          // serveur n'ajoute plus jamais un autre format à la place.
-          final reasons = _reorderReasons(result);
-          if (reasons.isNotEmpty) message += ' :\n${reasons.join('\n')}';
-        }
-
-        context.showSnack(
-          message,
-          type: SnackType.success,
-          action: SnackBarAction(
-            label: 'Voir le panier',
-            textColor: Colors.white,
-            onPressed: () => context.go('/cart'),
-          ),
-        );
-      } else {
-        context.showErrorSnack('Aucun article disponible pour cette commande');
-      }
-    } catch (e) {
-      if (!context.mounted) return;
-      Navigator.of(context, rootNavigator: true).pop(); // Close loading dialog
-
-      String errorMessage = 'Erreur lors de la recommande';
-      if (e.toString().contains('autre restaurant')) {
-        errorMessage =
-            'Votre panier contient des articles d\'un autre restaurant. Videz-le d\'abord.';
-      }
-
-      context.showErrorSnack(errorMessage);
-    }
-  }
-
+  // « Commander à nouveau » : `reorderIntoCart` (reorder_action.dart),
+  // partagé avec la liste des commandes.
+  void _handleReorder(BuildContext context, WidgetRef ref, String orderId) =>
+      reorderIntoCart(context, ref, orderId);
 
   void _showCancelConfirmationDialog(
     BuildContext context,
@@ -601,9 +533,10 @@ class OrderDetailPage extends ConsumerWidget {
               onPressed: () => Navigator.of(context).pop(),
             ),
             ElevatedButton(
+              // `error`/`onError` : `Colors.red` + blanc = 3,68:1.
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
               ),
               child: const Text('Oui, annuler'),
               onPressed: () async {
@@ -618,7 +551,7 @@ class OrderDetailPage extends ConsumerWidget {
                   Navigator.of(context).pop();
                 } catch (e) {
                   if (!context.mounted) return;
-                  context.showErrorSnack('Erreur: ${e.toString()}');
+                  context.showErrorSnack(userFacingErrorMessage(e));
                 }
               },
             ),
@@ -656,10 +589,7 @@ class _ReceiptButtonState extends ConsumerState<_ReceiptButton> {
       await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
     } catch (e) {
       if (mounted) {
-        context.showSnack(
-          e.toString().replaceFirst('Exception: ', ''),
-          type: SnackType.error,
-        );
+        context.showSnack(userFacingErrorMessage(e), type: SnackType.error);
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -1269,6 +1199,47 @@ const _reportableStatuses = {
   OrderStatus.echecLivraison,
 };
 
+/// « Besoin d'aide ? » : e-mail (objet = référence de la commande) ou appel.
+class OrderSupportLinks extends StatelessWidget {
+  const OrderSupportLinks({super.key, required this.orderId});
+
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final ref = refCommande(orderId);
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 4,
+      children: [
+        Text(
+          'Besoin d\'aide ?',
+          style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+        ),
+        TextButton.icon(
+          icon: const Icon(Icons.mail_outline, size: 18),
+          label: const Text('Écrire au support'),
+          onPressed: () => openSupportChannel(
+            context,
+            SupportContact.emailUri(orderReference: ref),
+            fallbackValue: SupportContact.email,
+          ),
+        ),
+        TextButton.icon(
+          icon: const Icon(Icons.call_outlined, size: 18),
+          label: const Text('Appeler'),
+          onPressed: () => openSupportChannel(
+            context,
+            SupportContact.phoneUri(),
+            fallbackValue: SupportContact.phoneDisplay,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ClaimButton extends StatelessWidget {
   const _ClaimButton({required this.orderId});
 
@@ -1310,7 +1281,7 @@ class _ReportIssueButton extends ConsumerWidget {
           );
         } catch (e) {
           if (!context.mounted) return;
-          context.showErrorSnack('$e');
+          context.showErrorSnack(userFacingErrorMessage(e));
         }
       },
     );

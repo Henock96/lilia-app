@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
+import 'package:lilia_app/features/commandes/presentation/reorder_action.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/commandes/presentation/order_progress_bar.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
@@ -193,7 +194,7 @@ class _OrderListView extends ConsumerWidget {
               'Vos commandes apparaîtront ici',
               style: TextStyle(
                 fontSize: 14,
-                color: Theme.of(context).colorScheme.outline,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -305,7 +306,7 @@ class _OrderListView extends ConsumerWidget {
                     return true;
                   } catch (e) {
                     if (!context.mounted) return false;
-                    context.showErrorSnack('Erreur: ${e.toString()}');
+                    context.showErrorSnack(userFacingErrorMessage(e));
                     return false;
                   }
                 },
@@ -478,7 +479,7 @@ class _OrderCard extends ConsumerWidget {
                                 Icon(
                                   Icons.access_time,
                                   size: 14,
-                                  color: theme.colorScheme.outline,
+                                  color: theme.colorScheme.onSurfaceVariant,
                                 ),
                                 const SizedBox(width: 4),
                                 Text(
@@ -510,7 +511,7 @@ class _OrderCard extends ConsumerWidget {
             // Barre de progression pour les commandes en cours
             if (order.status != OrderStatus.livrer &&
                 order.status != OrderStatus.annuler)
-              OrderProgressBar(status: order.status),
+              OrderProgressBar(order: order),
 
             // Bouton annuler pour les commandes en attente
             if (order.status == OrderStatus.enAttente)
@@ -556,6 +557,23 @@ class _OrderCard extends ConsumerWidget {
                       ),
                     ),
                   ],
+                ),
+              ),
+
+            // P3-22 — « Commander à nouveau » depuis la liste : il fallait
+            // ouvrir chaque commande pour le trouver. Mêmes statuts que le
+            // détail (livrée ou annulée), même geste (`reorderIntoCart`).
+            if (order.status == OrderStatus.livrer ||
+                order.status == OrderStatus.annuler)
+              Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
+                  child: TextButton.icon(
+                    onPressed: () => reorderIntoCart(context, ref, order.id),
+                    icon: const Icon(Icons.replay_rounded, size: 18),
+                    label: const Text('Commander à nouveau'),
+                  ),
                 ),
               ),
           ],
@@ -633,9 +651,10 @@ class _OrderCard extends ConsumerWidget {
               onPressed: () => Navigator.of(context).pop(),
             ),
             ElevatedButton(
+              // `error`/`onError` : `Colors.red` + blanc = 3,68:1.
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
+                backgroundColor: Theme.of(context).colorScheme.error,
+                foregroundColor: Theme.of(context).colorScheme.onError,
               ),
               child: const Text('Oui, annuler'),
               onPressed: () async {
@@ -649,7 +668,7 @@ class _OrderCard extends ConsumerWidget {
                   context.showSuccessSnack('Commande annulée avec succès');
                 } catch (e) {
                   if (!context.mounted) return;
-                  context.showErrorSnack('Erreur: ${e.toString()}');
+                  context.showErrorSnack(userFacingErrorMessage(e));
                 }
               },
             ),

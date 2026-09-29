@@ -18,7 +18,7 @@ basés sur `integration_test` + `flutter_driver`.
 flutter drive \
   --driver=test_driver/perf_driver.dart \
   --target=integration_test/perf_test.dart \
-  --profile \
+  --profile --no-dds \
   -d <device-id> \
   --dart-define=TEST_EMAIL=client@test.cg \
   --dart-define=TEST_PASSWORD='Passw0rd!'
@@ -30,6 +30,20 @@ flutter drive \
   uniquement le harness (sans chiffres représentatifs), retirer `--profile` et
   cibler un simulateur. Les vrais chiffres doivent venir d'un **device réel en
   profile**.
+
+## Pièges corrigés (Phase 3, 29/09/2026)
+
+- `--no-dds` est **obligatoire** : sans lui, `traceAction` échoue (Flutter 3.47).
+- L'application est démarrée **une seule fois** pour toute la suite ; chaque
+  test repart de l'onglet Accueil. Rappeler `app.main()` par test cassait les
+  tests 2 à 7.
+- L'onboarding est marqué vu avant le démarrage, et l'accueil est reconnu à sa
+  première `RestaurantCard` (et non à un `Scrollable`, que le `PageView` de
+  l'onboarding satisfaisait).
+- Aucun `pumpAndSettle` : le carrousel s'auto-défile, l'arbre n'est jamais
+  stable.
+- Build profile iOS : `ios/Flutter/MapsKeys.local.xcconfig` est requis, sinon
+  `fatalError` au lancement.
 
 ## Résultats
 

@@ -368,7 +368,7 @@ final class CartControllerProvider
   CartController create() => CartController();
 }
 
-String _$cartControllerHash() => r'a19ac8f90cce51224d3a11d9e919dda52abe0a86';
+String _$cartControllerHash() => r'173a166d127d565ec0069fdc48d5b2c67e14ea29';
 
 /// État du panier, mises à jour optimistes et réconciliation avec le serveur.
 ///

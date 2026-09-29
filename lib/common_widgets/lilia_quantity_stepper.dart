@@ -51,7 +51,8 @@ class LiliaQuantityStepper extends StatelessWidget {
           active: canIncrement,
           onTap: canIncrement ? () => onChanged(value + 1) : null,
           bg: canIncrement ? t.actionPrimary : t.bgMuted,
-          color: canIncrement ? Colors.white : t.textMuted,
+          // `textOnAction` : blanc sur l'orange clair du thème sombre = 2,84:1.
+          color: canIncrement ? t.textOnAction : t.textMuted,
         ),
       ],
     );

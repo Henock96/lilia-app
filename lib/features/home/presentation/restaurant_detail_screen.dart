@@ -1213,7 +1213,7 @@ class _OperatingHoursSectionState extends State<_OperatingHoursSection> {
                   ),
                   Icon(
                     _expanded ? Icons.expand_less : Icons.expand_more,
-                    color: scheme.outline,
+                    color: scheme.onSurfaceVariant,
                     size: 20,
                   ),
                 ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/resolution_par_identifiant.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -458,7 +459,7 @@ class _MenuDetailPageState extends ConsumerState<_MenuDetailView> {
       }
     } catch (e) {
       if (context.mounted) {
-        context.showErrorSnack(e.toString());
+        context.showErrorSnack(userFacingErrorMessage(e));
       }
     }
   }

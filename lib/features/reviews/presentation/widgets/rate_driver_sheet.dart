@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../theme/lilia_tokens.dart';
@@ -77,7 +78,7 @@ class _RateDriverSheetState extends ConsumerState<RateDriverSheet> {
       // message plutôt qu'une erreur générique.
       if (mounted) {
         setState(() {
-          _error = e.toString().replaceFirst('Exception: ', '');
+          _error = userFacingErrorMessage(e);
           _submitting = false;
         });
       }

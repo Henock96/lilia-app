@@ -248,7 +248,7 @@ class LiliaRadius {
 //
 // Aucun appelant au moment de la suppression — c'était un piège pour le
 // prochain qui l'aurait réutilisé de bonne foi. L'affichage de progression
-// vit dans `_OrderProgressStepper` (commande_detail_page.dart), qui travaille
+// vit dans `orderTimeline` (commandes/domain/order_timeline.dart), qui travaille
 // sur l'enum Dart `OrderStatus` et reste donc aligné par le compilateur.
 
 // ─── formatCurrency ───────────────────────────────────────────────────────────

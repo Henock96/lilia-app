@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -40,7 +41,7 @@ class _ClaimDetailPageState extends ConsumerState<ClaimDetailPage> {
       _message.clear();
       ref.invalidate(claimDetailProvider(widget.claimId));
     } catch (e) {
-      if (mounted) context.showErrorSnack('$e');
+      if (mounted) context.showErrorSnack(userFacingErrorMessage(e));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -52,9 +53,11 @@ class _ClaimDetailPageState extends ConsumerState<ClaimDetailPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Ma demande')),
       body: switch (state) {
-        AsyncValue(hasError: true, hasValue: false, :final error?) => Center(
-          child: Text('$error'),
-        ),
+        AsyncValue(hasError: true, hasValue: false, :final error?) =>
+          BuildErrorState(
+            error,
+            onRetry: () => ref.invalidate(claimDetailProvider(widget.claimId)),
+          ),
         AsyncValue(:final value?) => _body(value),
         _ => const Center(child: CircularProgressIndicator()),
       },

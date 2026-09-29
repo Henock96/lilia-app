@@ -20,10 +20,13 @@ extension SnackBarX on BuildContext {
     Duration duration = const Duration(seconds: 2),
     SnackBarAction? action,
   }) {
-    final (Color bg, IconData icon) = switch (type) {
-      SnackType.success => (LiliaColors.green500, Icons.check_circle_rounded),
-      SnackType.error => (LiliaColors.red400, Icons.error_rounded),
-      SnackType.info => (LiliaColors.charcoal700, Icons.info_rounded),
+    // Fonds ≥ 4,5:1 sous du texte blanc : `green500` (4,39:1) et `red400`
+    // passaient sous le seuil AA (P3-19). Voir `snackBarBackground`.
+    final bg = snackBarBackground(type);
+    final icon = switch (type) {
+      SnackType.success => Icons.check_circle_rounded,
+      SnackType.error => Icons.error_rounded,
+      SnackType.info => Icons.info_rounded,
     };
 
     final messenger = ScaffoldMessenger.of(this);
@@ -33,7 +36,9 @@ extension SnackBarX on BuildContext {
         SnackBar(
           behavior: SnackBarBehavior.floating,
           backgroundColor: bg,
-          duration: duration,
+          // Jamais moins que le temps de lecture du message (P3-19) : 2 s
+          // pour un message de trois lignes, c'était un message perdu.
+          duration: snackBarDuration(message, minimum: duration),
           elevation: 4,
           margin: const EdgeInsets.all(12),
           shape: RoundedRectangleBorder(
@@ -70,4 +75,20 @@ extension SnackBarX on BuildContext {
     type: SnackType.error,
     duration: duration ?? const Duration(seconds: 3),
   );
+}
+
+/// Fond d'un snackbar selon son type — exposé pour `contrast_test`.
+Color snackBarBackground(SnackType type) => switch (type) {
+  SnackType.success => LiliaColors.green700,
+  SnackType.error => LiliaColors.red500,
+  SnackType.info => LiliaColors.charcoal700,
+};
+
+/// Durée d'affichage : au moins [minimum], et assez pour lire [message]
+/// (~15 caractères par seconde, plus une seconde), plafonnée à 10 s.
+Duration snackBarDuration(String message, {required Duration minimum}) {
+  final lecture = Duration(milliseconds: 1000 + message.length * 66);
+  final d = lecture > minimum ? lecture : minimum;
+  const plafond = Duration(seconds: 10);
+  return d > plafond ? plafond : d;
 }

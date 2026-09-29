@@ -101,9 +101,9 @@ class UserPage extends ConsumerWidget {
                                         width: 3,
                                       ),
                                     ),
-                                    child: const Icon(
+                                    child: Icon(
                                       Iconsax.camera,
-                                      color: Colors.white,
+                                      color: theme.colorScheme.onPrimary,
                                       size: 18,
                                     ),
                                   ),
@@ -179,7 +179,7 @@ class UserPage extends ConsumerWidget {
                               icon: Iconsax.document_text,
                               iconColor: Colors.amber[700]!,
                               title: 'Commandes en attente',
-                              subtitle: 'Commandes enregistrees pour plus tard',
+                              subtitle: 'Commandes enregistrées pour plus tard',
                               onTap: () => context.goNamed(
                                 AppRoutes.draftOrders.routeName,
                               ),
@@ -356,7 +356,7 @@ class UserPage extends ConsumerWidget {
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Colors.white,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
               ),
               child: const Text('Déconnecter'),
               onPressed: () async {
@@ -539,7 +539,7 @@ class _ProfileMenuItem extends StatelessWidget {
             ),
             Icon(
               Iconsax.arrow_right_3,
-              color: Theme.of(context).colorScheme.outline,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               size: 20,
             ),
           ],
@@ -600,7 +600,7 @@ class _ReferralCard extends ConsumerWidget {
               GestureDetector(
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: stats.referralCode));
-                  context.showSuccessSnack('Code copie !');
+                  context.showSuccessSnack('Code copié !');
                 },
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -635,14 +635,14 @@ class _ReferralCard extends ConsumerWidget {
               Row(
                 children: [
                   _StatBadge(
-                    label: 'Parraines',
+                    label: 'Parrainés',
                     value: '${stats.totalReferrals}',
                     accentColor: purpleDisplay,
                     cs: cs,
                   ),
                   const SizedBox(width: 12),
                   _StatBadge(
-                    label: 'Recompenses',
+                    label: 'Récompenses',
                     value: '${stats.rewardedReferrals}',
                     accentColor: purpleDisplay,
                     cs: cs,
@@ -662,7 +662,7 @@ class _ReferralCard extends ConsumerWidget {
                     // recompense, et seulement quand la commande est LIVREE.
                     'Parrainez un ami : +${settings.referrerBonusPoints} pt '
                     '(${formatPrice(settings.pointsToXaf(settings.referrerBonusPoints).toDouble())}) '
-                    'des sa premiere commande livree',
+                    'dès sa première commande livrée',
                     style: TextStyle(fontSize: 11, color: purpleDisplay),
                   ),
                 ),

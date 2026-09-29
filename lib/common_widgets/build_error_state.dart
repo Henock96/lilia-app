@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/core/log.dart';
 import 'package:lilia_app/core/network/api_exception.dart';
+import 'package:lilia_app/features/auth/domain/auth_failure.dart';
+import 'package:lilia_app/features/cart/data/cart_repository.dart';
 
 class BuildErrorState extends ConsumerWidget {
   const BuildErrorState(this.error, {super.key, this.onRetry});
@@ -76,8 +78,26 @@ class BuildErrorState extends ConsumerWidget {
 /// détail de développeur : il part dans le journal de debug, et le client lit
 /// une phrase qu'il peut comprendre. Afficher `type 'Null' is not a subtype
 /// of type 'String'` n'aide personne, et expose la structure interne.
+///
+/// [CartException] et [AuthFailure] sont, comme [ApiException], rédigées pour
+/// l'écran : leur message passe tel quel. Tout appel `showErrorSnack` d'un
+/// `catch` doit passer par ici — jamais `e.toString()` ni `'Erreur: $e'`
+/// (P3-05, garde : `test/common_widgets/no_raw_error_display_test.dart`).
 String userFacingErrorMessage(Object error) {
-  if (error is ApiException) return error.message;
+  if (error is ApiException) {
+    // Un 500 porte le texte par défaut du framework (« Internal server
+    // error »), pas une phrase rédigée pour le client.
+    if (error.statusCode == 500) {
+      return 'Le service rencontre un problème. Réessayez dans un instant.';
+    }
+    return error.message;
+  }
+  if (error is CartException) return error.message;
+  if (error is AuthFailure) {
+    return error.message.isEmpty
+        ? 'Une erreur inattendue est survenue. Réessayez dans un instant.'
+        : error.message;
+  }
 
   logDebug('BuildErrorState — erreur non traduite : $error');
   final brut = error.toString();

@@ -138,7 +138,10 @@ void main() {
       // Le bouton invalidait `restaurantsListProvider`, que l'écran n'observe
       // pas : il ne relançait rien.
       expect(appels, greaterThan(avant));
-      expect(find.text('Aucun restaurant disponible'), findsOneWidget);
+      expect(
+        find.text('Aucune boutique disponible pour le moment'),
+        findsOneWidget,
+      );
       await tester.pumpWidget(const SizedBox());
     },
   );

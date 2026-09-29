@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:lilia_app/common_widgets/lilia_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -67,7 +68,9 @@ class _RecommendationCard extends ConsumerWidget {
       button: true,
       // L'indisponibilité n'était portée que par `Opacity(0.5)` et un badge
       // rouge : muette pour TalkBack / VoiceOver.
-      label: isAvailable ? product.name : '${product.name}, épuisé',
+      label: isAvailable
+          ? product.name
+          : '${product.name}, ${product.unavailability?.badge.toLowerCase() ?? 'indisponible'}',
       enabled: isAvailable,
       child: GestureDetector(
         // Aucun événement ici : ce geste **ouvre** la fiche produit, qui
@@ -147,23 +150,9 @@ class _RecommendationCard extends ConsumerWidget {
                       Positioned(
                         top: 6,
                         right: 6,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Text(
-                            'Epuise',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                        child: LiliaBadge(
+                          label: product.unavailability?.badge ?? 'Indisponible',
+                          variant: LiliaBadgeVariant.danger,
                         ),
                       ),
                   ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/features/reviews/data/review_controller.dart';
 import 'package:lilia_app/features/reviews/data/review_repository.dart';
@@ -202,7 +203,10 @@ class ReviewsScreen extends ConsumerWidget {
                         color: Colors.red,
                       ),
                       const SizedBox(height: 16),
-                      Text('Erreur: $error'),
+                      Text(
+                        userFacingErrorMessage(error),
+                        textAlign: TextAlign.center,
+                      ),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: () => ref.invalidate(
@@ -268,9 +272,7 @@ class ReviewsScreen extends ConsumerWidget {
                 }
               } catch (e) {
                 if (context.mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
+                  context.showErrorSnack(userFacingErrorMessage(e));
                 }
               }
             },

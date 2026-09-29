@@ -9,7 +9,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_app/features/commandes/presentation/widgets/checkout_order_summary.dart';
+import 'package:lilia_app/features/cart/presentation/cart_price_summary.dart';
+import 'package:lilia_app/features/commandes/presentation/widgets/order_timeline_view.dart';
 import 'package:lilia_app/features/home/data/remote/home_controller.dart';
+import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
+import 'package:lilia_app/features/home/presentation/widgets/vendor_type_filter_bar.dart';
+import 'package:lilia_app/models/order.dart';
+import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/features/home/presentation/widgets/popular_dishes_section.dart';
 import 'package:lilia_app/features/home/presentation/widgets/product_stock_widgets.dart';
 import 'package:lilia_app/features/home/presentation/widgets/vendor_product_card.dart';
@@ -96,7 +102,38 @@ Map<String, Widget Function()> _composants() => {
   ),
   'Carte fidélité': () =>
       const LoyaltyCardView(points: 1250, settings: _prod, history: SizedBox()),
+  'Filtre par type de vendeur': () => const VendorTypeFilterBar(),
+  'Pied de panier (prix)': () => CartPriceSummary(cart: _panier()),
+  'Timeline de commande': () => OrderTimelineView(order: _commande()),
 };
+
+Order _commande() => Order(
+  id: 'cmd',
+  restaurantId: 'r',
+  userId: 'u',
+  subTotal: 144000,
+  deliveryFee: 1500,
+  total: 167100,
+  paymentMethod: 'MTN_MOMO',
+  status: OrderStatus.pret,
+  createdAt: DateTime(2026, 9, 29),
+  updatedAt: DateTime(2026, 9, 29),
+  restaurant: OrderRestaurant(nom: 'Chez Awa'),
+  items: const [],
+);
+
+/// Pompe assez de **frames** pour que les entrées animées soient peintes.
+///
+/// ⚠️ Deux `pump` ne suffisent pas, et c'est ce qui rendait ce test aveugle :
+/// `flutter_animate` démarre `fadeIn` à opacité 0 ; un enfant à opacité 0
+/// n'est pas peint, et un `RenderFlex` ne signale son débordement **qu'au
+/// moment de la peinture**. Les cartes « Plats populaires » débordaient de
+/// 42 px à 2× sur l'appareil pendant que ce test restait vert (P3-02).
+Future<void> pumpUntilAnimationsPainted(WidgetTester tester) async {
+  for (var i = 0; i < 40; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
 
 void main() {
   setUpAll(chargerPolicesReelles);
@@ -113,6 +150,16 @@ void main() {
             overrides: [
               popularProductsProvider.overrideWith(
                 (ref) async => [_produit(), _produit(formats: 1)],
+              ),
+              platformSettingsProvider.overrideWith((ref) async => _prod),
+              restaurantControllerProvider('r').overrideWith(
+                (ref) async => Restaurant(
+                  id: 'r',
+                  name: 'Chez Awa',
+                  address: 'Brazzaville',
+                  products: const [],
+                  categoriesMap: const {},
+                ),
               ),
             ],
             child: MaterialApp(
@@ -132,8 +179,7 @@ void main() {
             ),
           ),
         );
-        await tester.pump(const Duration(milliseconds: 600));
-        await tester.pump(const Duration(seconds: 2)); // entrées décalées
+        await pumpUntilAnimationsPainted(tester);
         expect(tester.takeException(), isNull);
       });
     }
