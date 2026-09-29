@@ -9,15 +9,22 @@
 //  3. un échec de `/users/sync` à l'inscription est déposé dans un canal qui
 //     **survit au démontage** de l'écran d'inscription (B-02).
 
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:lilia_app/analytics/analytics_dedupe.dart';
+import 'package:lilia_app/analytics/analytics_events.dart';
+import 'package:lilia_app/analytics/analytics_sink.dart';
+import 'package:lilia_app/analytics/lilia_analytics.dart';
 import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/features/auth/application/auth_failure_announcer.dart';
 import 'package:lilia_app/features/auth/application/sign_in_controller.dart';
 import 'package:lilia_app/features/auth/domain/auth_failure.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
+import 'package:lilia_app/services/analytics_service.dart';
 
 import 'fake_auth_repository.dart';
 
@@ -252,6 +259,149 @@ void main() {
           .announce(kAuthCancelled);
 
       expect(container.read(authFailureAnnouncerProvider), isNull);
+    });
+  });
+
+  group('Sign in with Apple', () {
+    late RecordingAnalyticsSink sink;
+
+    setUp(() {
+      sink = RecordingAnalyticsSink();
+      AnalyticsService.setInstanceForTest(
+        LiliaAnalytics(sinks: [sink], store: InMemoryKeyStore()),
+      );
+    });
+
+    Future<AuthFailure?> apple({String? referralCode}) => container
+        .read(signInControllerProvider.notifier)
+        .signInWithApple(referralCode: referralCode);
+
+    test('succès : aucun échec, session ouverte, login « apple » mesuré',
+        () async {
+      final echec = await apple();
+
+      expect(echec, isNull);
+      expect(annonce(), isNull);
+      expect(repo.appelsApple, 1);
+      expect(repo.currentUser?.uid, 'uid-apple');
+      expect(sink.events.single.name, AnalyticsEvents.login);
+      expect(sink.events.single.params[AnalyticsParams.method], 'apple');
+    });
+
+    test('adresse relais privée conservée telle quelle', () async {
+      await apple();
+      expect(repo.currentUser?.email, endsWith('@privaterelay.appleid.com'));
+    });
+
+    test('feuille Apple fermée → rien d’annoncé, chargement terminé, '
+        'aucune mesure', () async {
+      repo.appleError = FirebaseAuthException(
+        code: 'canceled',
+        message: 'The user canceled the authorization attempt.',
+      );
+
+      final echec = await apple();
+
+      expect(echec?.isSilent, isTrue);
+      expect(annonce(), isNull, reason: 'une annulation n’est pas une erreur');
+      expect(container.read(signInControllerProvider).isLoading, isFalse);
+      expect(sink.events, isEmpty);
+    });
+
+    test('échec ASAuthorization → message Apple annoncé, sans texte de '
+        'plateforme', () async {
+      repo.appleError = FirebaseAuthException(
+        code: 'failed',
+        message: 'The authorization attempt failed.',
+      );
+
+      final echec = await apple();
+
+      expect(annonce(), isNotNull);
+      expect(annonce()!.message, contains('Apple'));
+      expect(annonce()!.message, isNot(contains('authorization')));
+      expect(echec, annonce());
+      expect(container.read(signInControllerProvider).isLoading, isFalse);
+    });
+
+    test('échec Firebase (credential refusé) → traduit, jamais brut', () async {
+      repo.appleError = FirebaseAuthException(
+        code: 'invalid-credential',
+        message: 'Invalid OAuth response from apple.com',
+      );
+
+      await apple();
+
+      expect(annonce(), isNotNull);
+      expect(annonce()!.message, isNot(contains('apple.com')));
+      expect(annonce()!.message, isNot(contains('OAuth')));
+    });
+
+    test('compte existant avec une autre méthode → conflit annoncé, aucune '
+        'session ouverte', () async {
+      repo.appleError = FirebaseAuthException(
+        code: 'account-exists-with-different-credential',
+      );
+
+      await apple();
+
+      expect(annonce()?.kind, AuthFailureKind.accountConflict);
+      expect(repo.currentUser, isNull,
+          reason: 'le conflit n’est pas contourné : pas de session, pas de '
+              'nouvel essai sous une autre forme');
+    });
+
+    test('panne backend pendant la synchronisation → message réseau',
+        () async {
+      repo.appleError = const ApiException(
+        'peu importe',
+        kind: ApiErrorKind.network,
+      );
+
+      await apple();
+
+      expect(annonce()?.kind, AuthFailureKind.network);
+    });
+
+    test('le code de parrainage suit jusqu’au dépôt', () async {
+      await apple(referralCode: 'PARRAIN8');
+      expect(repo.dernierReferralCode, 'PARRAIN8');
+    });
+
+    test('pendant l’opération : état « apple » en cours, puis repos',
+        () async {
+      repo.porte = Completer<void>();
+      final enCours = apple();
+
+      final etat = container.read(signInControllerProvider);
+      expect(etat.isLoading, isTrue);
+      expect(etat.isRunning(AuthOperation.apple), isTrue);
+      expect(etat.isRunning(AuthOperation.google), isFalse);
+
+      repo.porte!.complete();
+      await enCours;
+      expect(container.read(signInControllerProvider).isLoading, isFalse);
+    });
+
+    test('double tap : un seul flux Apple', () async {
+      final notifier = container.read(signInControllerProvider.notifier);
+      await Future.wait([
+        notifier.signInWithApple(),
+        notifier.signInWithApple(),
+      ]);
+      expect(repo.appelsApple, 1);
+    });
+
+    test('Apple pendant Google : ignoré (deux flux s’annuleraient)', () async {
+      repo.porte = Completer<void>();
+      final notifier = container.read(signInControllerProvider.notifier);
+      final google = notifier.signInWithGoogle();
+
+      await notifier.signInWithApple();
+      expect(repo.appelsApple, 0);
+
+      repo.porte!.complete();
+      await google;
     });
   });
 }

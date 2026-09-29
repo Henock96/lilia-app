@@ -157,7 +157,12 @@ class OrderController extends _$OrderController {
 
 ## Authentication
 
-1. Firebase Auth (email/password + Google Sign-In `^7.2.0`)
+1. Firebase Auth (email/password + Google Sign-In `^7.2.0` + **Sign in with
+   Apple**, iOS seulement, via `FirebaseAuth.signInWithProvider(AppleAuthProvider())`
+   — aucun package Apple, nonce géré par Firebase). Suppression d'un compte
+   Apple : ré-auth Apple + `revokeTokenWithAuthorizationCode` **avant**
+   `DELETE /users/me` (exige la clé `.p8` dans la console Firebase). Voir
+   `APPLE_AUTH_IMPLEMENTATION.md` à la racine de l'espace de travail.
 2. À la connexion → `POST /users/sync` (firebaseUid + email + telephone? + referralCode?)
 3. Toutes les requêtes API → header `Authorization: Bearer <firebase-id-token>`
 4. `authStateChangeProvider` watch Firebase → redirects auto

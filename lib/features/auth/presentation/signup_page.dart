@@ -9,7 +9,7 @@ import '../../../routing/app_route_enum.dart';
 import '../../../routing/auth_route_link.dart';
 import '../application/sign_in_controller.dart';
 import 'auth_screen_shell.dart';
-import 'signin_page.dart' show AuthButtonSpinner, GoogleSignInButton;
+import 'signin_page.dart' show AppleSignInButton, AuthButtonSpinner, GoogleSignInButton;
 
 /// Écran d'inscription.
 ///
@@ -40,8 +40,18 @@ class SignUpPage extends StatelessWidget {
           const _OrDivider(),
           gapH12,
           // Le code de parrainage saisi sur CET écran doit suivre si le
-          // client choisit finalement Google — sinon un filleul perdait son
-          // parrain en silence.
+          // client choisit finalement Google ou Apple — sinon un filleul
+          // perdait son parrain en silence.
+          if (AppleSignInButton.disponible) ...[
+            AppleSignInButton(
+              label: 'Continuer avec Apple',
+              referralCode: () => ProviderScope.containerOf(
+                context,
+                listen: false,
+              ).read(signupReferralCodeProvider),
+            ),
+            gapH12,
+          ],
           GoogleSignInButton(
             label: "S'inscrire avec Google",
             referralCode: () => ProviderScope.containerOf(

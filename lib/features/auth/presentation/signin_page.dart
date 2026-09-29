@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/constants/app_size.dart';
@@ -35,6 +36,10 @@ class SignInPage extends StatelessWidget {
           gapH24,
           const _OrDivider(),
           gapH24,
+          if (AppleSignInButton.disponible) ...[
+            const AppleSignInButton(label: 'Continuer avec Apple'),
+            gapH12,
+          ],
           const GoogleSignInButton(label: 'Se connecter avec Google'),
           gapH32,
           const _SignUpNavigation(),
@@ -335,6 +340,80 @@ class GoogleSignInButton extends ConsumerWidget {
 
     // Le jeton Google ne porte pas toujours de numéro : on le demande une fois,
     // et seulement s'il manque. Le bottom-sheet est passable.
+    await maybePromptPhoneNumber(context, ref);
+  }
+}
+
+/// Bouton « Continuer avec Apple », partagé par la connexion et l'inscription
+/// — pour les mêmes raisons que [GoogleSignInButton] : une seule copie, le même
+/// état, le même enchaînement vers la saisie du numéro.
+///
+/// **iOS uniquement.** Ailleurs, Apple exigerait un flux web (Services ID,
+/// URL de retour) que le projet n'a pas : le bouton ne s'affiche pas plutôt
+/// que d'échouer au toucher. Les écrans testent [disponible] pour ne pas
+/// laisser d'espacement orphelin.
+///
+/// Apparence conforme aux règles d'Apple : logo et libellé de même couleur,
+/// fond **noir en thème clair, blanc en thème sombre**, même taille que le
+/// bouton Google — Apple interdit qu'il soit moins visible que les autres
+/// fournisseurs.
+class AppleSignInButton extends ConsumerWidget {
+  const AppleSignInButton({super.key, required this.label, this.referralCode});
+
+  final String label;
+
+  /// Voir [GoogleSignInButton.referralCode].
+  final String? Function()? referralCode;
+
+  /// Sign in with Apple n'est proposé que sur iPhone.
+  static bool get disponible =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sombre = Theme.of(context).brightness == Brightness.dark;
+    final fond = sombre ? Colors.white : Colors.black;
+    final encre = sombre ? Colors.black : Colors.white;
+    final etat = ref.watch(signInControllerProvider);
+    final enCours = etat.isRunning(AuthOperation.apple);
+
+    return ElevatedButton.icon(
+      key: const Key('signin_apple'),
+      onPressed: etat.isLoading ? null : () => _connecter(context, ref),
+      icon: enCours
+          ? SizedBox(
+              height: 20,
+              width: 20,
+              child: CircularProgressIndicator(strokeWidth: 2, color: encre),
+            )
+          // Décoratif : le libellé dit déjà « Apple », un lecteur d'écran
+          // n'a pas à l'entendre deux fois.
+          : const ExcludeSemantics(child: Icon(Icons.apple, size: 24)),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        elevation: 0,
+        backgroundColor: fond,
+        foregroundColor: encre,
+        // Grisé mais reconnaissable pendant une autre opération : garder la
+        // couleur Apple atténuée plutôt que le gris Material.
+        disabledBackgroundColor: fond.withValues(alpha: 0.4),
+        disabledForegroundColor: encre.withValues(alpha: 0.7),
+        padding: const EdgeInsets.symmetric(vertical: 12.0),
+      ),
+    );
+  }
+
+  Future<void> _connecter(BuildContext context, WidgetRef ref) async {
+    final echec = await ref
+        .read(signInControllerProvider.notifier)
+        .signInWithApple(referralCode: referralCode?.call());
+
+    // `null` = succès ; l'échec est déjà annoncé (ou tu, s'il s'agit d'une
+    // annulation).
+    if (echec != null || !context.mounted) return;
+
+    // Apple ne fournit jamais de numéro de téléphone. Même proposition que
+    // pour Google : une fois, passable, jamais exigée.
     await maybePromptPhoneNumber(context, ref);
   }
 }

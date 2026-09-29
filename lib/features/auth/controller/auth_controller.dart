@@ -88,6 +88,23 @@ class AuthController extends _$AuthController {
   /// en erreur, donc `.value` à `null`, bien après la fin de l'opération.
   Future<AuthFailure?> deleteAccount() async {
     try {
+      // 0. Compte ouvert avec Apple : révoquer l'autorisation Apple.
+      //
+      // Exigence App Store (5.1.1(v)), et elle doit passer **avant** tout le
+      // reste : la révocation demande un jeton Firebase encore valide, donc un
+      // compte qui existe encore. Elle présente la feuille Apple au client —
+      // s'il l'annule ou qu'elle échoue, l'exception part dans le `catch`
+      // ci-dessous et **rien n'est supprimé**, pas même le jeton FCM.
+      //
+      // Sans effet pour un compte e-mail ou Google.
+      //
+      // ⚠️ Revers assumé : si le serveur refuse ensuite la suppression (409,
+      // commande en cours), l'autorisation Apple est déjà révoquée alors que
+      // le compte subsiste. Le client reste connecté ; à sa prochaine
+      // connexion Apple, la feuille lui redemandera son accord et le ramènera
+      // sur le **même** compte (Firebase le reconnaît à son identifiant Apple).
+      await ref.read(authRepositoryProvider).revokeAppleSignInIfLinked();
+
       // 1. Supprimer le token FCM sur le serveur
       try {
         final notificationService = ref.read(notificationServiceProvider);

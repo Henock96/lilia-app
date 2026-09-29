@@ -17,6 +17,10 @@ class FakeAuthRepository implements FirebaseAuthenticationRepository {
 
   /// Erreur à lever au prochain appel, par opération.
   Object? googleError;
+  Object? appleError;
+
+  /// Erreur de la ré-authentification Apple qui précède une suppression.
+  Object? revokeAppleError;
   Object? signInError;
   Object? signUpError;
   Object? passwordError;
@@ -30,6 +34,11 @@ class FakeAuthRepository implements FirebaseAuthenticationRepository {
   /// parrainage suit bien le chemin Google.
   String? dernierReferralCode;
   int appelsGoogle = 0;
+  int appelsApple = 0;
+
+  /// Journal ordonné des opérations qui comptent pour la suppression de
+  /// compte : on y vérifie que la révocation Apple précède tout effacement.
+  final journal = <String>[];
   int appelsSignUp = 0;
   int appelsSignOut = 0;
 
@@ -106,6 +115,33 @@ class FakeAuthRepository implements FirebaseAuthenticationRepository {
   }
 
   @override
+  Future<AppUser> signInWithApple({String? referralCode}) async {
+    appelsApple++;
+    dernierReferralCode = referralCode;
+    if (porte != null) await porte!.future;
+    if (appleError != null) throw appleError!;
+    const user = AppUser(
+      uid: 'uid-apple',
+      email: 'x7k2p9@privaterelay.appleid.com',
+    );
+    emitSession(user);
+    return user;
+  }
+
+  /// Comme le vrai dépôt, la décision « compte lié à Apple ou non » est prise
+  /// ici ; le contrôleur appelle toujours. `journal` n'enregistre la
+  /// révocation que lorsqu'elle a réellement lieu.
+  bool lieAApple = false;
+
+  @override
+  Future<void> revokeAppleSignInIfLinked() async {
+    if (!lieAApple) return;
+    journal.add('reauth-apple');
+    if (revokeAppleError != null) throw revokeAppleError!;
+    journal.add('revoke-apple');
+  }
+
+  @override
   Future<bool> signOut() async {
     appelsSignOut++;
     emitSession(null);
@@ -113,7 +149,10 @@ class FakeAuthRepository implements FirebaseAuthenticationRepository {
   }
 
   @override
-  Future<void> deleteFirebaseAccount() async => emitSession(null);
+  Future<void> deleteFirebaseAccount() async {
+    journal.add('delete-firebase');
+    emitSession(null);
+  }
 
   @override
   Future<void> updatePassword(String newPassword) async {

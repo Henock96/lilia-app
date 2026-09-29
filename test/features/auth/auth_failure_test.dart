@@ -139,6 +139,81 @@ void main() {
     });
   });
 
+  group('Sign in with Apple', () {
+    // Texte réellement produit par `firebase_auth` iOS quand l'utilisateur
+    // ferme la feuille Apple, ou quand ASAuthorization échoue.
+    test('feuille Apple fermée (canceled) → silencieuse, aucun message', () {
+      final failure = mapAuthError(
+        FirebaseAuthException(
+          code: 'canceled',
+          message: 'The user canceled the authorization attempt.',
+        ),
+      );
+
+      expect(failure.isSilent, isTrue);
+      expect(failure, kAuthCancelled);
+      _neJamaisMontrerDeTechnique(failure);
+    });
+
+    test('web-context-canceled → silencieuse elle aussi', () {
+      expect(
+        mapAuthError(FirebaseAuthException(code: 'web-context-canceled'))
+            .isSilent,
+        isTrue,
+      );
+    });
+
+    for (final code in ['failed', 'invalid-response', 'not-handled']) {
+      test('$code → message Apple générique, jamais le texte de plateforme',
+          () {
+        final failure = mapAuthError(
+          FirebaseAuthException(
+            code: code,
+            message: 'The authorization attempt failed. '
+                '(Domain=com.apple.AuthenticationServices.AuthorizationError '
+                'Code=1004)',
+          ),
+        );
+
+        expect(failure.isSilent, isFalse);
+        expect(failure.message, contains('Apple'));
+        expect(failure.message, isNot(contains('Domain=')));
+        expect(failure.message, isNot(contains('authorization')));
+        _neJamaisMontrerDeTechnique(failure);
+      });
+    }
+
+    test('account-exists-with-different-credential → conflit, aucun '
+        'compte créé, message qui oriente vers la méthode d’origine', () {
+      final failure = mapAuthError(
+        FirebaseAuthException(
+          code: 'account-exists-with-different-credential',
+          email: 'client@exemple.cg',
+        ),
+      );
+
+      expect(failure.kind, AuthFailureKind.accountConflict);
+      // L'adresse n'est pas répétée : la protection contre l'énumération est
+      // activée sur le projet, l'écran n'a pas à la contourner.
+      expect(failure.message, isNot(contains('client@exemple.cg')));
+      _neJamaisMontrerDeTechnique(failure);
+    });
+
+    test('user-mismatch (autre identifiant Apple) → message explicite', () {
+      final failure =
+          mapAuthError(FirebaseAuthException(code: 'user-mismatch'));
+
+      expect(failure.message, contains('Apple'));
+      _neJamaisMontrerDeTechnique(failure);
+    });
+
+    test('vérification avant suppression : le message dit que rien n’a été '
+        'supprimé', () {
+      expect(kAuthAppleVerificationFailed.message, contains('pas été supprimé'));
+      _neJamaisMontrerDeTechnique(kAuthAppleVerificationFailed);
+    });
+  });
+
   group('ApiException — la synchronisation backend', () {
     test('réseau → réseau', () {
       final failure = mapAuthError(
