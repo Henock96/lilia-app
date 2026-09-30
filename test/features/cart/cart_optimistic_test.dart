@@ -84,7 +84,12 @@ void main() {
     final cart = await monter(latenceMs: 400);
 
     final chrono = Stopwatch()..start();
-    await cart.addItem(variantId: 'var-1', preview: apercu());
+    final envoi = cart.addItem(variantId: 'var-1', preview: apercu());
+    // Relevé dans le MÊME tour synchrone que le tap : aucune frame ne peut
+    // être peinte entre les deux, et aucune réponse réseau ne peut arriver.
+    final quantiteImmediate = quantite('var-1');
+    final ligneImmediate = etat()?.items.firstOrNull?.id;
+    await envoi;
     final tapVersFeedback = chrono.elapsedMicroseconds / 1000;
     chrono.stop();
 
@@ -96,12 +101,22 @@ void main() {
 │ Requêtes émises à cet instant ${bench.nombreRequetes}
 └──────────────────────────────────────────────────────────────────────''');
 
-    expect(quantite('var-1'), 1, reason: 'Le panier est déjà à jour.');
+    // ⚠️ Plus de `lessThan(16)` sur le chronomètre (Phase 3.7).
+    //
+    // Il mesurait l'horloge murale de la machine, pas le comportement : sous
+    // une charge concurrente (suite complète + compilation Xcode) le même
+    // code passait de 3 ms à 22 ms, et le test échouait alors que le panier
+    // était bien à jour. Les deux assertions ci-dessous prouvent la même
+    // promesse sans dépendre de la charge — et plus fortement : l'état est à
+    // jour **avant tout `await`**, donc dans la frame du tap, et la ligne
+    // affichée est la ligne locale, pas celle du serveur.
+    expect(quantiteImmediate, 1, reason: 'Le panier est à jour dès le tap.');
     expect(
-      tapVersFeedback,
-      lessThan(16),
-      reason: 'Objectif : une frame. Le réseau continue derrière.',
+      ligneImmediate,
+      startsWith('optimistic-'),
+      reason: 'Ligne locale : le serveur n\'a pas encore répondu.',
     );
+    expect(quantite('var-1'), 1, reason: 'Le panier est déjà à jour.');
 
     await calme();
     expect(quantite('var-1'), 1);

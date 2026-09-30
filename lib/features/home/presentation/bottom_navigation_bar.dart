@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
+import 'package:lilia_app/features/auth/presentation/guest_tab_prompt.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
+import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/routing/app_router.dart';
-import 'package:lilia_app/routing/pending_destination.dart';
 import 'package:lilia_app/routing/protected_locations.dart';
 import 'package:lilia_app/routing/session_phase.dart';
 import 'package:lilia_app/utils/snackbar.dart';
@@ -19,6 +20,10 @@ class BottomNavigationPage extends ConsumerStatefulWidget {
 }
 
 class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
+  /// Onglet réservé tapé par un visiteur : la coque montre une invitation à
+  /// sa place (P3-18). `null` : l'onglet courant du routeur est affiché.
+  int? _invitation;
+
   /// Bascule d'onglet, **en repassant par le garde d'authentification**.
   ///
   /// `goBranch` change de pile sans déclencher `redirect` : c'était le seul
@@ -27,15 +32,23 @@ class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
   /// interroge des routes authentifiées, et n'y voyait qu'une erreur.
   ///
   /// La question posée est la **même** que celle du routeur —
-  /// `requiresAuthentication` — et la destination est mémorisée de la même
-  /// façon : après connexion, le client revient sur l'onglet qu'il voulait.
+  /// `requiresAuthentication`. Sans session, l'onglet n'est pas ouvert :
+  /// la coque affiche une invitation ([GuestTabPrompt]) **en gardant sa
+  /// barre**, avec l'accès au support et à « À propos ». Elle menait
+  /// auparavant à la connexion en plein écran, sans contexte ni issue
+  /// (P3-18). La connexion, depuis l'invitation, ramène sur l'onglet voulu.
   void _goBranch(int index) {
     final destination = kShellBranchLocations[index];
     if (requiresAuthentication(destination) &&
         ref.read(sessionPhaseProvider) != SessionPhase.authenticated) {
-      context.go(signInLocationFor(destination));
+      setState(() => _invitation = index);
       return;
     }
+
+    // Quitter l'invitation pour l'onglet déjà ouvert dessous le rend tel
+    // qu'il était : ce n'est pas un « retap » de l'onglet actif.
+    final quitteInvitation = _invitation != null;
+    if (quitteInvitation) setState(() => _invitation = null);
 
     widget.navigationShell.goBranch(
       index,
@@ -43,8 +56,19 @@ class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
       // navigating to the initial location when tapping the item that is
       // already active. This example demonstrates how to support this behavior,
       // using the initialLocation parameter of goBranch.
-      initialLocation: index == widget.navigationShell.currentIndex,
+      initialLocation:
+          !quitteInvitation && index == widget.navigationShell.currentIndex,
     );
+  }
+
+  @override
+  void didUpdateWidget(covariant BottomNavigationPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Toute navigation du routeur (lien, notification, connexion) l'emporte
+    // sur l'invitation : elle ne doit jamais masquer l'écran demandé.
+    if (!identical(oldWidget.navigationShell, widget.navigationShell)) {
+      _invitation = null;
+    }
   }
 
   @override
@@ -58,6 +82,11 @@ class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
       if (echec != null) context.showErrorSnack(echec.message);
     });
 
+    // Une session ouverte rend l'invitation caduque.
+    final authentifie =
+        ref.watch(sessionPhaseProvider) == SessionPhase.authenticated;
+    final invitation = authentifie ? null : _invitation;
+
     return PopScope(
       // Le retour système Android quittait l'application depuis n'importe quel
       // onglet : la racine d'une branche n'a rien à dépiler, et il n'y avait
@@ -67,17 +96,37 @@ class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
       // On n'intercepte que depuis un onglet secondaire : sur l'accueil, le
       // retour doit continuer de sortir de l'application, comme partout ailleurs
       // sur Android.
-      canPop: widget.navigationShell.currentIndex == 0,
+      //
+      // L'invitation se referme d'abord : elle recouvre un onglet, le retour
+      // y ramène.
+      canPop: widget.navigationShell.currentIndex == 0 && invitation == null,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
+        if (invitation != null) {
+          setState(() => _invitation = null);
+          return;
+        }
         widget.navigationShell.goBranch(0);
       },
       child: Scaffold(
-        body: SafeArea(child: widget.navigationShell),
+        body: SafeArea(
+          // `IndexedStack` et non un remplacement : les piles des onglets
+          // (défilement de l'accueil, fiche ouverte) survivent à l'invitation.
+          child: IndexedStack(
+            index: invitation == null ? 0 : 1,
+            children: [
+              widget.navigationShell,
+              if (invitation != null)
+                _invitationPour(invitation)
+              else
+                const SizedBox.shrink(),
+            ],
+          ),
+        ),
         bottomNavigationBar: NavigationBar(
           height: 65,
           elevation: 0,
-          selectedIndex: widget.navigationShell.currentIndex,
+          selectedIndex: invitation ?? widget.navigationShell.currentIndex,
           destinations: const [
             NavigationDestination(label: 'Accueil', icon: Icon(Iconsax.home)),
             NavigationDestination(label: 'Panier', icon: _CartIcon()),
@@ -89,6 +138,30 @@ class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
       ),
     );
   }
+}
+
+/// Invitation d'un onglet réservé, selon l'onglet tapé.
+GuestTabPrompt _invitationPour(int index) {
+  final location = kShellBranchLocations[index];
+  return location == AppRoutes.profile.path
+      ? GuestTabPrompt(
+          key: const ValueKey('guest_prompt_profile'),
+          location: location,
+          title: 'Mon profil',
+          message:
+              'Connectez-vous pour gérer vos adresses, vos favoris et vos '
+              'points de fidélité.',
+          icon: Iconsax.user,
+        )
+      : GuestTabPrompt(
+          key: const ValueKey('guest_prompt_orders'),
+          location: location,
+          title: 'Mes commandes',
+          message:
+              'Connectez-vous pour passer commande, suivre sa préparation et '
+              'sa livraison, et retrouver votre historique.',
+          icon: Iconsax.shop,
+        );
 }
 
 /// Icône « Panier » et son compteur.

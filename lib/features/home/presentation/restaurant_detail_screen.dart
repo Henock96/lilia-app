@@ -39,12 +39,16 @@ import 'package:lilia_app/utils/snackbar.dart';
 ///   8. Produits groupés par catégorie
 class RestaurantDetailScreen extends ConsumerStatefulWidget {
   final String restaurantId;
-  final String restaurantName;
+
+  /// Nom transmis par l'écran d'origine, affiché pendant le chargement.
+  /// `null` sur un lien profond : l'en-tête reste alors sans titre plutôt que
+  /// d'afficher un nom inventé.
+  final String? restaurantName;
 
   const RestaurantDetailScreen({
     super.key,
     required this.restaurantId,
-    required this.restaurantName,
+    this.restaurantName,
   });
 
   @override
@@ -67,7 +71,9 @@ class _RestaurantDetailScreenState
     // seconde consultation réelle, et doit compter.
     AnalyticsService.trackRestaurantView(
       restaurantId: widget.restaurantId,
-      restaurantName: widget.restaurantName,
+      // Valeur historique de l'événement sur un lien profond, conservée pour
+      // ne pas casser la série analytics ; elle n'est jamais affichée.
+      restaurantName: widget.restaurantName ?? 'Votre Restaurant',
     );
   }
 
@@ -84,6 +90,23 @@ class _RestaurantDetailScreenState
     );
 
     return Scaffold(
+      // Le contenu chargé porte son propre en-tête (image + retour) ; avant
+      // cela, sans barre, l'écran était anonyme et sans issue pendant le
+      // chargement ou après une erreur (P3-14).
+      // Même arbitrage que le `when` ci-dessous : une actualisation en échec
+      // affiche l'erreur même si une valeur précédente existe.
+      appBar:
+          restaurantAsyncValue.maybeWhen(data: (_) => true, orElse: () => false)
+          ? null
+          : AppBar(
+              title: widget.restaurantName == null
+                  ? null
+                  : Text(
+                      widget.restaurantName!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+            ),
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(restaurantControllerProvider(widget.restaurantId));
@@ -114,7 +137,7 @@ class _RestaurantDetailScreenState
           restaurant: restaurant,
           hasMenus: restaurant.menus.isNotEmpty,
           onMenus: () => _showMenusSheet(restaurant.menus),
-          onShare: _shareRestaurant,
+          onShare: () => _shareRestaurant(restaurant.name),
           // L'identifiant est dans le chemin ; le nom reste en `extra` pour
           // éviter un aller-retour, mais l'écran sait s'en passer.
           onReviews: () => context.pushNamed(
@@ -442,11 +465,11 @@ class _RestaurantDetailScreenState
     );
   }
 
-  void _shareRestaurant() {
+  void _shareRestaurant(String name) {
     SharePlus.instance.share(
       ShareParams(
         text: 'Découvrez nos menus sur Lilia Food ! Commandez maintenant.',
-        subject: 'Vendeur ${widget.restaurantName}',
+        subject: 'Vendeur $name',
       ),
     );
   }

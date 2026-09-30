@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
+import 'package:lilia_app/common_widgets/stale_data_banner.dart';
 
 import '../../../../models/produit.dart';
 import '../../../../routing/app_route_enum.dart';
@@ -32,12 +33,56 @@ double popularDishCardHeight(TextScaler scaler) {
   return h < 220 ? 220 : h;
 }
 
-class PopularDishesSection extends ConsumerWidget {
+class PopularDishesSection extends ConsumerStatefulWidget {
   const PopularDishesSection({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PopularDishesSection> createState() =>
+      _PopularDishesSectionState();
+}
+
+class _PopularDishesSectionState extends ConsumerState<PopularDishesSection> {
+  /// Heure du dernier chargement réussi, pour dater une liste conservée.
+  DateTime? _loadedAt;
+
+  @override
+  Widget build(BuildContext context) {
     final dishesAsync = ref.watch(popularProductsProvider);
+    ref.listen(popularProductsProvider, (_, next) {
+      if (next.hasValue && !next.hasError && !next.isLoading) {
+        _loadedAt = DateTime.now();
+      }
+    });
+    // Premier succès déjà là au montage (cache) : l'écouteur ne l'a pas vu.
+    if (_loadedAt == null &&
+        dishesAsync.hasValue &&
+        !dishesAsync.hasError &&
+        !dishesAsync.isLoading) {
+      _loadedAt = DateTime.now();
+    }
+
+    // Hors ligne, un rafraîchissement en échec garde la dernière liste :
+    // elle reste affichée, datée, comme la liste des vendeurs (P3-12). La
+    // section n'a pas de filtre — la liste conservée est donc toujours celle
+    // du même contexte. Sans liste antérieure, rien n'est inventé : la
+    // section disparaît comme avant.
+    final staleAt = _loadedAt;
+    if (dishesAsync.hasError &&
+        dishesAsync.hasValue &&
+        staleAt != null &&
+        dishesAsync.value!.isNotEmpty) {
+      return _withHeader(
+        Column(
+          children: [
+            StaleDataBanner(
+              loadedAt: staleAt,
+              onRetry: () => ref.invalidate(popularProductsProvider),
+            ),
+            _dishesList(context, dishesAsync.value!),
+          ],
+        ),
+      );
+    }
 
     // Section secondaire : vide ou en panne, elle disparaît **avec son titre**
     // — le titre vivait dans l'accueil et restait orphelin au-dessus d'un
@@ -45,26 +90,26 @@ class PopularDishesSection extends ConsumerWidget {
     return dishesAsync.whenUi(
       data: (dishes) {
         if (dishes.isEmpty) return const SizedBox.shrink();
-        return _withHeader(
-          SizedBox(
-            height: popularDishCardHeight(MediaQuery.textScalerOf(context)),
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              itemCount: dishes.length,
-              itemBuilder: (context, index) {
-                return _DishCard(
-                  product: dishes[index],
-                ).fadeScaleIn(delay: AppMotion.stagger * index.clamp(0, 5));
-              },
-            ),
-          ),
-        );
+        return _withHeader(_dishesList(context, dishes));
       },
       loading: () => _withHeader(_buildShimmer()),
       error: (_, _) => const SizedBox.shrink(),
     );
   }
+
+  Widget _dishesList(BuildContext context, List<Product> dishes) => SizedBox(
+    height: popularDishCardHeight(MediaQuery.textScalerOf(context)),
+    child: ListView.builder(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      itemCount: dishes.length,
+      itemBuilder: (context, index) {
+        return _DishCard(
+          product: dishes[index],
+        ).fadeScaleIn(delay: AppMotion.stagger * index.clamp(0, 5));
+      },
+    ),
+  );
 
   Widget _withHeader(Widget content) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,

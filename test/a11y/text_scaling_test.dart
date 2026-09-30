@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_app/features/commandes/presentation/widgets/checkout_order_summary.dart';
+import 'package:lilia_app/features/commandes/presentation/widgets/checkout_submit_bar.dart';
 import 'package:lilia_app/features/cart/presentation/cart_price_summary.dart';
 import 'package:lilia_app/features/commandes/presentation/widgets/order_timeline_view.dart';
 import 'package:lilia_app/features/home/data/remote/home_controller.dart';
@@ -105,6 +106,12 @@ Map<String, Widget Function()> _composants() => {
   'Filtre par type de vendeur': () => const VendorTypeFilterBar(),
   'Pied de panier (prix)': () => CartPriceSummary(cart: _panier()),
   'Timeline de commande': () => OrderTimelineView(order: _commande()),
+  'Barre de validation checkout': () => CheckoutSubmitBar(
+    total: 1531000,
+    isSending: false,
+    disabledReason: 'Choisissez un créneau pour continuer.',
+    onPressed: null,
+  ),
 };
 
 Order _commande() => Order(
