@@ -64,6 +64,13 @@ void main() {
   });
 
   testWidgets('contraste AA, clair et sombre', (tester) async {
+    // Téléphone haut (390 × 1000) : dans la surface par défaut (800 × 600),
+    // la dernière ligne de la modale défilante était coupée, et la règle de
+    // contraste échantillonnait alors le fond sous le texte (1.21:1 mesuré en
+    // CI, avec les polices embarquées). Ce n'est pas ce qu'on veut mesurer.
+    tester.view.physicalSize = const Size(390 * 3, 1000 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
     for (final theme in [AppTheme.light, AppTheme.dark]) {
       await monter(tester, theme: theme);
       await tester.pumpAndSettle();
