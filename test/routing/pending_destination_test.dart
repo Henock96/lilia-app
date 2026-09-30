@@ -16,10 +16,7 @@ void main() {
     });
 
     test('un chemin avec paramètres de chemin', () {
-      expect(
-        sanitizeDestination('/commandes/abc-123'),
-        '/commandes/abc-123',
-      );
+      expect(sanitizeDestination('/commandes/abc-123'), '/commandes/abc-123');
       expect(
         sanitizeDestination('/restaurant/123/product/456'),
         '/restaurant/123/product/456',
@@ -127,6 +124,13 @@ void main() {
       expect(signInLocationFor('https://exemple.com'), '/signin');
       expect(signInLocationFor('/signin'), '/signin');
       expect(splashLocationFor(null), '/splash');
+    });
+
+    test('signUpLocationFor : même règle que la connexion, vers /signup', () {
+      expect(signUpLocationFor('/commandes'), '/signup?from=%2Fcommandes');
+      expect(signUpLocationFor(null), '/signup');
+      expect(signUpLocationFor('//exemple.com'), '/signup');
+      expect(sanitizeDestination(signUpLocationFor('/profile')), isNull);
     });
 
     test('splashLocationFor porte la destination à travers le bootstrap', () {

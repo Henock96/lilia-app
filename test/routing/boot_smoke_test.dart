@@ -151,10 +151,9 @@ void main() {
   testWidgets('premier lancement → onboarding, pas connexion', (tester) async {
     await demarrer(tester, onboarding: _OnboardingAFaire.new);
 
-    // ⚠️ Pas de `pumpAndSettle` ici : `OnboardingScreen` fait tourner un
-    // `AnimationController` en `repeat(reverse: true)`, l'arbre ne se
-    // stabilise donc jamais et le test attendrait dix minutes avant d'échouer.
-    // Même piège que le carrousel de bannières de l'accueil.
+    // Budget de frames borné plutôt que `pumpAndSettle` : l'onboarding n'a
+    // plus d'animation en boucle (UI Refresh), mais une régression qui en
+    // réintroduirait une ne doit pas bloquer ce test dix minutes.
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 16));
     }

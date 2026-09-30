@@ -234,14 +234,19 @@ class _SearchRestaurantTile extends StatelessWidget {
                     shape: BoxShape.circle,
                     // Le libellé à côté porte l'information ; la pastille
                     // n'est qu'un rappel visuel.
-                    color: restaurant.isOpen
+                    color: restaurant.isOpen == true
                         ? cs.successText
                         : cs.error,
                   ),
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  openingLabel(restaurant.isOpen, restaurant.pausedUntil),
+                  openingLabel(
+                    restaurant.isOpen,
+                    restaurant.pausedUntil,
+                    nextOpeningAt: restaurant.nextOpeningAt,
+                    nextOpeningServed: restaurant.nextOpeningServed,
+                  ),
                   style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
                 ),
                 const SizedBox(width: 8),
@@ -350,5 +355,4 @@ class _SearchProductTile extends ConsumerWidget {
       child: Icon(Icons.fastfood, size: 24, color: cs.onSurfaceVariant),
     );
   }
-
 }

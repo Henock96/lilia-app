@@ -14,6 +14,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
+import 'package:lilia_app/features/home/data/remote/home_repo.dart';
 import 'package:lilia_app/core/update/app_update_model.dart';
 import 'package:lilia_app/core/update/app_update_service.dart';
 import 'package:lilia_app/features/favoris/application/restaurant_favorites_provider.dart';
@@ -45,7 +47,10 @@ void main() {
         overrides: [
           bannersListProvider.overrideWith((ref) async => []),
           vendorsListProvider.overrideWith((ref) async => vendeurs),
-          popularProductsProvider.overrideWith((ref) async => []),
+          availableNowProvider.overrideWith(
+            (ref) async => const AvailableNow(products: []),
+          ),
+          authStateChangeProvider.overrideWith((ref) => Stream.value(null)),
           recommendationsProvider.overrideWith((ref) async => []),
           notificationHistoryProvider.overrideWith(_AucuneNotification.new),
           isRestaurantFavoriteProvider.overrideWith((ref, id) => false),

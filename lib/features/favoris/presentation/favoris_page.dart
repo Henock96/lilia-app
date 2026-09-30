@@ -322,7 +322,7 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 2,
         child: Opacity(
-          opacity: restaurant.isOpen ? 1.0 : 0.6,
+          opacity: restaurant.isOpen == false ? 0.6 : 1.0,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -363,11 +363,18 @@ class _RestaurantFavoriteCard extends ConsumerWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: restaurant.isOpen ? Colors.green : Colors.red,
+                        color: restaurant.isOpen == true
+                            ? Colors.green
+                            : Colors.red,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        openingLabel(restaurant.isOpen, restaurant.pausedUntil),
+                        openingLabel(
+                          restaurant.isOpen,
+                          restaurant.pausedUntil,
+                          nextOpeningAt: restaurant.nextOpeningAt,
+                          nextOpeningServed: restaurant.nextOpeningServed,
+                        ),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 11,

@@ -8,6 +8,7 @@ import '../../../../core/network/api_exception.dart';
 import '../../../../models/produit.dart';
 import '../../../../models/restaurant.dart';
 import '../../../../models/search_result.dart';
+import '../../../../models/vendor_type.dart';
 import '../../../../utils/api_response.dart';
 import '../../../../utils/json_isolate.dart';
 import 'package:lilia_app/core/log.dart';
@@ -26,6 +27,38 @@ List<RestaurantSummary> _parsePopularRestaurants(String body) {
   return data
       .map((j) => RestaurantSummary.fromJson(j as Map<String, dynamic>))
       .toList();
+}
+
+/// Réponse de `GET /products/available-now` : les produits, et l'heure
+/// **serveur** à laquelle ils étaient commandables.
+class AvailableNow {
+  const AvailableNow({
+    required this.products,
+    this.generatedAt,
+    this.vendorType,
+  });
+
+  final List<Product> products;
+
+  /// Filtre pour lequel la liste a été chargée : une liste conservée hors
+  /// ligne n'est montrée que sous **son** filtre (règle P3-12).
+  final VendorType? vendorType;
+
+  /// `meta.generatedAt` : date une liste conservée hors ligne à l'heure du
+  /// serveur, pas à celle du téléphone.
+  final DateTime? generatedAt;
+}
+
+AvailableNow _parseAvailableNow(String body) {
+  final decoded = json.decode(body) as Map<String, dynamic>;
+  final data = decoded['data'] as List<dynamic>;
+  final meta = decoded['meta'] as Map<String, dynamic>?;
+  return AvailableNow(
+    products: data
+        .map((j) => Product.fromJson(j as Map<String, dynamic>))
+        .toList(),
+    generatedAt: DateTime.tryParse(meta?['generatedAt'] as String? ?? ''),
+  );
 }
 
 SearchResult _parseSearchResult(String body) =>
@@ -48,13 +81,26 @@ class HomeRepository {
     return Product.fromJson(ApiResponse.mapOf(res.data));
   }
 
-  /// GET /products/popular?limit=10
-  Future<List<Product>> getPopularProducts({int limit = 10}) async {
+  /// GET /products/available-now?vendorType=…&limit=… — produits
+  /// **commandables maintenant** (vendeur ouvert, au catalogue, en stock),
+  /// filtrés par le serveur avant d'être coupés. Le checkout reste l'autorité.
+  Future<AvailableNow> getAvailableNow({
+    VendorType? vendorType,
+    int limit = 10,
+  }) async {
     final body = await _api.getText(
-      '/products/popular',
-      query: {'limit': '$limit'},
+      '/products/available-now',
+      query: {
+        if (vendorType != null) 'vendorType': vendorType.name,
+        'limit': '$limit',
+      },
     );
-    return parseJson(body, _parseProducts);
+    final result = await parseJson(body, _parseAvailableNow);
+    return AvailableNow(
+      products: result.products,
+      generatedAt: result.generatedAt,
+      vendorType: vendorType,
+    );
   }
 
   /// GET /restaurants/popular?limit=6

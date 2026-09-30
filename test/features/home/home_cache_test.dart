@@ -23,7 +23,6 @@ import 'package:lilia_app/features/home/data/remote/home_repo.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_repo.dart';
 import 'package:lilia_app/models/banner.dart';
-import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/models/vendor_type.dart';
 
@@ -60,11 +59,20 @@ class _BannerRepoCompteur implements BannerRepository {
 class _HomeRepoCompteur implements HomeRepository {
   int appels = 0;
 
+  // Déclarée explicitement : un `noSuchMethod` qui rendrait une liste pour
+  // tout appel ferait passer n'importe quelle méthode pour celle-ci.
   @override
-  noSuchMethod(Invocation invocation) {
+  Future<AvailableNow> getAvailableNow({
+    VendorType? vendorType,
+    int limit = 10,
+  }) async {
     appels++;
-    return Future<List<Product>>.value(const <Product>[]);
+    return AvailableNow(products: const [], vendorType: vendorType);
   }
+
+  @override
+  noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError('${invocation.memberName}');
 }
 
 void main() {
@@ -119,10 +127,10 @@ void main() {
     expect(bannieres.appels, 1);
   });
 
-  test('les produits populaires survivent à un aller-retour', () async {
+  test('« Disponible maintenant » survit à un aller-retour (< 60 s)', () async {
     for (var i = 0; i < 2; i++) {
-      final abonnement = container.listen(popularProductsProvider, (_, _) {});
-      await container.read(popularProductsProvider.future);
+      final abonnement = container.listen(availableNowProvider, (_, _) {});
+      await container.read(availableNowProvider.future);
       abonnement.close();
       await Future<void>.delayed(Duration.zero);
     }

@@ -180,12 +180,25 @@ class RestaurantSummary {
   final double? averageRating;
   final int? totalReviews;
 
-  // Nouveaux champs
-  final bool isOpen;
+  /// État servi par le serveur (colonne `isOpen`, tenue par `decideOpening`).
+  ///
+  /// `null` = **inconnu**, jamais « ouvert » : `fromJson` lisait
+  /// `isOpen ?? true`, si bien qu'un champ absent affichait « Ouvert » (I5).
+  /// Toute présentation « ouvert » exige `isOpen == true`.
+  final bool? isOpen;
 
   /// F3-03 — pause datée : « rouvre à 14h30 ». `null` sans pause ou pour un
   /// serveur antérieur.
   final DateTime? pausedUntil;
+
+  /// Prochaine ouverture **calculée par le serveur** (`decideOpening` évalué
+  /// plus tard), pause et congés compris. `null` : ouvert, fermé à la main, ou
+  /// rien dans les 8 jours — jamais une heure devinée côté client.
+  final DateTime? nextOpeningAt;
+
+  /// Le serveur a-t-il servi `nextOpeningAt` (même `null`) ? Faux pour un
+  /// serveur antérieur : `openingLabel` retombe alors sur `pausedUntil`.
+  final bool nextOpeningServed;
   final List<Specialty> specialties;
   final int estimatedDeliveryTimeMin;
   final int estimatedDeliveryTimeMax;
@@ -212,6 +225,8 @@ class RestaurantSummary {
     this.totalReviews,
     this.isOpen = true,
     this.pausedUntil,
+    this.nextOpeningAt,
+    this.nextOpeningServed = false,
     this.specialties = const [],
     this.estimatedDeliveryTimeMin = 15,
     this.estimatedDeliveryTimeMax = 30,
@@ -259,8 +274,10 @@ class RestaurantSummary {
           ? (json['averageRating'] as num).toDouble()
           : null,
       totalReviews: json['totalReviews'] as int?,
-      isOpen: (json['isOpen'] as bool?) ?? true,
+      isOpen: json['isOpen'] as bool?,
       pausedUntil: DateTime.tryParse(json['pausedUntil'] as String? ?? ''),
+      nextOpeningAt: DateTime.tryParse(json['nextOpeningAt'] as String? ?? ''),
+      nextOpeningServed: json.containsKey('nextOpeningAt'),
       specialties: specialties,
       estimatedDeliveryTimeMin:
           (json['estimatedDeliveryTimeMin'] as int?) ?? 15,
@@ -300,12 +317,25 @@ class Restaurant {
   /// l'ancien comportement plutôt que d'afficher une carte sans sections.
   final List<Category> categories;
 
-  // Nouveaux champs
-  final bool isOpen;
+  /// État servi par le serveur (colonne `isOpen`, tenue par `decideOpening`).
+  ///
+  /// `null` = **inconnu**, jamais « ouvert » : `fromJson` lisait
+  /// `isOpen ?? true`, si bien qu'un champ absent affichait « Ouvert » (I5).
+  /// Toute présentation « ouvert » exige `isOpen == true`.
+  final bool? isOpen;
 
   /// F3-03 — pause datée : « rouvre à 14h30 ». `null` sans pause ou pour un
   /// serveur antérieur.
   final DateTime? pausedUntil;
+
+  /// Prochaine ouverture **calculée par le serveur** (`decideOpening` évalué
+  /// plus tard), pause et congés compris. `null` : ouvert, fermé à la main, ou
+  /// rien dans les 8 jours — jamais une heure devinée côté client.
+  final DateTime? nextOpeningAt;
+
+  /// Le serveur a-t-il servi `nextOpeningAt` (même `null`) ? Faux pour un
+  /// serveur antérieur : `openingLabel` retombe alors sur `pausedUntil`.
+  final bool nextOpeningServed;
   final List<Specialty> specialties;
   final List<OperatingHours> operatingHours;
   final int estimatedDeliveryTimeMin;
@@ -340,6 +370,8 @@ class Restaurant {
     this.categories = const [],
     this.isOpen = true,
     this.pausedUntil,
+    this.nextOpeningAt,
+    this.nextOpeningServed = false,
     this.specialties = const [],
     this.operatingHours = const [],
     this.estimatedDeliveryTimeMin = 15,
@@ -389,6 +421,8 @@ class Restaurant {
       // Perdu jusqu'ici : un vendeur en pause redevenait « ouvert » dès que
       // la carte se complétait page à page.
       pausedUntil: pausedUntil,
+      nextOpeningAt: nextOpeningAt,
+      nextOpeningServed: nextOpeningServed,
       specialties: specialties,
       operatingHours: operatingHours,
       estimatedDeliveryTimeMin: estimatedDeliveryTimeMin,
@@ -434,7 +468,8 @@ class Restaurant {
     }
 
     // Sections déclarées par le vendeur (ordre serveur préservé).
-    final declaredCategories = (json['categories'] as List?)
+    final declaredCategories =
+        (json['categories'] as List?)
             ?.map((c) => Category.fromJson(c as Map<String, dynamic>))
             .toList() ??
         const <Category>[];
@@ -473,8 +508,10 @@ class Restaurant {
       products: products,
       categoriesMap: categoriesMap,
       categories: declaredCategories,
-      isOpen: (json['isOpen'] as bool?) ?? true,
+      isOpen: json['isOpen'] as bool?,
       pausedUntil: DateTime.tryParse(json['pausedUntil'] as String? ?? ''),
+      nextOpeningAt: DateTime.tryParse(json['nextOpeningAt'] as String? ?? ''),
+      nextOpeningServed: json.containsKey('nextOpeningAt'),
       specialties: specialties,
       operatingHours: operatingHours,
       estimatedDeliveryTimeMin:

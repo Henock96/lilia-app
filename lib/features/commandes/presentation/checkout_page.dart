@@ -38,6 +38,7 @@ import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 import 'package:lilia_app/features/commandes/presentation/widgets/checkout_order_summary.dart';
 import 'package:lilia_app/features/commandes/presentation/widgets/payment_instructions_dialog.dart';
+import 'package:lilia_app/features/commandes/presentation/widgets/checkout_submit_bar.dart';
 
 class CheckoutPage extends ConsumerStatefulWidget {
   final DeliveryOptions? deliveryOptions;
@@ -260,221 +261,212 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           );
           final restaurant = restaurantAsync.value;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Bandeau vendor (non-RESTAURANT uniquement)
-                  if (restaurant != null &&
-                      restaurant.vendorType != VendorType.RESTAURANT) ...[
-                    _CheckoutVendorBanner(restaurant: restaurant),
-                    const SizedBox(height: 16),
-                  ],
-                  // === RÉCAPITULATIF MODE DE LIVRAISON ===
-                  _buildDeliveryRecap(options),
-                  const SizedBox(height: 24),
+          final bool sending = _envoiEnCours || checkoutState.isLoading;
+          final bool slotMissing = cart.isPreorderCart && _scheduledFor == null;
 
-                  // === SECTION TÉLÉPHONE ===
-                  _buildSectionTitle('Numéro de téléphone'),
-                  const SizedBox(height: 8),
-                  userProfileAsync.when(
-                    data: (user) => _buildPhoneSection(user.phone),
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (err, stack) => _buildPhoneSection(null),
-                  ),
-                  const SizedBox(height: 24),
+          // P3-15 : le défilement porte le formulaire, la barre du bas porte
+          // l'action et le total — toujours visibles, au-dessus du clavier
+          // (`resizeToAvoidBottomInset`) et de la zone de geste (`SafeArea`).
+          return Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Bandeau vendor (non-RESTAURANT uniquement)
+                        if (restaurant != null &&
+                            restaurant.vendorType != VendorType.RESTAURANT) ...[
+                          _CheckoutVendorBanner(restaurant: restaurant),
+                          const SizedBox(height: 16),
+                        ],
+                        // === RÉCAPITULATIF MODE DE LIVRAISON ===
+                        _buildDeliveryRecap(options),
+                        const SizedBox(height: 24),
 
-                  // === SECTION INSTRUCTIONS ===
-                  _buildSectionTitle('Instructions (Facultatif)'),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _noteController,
-                    maxLines: 3,
-                    maxLength: 200,
-                    decoration: InputDecoration(
-                      hintText: 'Ex: Sonnez a la porte, appelez-moi...',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      contentPadding: const EdgeInsets.all(12),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // === SECTION CODE PROMO ===
-                  _buildSectionTitle('Code promo'),
-                  const SizedBox(height: 8),
-                  _buildPromoSection(
-                    restaurantId: restaurantId,
-                    subTotal: subTotal,
-                    originalDeliveryFee: options.deliveryFee,
-                  ),
-                  const SizedBox(height: 24),
-
-                  // === SECTION POINTS DE FIDELITE ===
-                  if (userPoints >= settings.loyaltyMinRedemption) ...[
-                    _buildSectionTitle('Points de fidélité'),
-                    const SizedBox(height: 8),
-                    // Surface du thème et non `Colors.amber[50]` : en sombre,
-                    // le titre clair sur ce fond pâle devenait illisible.
-                    Material(
-                      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                      clipBehavior: Clip.antiAlias,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: LiliaRadius.mdAll,
-                        side: BorderSide(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.warningText.withValues(alpha: 0.4),
+                        // === SECTION TÉLÉPHONE ===
+                        _buildSectionTitle('Numéro de téléphone'),
+                        const SizedBox(height: 8),
+                        userProfileAsync.when(
+                          data: (user) => _buildPhoneSection(user.phone),
+                          loading: () =>
+                              const Center(child: CircularProgressIndicator()),
+                          error: (err, stack) => _buildPhoneSection(null),
                         ),
-                      ),
-                      child: SwitchListTile(
-                        value: _useLoyaltyPoints,
-                        onChanged: (v) => setState(() => _useLoyaltyPoints = v),
-                        title: const Text(
-                          'Utiliser mes points',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        subtitle: Text(
-                          'Réduction de ${formatPrice(potentialLoyaltyDiscount)}',
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.warningText,
+                        const SizedBox(height: 24),
+
+                        // === SECTION INSTRUCTIONS ===
+                        _buildSectionTitle('Instructions (Facultatif)'),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _noteController,
+                          maxLines: 3,
+                          maxLength: 200,
+                          decoration: InputDecoration(
+                            hintText: 'Ex: Sonnez a la porte, appelez-moi...',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            contentPadding: const EdgeInsets.all(12),
                           ),
                         ),
-                        secondary: Icon(
-                          Icons.stars,
-                          color: Theme.of(context).colorScheme.warningText,
+                        const SizedBox(height: 24),
+
+                        // === SECTION CODE PROMO ===
+                        _buildSectionTitle('Code promo'),
+                        const SizedBox(height: 8),
+                        _buildPromoSection(
+                          restaurantId: restaurantId,
+                          subTotal: subTotal,
+                          originalDeliveryFee: options.deliveryFee,
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                  ],
+                        const SizedBox(height: 24),
 
-                  // === SECTION PREORDER (LIL-122) ===
-                  // Visible uniquement si le panier contient des produits
-                  // madeToOrder=true. Force le client à choisir un slot.
-                  if (cart.isPreorderCart) ...[
-                    _buildSectionTitle('Quand voulez-vous récupérer ?'),
-                    const SizedBox(height: 8),
-                    _buildPreorderSlotPicker(),
-                    const SizedBox(height: 24),
-                  ],
-
-                  // === SECTION RÉSUMÉ ===
-                  _buildSectionTitle('Résumé de la commande'),
-                  const SizedBox(height: 12),
-                  CheckoutOrderSummary(
-                    cart: cart,
-                    isDelivery: options.isDelivery,
-                    subTotal: subTotal,
-                    deliveryFee: deliveryFee,
-                    originalDeliveryFee: options.deliveryFee,
-                    deliverySubsidy:
-                        widget.deliveryOptions?.deliverySubsidy ?? 0,
-                    serviceFee: serviceFee,
-                    promo: _promoResult,
-                    loyaltyDiscount: _useLoyaltyPoints ? loyaltyDiscount : 0,
-                    total: total,
-                    vendorOffer: quote?.vendorOffer,
-                  ).fadeSlideIn(),
-                  const SizedBox(height: 24),
-
-                  // === SECTION PAIEMENT ===
-                  _buildSectionTitle('Mode de paiement'),
-                  const SizedBox(height: 8),
-                  _buildPaymentSection(),
-                  const SizedBox(height: 16),
-
-                  // === DISCLAIMER PREORDER (LIL-122 décision 4b) ===
-                  // Avertit le client que le paiement upfront engage mais que
-                  // le vendeur peut annuler tard et que le remboursement met
-                  // jusqu'à 48h. Pas de blocage, juste de la transparence.
-                  if (cart.isPreorderCart) ...[
-                    _buildPreorderDisclaimer(),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // === BOUTON DE VALIDATION ===
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      // Clé stable : pendant l'envoi, ce bouton n'affiche plus
-                      // son libellé mais un indicateur. Un test qui le
-                      // chercherait par son texte ne le retrouverait pas au
-                      // second tap — et conclurait à tort que tout va bien.
-                      key: const Key('checkout_submit'),
-                      onPressed:
-                          _envoiEnCours ||
-                              checkoutState.isLoading ||
-                              (cart.isPreorderCart && _scheduledFor == null)
-                          ? null
-                          : () => _startPaymentFlow(
-                              context,
-                              options,
-                              restaurantId,
-                            ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      // L'indicateur suit la garde, et non le seul
-                      // `CheckoutController` : sinon il s'éteignait pendant la
-                      // création de l'adresse et pendant l'ouverture du
-                      // paiement, laissant croire que rien ne se passait.
-                      // `onPrimary` et non blanc : en sombre l'action est un
-                      // orange clair, le blanc y tombait à 2,84:1 (P3-03).
-                      child: _envoiEnCours || checkoutState.isLoading
-                          ? CircularProgressIndicator(
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            )
-                          : Text(
-                              'Valider et payer',
-                              style: TextStyle(
-                                color: Theme.of(context).colorScheme.onPrimary,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                        // === SECTION POINTS DE FIDELITE ===
+                        if (userPoints >= settings.loyaltyMinRedemption) ...[
+                          _buildSectionTitle('Points de fidélité'),
+                          const SizedBox(height: 8),
+                          // Surface du thème et non `Colors.amber[50]` : en sombre,
+                          // le titre clair sur ce fond pâle devenait illisible.
+                          Material(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
+                            clipBehavior: Clip.antiAlias,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: LiliaRadius.mdAll,
+                              side: BorderSide(
+                                color: Theme.of(context).colorScheme.warningText
+                                    .withValues(alpha: 0.4),
                               ),
                             ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+                            child: SwitchListTile(
+                              value: _useLoyaltyPoints,
+                              onChanged: (v) =>
+                                  setState(() => _useLoyaltyPoints = v),
+                              title: const Text(
+                                'Utiliser mes points',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                              subtitle: Text(
+                                'Réduction de ${formatPrice(potentialLoyaltyDiscount)}',
+                                style: TextStyle(
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .warningText,
+                                ),
+                              ),
+                              secondary: Icon(
+                                Icons.stars,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .warningText,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                        ],
 
-                  // === BOUTON ENREGISTRER POUR PLUS TARD ===
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: OutlinedButton.icon(
-                      onPressed: _envoiEnCours || checkoutState.isLoading
-                          ? null
-                          : () => _saveDraft(cart, restaurantId),
-                      icon: const Icon(Icons.bookmark_border_rounded, size: 20),
-                      label: const Text(
-                        'Enregistrer pour plus tard',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
+                        // === SECTION PREORDER (LIL-122) ===
+                        // Visible uniquement si le panier contient des produits
+                        // madeToOrder=true. Force le client à choisir un slot.
+                        if (cart.isPreorderCart) ...[
+                          _buildSectionTitle('Quand voulez-vous récupérer ?'),
+                          const SizedBox(height: 8),
+                          _buildPreorderSlotPicker(),
+                          const SizedBox(height: 24),
+                        ],
+
+                        // === SECTION RÉSUMÉ ===
+                        _buildSectionTitle('Résumé de la commande'),
+                        const SizedBox(height: 12),
+                        CheckoutOrderSummary(
+                          cart: cart,
+                          isDelivery: options.isDelivery,
+                          subTotal: subTotal,
+                          deliveryFee: deliveryFee,
+                          originalDeliveryFee: options.deliveryFee,
+                          deliverySubsidy:
+                              widget.deliveryOptions?.deliverySubsidy ?? 0,
+                          serviceFee: serviceFee,
+                          promo: _promoResult,
+                          loyaltyDiscount: _useLoyaltyPoints
+                              ? loyaltyDiscount
+                              : 0,
+                          total: total,
+                          vendorOffer: quote?.vendorOffer,
+                        ).fadeSlideIn(),
+                        const SizedBox(height: 24),
+
+                        // === SECTION PAIEMENT ===
+                        _buildSectionTitle('Mode de paiement'),
+                        const SizedBox(height: 8),
+                        _buildPaymentSection(),
+                        const SizedBox(height: 16),
+
+                        // === DISCLAIMER PREORDER (LIL-122 décision 4b) ===
+                        // Avertit le client que le paiement upfront engage mais que
+                        // le vendeur peut annuler tard et que le remboursement met
+                        // jusqu'à 48h. Pas de blocage, juste de la transparence.
+                        if (cart.isPreorderCart) ...[
+                          _buildPreorderDisclaimer(),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // === BOUTON ENREGISTRER POUR PLUS TARD ===
+                        SizedBox(
+                          width: double.infinity,
+                          height: 48,
+                          child: OutlinedButton.icon(
+                            onPressed: _envoiEnCours || checkoutState.isLoading
+                                ? null
+                                : () => _saveDraft(cart, restaurantId),
+                            icon: const Icon(
+                              Icons.bookmark_border_rounded,
+                              size: 20,
+                            ),
+                            label: const Text(
+                              'Enregistrer pour plus tard',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              side: BorderSide(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        side: BorderSide(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
+              CheckoutSubmitBar(
+                total: total,
+                // L'indicateur suit la garde, et non le seul
+                // `CheckoutController` : sinon il s'éteignait pendant la
+                // création de l'adresse et pendant l'ouverture du paiement,
+                // laissant croire que rien ne se passait.
+                isSending: sending,
+                disabledReason: slotMissing
+                    ? 'Choisissez un créneau pour continuer.'
+                    : null,
+                onPressed: sending || slotMissing
+                    ? null
+                    : () => _startPaymentFlow(context, options, restaurantId),
+              ),
+            ],
           );
         },
         loading: () => const BuildLoadingState(),

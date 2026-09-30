@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_app/features/commandes/presentation/widgets/checkout_order_summary.dart';
+import 'package:lilia_app/features/commandes/presentation/widgets/checkout_submit_bar.dart';
 import 'package:lilia_app/features/cart/presentation/cart_price_summary.dart';
 import 'package:lilia_app/features/commandes/presentation/widgets/order_timeline_view.dart';
 import 'package:lilia_app/features/home/data/remote/home_controller.dart';
@@ -16,7 +17,10 @@ import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:lilia_app/features/home/presentation/widgets/vendor_type_filter_bar.dart';
 import 'package:lilia_app/models/order.dart';
 import 'package:lilia_app/models/restaurant.dart';
-import 'package:lilia_app/features/home/presentation/widgets/popular_dishes_section.dart';
+import 'package:lilia_app/models/vendor_type.dart';
+import 'package:lilia_app/features/home/data/remote/home_repo.dart';
+import 'package:lilia_app/features/home/presentation/widgets/available_now_section.dart';
+import 'package:lilia_app/features/home/presentation/widgets/open_now_rail.dart';
 import 'package:lilia_app/features/home/presentation/widgets/product_stock_widgets.dart';
 import 'package:lilia_app/features/home/presentation/widgets/vendor_product_card.dart';
 import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
@@ -81,7 +85,10 @@ const _prod = PlatformSettings(
 );
 
 Map<String, Widget Function()> _composants() => {
-  'Plats populaires': () => const PopularDishesSection(),
+  'Disponible maintenant': () => const AvailableNowSection(),
+  'Repli « rouvrent bientôt »': () =>
+      ReopeningSoon(now: DateTime.utc(2026, 9, 28, 22)),
+  'Ouvert maintenant': () => const OpenNowRail(),
   'Carte produit vendeur': () => VendorProductCard(product: _produit()),
   'Sélecteur de formats': () => VariantSelector(
     variants: _produit().variants,
@@ -105,6 +112,12 @@ Map<String, Widget Function()> _composants() => {
   'Filtre par type de vendeur': () => const VendorTypeFilterBar(),
   'Pied de panier (prix)': () => CartPriceSummary(cart: _panier()),
   'Timeline de commande': () => OrderTimelineView(order: _commande()),
+  'Barre de validation checkout': () => CheckoutSubmitBar(
+    total: 1531000,
+    isSending: false,
+    disabledReason: 'Choisissez un créneau pour continuer.',
+    onPressed: null,
+  ),
 };
 
 Order _commande() => Order(
@@ -148,8 +161,28 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: [
-              popularProductsProvider.overrideWith(
-                (ref) async => [_produit(), _produit(formats: 1)],
+              availableNowProvider.overrideWith(
+                (ref) async => AvailableNow(
+                  products: [_produit(), _produit(formats: 1)],
+                ),
+              ),
+              vendorsListProvider.overrideWith(
+                (ref) async => [
+                  RestaurantSummary(
+                    id: 'o',
+                    name: 'Chez Awa — Poto-Poto, cuisine du marché',
+                    address: 'Brazzaville',
+                    vendorType: VendorType.HOME_COOK,
+                  ),
+                  RestaurantSummary(
+                    id: 'f',
+                    name: 'Pâtisserie du Plateau des 15 ans',
+                    address: 'Brazzaville',
+                    isOpen: false,
+                    nextOpeningAt: DateTime.utc(2026, 10, 2, 9),
+                    nextOpeningServed: true,
+                  ),
+                ],
               ),
               platformSettingsProvider.overrideWith((ref) async => _prod),
               restaurantControllerProvider('r').overrideWith(

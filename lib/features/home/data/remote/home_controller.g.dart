@@ -8,49 +8,61 @@ part of 'home_controller.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Provider pour les plats populaires
+/// « Disponible maintenant » pour le filtre courant (`marketplaceFilter`).
+///
+/// Changer de puce refait l'appel ; la section rafraîchit en plus au retour
+/// au premier plan et chaque minute tant qu'elle est affichée
+/// (`AvailableNowSection`).
 
-@ProviderFor(popularProducts)
-final popularProductsProvider = PopularProductsProvider._();
+@ProviderFor(availableNow)
+final availableNowProvider = AvailableNowProvider._();
 
-/// Provider pour les plats populaires
+/// « Disponible maintenant » pour le filtre courant (`marketplaceFilter`).
+///
+/// Changer de puce refait l'appel ; la section rafraîchit en plus au retour
+/// au premier plan et chaque minute tant qu'elle est affichée
+/// (`AvailableNowSection`).
 
-final class PopularProductsProvider
+final class AvailableNowProvider
     extends
         $FunctionalProvider<
-          AsyncValue<List<Product>>,
-          List<Product>,
-          FutureOr<List<Product>>
+          AsyncValue<AvailableNow>,
+          AvailableNow,
+          FutureOr<AvailableNow>
         >
-    with $FutureModifier<List<Product>>, $FutureProvider<List<Product>> {
-  /// Provider pour les plats populaires
-  PopularProductsProvider._()
+    with $FutureModifier<AvailableNow>, $FutureProvider<AvailableNow> {
+  /// « Disponible maintenant » pour le filtre courant (`marketplaceFilter`).
+  ///
+  /// Changer de puce refait l'appel ; la section rafraîchit en plus au retour
+  /// au premier plan et chaque minute tant qu'elle est affichée
+  /// (`AvailableNowSection`).
+  AvailableNowProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'popularProductsProvider',
+        name: r'availableNowProvider',
         isAutoDispose: true,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$popularProductsHash();
+  String debugGetCreateSourceHash() => _$availableNowHash();
 
   @$internal
   @override
-  $FutureProviderElement<List<Product>> $createElement(
+  $FutureProviderElement<AvailableNow> $createElement(
     $ProviderPointer pointer,
   ) => $FutureProviderElement(pointer);
 
   @override
-  FutureOr<List<Product>> create(Ref ref) {
-    return popularProducts(ref);
+  FutureOr<AvailableNow> create(Ref ref) {
+    return availableNow(ref);
   }
 }
 
-String _$popularProductsHash() => r'80528c80bd838d7eab7ad9c40ca8731e447c1d41';
+String _$availableNowHash() => r'2f061869d6c323aa54817f970077b2dff4d7356a';
 
 /// Provider pour les restaurants populaires
 

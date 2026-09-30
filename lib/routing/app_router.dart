@@ -367,9 +367,9 @@ final List<RouteBase> _routes = [
                   return MaterialPage(
                     child: RestaurantDetailScreen(
                       restaurantId: restaurantId,
-                      restaurantName:
-                          extra["restaurantName"] as String? ??
-                          'Votre Restaurant',
+                      // Nom connu de l'écran d'origine (carte, recherche,
+                      // favoris) ; absent sur un lien profond — jamais inventé.
+                      restaurantName: extra["restaurantName"] as String?,
                     ),
                   );
                 },

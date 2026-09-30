@@ -64,7 +64,7 @@ dev_dependencies:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/images/logo1.jpg"
+  image_path: "assets/branding/source/logo1.jpg"
   min_sdk_android: 21
   adaptive_icon_background: "#FFF8F6"
 # The following section is specific to Flutter packages.
@@ -73,6 +73,11 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    # Logo blanc du splash (≤ 30 Ko). `branding/source/` (logo1.jpg, source de
+    # l'icône) n'est PAS embarqué : un dossier déclaré n'inclut pas ses
+    # sous-dossiers.
+    - assets/branding/
+    - assets/onboarding/
 
   # Polices embarquées.
   #
@@ -89,14 +94,36 @@ flutter:
         - asset: assets/fonts/lora/Lora-Italic-VariableFont_wght.ttf
           style: italic
         - asset: assets/fonts/lora/Lora-VariableFont_wght.ttf
+    # Inter et Oswald en **statiques**, nommés comme `google_fonts` les cherche
+    # (`Inter-SemiBold.ttf`…). Avec les seules polices variables, chaque
+    # `GoogleFonts.inter(fontWeight: w600)` échouait (« not found in the
+    # application assets ») et retombait sur la famille variable à sa graisse
+    # par défaut : les graisses du thème n'étaient jamais rendues. Instances
+    # générées depuis les variables (fontTools, wght 400/500/600/700, Inter à
+    # opsz 14), réduites aux plages latines, ponctuation, symboles — OFL.
+    # Les variables restent dans le dépôt pour `test/helpers/real_fonts.dart`.
     - family: Inter
       fonts:
-        - asset: assets/fonts/inter/Inter-VariableFont.ttf
+        - asset: assets/fonts/inter/static/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/inter/static/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/inter/static/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/inter/static/Inter-Bold.ttf
+          weight: 700
         - asset: assets/fonts/inter/Inter-Italic-VariableFont.ttf
           style: italic
     - family: Oswald
       fonts:
-        - asset: assets/fonts/oswald/Oswald-VariableFont.ttf
+        - asset: assets/fonts/oswald/static/Oswald-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/oswald/static/Oswald-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/oswald/static/Oswald-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/oswald/static/Oswald-Bold.ttf
+          weight: 700
     - family: Fraunces
       fonts:
         - asset: assets/fonts/fraunces/Fraunces-VariableFont.ttf

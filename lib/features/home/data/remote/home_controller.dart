@@ -6,18 +6,36 @@ import '../../../../models/search_result.dart';
 import 'package:lilia_app/utils/provider_cache.dart';
 
 import 'home_repo.dart';
+import 'restaurant_controller.dart';
 
 part 'home_controller.g.dart';
 
-/// Provider pour les plats populaires
+// `popularProducts` a été SUPPRIMÉ (UI Refresh, 30/09/2026) : il classait
+// tout l'historique puis retirait les plats non servables, et montrait des
+// plats de boutiques fermées. L'accueil et le panier vide lisent
+// `availableNow`. `GET /products/popular` reste servi aux versions installées.
+
+/// Durée de vie de « Disponible maintenant ».
+///
+/// Courte : la liste dit ce qui est commandable **maintenant**, et une
+/// boutique ferme à l'heure dite. Ce n'est pas une garantie — le checkout
+/// recalcule l'ouverture et le stock et reste l'autorité.
+const Duration kAvailableNowTtl = Duration(seconds: 60);
+
+/// « Disponible maintenant » pour le filtre courant (`marketplaceFilter`).
+///
+/// Changer de puce refait l'appel ; la section rafraîchit en plus au retour
+/// au premier plan et chaque minute tant qu'elle est affichée
+/// (`AvailableNowSection`).
 @riverpod
-Future<List<Product>> popularProducts(Ref ref) async {
-  // Prix et disponibilité : mêmes bornes que les listes de vendeurs.
-  cachePendant(ref, kCatalogCacheTtl);
+Future<AvailableNow> availableNow(Ref ref) async {
+  cachePendant(ref, kAvailableNowTtl);
   ref.watch(staleForegroundStampProvider);
 
-  final repo = ref.watch(homeRepositoryProvider);
-  return repo.getPopularProducts(limit: 10);
+  final filter = ref.watch(marketplaceFilterProvider);
+  return ref
+      .watch(homeRepositoryProvider)
+      .getAvailableNow(vendorType: filter, limit: 10);
 }
 
 /// Provider pour les restaurants populaires

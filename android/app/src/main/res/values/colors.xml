@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- LiliaColors.orange600 : fond du lancement en clair (blanc 4,94:1). -->
+    <color name="splash_background">#C8421A</color>
+</resources>

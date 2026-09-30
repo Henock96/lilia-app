@@ -184,6 +184,17 @@ class OrderDetailPage extends ConsumerWidget {
                 if (!_terminalStatuses.contains(order.status))
                   const SizedBox(height: 16),
 
+                // P3-16 — paiement en attente : c'est la seule action qui
+                // fait avancer la commande, elle passe avant le récapitulatif
+                // (elle était sous les articles, la livraison et le total).
+                // La bannière « paiement non abouti » la suit : son texte
+                // renvoie au « bouton de paiement ci-dessus ».
+                if (order.status == OrderStatus.enAttente) ...[
+                  _PaymentSection(order: order),
+                  const SizedBox(height: 16),
+                  _NotificationIntentBanner(orderId: order.id),
+                ],
+
                 // Commande annulée : payée ⇒ le remboursement est automatique,
                 // il faut le dire (et le motif du vendeur s'il y en a un).
                 if (order.status == OrderStatus.annuler) ...[
@@ -243,15 +254,11 @@ class OrderDetailPage extends ConsumerWidget {
                   const SizedBox(height: 16),
                 ],
 
-                // Reprise du paiement — le trou que la bannière
-                // `retryPayment` promettait de combler en renvoyant vers « le
-                // bouton de paiement ci-dessus », qui n'existait pas. Une
-                // commande dont le paiement avait échoué était un cul-de-sac :
-                // il fallait la repasser entièrement.
-                if (order.status == OrderStatus.enAttente) ...[
-                  _PaymentSection(order: order),
-                  const SizedBox(height: 12),
-                ],
+                // Reprise du paiement (`_PaymentSection`) — le trou que la
+                // bannière `retryPayment` promettait de combler en renvoyant
+                // vers « le bouton de paiement ci-dessus », qui n'existait
+                // pas : montée sous l'en-tête quand la commande est
+                // `EN_ATTENTE` (P3-16).
 
                 // Bouton Annuler : le serveur publie les gestes permis
                 // (F3-01, règle R1) ; avant paiement face à un serveur antérieur.
@@ -267,7 +274,10 @@ class OrderDetailPage extends ConsumerWidget {
                 // Suite proposée par la dernière notification reçue
                 // (reprendre un paiement, comprendre un incident). Sans ça,
                 // le client arrivait sur l'écran sans savoir quoi faire.
-                _NotificationIntentBanner(orderId: order.id),
+                // En attente de paiement, elle est déjà montée avec la
+                // section de paiement.
+                if (order.status != OrderStatus.enAttente)
+                  _NotificationIntentBanner(orderId: order.id),
 
                 // F-06 : le recours qui manquait — une commande déclarée
                 // livrée sans l'être n'avait aucune porte de sortie.

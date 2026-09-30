@@ -28,10 +28,23 @@ class _ShimmerBoxState extends State<ShimmerBox>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
-    )..repeat();
+    );
     _animation = Tween<double>(begin: -1.0, end: 2.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOutSine),
     );
+  }
+
+  /// « Réduire les animations » : reflet immobile. Sinon, il balaie en
+  /// boucle tant que le squelette est affiché.
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduce = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (reduce) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
   }
 
   @override
@@ -42,6 +55,9 @@ class _ShimmerBoxState extends State<ShimmerBox>
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final base = cs.surfaceContainerHighest;
+    final highlight = cs.surfaceContainerLow;
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
@@ -53,7 +69,8 @@ class _ShimmerBoxState extends State<ShimmerBox>
             gradient: LinearGradient(
               begin: Alignment(_animation.value - 1, 0),
               end: Alignment(_animation.value, 0),
-              colors: [Colors.grey[200]!, Colors.grey[100]!, Colors.grey[200]!],
+              // Couleurs du thème : les gris fixes éblouissaient en sombre.
+              colors: [base, highlight, base],
               stops: const [0.0, 0.5, 1.0],
             ),
           ),
