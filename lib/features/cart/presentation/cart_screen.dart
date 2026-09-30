@@ -717,7 +717,9 @@ class _EmptyCartWithSuggestions extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final popularAsync = ref.watch(popularProductsProvider);
+    // « Disponible maintenant », comme l'accueil : les « plats populaires »
+    // proposaient des plats de boutiques fermées, impossibles à commander.
+    final availableAsync = ref.watch(availableNowProvider);
 
     return SingleChildScrollView(
       child: Column(
@@ -761,9 +763,10 @@ class _EmptyCartWithSuggestions extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 32),
-          // Section plats populaires
-          popularAsync.when(
-            data: (products) {
+          // Suggestions : ce qui se commande maintenant.
+          availableAsync.when(
+            data: (available) {
+              final products = available.products;
               if (products.isEmpty) return const SizedBox.shrink();
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -773,13 +776,13 @@ class _EmptyCartWithSuggestions extends ConsumerWidget {
                     child: Row(
                       children: [
                         Icon(
-                          Icons.local_fire_department,
+                          Icons.schedule,
                           size: 20,
-                          color: Colors.orange[700],
+                          color: theme.colorScheme.primary,
                         ),
                         const SizedBox(width: 6),
                         const Text(
-                          'Plats populaires',
+                          'Disponible maintenant',
                           style: TextStyle(
                             fontSize: 17,
                             fontWeight: FontWeight.bold,

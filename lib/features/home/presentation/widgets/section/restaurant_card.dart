@@ -34,12 +34,11 @@ class RestaurantCard extends ConsumerWidget {
     return Semantics(
       // L'ouverture/fermeture n'était signalée que visuellement (opacité 0.6 +
       // badge coloré) : invisible pour un lecteur d'écran.
-      label: restaurant.isOpen
-          ? '${restaurant.name}, ouvert'
-          : '${restaurant.name}, fermé',
+      label: '${restaurant.name}, ${_label(restaurant).toLowerCase()}',
       button: true,
       child: Opacity(
-        opacity: restaurant.isOpen ? 1.0 : 0.6,
+        // Seul un « fermé » servi par le serveur atténue la carte.
+        opacity: restaurant.isOpen == false ? 0.6 : 1.0,
         child: Container(
           margin: const EdgeInsets.only(bottom: 16),
           decoration: BoxDecoration(
@@ -85,7 +84,11 @@ class RestaurantCard extends ConsumerWidget {
                                 ),
                               )
                             : Container(
+                                // Sans largeur, la carte d'un vendeur sans
+                                // photo réduisait l'image — et ses badges — à
+                                // la taille de l'icône.
                                 height: 150,
+                                width: double.infinity,
                                 color:
                                     theme.colorScheme.surfaceContainerHighest,
                                 child: Icon(
@@ -99,46 +102,53 @@ class RestaurantCard extends ConsumerWidget {
                       Positioned(
                         top: 10,
                         left: 10,
+                        // Borné : « Fermé — le 02/10 à 10h00 » ne doit pas
+                        // passer sous le bouton favori (48 px à droite).
+                        right: 56,
                         child: Row(
                           children: [
                             // Pastille posée sur la photo : couleurs fixes,
                             // indépendantes du thème, choisies pour le blanc
                             // (green700 ≈ 6.9:1, red500 ≈ 5.9:1). Le vert et
                             // le rouge Material tombaient à 2.8 et 3.7:1.
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 5,
-                              ),
-                              decoration: BoxDecoration(
-                                color: restaurant.isOpen
-                                    ? LiliaColors.green700
-                                    : LiliaColors.red500,
-                                borderRadius: LiliaRadius.pillAll,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    restaurant.isOpen
-                                        ? Icons.check_circle_outline
-                                        : Icons.schedule,
-                                    size: 12,
-                                    color: Colors.white,
-                                  ),
-                                  const SizedBox(width: LiliaSpacing.xs),
-                                  Text(
-                                    openingLabel(
-                                      restaurant.isOpen,
-                                      restaurant.pausedUntil,
-                                    ),
-                                    style: const TextStyle(
+                            Flexible(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 5,
+                                ),
+                                decoration: BoxDecoration(
+                                  // Inconnu : gris neutre, ni vert ni rouge.
+                                  color: switch (restaurant.isOpen) {
+                                    true => LiliaColors.green700,
+                                    false => LiliaColors.red500,
+                                    null => LiliaColors.charcoal500,
+                                  },
+                                  borderRadius: LiliaRadius.pillAll,
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      restaurant.isOpen == true
+                                          ? Icons.check_circle_outline
+                                          : Icons.schedule,
+                                      size: 12,
                                       color: Colors.white,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: LiliaSpacing.xs),
+                                    Flexible(
+                                      child: Text(
+                                        _label(restaurant),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                             const SizedBox(width: 6),
@@ -389,3 +399,10 @@ class RestaurantCard extends ConsumerWidget {
     );
   }
 }
+
+String _label(RestaurantSummary r) => openingLabel(
+  r.isOpen,
+  r.pausedUntil,
+  nextOpeningAt: r.nextOpeningAt,
+  nextOpeningServed: r.nextOpeningServed,
+);

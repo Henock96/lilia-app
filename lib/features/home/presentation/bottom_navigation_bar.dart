@@ -141,6 +141,12 @@ class _BottomNavigationPageState extends ConsumerState<BottomNavigationPage> {
 }
 
 /// Invitation d'un onglet réservé, selon l'onglet tapé.
+///
+/// Chaque bénéfice correspond à une fonctionnalité **présente** :
+/// Commandes — timeline et suivi du livreur, `reorder_action.dart`,
+/// réclamation après livraison (`claims/`, F3-06) ; Profil — `address/`,
+/// `favoris/` (plats et boutiques), carte de fidélité et parrainage.
+/// N'en ajouter aucune qui ne soit pas livrée.
 GuestTabPrompt _invitationPour(int index) {
   final location = kShellBranchLocations[index];
   return location == AppRoutes.profile.path
@@ -149,18 +155,43 @@ GuestTabPrompt _invitationPour(int index) {
           location: location,
           title: 'Mon profil',
           message:
-              'Connectez-vous pour gérer vos adresses, vos favoris et vos '
-              'points de fidélité.',
-          icon: Iconsax.user,
+              'Un compte garde vos informations d\'une commande à '
+              'l\'autre.',
+          image: 'assets/onboarding/onb1.webp',
+          imageAlignment: const Alignment(0, -0.1),
+          benefits: const [
+            GuestBenefit(
+              Iconsax.location,
+              'Vos adresses de livraison enregistrées',
+            ),
+            GuestBenefit(Iconsax.heart, 'Vos plats et boutiques favoris'),
+            GuestBenefit(
+              Iconsax.gift,
+              'Des points de fidélité, et le parrainage de vos proches',
+            ),
+          ],
         )
       : GuestTabPrompt(
           key: const ValueKey('guest_prompt_orders'),
           location: location,
           title: 'Mes commandes',
-          message:
-              'Connectez-vous pour passer commande, suivre sa préparation et '
-              'sa livraison, et retrouver votre historique.',
-          icon: Iconsax.shop,
+          message: 'Connectez-vous pour commander et suivre vos commandes.',
+          image: 'assets/onboarding/onb2.webp',
+          imageAlignment: const Alignment(0, -0.3),
+          benefits: const [
+            GuestBenefit(
+              Iconsax.routing,
+              'Suivez la préparation puis la livraison',
+            ),
+            GuestBenefit(
+              Iconsax.refresh,
+              'Retrouvez votre historique et recommandez en un geste',
+            ),
+            GuestBenefit(
+              Iconsax.message_question,
+              'Signalez un problème après la remise',
+            ),
+          ],
         );
 }
 

@@ -78,6 +78,12 @@ String? sanitizeDestination(String? brute) {
 String signInLocationFor(String? destination) =>
     _avecFrom(AppRoutes.signIn.path, destination);
 
+/// Construit `/signup?from=…`, symétrique de [signInLocationFor] : un compte
+/// créé depuis l'invitation d'un onglet ramène sur cet onglet (le `redirect`
+/// lit `from` sur `/signup` comme sur `/signin`).
+String signUpLocationFor(String? destination) =>
+    _avecFrom(AppRoutes.signUp.path, destination);
+
 /// Construit `/splash?from=…`.
 ///
 /// Le paramètre traverse l'écran de démarrage : une notification tapée alors

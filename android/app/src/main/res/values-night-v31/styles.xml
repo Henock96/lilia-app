@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+ : l'écran de lancement est dessiné par le système (API
+         SplashScreen), qui ignore windowBackground. Sans ces attributs, il
+         montrait l'icône de l'app sur fond clair avant le splash Flutter
+         orange. Icône sans fond : toile 288 dp, logo dans un cercle de 192 dp. -->
+    <style name="LaunchTheme" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/android12_splash_logo</item>
+    </style>
+    <style name="NormalTheme" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:windowBackground">?android:colorBackground</item>
+    </style>
+</resources>

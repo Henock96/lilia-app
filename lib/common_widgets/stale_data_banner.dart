@@ -9,10 +9,19 @@ import 'package:lilia_app/theme/lilia_tokens.dart';
 /// disponibilité et les prix sont vérifiés à la commande. Jamais d'ajout
 /// « garanti » parce qu'une carte apparaît dans un cache.
 class StaleDataBanner extends StatelessWidget {
-  const StaleDataBanner({super.key, required this.loadedAt, this.onRetry});
+  const StaleDataBanner({
+    super.key,
+    required this.loadedAt,
+    this.onRetry,
+    this.title,
+  });
 
   final DateTime loadedAt;
   final VoidCallback? onRetry;
+
+  /// Titre à la place de « Hors ligne — liste chargée à … » (l'heure y est
+  /// alors ajoutée) : « Disponibilités à vérifier (hors ligne) ».
+  final String? title;
 
   static String hhmm(DateTime at) {
     final l = at.toLocal();
@@ -43,7 +52,9 @@ class StaleDataBanner extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Hors ligne — liste chargée à ${hhmm(loadedAt)}',
+                    title == null
+                        ? 'Hors ligne — liste chargée à ${hhmm(loadedAt)}'
+                        : '$title — ${hhmm(loadedAt)}',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,

@@ -16,11 +16,13 @@ import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/models/restaurant.dart';
 
 import 'package:lilia_app/core/update/app_update_gate.dart';
+import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 
 import '../data/remote/banner_controller.dart';
 import '../data/remote/home_controller.dart';
 import '../data/remote/restaurant_controller.dart';
-import 'widgets/popular_dishes_section.dart';
+import 'widgets/available_now_section.dart';
+import 'widgets/open_now_rail.dart';
 import 'widgets/search_bar_widget.dart';
 import 'widgets/vendor_type_filter_bar.dart';
 import 'package:lilia_app/utils/async_value_ui.dart';
@@ -66,10 +68,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   final CarouselSliderController _carouselController =
       CarouselSliderController();
 
+  /// Cible de « Voir toutes les boutiques » (repli de « Disponible
+  /// maintenant »).
+  final GlobalKey _allVendorsKey = GlobalKey();
+
+  void _scrollToAllVendors() {
+    final target = _allVendorsKey.currentContext;
+    if (target == null) return;
+    Scrollable.ensureVisible(
+      target,
+      duration: MediaQuery.disableAnimationsOf(context)
+          ? Duration.zero
+          : AppMotion.base,
+      curve: AppMotion.curve,
+    );
+  }
+
   // Contenu éditorial utilisable même si l'API ou les images sont indisponibles.
   static const List<Map<String, String>> _defaultBanners = [
     {'title': 'Bienvenue sur Lilia Food'},
-    {'title': 'Livraison rapide'},
+    // « Livraison rapide » promettait un délai que rien ne garantit.
+    {'title': 'Livraison ou retrait'},
     {'title': 'Découvrez nos menus'},
   ];
 
@@ -105,11 +124,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
-        centerTitle: true,
-        title: const Text(
-          'Lilia Food',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
+        centerTitle: false,
+        title: const _Greeting(),
         actions: [
           _buildNotificationButton(
             notificationHistory,
@@ -124,7 +140,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ref.invalidate(vendorsListProvider);
             ref.invalidate(restaurantsListProvider);
             ref.invalidate(bannersListProvider);
-            ref.invalidate(popularProductsProvider);
+            ref.invalidate(availableNowProvider);
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -148,28 +164,44 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 // découverte transverse passe par `vendorType`, qui a sa propre
                 // navigation.
 
-                // 2. Slider promotions (existant)
+                // 2. Filtre par type de vendeur — remonté : il gouverne les
+                // trois sections suivantes (UI Refresh, ordre §9.1).
+                const VendorTypeFilterBar(),
+
+                const SizedBox(height: 20),
+
+                // 3. Ouvert maintenant — dérivé de la liste des vendeurs,
+                // aucun appel réseau ; disparaît si rien n'est ouvert.
+                const OpenNowRail(),
+
+                // 4. Disponible maintenant — `GET /products/available-now`.
+                AvailableNowSection(onSeeAllVendors: _scrollToAllVendors),
+
+                // 5. Bannières, compactées : l'éditorial passe après ce qui
+                // se commande.
                 _buildSimpleSlider(bannersAsync),
 
                 const SizedBox(height: 20),
 
-                // 4. Plats Populaires — porte son propre titre, pour que la
-                // section disparaisse en entier quand elle n'a rien à montrer.
-                const PopularDishesSection(),
-
-                // 7. Marketplace (LIL-117) : filtre vendor type + liste
+                // 6. Toutes les boutiques.
                 Padding(
+                  key: _allVendorsKey,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        currentFilter == null
-                            ? 'Tous les vendeurs'
-                            : currentFilter.label,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                      Flexible(
+                        child: Semantics(
+                          header: true,
+                          child: Text(
+                            currentFilter == null
+                                ? 'Toutes les boutiques'
+                                : currentFilter.label,
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
                       Text(
@@ -189,11 +221,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                     ],
                   ),
                 ),
-
-                const SizedBox(height: 8),
-
-                // Chips de filtre vendor type
-                const VendorTypeFilterBar(),
 
                 const SizedBox(height: 12),
 
@@ -311,7 +338,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           options: CarouselOptions(
             autoPlayInterval: const Duration(seconds: 4),
             enlargeCenterPage: true,
-            aspectRatio: 2.2,
+            // 2.2 → 3.3 : hauteur ÷ 1,5 (UI Refresh).
+            aspectRatio: 3.3,
             viewportFraction: 0.92,
             // « Réduire les animations » (iOS) / « Supprimer les animations »
             // (Android) : un contenu qui défile seul est justement ce que ce
@@ -493,6 +521,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           restaurantId: restaurant.id,
         ).staggeredIn(index < 6 ? index : 0);
       },
+    );
+  }
+}
+
+/// « Bonjour, Awa » si une session est ouverte et le prénom connu ;
+/// « Bonjour » sinon. Lit la session déjà résolue : aucun appel réseau.
+class _Greeting extends ConsumerWidget {
+  const _Greeting();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authStateChangeProvider).value;
+    final full = (user?.nom ?? user?.displayName ?? '').trim();
+    final first = full.isEmpty ? null : full.split(RegExp(r'\s+')).first;
+    return Text(
+      first == null ? 'Bonjour' : 'Bonjour, $first',
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(fontWeight: FontWeight.bold),
     );
   }
 }

@@ -18,11 +18,13 @@ import 'package:lilia_app/core/update/app_update_service.dart';
 import 'package:lilia_app/features/home/data/remote/banner_controller.dart';
 import 'package:lilia_app/features/home/data/remote/home_controller.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
+import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
+import 'package:lilia_app/features/home/data/remote/home_repo.dart';
 import 'package:lilia_app/features/home/presentation/home.dart';
+import 'package:lilia_app/features/home/presentation/widgets/section_skeleton.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
 import 'package:lilia_app/features/notifications/data/notification_model.dart';
 import 'package:lilia_app/core/network/api_exception.dart';
-import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/theme/app_theme.dart';
 
@@ -36,7 +38,7 @@ void main() {
     WidgetTester tester, {
     Future<List<Never>> Function()? bannieres,
     Future<List<RestaurantSummary>> Function()? vendeurs,
-    Future<List<Product>> Function()? populaires,
+    Future<AvailableNow> Function()? disponibles,
     bool reduireAnimations = false,
     bool relanceAuto = true,
   }) async {
@@ -50,9 +52,12 @@ void main() {
           vendorsListProvider.overrideWith(
             (ref) => vendeurs?.call() ?? Future.value([]),
           ),
-          popularProductsProvider.overrideWith(
-            (ref) => populaires?.call() ?? Future.value([]),
+          availableNowProvider.overrideWith(
+            (ref) =>
+                disponibles?.call() ??
+                Future.value(const AvailableNow(products: [])),
           ),
+          authStateChangeProvider.overrideWith((ref) => Stream.value(null)),
           recommendationsProvider.overrideWith((ref) async => []),
           notificationHistoryProvider.overrideWith(_AucuneNotification.new),
           // Jamais résolu : aucune invite de mise à jour dans ce test.
@@ -146,27 +151,38 @@ void main() {
     },
   );
 
-  testWidgets('populaires en panne : la section disparaît avec son titre', (
-    tester,
-  ) async {
-    await monterAccueil(
-      tester,
-      populaires: () => Future.error(
-        const ApiException('Indisponible.', kind: ApiErrorKind.server),
-      ),
-    );
-    expect(find.text('Plats Populaires'), findsNothing);
-    expect(find.text('Indisponible.'), findsNothing);
-    await tester.pumpWidget(const SizedBox());
-  });
+  testWidgets(
+    '« Disponible maintenant » en panne : ligne compacte, accueil intact',
+    (tester) async {
+      await monterAccueil(
+        tester,
+        relanceAuto: false,
+        disponibles: () => Future.error(
+          const ApiException('Indisponible.', kind: ApiErrorKind.server),
+        ),
+      );
+      expect(find.text('Disponible maintenant'), findsOneWidget);
+      expect(
+        find.text('Impossible de charger les disponibilités.'),
+        findsOneWidget,
+      );
+      // L'erreur brute du serveur n'est jamais affichée.
+      expect(find.text('Indisponible.'), findsNothing);
+      // Le reste de l'accueil vit sa vie.
+      expect(find.text('Toutes les boutiques'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
 
-  testWidgets('populaires en chargement : le titre accompagne le shimmer', (
+  testWidgets('« Disponible maintenant » en chargement : titre + squelette', (
     tester,
   ) async {
     await monterAccueil(
       tester,
-      populaires: () => Completer<List<Product>>().future,
+      disponibles: () => Completer<AvailableNow>().future,
     );
-    expect(find.text('Plats Populaires'), findsOneWidget);
+    expect(find.text('Disponible maintenant'), findsOneWidget);
+    expect(find.byType(RailSkeleton), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
   });
 }

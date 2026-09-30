@@ -9,6 +9,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lilia_app/features/home/presentation/widgets/section/restaurant_card.dart';
+import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
+import 'package:lilia_app/features/home/data/remote/home_repo.dart';
 import 'package:lilia_app/common_widgets/stale_data_banner.dart';
 import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/core/update/app_update_model.dart';
@@ -45,7 +48,10 @@ void main() {
         retry: (_, _) => null,
         overrides: [
           bannersListProvider.overrideWith((ref) async => []),
-          popularProductsProvider.overrideWith((ref) async => []),
+          availableNowProvider.overrideWith(
+            (ref) async => const AvailableNow(products: []),
+          ),
+          authStateChangeProvider.overrideWith((ref) => Stream.value(null)),
           recommendationsProvider.overrideWith((ref) async => []),
           vendorsListProvider.overrideWith((ref) async {
             final filtre = ref.watch(marketplaceFilterProvider);
@@ -75,13 +81,13 @@ void main() {
   ) async {
     enLigne = true;
     final c = await monter(tester);
-    expect(find.text('Chez Awa'), findsOneWidget);
+    expect(_dansLaListe('Chez Awa'), findsOneWidget);
 
     enLigne = false;
     c.invalidate(vendorsListProvider);
     await _pomper(tester);
 
-    expect(find.text('Chez Awa'), findsOneWidget, reason: 'liste conservée');
+    expect(_dansLaListe('Chez Awa'), findsOneWidget, reason: 'liste conservée');
     expect(find.byType(StaleDataBanner), findsOneWidget);
     expect(find.textContaining('Hors ligne — liste chargée à'), findsOneWidget);
     expect(find.textContaining('vérifiés à la commande'), findsOneWidget);
@@ -92,7 +98,7 @@ void main() {
     await tester.tap(find.text('Réessayer'));
     await _pomper(tester);
     expect(find.byType(StaleDataBanner), findsNothing);
-    expect(find.text('Chez Awa'), findsOneWidget);
+    expect(_dansLaListe('Chez Awa'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -100,13 +106,13 @@ void main() {
       'autre filtre sous le nouveau titre', (tester) async {
     enLigne = true;
     final c = await monter(tester);
-    expect(find.text('Chez Awa'), findsOneWidget);
+    expect(_dansLaListe('Chez Awa'), findsOneWidget);
 
     enLigne = false;
     c.read(marketplaceFilterProvider.notifier).set(VendorType.BAKERY);
     await _pomper(tester);
 
-    expect(find.text('Chez Awa'), findsNothing);
+    expect(_dansLaListe('Chez Awa'), findsNothing);
     expect(find.byType(StaleDataBanner), findsNothing);
     expect(find.text('Connexion impossible.'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
@@ -128,3 +134,10 @@ Future<void> _pomper(WidgetTester tester) async {
     await tester.pump(const Duration(milliseconds: 100));
   }
 }
+
+/// Carte de « Toutes les boutiques » : un vendeur ouvert figure aussi dans
+/// « Ouvert maintenant », au-dessus.
+Finder _dansLaListe(String nom) => find.descendant(
+  of: find.byType(RestaurantCard),
+  matching: find.text(nom),
+);

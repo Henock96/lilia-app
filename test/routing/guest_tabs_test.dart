@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
+import 'package:lilia_app/features/auth/presentation/guest_tab_prompt.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/home/presentation/bottom_navigation_bar.dart';
@@ -20,6 +21,7 @@ import 'package:lilia_app/features/user/presentation/pages/about_page.dart';
 import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/routing/app_router.dart';
 import 'package:lilia_app/routing/session_phase.dart';
+import 'package:lilia_app/theme/app_theme.dart';
 
 import '../features/auth/fake_auth_repository.dart';
 
@@ -62,13 +64,18 @@ GoRouter _routeur(ProviderContainer c) {
   return GoRouter(
     initialLocation: '/',
     refreshListenable: rafraichissement,
+
     redirect: (context, state) => resolveRedirect(
       phase: c.read(sessionPhaseProvider),
       matchedLocation: state.matchedLocation,
       uri: state.uri,
     ),
     routes: [
+      // Le bootstrap passe par `/splash` (`resolveRedirect`) : sans cette
+      // route, go_router montrait son écran d'erreur le temps d'une frame.
+      GoRoute(path: '/splash', builder: (_, _) => _ecran('Démarrage')),
       GoRoute(path: '/signin', builder: (_, _) => _ecran('SignIn')),
+      GoRoute(path: '/signup', builder: (_, _) => _ecran('SignUp')),
       StatefulShellRoute.indexedStack(
         builder: (_, _, shell) => BottomNavigationPage(navigationShell: shell),
         branches: [
@@ -116,7 +123,12 @@ void main() {
 
   setUp(() => constructionsCommandes = 0);
 
-  Future<void> monter(WidgetTester tester, {AppUser? session}) async {
+  Future<void> monter(
+    WidgetTester tester, {
+    AppUser? session,
+    ThemeData? theme,
+    double textScale = 1,
+  }) async {
     repo = FakeAuthRepository(user: session);
     container = ProviderContainer(
       overrides: [
@@ -134,7 +146,16 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: MaterialApp.router(routerConfig: routeur),
+        child: MaterialApp.router(
+          routerConfig: routeur,
+          theme: theme,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child!,
+          ),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -178,6 +199,7 @@ void main() {
     expect(find.text('Écrire au support'), findsOneWidget);
     expect(find.text('Appeler le support'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('À propos de Lilia Food'));
     await tester.tap(find.text('À propos de Lilia Food'));
     await tester.pumpAndSettle();
     expect(find.byType(AboutPage), findsOneWidget);
@@ -245,4 +267,67 @@ void main() {
       expect(find.byKey(const Key('guest_tab_sign_in')), findsNothing);
     },
   );
+
+  testWidgets('« Créer un compte » ramène aussi sur l’onglet', (tester) async {
+    await monter(tester);
+    await onglet(tester, 'Commandes');
+
+    await tester.ensureVisible(find.byKey(const Key('guest_tab_sign_up')));
+    await tester.tap(find.byKey(const Key('guest_tab_sign_up')));
+    await tester.pumpAndSettle();
+    expect(emplacement(), '/signup?from=%2Fcommandes');
+
+    repo.emitSession(_cliente);
+    await tester.pumpAndSettle();
+    expect(emplacement(), '/commandes');
+    expect(find.text('Liste des commandes'), findsOneWidget);
+  });
+
+  testWidgets('trois bénéfices réels par onglet', (tester) async {
+    await monter(tester);
+    await onglet(tester, 'Commandes');
+    for (final t in [
+      'Suivez la préparation puis la livraison',
+      'Retrouvez votre historique et recommandez en un geste',
+      'Signalez un problème après la remise',
+    ]) {
+      expect(find.text(t), findsOneWidget);
+    }
+    expect(
+      tester.widgetList(find.byType(GuestTabPrompt)).single,
+      isA<GuestTabPrompt>().having((p) => p.benefits.length, 'bénéfices', 3),
+    );
+
+    await onglet(tester, 'Profil');
+    for (final t in [
+      'Vos adresses de livraison enregistrées',
+      'Vos plats et boutiques favoris',
+      'Des points de fidélité, et le parrainage de vos proches',
+    ]) {
+      expect(find.text(t), findsOneWidget);
+    }
+  });
+
+  for (final (nom, theme) in [
+    ('clair', AppTheme.light),
+    ('sombre', AppTheme.dark),
+  ]) {
+    for (final echelle in [1.0, 2.0]) {
+      testWidgets(
+        'invitations, thème $nom, texte ×$echelle : aucun débordement',
+        (tester) async {
+          await monter(tester, theme: theme, textScale: echelle);
+          await onglet(tester, 'Commandes');
+          expect(tester.takeException(), isNull);
+          await tester.ensureVisible(
+            find.byKey(const Key('guest_tab_sign_up')),
+          );
+          await tester.pumpAndSettle();
+          expect(tester.takeException(), isNull);
+          await onglet(tester, 'Profil');
+          expect(tester.takeException(), isNull);
+        },
+      );
+    }
+  }
 }

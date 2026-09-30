@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
+<!-- Écran de lancement Android ≤ 11 : même fond orange et même logo blanc
+     (148 dp, centré) que le SplashScreen Flutter, pour une première frame
+     identique. Couleur : @color/splash_background (orange600, orange700 en
+     sombre). Android 12+ : voir values-v31/styles.xml. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="?android:colorBackground" />
-
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
+    <item android:drawable="@color/splash_background" />
+    <item>
         <bitmap
             android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+            android:src="@drawable/splash_logo" />
+    </item>
 </layer-list>

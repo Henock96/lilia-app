@@ -64,7 +64,7 @@ dev_dependencies:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: "assets/images/logo1.jpg"
+  image_path: "assets/branding/source/logo1.jpg"
   min_sdk_android: 21
   adaptive_icon_background: "#FFF8F6"
 # The following section is specific to Flutter packages.
@@ -73,6 +73,11 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    # Logo blanc du splash (≤ 30 Ko). `branding/source/` (logo1.jpg, source de
+    # l'icône) n'est PAS embarqué : un dossier déclaré n'inclut pas ses
+    # sous-dossiers.
+    - assets/branding/
+    - assets/onboarding/
 
   # Polices embarquées.
   #

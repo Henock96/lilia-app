@@ -688,7 +688,8 @@ class _VendorIdentityCard extends StatelessWidget {
   }
 
   Widget _statusChip() {
-    final open = restaurant.isOpen;
+    // Inconnu (`null`) : rendu comme non ouvert, avec son propre libellé.
+    final open = restaurant.isOpen == true;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -706,7 +707,12 @@ class _VendorIdentityCard extends StatelessWidget {
           ),
           const SizedBox(width: 4),
           Text(
-            openingLabel(open, restaurant.pausedUntil),
+            openingLabel(
+              restaurant.isOpen,
+              restaurant.pausedUntil,
+              nextOpeningAt: restaurant.nextOpeningAt,
+              nextOpeningServed: restaurant.nextOpeningServed,
+            ),
             style: TextStyle(
               color: open ? Colors.green : Colors.red,
               fontWeight: FontWeight.bold,
