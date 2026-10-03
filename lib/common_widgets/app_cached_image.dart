@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
@@ -69,6 +71,15 @@ class AppCachedImage extends StatelessWidget {
   /// d'assistance — le bon choix pour une image purement décorative.
   final String? semanticLabel;
 
+  /// Image entière dans son cadre, sans recadrage ni déformation.
+  ///
+  /// Les photos réelles vont du portrait 1:2 au paysage 16:9 (mesuré le
+  /// 02/10/2026 sur la production) et les bannières sont des affiches avec
+  /// du texte. En `cover`, un cadre 3,3:1 n'en montrait parfois qu'un quart.
+  /// Ici la photo est posée en `contain`, et l'espace restant est rempli par
+  /// la même photo floutée : le cadre reste plein, rien n'est coupé.
+  final bool framed;
+
   const AppCachedImage({
     super.key,
     required this.imageUrl,
@@ -79,9 +90,57 @@ class AppCachedImage extends StatelessWidget {
     this.placeholder,
     this.errorWidget,
     this.semanticLabel,
-  });
+  }) : framed = false;
+
+  /// Voir [framed].
+  const AppCachedImage.framed({
+    super.key,
+    required this.imageUrl,
+    this.width,
+    this.height,
+    this.errorIcon = Icons.image_not_supported_outlined,
+    this.placeholder,
+    this.errorWidget,
+    this.semanticLabel,
+  }) : fit = BoxFit.contain,
+       framed = true;
 
   bool get _hasUrl => imageUrl != null && imageUrl!.trim().isNotEmpty;
+
+  /// [url] est la variante Cloudinary ; en cas d'échec on retombe sur
+  /// l'original — mesuré le 29/09, deux photos vendeur supprimées de
+  /// Cloudinary restent servies par le CDN en original, mais la variante
+  /// répond 404. [quiet] : fond flouté, sans shimmer ni icône d'erreur.
+  Widget _network(String url, BoxFit fit, {bool quiet = false}) {
+    Widget original() => CachedNetworkImage(
+      imageUrl: imageUrl!,
+      cacheManager: LiliaImageCache.instance,
+      width: width,
+      height: height,
+      fit: fit,
+      fadeInDuration: const Duration(milliseconds: 200),
+      placeholder: (_, _) => quiet
+          ? const SizedBox.shrink()
+          : placeholder ?? AppShimmerBox(width: width, height: height),
+      errorWidget: (_, _, _) => quiet
+          ? const SizedBox.shrink()
+          : errorWidget ??
+                _DefaultError(width: width, height: height, icon: errorIcon),
+    );
+    if (url == imageUrl) return original();
+    return CachedNetworkImage(
+      imageUrl: url,
+      cacheManager: LiliaImageCache.instance,
+      width: width,
+      height: height,
+      fit: fit,
+      fadeInDuration: const Duration(milliseconds: 200),
+      placeholder: (_, _) => quiet
+          ? const SizedBox.shrink()
+          : placeholder ?? AppShimmerBox(width: width, height: height),
+      errorWidget: (_, _, _) => original(),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -91,20 +150,6 @@ class AppCachedImage extends StatelessWidget {
           errorWidget ??
           _DefaultError(width: width, height: height, icon: errorIcon);
     } else {
-      Widget original() => CachedNetworkImage(
-        imageUrl: imageUrl!,
-        cacheManager: LiliaImageCache.instance,
-        width: width,
-        height: height,
-        fit: fit,
-        fadeInDuration: const Duration(milliseconds: 200),
-        placeholder: (_, _) =>
-            placeholder ?? AppShimmerBox(width: width, height: height),
-        errorWidget: (_, _, _) =>
-            errorWidget ??
-            _DefaultError(width: width, height: height, icon: errorIcon),
-      );
-
       // P3-21 — variante Cloudinary à la taille affichée (−62 % d'octets
       // mesurés sur la production le 29/09). Largeur : celle du widget, ou
       // de l'écran pour `double.infinity`, en pixels physiques.
@@ -116,22 +161,31 @@ class AppCachedImage extends StatelessWidget {
         imageUrl!,
         logical * (mq?.devicePixelRatio ?? 1),
       );
-      child = sized == imageUrl
-          ? original()
-          : CachedNetworkImage(
-              imageUrl: sized,
-              cacheManager: LiliaImageCache.instance,
+      final front = _network(sized, fit);
+      child = framed
+          ? SizedBox(
               width: width,
               height: height,
-              fit: fit,
-              fadeInDuration: const Duration(milliseconds: 200),
-              placeholder: (_, _) =>
-                  placeholder ?? AppShimmerBox(width: width, height: height),
-              // Repli sur l'original si la variante échoue : mesuré le 29/09,
-              // deux photos vendeur supprimées de Cloudinary restent servies
-              // par le cache du CDN en original, mais la variante répond 404.
-              errorWidget: (_, _, _) => original(),
-            );
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Même URL que le premier plan : un seul téléchargement.
+                  ClipRect(
+                    child: ImageFiltered(
+                      imageFilter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                      child: _network(
+                        sized,
+                        BoxFit.cover,
+                        quiet: true,
+                      ),
+                    ),
+                  ),
+                  ColoredBox(color: Colors.black.withValues(alpha: 0.12)),
+                  front,
+                ],
+              ),
+            )
+          : front;
     }
 
     // `image: true` annonce le rôle ; sans label on masque le nœud, qui

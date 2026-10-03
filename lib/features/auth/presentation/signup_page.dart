@@ -88,7 +88,7 @@ class _Header extends StatelessWidget {
         ),
         gapH8,
         Text(
-          'Creez votre compte en quelques etapes',
+          'Créez votre compte en quelques étapes',
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyMedium,
         ),

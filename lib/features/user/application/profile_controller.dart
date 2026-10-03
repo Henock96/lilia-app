@@ -82,6 +82,19 @@ class ProfileController extends _$ProfileController {
     state = const AsyncLoading();
     try {
       await repository.updateUserProfile(data);
+      // Le nom vit aussi dans le profil Firebase : `/users/sync` réapplique
+      // la revendication `name` du jeton à chaque connexion. Sans cette mise
+      // à jour, un nom corrigé ici revenait à l'ancien (Google, Apple, ou
+      // celui saisi à l'inscription) à la session suivante. Non bloquant.
+      final nom = data['nom'];
+      if (nom is String && nom.trim().isNotEmpty) {
+        try {
+          await ref
+              .read(firebaseAuthProvider)
+              .currentUser
+              ?.updateDisplayName(nom.trim());
+        } catch (_) {}
+      }
       ref.invalidate(userProfileProvider);
       state = const AsyncData(null);
       return null;

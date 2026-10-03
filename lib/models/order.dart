@@ -65,6 +65,11 @@ class Order {
   final double deliveryFee;
   final double serviceFee;
   final double discountAmount;
+
+  /// Part « points fidélité » de [discountAmount] (snapshot serveur). Le
+  /// reste, `discountAmount − loyaltyDiscount`, vient du code promo / de
+  /// l'offre. 0 sur une réponse qui ne le porte pas.
+  final double loyaltyDiscount;
   final double total;
   final String? deliveryAddress; // Nullable pour le mode retrait
   final double? deliveryLatitude;
@@ -111,6 +116,7 @@ class Order {
     required this.deliveryFee,
     this.serviceFee = 0,
     this.discountAmount = 0,
+    this.loyaltyDiscount = 0,
     required this.total,
     this.deliveryAddress, // Optionnel maintenant
     this.deliveryLatitude,
@@ -145,6 +151,7 @@ class Order {
     double? deliveryFee,
     double? serviceFee,
     double? discountAmount,
+    double? loyaltyDiscount,
     double? total,
     String? deliveryAddress,
     double? deliveryLatitude,
@@ -171,6 +178,7 @@ class Order {
       deliveryFee: deliveryFee ?? this.deliveryFee,
       serviceFee: serviceFee ?? this.serviceFee,
       discountAmount: discountAmount ?? this.discountAmount,
+      loyaltyDiscount: loyaltyDiscount ?? this.loyaltyDiscount,
       total: total ?? this.total,
       deliveryAddress: deliveryAddress ?? this.deliveryAddress,
       deliveryLatitude: deliveryLatitude ?? this.deliveryLatitude,
@@ -211,6 +219,7 @@ class Order {
       deliveryFee: _asDouble(json['deliveryFee']),
       serviceFee: (json['serviceFee'] as num?)?.toDouble() ?? 0,
       discountAmount: (json['discountAmount'] as num?)?.toDouble() ?? 0,
+      loyaltyDiscount: (json['loyaltyDiscount'] as num?)?.toDouble() ?? 0,
       total: _asDouble(json['total']),
       deliveryAddress: json['deliveryAddress'] is String
           ? json['deliveryAddress'] as String

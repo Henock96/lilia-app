@@ -1,5 +1,7 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
+import 'package:lilia_app/features/home/data/brazzaville_weather.dart';
+import 'package:lilia_app/features/home/presentation/widgets/home_greeting.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
@@ -16,7 +18,6 @@ import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/models/restaurant.dart';
 
 import 'package:lilia_app/core/update/app_update_gate.dart';
-import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 
 import '../data/remote/banner_controller.dart';
 import '../data/remote/home_controller.dart';
@@ -125,7 +126,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       appBar: AppBar(
         elevation: 0,
         centerTitle: false,
-        title: const _Greeting(),
+        title: const HomeGreeting(),
         actions: [
           _buildNotificationButton(
             notificationHistory,
@@ -141,6 +142,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ref.invalidate(restaurantsListProvider);
             ref.invalidate(bannersListProvider);
             ref.invalidate(availableNowProvider);
+            ref.invalidate(brazzavilleWeatherProvider);
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -274,9 +276,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         if (apiBanners.isNotEmpty) {
           return _buildSliderContent(
             itemCount: apiBanners.length,
-            imageBuilder: (index) => AppCachedImage(
+            imageBuilder: (index) => AppCachedImage.framed(
               imageUrl: apiBanners[index].imageUrl,
-              fit: BoxFit.cover,
               errorWidget: _bannerFallback(),
             ),
             titleBuilder: (index) => apiBanners[index].title,
@@ -521,25 +522,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           restaurantId: restaurant.id,
         ).staggeredIn(index < 6 ? index : 0);
       },
-    );
-  }
-}
-
-/// « Bonjour, Awa » si une session est ouverte et le prénom connu ;
-/// « Bonjour » sinon. Lit la session déjà résolue : aucun appel réseau.
-class _Greeting extends ConsumerWidget {
-  const _Greeting();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(authStateChangeProvider).value;
-    final full = (user?.nom ?? user?.displayName ?? '').trim();
-    final first = full.isEmpty ? null : full.split(RegExp(r'\s+')).first;
-    return Text(
-      first == null ? 'Bonjour' : 'Bonjour, $first',
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: const TextStyle(fontWeight: FontWeight.bold),
     );
   }
 }
