@@ -9,10 +9,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/cart/domain/cart_price_preview.dart';
+import 'package:lilia_app/features/cart/presentation/cart_price_summary.dart';
 import 'package:lilia_app/features/cart/presentation/cart_screen.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 import 'package:lilia_app/models/cart.dart';
+import 'package:lilia_app/models/draft_order.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/utils/currency.dart';
 
@@ -115,6 +117,40 @@ void main() {
         ),
       );
       expect(bouton.onPressed, isNotNull);
+    });
+  });
+
+  group('commande en attente', () {
+    // Le brouillon n'affichait que son sous-total : même récapitulatif que
+    // le panier dont il sort.
+    testWidgets('frais de service, livraison et total estimé', (tester) async {
+      final draft = DraftOrder(
+        id: 'd-1',
+        restaurantName: 'Chez Lilia',
+        items: _cart(2000, 3).items,
+        totalPrice: 6000,
+        createdAt: DateTime(2026, 9, 30),
+      );
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            restaurantControllerProvider(
+              _restaurantId,
+            ).overrideWith((ref) async => _restaurant()),
+            platformSettingsProvider.overrideWith((ref) async => _bareme()),
+          ],
+          child: MaterialApp(
+            home: Scaffold(body: CartPriceSummary.draft(draft)),
+          ),
+        ),
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Sous-total (3 articles)'), findsOneWidget);
+      expect(find.text('Frais de service (15 %)'), findsOneWidget);
+      expect(find.text(formatPrice(900)), findsOneWidget);
+      expect(find.text(formatPrice(1500)), findsOneWidget);
+      expect(find.text('Total estimé hors livraison'), findsOneWidget);
+      expect(find.text(formatPrice(6900)), findsOneWidget);
     });
   });
 }

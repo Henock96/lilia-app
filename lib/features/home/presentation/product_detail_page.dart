@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
+import 'package:lilia_app/routing/app_route_enum.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/resolution_par_identifiant.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -433,6 +436,7 @@ Téléchargez l'app Lilia Food pour commander !
               letterSpacing: -0.5,
             ),
           ),
+          _VendorLine(product: widget.product),
           const SizedBox(height: 12),
           // Prix et badge
           Row(
@@ -964,6 +968,85 @@ class _DetailRow extends StatelessWidget {
           ),
           if (trailing != null) ...[const SizedBox(width: 8), trailing!],
         ],
+      ),
+    );
+  }
+}
+
+/// « par Le First Restaurant · Restaurant », lien vers la fiche vendeur.
+///
+/// Le vendeur n'était jamais affiché. Le nom vient de `restaurant.nom` quand
+/// la réponse produit l'embarque (`/products`, `/products/:id`) ; les produits
+/// lus dans `/vendors/:id` ne l'ont pas : on relit alors la fiche vendeur, déjà
+/// en cache quand on arrive de cette boutique. Tant qu'aucun nom réel n'est
+/// connu, la ligne n'est pas affichée — jamais un « Restaurant » générique.
+class _VendorLine extends ConsumerWidget {
+  const _VendorLine({required this.product});
+
+  final Product product;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final id = product.restaurantId;
+    final vendor = product.restaurantName == null && id.isNotEmpty
+        ? ref.watch(restaurantControllerProvider(id)).value
+        : null;
+    final name = product.restaurantName ?? vendor?.name;
+    if (name == null || name.trim().isEmpty) return const SizedBox.shrink();
+    final type = product.restaurantVendorType ?? vendor?.vendorType;
+    final cs = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Semantics(
+        button: true,
+        label: 'Vendu par $name. Voir la boutique',
+        excludeSemantics: true,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => context.goNamed(
+            AppRoutes.restaurantDetail.routeName,
+            pathParameters: {'id': id},
+            extra: {'restaurantName': name},
+          ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Row(
+              children: [
+                Icon(Icons.storefront_outlined, size: 18, color: cs.primary),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: 'par ',
+                          style: TextStyle(color: cs.onSurfaceVariant),
+                        ),
+                        TextSpan(
+                          text: name,
+                          style: TextStyle(
+                            color: cs.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        if (type != null)
+                          TextSpan(
+                            text: ' · ${type.label}',
+                            style: TextStyle(color: cs.onSurfaceVariant),
+                          ),
+                      ],
+                    ),
+                    style: const TextStyle(fontSize: 14),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(Icons.chevron_right, size: 18, color: cs.onSurfaceVariant),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

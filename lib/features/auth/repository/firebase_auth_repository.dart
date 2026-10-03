@@ -80,6 +80,20 @@ class FirebaseAuthenticationRepository {
     if (user == null) {
       throw kAuthUnknown;
     }
+    // Étape 2 : le nom doit voyager dans le JETON. `POST /users/sync` ne lit
+    // pas `nom` dans le corps : il prend la revendication `name` du jeton
+    // Firebase, et retombe sinon sur le préfixe de l'e-mail. Une inscription
+    // par e-mail n'avait jamais de `displayName` : le compte était créé sous
+    // le nom « jean.dupont », que l'accueil affichait ensuite (« Bonsoir,
+    // jean.dupont »). Constaté le 02/10/2026 avec un compte de test.
+    // `getIdToken(true)` force un jeton neuf qui porte ce nom. Échec non
+    // bloquant : l'inscription passe, avec l'ancien repli.
+    try {
+      await user.updateDisplayName(name.trim());
+      await user.getIdToken(true);
+    } catch (e) {
+      logDebug('displayName non renseigné avant /users/sync : $e');
+    }
     // Étape 3: Sauvegarder les informations dans notre backend
     try {
       await _api.postJson(

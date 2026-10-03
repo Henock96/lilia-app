@@ -107,11 +107,10 @@ class _RecommendationCard extends ConsumerWidget {
                         top: Radius.circular(12),
                       ),
                       child: product.thumbnailUrl != null
-                          ? AppCachedImage(
+                          ? AppCachedImage.framed(
                               imageUrl: product.thumbnailUrl!,
                               height: 110,
                               width: double.infinity,
-                              fit: BoxFit.cover,
                               errorWidget: _buildPlaceholder(),
                             )
                           : _buildPlaceholder(),

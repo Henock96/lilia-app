@@ -195,6 +195,20 @@ class AboutPage extends StatelessWidget {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
+              const SizedBox(height: 12),
+              // Attribution exigée par la licence du plan Free OpenWeather
+              // (ODbL), en plus du panneau météo de l'accueil.
+              TextButton(
+                onPressed: () => _open(
+                  context,
+                  Uri.parse('https://openweathermap.org/'),
+                  'https://openweathermap.org/',
+                ),
+                child: const Text(
+                  'Weather data provided by OpenWeather',
+                  style: TextStyle(fontSize: 12),
+                ),
+              ),
 
               const SizedBox(height: 24),
             ],

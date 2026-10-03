@@ -158,11 +158,10 @@ class _OpenVendorCard extends StatelessWidget {
                     top: Radius.circular(12),
                   ),
                   child: vendor.thumbnailUrl != null
-                      ? AppCachedImage(
+                      ? AppCachedImage.framed(
                           imageUrl: vendor.thumbnailUrl!,
                           height: 96,
                           width: double.infinity,
-                          fit: BoxFit.cover,
                           errorWidget: _placeholder(cs),
                         )
                       : _placeholder(cs),

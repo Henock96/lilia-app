@@ -6,16 +6,39 @@ import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:lilia_app/features/quartiers/domain/delivery_fee_label.dart';
 import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 import 'package:lilia_app/models/cart.dart';
+import 'package:lilia_app/models/draft_order.dart';
 import 'package:lilia_app/utils/currency.dart';
 
 /// Récapitulatif du prix au pied du panier (P3-11).
 ///
 /// Chaque ligne dit d'où vient le montant ; rien n'est présenté comme final.
 /// Voir [CartPricePreview] pour ce qui est calculé et ce qui ne l'est pas.
+///
+/// Sert aussi aux commandes en attente ([CartPriceSummary.draft]) : un
+/// brouillon n'affichait que son sous-total, alors que le panier dont il sort
+/// annonçait déjà frais de service et livraison. Même calcul, même libellés.
 class CartPriceSummary extends ConsumerWidget {
-  const CartPriceSummary({super.key, required this.cart});
+  CartPriceSummary({super.key, required Cart cart})
+    : subTotal = cart.totalPrice,
+      itemCount = cart.totalItems,
+      restaurantId = _vendorOf(cart.items);
 
-  final Cart cart;
+  CartPriceSummary.draft(DraftOrder draft, {super.key})
+    : subTotal = draft.totalPrice,
+      itemCount = draft.totalItems,
+      restaurantId = _vendorOf(draft.items);
+
+  final double subTotal;
+  final int itemCount;
+  final String? restaurantId;
+
+  /// Un brouillon ancien peut porter un `restaurantId` vide : on ne demande
+  /// alors pas `/restaurants/` au serveur, la livraison reste « à l'étape
+  /// suivante ».
+  static String? _vendorOf(List<CartItem> items) {
+    final id = items.isEmpty ? '' : items.first.product.restaurantId;
+    return id.isEmpty ? null : id;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -23,13 +46,11 @@ class CartPriceSummary extends ConsumerWidget {
     final settingsAsync = ref.watch(platformSettingsProvider);
     final settings = settingsAsync.value;
     final preview = CartPricePreview.compute(
-      subTotal: cart.totalPrice,
+      subTotal: subTotal,
       settings: settings,
     );
 
-    final restaurantId = cart.items.isEmpty
-        ? null
-        : cart.items.first.product.restaurantId;
+    final restaurantId = this.restaurantId;
     final vendor = restaurantId == null
         ? null
         : ref.watch(restaurantControllerProvider(restaurantId)).value;
@@ -39,7 +60,7 @@ class CartPriceSummary extends ConsumerWidget {
         : deliveryFeeLabel(vendor.fixedDeliveryFee, settings);
 
     final muted = TextStyle(fontSize: 13, color: cs.onSurfaceVariant);
-    final articles = cart.totalItems;
+    final articles = itemCount;
 
     return Semantics(
       container: true,
