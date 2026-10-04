@@ -40,4 +40,16 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
   end
+
+  # Xcode propose « Update to recommended settings » pour tout projet dont le
+  # LastUpgradeCheck est plus ancien que lui. Accepté sur Pods.xcodeproj, il
+  # réactive ENABLE_MODULE_VERIFIER (que CocoaPods coupe) et le vérificateur
+  # échoue sur GoogleMapsUtils : « module 'GoogleMaps' not found » (03/10/2026,
+  # Xcode 27). Le projet Pods est régénéré à chaque `pod install` : on le
+  # déclare à jour pour la version d'Xcode installée, et la proposition disparaît.
+  xcode_version = `xcodebuild -version 2>/dev/null`[/Xcode (\d+)\.(\d+)/]
+  if xcode_version
+    major, minor = $1.to_i, $2.to_i
+    installer.pods_project.root_object.attributes['LastUpgradeCheck'] = format('%02d%d0', major, minor)
+  end
 end

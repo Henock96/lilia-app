@@ -20,7 +20,7 @@ class DraftOrdersScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('Commandes en attente'),
+        title: const Text('Paniers enregistrés'),
       ),
       body: draftsAsync.when(
         data: (drafts) {
@@ -37,7 +37,7 @@ class DraftOrdersScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Aucune commande en attente',
+                    'Aucun panier enregistré',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -46,7 +46,7 @@ class DraftOrdersScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Vos commandes enregistrées\napparaîtront ici',
+                    'Les paniers mis de côté au moment de payer\nsont gardés ici, sur ce téléphone',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
                   ),
@@ -119,7 +119,7 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Supprimer'),
-        content: const Text('Supprimer cette commande en attente ?'),
+        content: const Text('Supprimer ce panier enregistré ?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -277,8 +277,10 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
                           Icons.shopping_cart_outlined,
                           size: 18,
                         ),
+                        // Remet les articles dans le panier : rien n'est
+                        // commandé ici, le paiement reste à faire.
                         label: const Text(
-                          'Commander',
+                          'Reprendre',
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                         style: ElevatedButton.styleFrom(
