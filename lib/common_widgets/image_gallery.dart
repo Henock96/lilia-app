@@ -36,9 +36,8 @@ class ImageGallery extends StatefulWidget {
 class _ImageGalleryState extends State<ImageGallery> {
   int _current = 0;
 
-  Widget _image(String url) => AppCachedImage(
+  Widget _image(String url) => AppCachedImage.framed(
     imageUrl: url,
-    fit: BoxFit.cover,
     width: double.infinity,
     height: double.infinity,
     errorWidget: widget.placeholder,

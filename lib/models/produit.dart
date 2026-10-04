@@ -181,6 +181,11 @@ class Product {
     if (restaurantIsOpen == false) return ProductUnavailability.boutiqueFermee;
     if (!isAvailable) return ProductUnavailability.retire;
     if (!isInStock) return ProductUnavailability.epuise;
+    // F3-10 — stock restant, mais plus aucun format vendable (1 bouteille,
+    // vendue par carton de 6) : le verdict par format vient du serveur.
+    if (variants.isNotEmpty && variants.every((v) => v.isSoldOut)) {
+      return ProductUnavailability.epuise;
+    }
     if (!isWithinAvailabilityWindow) return ProductUnavailability.horsCreneau;
     if (modifiersUnavailableReason != null) {
       return ProductUnavailability.optionsIndisponibles;

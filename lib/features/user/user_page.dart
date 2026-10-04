@@ -178,8 +178,8 @@ class UserPage extends ConsumerWidget {
                             _ProfileMenuItem(
                               icon: Iconsax.document_text,
                               iconColor: Colors.amber[700]!,
-                              title: 'Commandes en attente',
-                              subtitle: 'Commandes enregistrées pour plus tard',
+                              title: 'Paniers enregistrés',
+                              subtitle: 'Mis de côté sur ce téléphone',
                               onTap: () => context.goNamed(
                                 AppRoutes.draftOrders.routeName,
                               ),

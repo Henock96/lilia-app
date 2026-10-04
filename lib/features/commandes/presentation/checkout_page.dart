@@ -447,6 +447,18 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                             ),
                           ),
                         ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Garde le panier sur ce téléphone, sans passer '
+                          'commande. Vous le retrouverez dans Profil › '
+                          'Paniers enregistrés.',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurfaceVariant,
+                              ),
+                        ),
                       ],
                     ),
                   ),
@@ -1125,7 +1137,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
       if (!mounted) return;
 
-      context.showSnack('Commande enregistrée pour plus tard');
+      // Un brouillon est **local** : il ne crée aucune commande serveur. Le
+      // dire, sinon le client croit avoir commandé (constaté en QA 03/10).
+      context.showSnack(
+        'Panier enregistré sur ce téléphone. Aucune commande n’a été passée.',
+      );
 
       // Depiler checkout et delivery-options du tab panier
       // pour que le retour au tab panier affiche le CartScreen

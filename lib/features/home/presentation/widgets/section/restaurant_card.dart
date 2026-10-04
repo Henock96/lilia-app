@@ -72,11 +72,10 @@ class RestaurantCard extends ConsumerWidget {
                         child: restaurant.thumbnailUrl != null
                             ? Hero(
                                 tag: 'resto-img-${restaurant.id}',
-                                child: AppCachedImage(
+                                child: AppCachedImage.framed(
                                   imageUrl: restaurant.thumbnailUrl!,
                                   height: 150,
                                   width: double.infinity,
-                                  fit: BoxFit.cover,
                                   errorIcon: Icons.restaurant,
                                   // Décorative : le nom du vendeur est déjà
                                   // annoncé par le label de la carte.

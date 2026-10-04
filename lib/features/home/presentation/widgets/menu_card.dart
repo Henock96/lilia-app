@@ -31,11 +31,10 @@ class MenuCard extends StatelessWidget {
                 ),
                 child:
                     menu.thumbnailUrl != null && menu.thumbnailUrl!.isNotEmpty
-                    ? AppCachedImage(
+                    ? AppCachedImage.framed(
                         imageUrl: menu.thumbnailUrl!,
                         height: 110,
                         width: double.infinity,
-                        fit: BoxFit.cover,
                         errorIcon: Icons.restaurant_menu,
                       )
                     : Container(

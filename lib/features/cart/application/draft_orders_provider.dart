@@ -1,5 +1,6 @@
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
+import 'package:lilia_app/features/cart/data/cart_repository.dart';
 import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/models/draft_order.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -83,11 +84,19 @@ class DraftOrdersNotifier extends _$DraftOrdersNotifier {
     final draft = matches.first;
     final cartController = ref.read(cartControllerProvider.notifier);
 
-    for (final item in draft.items) {
+    // Ce qui n'a pas pu revenir dans le panier. Avant, un échec (article
+    // épuisé, boutique fermée, panier d'un autre vendeur) n'était que
+    // journalisé, et le brouillon était supprimé quand même : le client
+    // perdait sa commande sans un mot.
+    final restants = <CartItem>[];
+    final noms = <String>[];
+    String? premiereErreur;
+
+    // Articles seuls — `awaitServer` : la restauration doit savoir lesquels
+    // ont échoué. Sans lui, la boucle enverrait tout en parallèle et le
+    // `catch` ne verrait rien.
+    for (final item in draft.items.where((i) => i.menuId == null)) {
       try {
-        // `awaitServer` : la restauration ajoute les articles un par un et
-        // doit savoir lesquels ont échoué. Sans lui, la boucle enverrait tous
-        // les articles en parallèle et le `catch` ci-dessous ne verrait rien.
         await cartController.addItem(
           variantId: item.variantId,
           quantity: item.quantite,
@@ -96,11 +105,72 @@ class DraftOrdersNotifier extends _$DraftOrdersNotifier {
         );
       } catch (e) {
         logDebug('Erreur ajout item ${item.product.nom}: $e');
+        restants.add(item);
+        noms.add(item.product.nom);
+        premiereErreur ??= _message(e);
       }
     }
 
-    // Supprimer le brouillon apres restauration
-    await deleteDraft(draftId);
+    // Menus — remis **en tant que menus** (prix du menu). Les rajouter ligne
+    // à ligne comme des articles seuls les facturait au prix de chaque plat.
+    final menus = <String, List<CartItem>>{};
+    for (final item in draft.items.where((i) => i.menuId != null)) {
+      menus.putIfAbsent(item.menuId!, () => []).add(item);
+    }
+    for (final entry in menus.entries) {
+      final lignes = entry.value;
+      try {
+        await cartController.addMenu(
+          menuId: entry.key,
+          quantity: lignes.first.quantite,
+        );
+      } catch (e) {
+        logDebug('Erreur ajout menu ${entry.key}: $e');
+        restants.addAll(lignes);
+        noms.add(lignes.first.menu?.nom ?? 'un menu');
+        premiereErreur ??= _message(e);
+      }
+    }
+
+    if (restants.isEmpty) {
+      await deleteDraft(draftId);
+      return;
+    }
+
+    // Échec partiel ou total : le brouillon garde ce qui n'est pas revenu,
+    // pour ne rien dupliquer au prochain essai, ni rien perdre.
+    final reste = DraftOrder(
+      id: draft.id,
+      restaurantName: draft.restaurantName,
+      items: restants,
+      totalPrice: Cart(
+        id: '',
+        userId: '',
+        items: restants,
+        createdAt: draft.createdAt,
+        updatedAt: draft.createdAt,
+      ).totalPrice,
+      createdAt: draft.createdAt,
+    );
+    final drafts2 = await _loadDrafts();
+    final i = drafts2.indexWhere((d) => d.id == draftId);
+    if (i >= 0) drafts2[i] = reste;
+    await _saveDrafts(drafts2);
+    state = AsyncData(drafts2);
+
+    final tout = restants.length == draft.items.length;
+    throw CartException(
+      '${tout ? 'Rien n\'a pu être remis dans le panier' : 'Non remis dans le panier'} '
+      ': ${noms.join(', ')}. ${premiereErreur ?? ''} '
+      'La commande en attente est conservée.'.replaceAll(RegExp(r'\s+'), ' '),
+      code: 'DRAFT_PARTIAL_RESTORE',
+    );
+  }
+
+  static String _message(Object e) {
+    final m = e is CartException ? e.message : '';
+    if (m.isEmpty) return '';
+    return m.endsWith('.') ? m : '$m.';
   }
 
   /// Supprime un brouillon

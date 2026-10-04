@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:lilia_app/features/cart/application/draft_orders_provider.dart';
+import 'package:lilia_app/features/cart/presentation/cart_price_summary.dart';
 import 'package:lilia_app/models/draft_order.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/utils/currency.dart';
@@ -19,7 +20,7 @@ class DraftOrdersScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('Commandes en attente'),
+        title: const Text('Paniers enregistrés'),
       ),
       body: draftsAsync.when(
         data: (drafts) {
@@ -36,7 +37,7 @@ class DraftOrdersScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'Aucune commande en attente',
+                    'Aucun panier enregistré',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -45,7 +46,7 @@ class DraftOrdersScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Vos commandes enregistrées\napparaîtront ici',
+                    'Les paniers mis de côté au moment de payer\nsont gardés ici, sur ce téléphone',
                     textAlign: TextAlign.center,
                     style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
                   ),
@@ -118,7 +119,7 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Supprimer'),
-        content: const Text('Supprimer cette commande en attente ?'),
+        content: const Text('Supprimer ce panier enregistré ?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -258,57 +259,40 @@ class _DraftCardState extends ConsumerState<_DraftCard> {
               const Divider(height: 1),
               const SizedBox(height: 10),
 
-              // Footer: total + button
-              Row(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${draft.totalItems} article(s)',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: theme.colorScheme.onSurfaceVariant,
+              // Même récapitulatif que le panier : sous-total, frais de
+              // service au taux serveur, livraison annoncée sans l'inventer.
+              CartPriceSummary.draft(draft),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: _isRestoring
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : ElevatedButton.icon(
+                        onPressed: _restore,
+                        icon: const Icon(
+                          Icons.shopping_cart_outlined,
+                          size: 18,
+                        ),
+                        // Remet les articles dans le panier : rien n'est
+                        // commandé ici, le paiement reste à faire.
+                        label: const Text(
+                          'Reprendre',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        formatPrice(draft.totalPrice),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  _isRestoring
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : ElevatedButton.icon(
-                          onPressed: _restore,
-                          icon: const Icon(
-                            Icons.shopping_cart_outlined,
-                            size: 18,
-                          ),
-                          label: const Text(
-                            'Commander',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 10,
-                            ),
-                          ),
-                        ),
-                ],
               ),
             ],
           ),

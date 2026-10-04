@@ -533,12 +533,23 @@ class OrderSummaryCard extends StatelessWidget {
             const SizedBox(height: 8),
           ],
           _buildSummaryRow(context, 'Frais de service', order.serviceFee),
-          if (order.discountAmount > 0) ...[
+          // `discountAmount` = promo + fidélité. On les distingue quand le
+          // serveur fournit la part fidélité ; la somme reste identique.
+          if (order.discountAmount - order.loyaltyDiscount > 0) ...[
             const SizedBox(height: 8),
             _buildSummaryRow(
               context,
-              'Réduction',
-              -order.discountAmount,
+              order.loyaltyDiscount > 0 ? 'Réduction promo' : 'Réduction',
+              -(order.discountAmount - order.loyaltyDiscount),
+              isDiscount: true,
+            ),
+          ],
+          if (order.loyaltyDiscount > 0) ...[
+            const SizedBox(height: 8),
+            _buildSummaryRow(
+              context,
+              'Points fidélité',
+              -order.loyaltyDiscount,
               isDiscount: true,
             ),
           ],
