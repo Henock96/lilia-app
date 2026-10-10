@@ -36,6 +36,53 @@ void main() {
       expect(e.total, 12000);
     });
 
+    // D-4 (10/10/2026) — les épiceries ont leur propre taux, annoncé par le
+    // serveur dans `GET /cart` (`serviceFeePercent`).
+    test('taux de la boutique annoncé par le panier : il prime sur le taux général', () {
+      const general = PlatformSettings(
+        serviceFeePercent: 15,
+        loyaltyPointsPerOrder: 1,
+        referrerBonusPoints: 1,
+        loyaltyPointValueXaf: 5,
+        loyaltyMinRedemption: 100,
+      );
+
+      final e = CheckoutEstimate.compute(
+        subTotal: 20000,
+        deliveryFee: 1000,
+        promoDiscount: 0,
+        loyaltyPoints: 0,
+        useLoyaltyPoints: false,
+        settings: general,
+        serviceFeePercent: 5,
+      );
+
+      expect(e.serviceFee, 1000);
+      expect(e.total, 22000);
+    });
+
+    test('sans taux de boutique (panier invité, serveur ancien) : le taux général', () {
+      const general = PlatformSettings(
+        serviceFeePercent: 15,
+        loyaltyPointsPerOrder: 1,
+        referrerBonusPoints: 1,
+        loyaltyPointValueXaf: 5,
+        loyaltyMinRedemption: 100,
+      );
+
+      final e = CheckoutEstimate.compute(
+        subTotal: 20000,
+        deliveryFee: 0,
+        promoDiscount: 0,
+        loyaltyPoints: 0,
+        useLoyaltyPoints: false,
+        settings: general,
+        serviceFeePercent: null,
+      );
+
+      expect(e.serviceFee, 3000);
+    });
+
     test('arrondit la commission comme le serveur', () {
       final e = CheckoutEstimate.compute(
         subTotal: 3333,

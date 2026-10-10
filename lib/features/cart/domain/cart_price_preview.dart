@@ -30,6 +30,8 @@ class CartPricePreview {
   factory CartPricePreview.compute({
     required double subTotal,
     required PlatformSettings? settings,
+    /// D-4 — taux de la boutique annoncé par le panier ; `null` : taux général.
+    double? serviceFeePercent,
   }) {
     if (settings == null) {
       return CartPricePreview._(
@@ -45,11 +47,12 @@ class CartPricePreview {
       loyaltyPoints: 0,
       useLoyaltyPoints: false,
       settings: settings,
+      serviceFeePercent: serviceFeePercent,
     );
     return CartPricePreview._(
       subTotal: subTotal,
       serviceFee: estimate.serviceFee,
-      serviceFeePercent: settings.serviceFeePercent,
+      serviceFeePercent: serviceFeePercent ?? settings.serviceFeePercent,
     );
   }
 

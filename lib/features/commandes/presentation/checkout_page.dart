@@ -222,6 +222,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             loyaltyPoints: userProfileAsync.value?.loyaltyPoints ?? 0,
             useLoyaltyPoints: _useLoyaltyPoints,
             settings: settings,
+            // D-4 — taux de la boutique annoncé par le panier.
+            serviceFeePercent: cart.serviceFeePercent,
           );
           final int userPoints = userProfileAsync.value?.loyaltyPoints ?? 0;
           // Réduction réellement applicable si le client active ses points —
@@ -234,6 +236,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             loyaltyPoints: userPoints,
             useLoyaltyPoints: true,
             settings: settings,
+            serviceFeePercent: cart.serviceFeePercent,
           ).loyaltyDiscount;
           // F3-11 — devis serveur : le calcul du checkout lui-même, offre
           // boutique comprise. Il fait foi dès qu'il est là ; l'estimation

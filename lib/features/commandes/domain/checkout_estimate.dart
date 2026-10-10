@@ -45,9 +45,13 @@ class CheckoutEstimate {
     required int loyaltyPoints,
     required bool useLoyaltyPoints,
     required PlatformSettings settings,
+    /// D-4 — taux de la boutique annoncé par le panier (`Cart.serviceFeePercent`) :
+    /// une épicerie a le sien. `null` : taux général.
+    double? serviceFeePercent,
   }) {
     // Le serveur arrondit la commission (`order-calculator.service`).
-    final serviceFee = (subTotal * settings.serviceFeeRate).roundToDouble();
+    final rate = (serviceFeePercent ?? settings.serviceFeePercent) / 100;
+    final serviceFee = (subTotal * rate).roundToDouble();
 
     // Montant restant dû une fois la promo appliquée.
     final remaining = (subTotal + deliveryFee + serviceFee - promoDiscount)
