@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
+import 'package:lilia_app/utils/congo_phone.dart';
 
 /// Affiche le bottom-sheet de collecte du numero si l'utilisateur connecte
 /// n'a pas encore de numero. Skippable. A appeler apres une connexion Google.
@@ -51,6 +52,11 @@ class _PhoneCollectionSheetState extends ConsumerState<PhoneCollectionSheet> {
       setState(() => _erreur = 'Entrez votre numéro de téléphone.');
       return;
     }
+    // C-33 : contrôlé et normalisé avant l'envoi, comme le fait le serveur.
+    if (!isCongoMobilePhone(phone)) {
+      setState(() => _erreur = congoPhoneErrorMessage);
+      return;
+    }
 
     setState(() {
       _saving = true;
@@ -59,7 +65,7 @@ class _PhoneCollectionSheetState extends ConsumerState<PhoneCollectionSheet> {
 
     final echec = await ref
         .read(profileControllerProvider.notifier)
-        .updateUser({'phone': phone});
+        .updateUser({'phone': normalizeCongoPhone(phone)});
 
     if (!mounted) return;
     setState(() {

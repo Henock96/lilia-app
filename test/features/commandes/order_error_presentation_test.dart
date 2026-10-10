@@ -65,6 +65,45 @@ void main() {
     });
   });
 
+  group('OrderErrorPresentation — 409 du checkout (C-20)', () {
+    ApiException conflit(String message, {String? code}) => ApiException(
+          message,
+          statusCode: 409,
+          kind: ApiErrorKind.client,
+          code: code,
+        );
+
+    test('« déjà en cours de traitement » : issue inconnue, pas un échec', () {
+      final p = OrderErrorPresentation.from(
+        conflit('Une commande identique est déjà en cours de traitement.'),
+      );
+      expect(p.kind, OrderErrorKind.outcomeUnknown);
+      expect(p.title, isNot('Commande non créée'));
+      expect(p.message, contains('Mes commandes'));
+    });
+
+    test('« panier déjà commandé » : la commande existe', () {
+      final p = OrderErrorPresentation.from(
+        conflit('Ce panier vient déjà d’être commandé. Consultez « Mes commandes ».'),
+      );
+      expect(p.kind, OrderErrorKind.alreadyPlaced);
+      expect(p.title, 'Commande déjà enregistrée');
+    });
+
+    test('panier modifié (code serveur) : message du serveur', () {
+      final p = OrderErrorPresentation.from(
+        conflit('Les options de « Poulet » ont changé.', code: 'MODIFIER_CHANGED'),
+      );
+      expect(p.kind, OrderErrorKind.cartChanged);
+      expect(p.message, contains('Poulet'));
+    });
+
+    test('409 inconnu : retombe sur le tri historique', () {
+      final p = OrderErrorPresentation.from(conflit('Autre conflit.'));
+      expect(p.kind, OrderErrorKind.generic);
+    });
+  });
+
   group('userFacingErrorMessage — exceptions rédigées pour l\'écran', () {
     test('CartException : son message', () {
       expect(

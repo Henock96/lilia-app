@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // `notification_providers.dart`.
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:lilia_app/constants/app_size.dart';
+import 'package:lilia_app/core/support/legal_links.dart';
+import 'package:lilia_app/core/support/support_contact.dart';
+import 'package:lilia_app/utils/congo_phone.dart';
 
 import '../../../routing/app_route_enum.dart';
 import '../../../routing/auth_route_link.dart';
@@ -133,7 +136,9 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
             email: _emailController.text.trim(),
             password: _passwordController.text.trim(),
             name: _nameController.text.trim(),
-            phone: _phoneController.text.trim(),
+            // C-33 : normalisé. `/users/sync` stocke la chaîne telle quelle ;
+            // « 06 123 45 67 » rendait ensuite le profil inenregistrable (C-08).
+            phone: normalizeCongoPhone(_phoneController.text),
             referralCode: _referralController.text.trim().isEmpty
                 ? null
                 : _referralController.text.trim().toUpperCase(),
@@ -168,9 +173,12 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
               prefixIcon: Icon(Icons.phone_outlined),
             ),
             keyboardType: TextInputType.phone,
-            validator: (v) => (v == null || v.isEmpty)
-                ? 'Veuillez entrer votre numéro'
-                : null,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) {
+                return 'Veuillez entrer votre numéro';
+              }
+              return isCongoMobilePhone(v) ? null : congoPhoneErrorMessage;
+            },
           ),
           gapH12,
           TextFormField(
@@ -289,7 +297,10 @@ class _SignUpFormState extends ConsumerState<_SignUpForm> {
               ],
             ),
           ),
-          gapH32,
+          gapH12,
+          // C-10 : l'inscription ne renvoyait à aucune condition ni politique.
+          const _MentionsLegales(),
+          gapH12,
           ElevatedButton(
             key: const Key('signup_submit'),
             onPressed: etat.isLoading ? null : _signUp,
@@ -358,6 +369,48 @@ class _SignInNavigation extends StatelessWidget {
               fontWeight: FontWeight.w600,
             ),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+/// « En créant un compte, vous acceptez… » — liens vers les pages publiées.
+class _MentionsLegales extends StatelessWidget {
+  const _MentionsLegales();
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodySmall;
+    Widget lien(String libelle, Uri uri, Key key) => TextButton(
+          key: key,
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            minimumSize: const Size(48, 48),
+          ),
+          onPressed: () => openSupportChannel(
+            context,
+            uri,
+            fallbackValue: uri.toString(),
+          ),
+          child: Text(libelle),
+        );
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text('En créant un compte, vous acceptez les', style: style),
+        lien(
+          'Conditions d’utilisation',
+          LegalLinks.termsOfUse,
+          const Key('signup_terms_link'),
+        ),
+        Text('et la', style: style),
+        lien(
+          'Politique de confidentialité',
+          LegalLinks.privacyPolicy,
+          const Key('signup_privacy_link'),
         ),
       ],
     );

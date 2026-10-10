@@ -64,8 +64,8 @@ void main() {
       expect(repo.journal, [
         'reauth-apple',
         'revoke-apple',
-        'remove-fcm',
         'delete-backend',
+        'forget-fcm',
         'delete-firebase',
       ]);
     });
@@ -115,6 +115,10 @@ void main() {
 
       expect(echec?.message, 'Vous avez 1 commande(s) en cours.');
       expect(repo.journal, isNot(contains('delete-firebase')));
+      // C-09 : le jeton FCM n'a pas été touché — le client garde les
+      // notifications de la commande qui a bloqué la suppression.
+      expect(repo.journal, isNot(contains('remove-fcm')));
+      expect(repo.journal, isNot(contains('forget-fcm')));
     });
   });
 
@@ -125,7 +129,10 @@ void main() {
       final echec = await supprimer();
 
       expect(echec, isNull);
-      expect(repo.journal, ['remove-fcm', 'delete-backend', 'delete-firebase']);
+      expect(
+        repo.journal,
+        ['delete-backend', 'forget-fcm', 'delete-firebase'],
+      );
     });
   });
 }
@@ -151,7 +158,7 @@ class _UserRepoTemoin extends UserRepository {
   }
 }
 
-/// Seule `removeTokenFromServer` est attendue. Tout autre appel échoue
+/// Seuls `removeTokenFromServer` et `forgetRegisteredToken` sont attendus. Tout autre appel échoue
 /// bruyamment plutôt que de passer pour un succès.
 class _NotificationsTemoin implements NotificationService {
   _NotificationsTemoin(this.journal);
@@ -160,6 +167,9 @@ class _NotificationsTemoin implements NotificationService {
 
   @override
   Future<void> removeTokenFromServer() async => journal.add('remove-fcm');
+
+  @override
+  void forgetRegisteredToken() => journal.add('forget-fcm');
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>

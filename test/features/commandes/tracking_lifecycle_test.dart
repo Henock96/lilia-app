@@ -10,6 +10,7 @@
 // iOS suspend le processus, donc l'impact y est borné ; c'est Android qui
 // paie — sur des forfaits où la data et la batterie comptent.
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -31,6 +32,9 @@ class _AdaptateurSuivi implements HttpClientAdapter {
   int appels = 0;
   String deliveryStatus = 'EN_TRANSIT';
 
+  /// Horodatage de la dernière position servie par HTTP.
+  DateTime? lastPositionAt;
+
   @override
   Future<ResponseBody> fetch(RequestOptions options, _, _) async {
     appels++;
@@ -41,6 +45,8 @@ class _AdaptateurSuivi implements HttpClientAdapter {
           'status': deliveryStatus,
           'lastLatitude': -4.26,
           'lastLongitude': 15.28,
+          if (lastPositionAt != null)
+            'lastPositionAt': lastPositionAt!.toUtc().toIso8601String(),
         },
       }),
       200,
@@ -60,13 +66,16 @@ class _SocketEspion implements TrackingSocketService {
   final suivis = <String>[];
   final abandonnes = <String>[];
 
+  /// Positions poussées par le « serveur » WebSocket.
+  final positions = StreamController<DriverPositionEvent>.broadcast();
+
   @override
   ({Stream<DriverPositionEvent> position, Stream<String> status}) watch(
     String orderId,
   ) {
     suivis.add(orderId);
     return (
-      position: const Stream<DriverPositionEvent>.empty(),
+      position: positions.stream,
       status: const Stream<String>.empty(),
     );
   }
@@ -229,4 +238,69 @@ void main() {
           'd’il y a trois mois ne doit ouvrir aucune connexion',
     );
   });
+
+  // ─── C-23 — audit du 09/10/2026 ─────────────────────────────────────────
+
+  test('repli HTTP : la fin de course est appliquée et le suivi coupé',
+      () async {
+    DriverLocationController.httpFallbackInterval =
+        const Duration(milliseconds: 20);
+    addTearDown(
+      () => DriverLocationController.httpFallbackInterval =
+          const Duration(seconds: 30),
+    );
+    await ouvrirLeSuivi();
+    expect(socket.suivis, [_orderId]);
+
+    // Le WebSocket ne dit rien ; seul le repli HTTP voit la livraison finie.
+    reseau.deliveryStatus = 'LIVRER';
+    final avant = reseau.appels;
+    await Future<void>.delayed(const Duration(milliseconds: 35));
+    await pompes();
+
+    expect(reseau.appels, avant + 1);
+    expect(
+      container.read(driverLocationControllerProvider(_orderId)).value
+          ?.deliveryStatus,
+      'LIVRER',
+    );
+    expect(socket.abandonnes, contains(_orderId));
+
+    // Plus aucune lecture : le minuteur est arrêté.
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect(reseau.appels, avant + 1);
+  });
+
+  // Revue du 10/10/2026 : le repli HTTP écrivait `state` sans mettre à jour
+  // la référence du garde-fou C-22 ; une position WS rejouée, plus ancienne
+  // que celle affichée, faisait reculer le livreur.
+  test('WS → HTTP plus récent → WS rejoué plus ancien : pas de recul',
+      () async {
+    DriverLocationController.httpFallbackInterval =
+        const Duration(milliseconds: 20);
+    addTearDown(
+      () => DriverLocationController.httpFallbackInterval =
+          const Duration(seconds: 30),
+    );
+    final t1 = DateTime.utc(2026, 10, 10, 12, 0);
+    final t2 = DateTime.utc(2026, 10, 10, 12, 2);
+    final t3 = DateTime.utc(2026, 10, 10, 12, 4);
+
+    reseau.lastPositionAt = t1;
+    await ouvrirLeSuivi();
+
+    reseau.lastPositionAt = t3;
+    await Future<void>.delayed(const Duration(milliseconds: 35));
+    await pompes();
+    final provider = driverLocationControllerProvider(_orderId);
+    expect(container.read(provider).value?.updatedAt, t3);
+
+    socket.positions.add(
+      DriverPositionEvent(lat: -4.0, lng: 15.0, timestamp: t2),
+    );
+    await pompes();
+
+    expect(container.read(provider).value?.updatedAt, t3);
+  });
 }
+

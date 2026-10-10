@@ -3,16 +3,28 @@ import 'package:dio/dio.dart';
 
 /// Rejoue les requêtes échouées sur 5xx / timeout / erreur réseau, avec
 /// backoff exponentiel + jitter. Ne rejoue JAMAIS les 4xx. Les POST ne sont
-/// rejoués que s'ils portent un header `Idempotency-Key` (checkout).
+/// rejoués que s'ils portent un header `Idempotency-Key` (checkout), et **une
+/// seule fois** (C-21, audit du 09/10/2026).
+///
+/// Un POST à clé est une écriture lente côté serveur (le checkout verrouille
+/// panier et stock). Quatre essais à 30 s de `receiveTimeout` faisaient
+/// attendre le client jusqu'à deux minutes devant un bouton grisé. Un rejeu
+/// suffit : si la première requête est encore en traitement, le serveur répond
+/// 409 « déjà en cours » (clé réservée), que l'écran présente comme une issue
+/// inconnue, et non comme un échec.
 class RetryInterceptor extends Interceptor {
   final Dio dio;
   final int maxRetries;
+
+  /// Plafond propre aux POST à clé d'idempotence.
+  final int maxKeyedPostRetries;
   final Duration baseDelay;
   final Random _rng = Random();
 
   RetryInterceptor(
     this.dio, {
     this.maxRetries = 3,
+    this.maxKeyedPostRetries = 1,
     this.baseDelay = const Duration(milliseconds: 400),
   });
 
@@ -25,7 +37,7 @@ class RetryInterceptor extends Interceptor {
   ) async {
     final attempt = (err.requestOptions.extra[_attemptKey] as int?) ?? 0;
 
-    if (!_shouldRetry(err) || attempt >= maxRetries) {
+    if (!_shouldRetry(err) || attempt >= _plafond(err.requestOptions)) {
       return handler.next(err);
     }
 
@@ -40,6 +52,12 @@ class RetryInterceptor extends Interceptor {
     } on DioException catch (e) {
       return handler.next(e);
     }
+  }
+
+  int _plafond(RequestOptions options) {
+    final method = options.method.toUpperCase();
+    if (method == 'POST') return min(maxRetries, maxKeyedPostRetries);
+    return maxRetries;
   }
 
   Duration _backoff(int attempt) {

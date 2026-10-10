@@ -622,9 +622,10 @@ class _AddAddressSheetState extends ConsumerState<_AddAddressSheet> {
 
                 quartiersAsync.when(
                   loading: () => const LinearProgressIndicator(),
-                  error: (_, _) => Text(
-                    'Quartiers indisponibles — réessayez',
-                    style: TextStyle(color: cs.error, fontSize: 13),
+                  // C-32 : « réessayez » sans bouton. Le provider est gardé
+                  // en vie : l'erreur restait affichée jusqu'au redémarrage.
+                  error: (_, _) => QuartiersIndisponibles(
+                    onRetry: () => ref.invalidate(quartiersListProvider),
                   ),
                   data: (quartiers) => DropdownButtonFormField<Quartier>(
                     initialValue: _quartier,
@@ -979,9 +980,10 @@ class _EditAddressSheetState extends ConsumerState<_EditAddressSheet> {
 
                 quartiersAsync.when(
                   loading: () => const LinearProgressIndicator(),
-                  error: (_, _) => Text(
-                    'Quartiers indisponibles — réessayez',
-                    style: TextStyle(color: cs.error, fontSize: 13),
+                  // C-32 : « réessayez » sans bouton. Le provider est gardé
+                  // en vie : l'erreur restait affichée jusqu'au redémarrage.
+                  error: (_, _) => QuartiersIndisponibles(
+                    onRetry: () => ref.invalidate(quartiersListProvider),
                   ),
                   data: (quartiers) {
                     // L'objet quartier de l'adresse et celui de la liste sont
@@ -1056,6 +1058,36 @@ class _EditAddressSheetState extends ConsumerState<_EditAddressSheet> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Liste des quartiers illisible : message **et** moyen de réessayer (C-32,
+/// audit du 09/10/2026). Le quartier est obligatoire ; sans ce bouton, le
+/// formulaire d'adresse restait inutilisable jusqu'au redémarrage de l'app.
+class QuartiersIndisponibles extends StatelessWidget {
+  const QuartiersIndisponibles({super.key, required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            'Quartiers indisponibles.',
+            style: TextStyle(color: cs.error, fontSize: 13),
+          ),
+        ),
+        TextButton.icon(
+          key: const Key('quartiers_retry'),
+          onPressed: onRetry,
+          icon: const Icon(Icons.refresh, size: 18),
+          label: const Text('Réessayer'),
+        ),
+      ],
     );
   }
 }

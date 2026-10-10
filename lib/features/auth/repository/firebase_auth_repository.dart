@@ -25,6 +25,40 @@ class FirebaseAuthenticationRepository {
 
   AppUser? get currentUser => _convertUser(_firebaseAuth.currentUser);
 
+  // ─── Synchronisation en vol (C-02, audit du 09/10/2026) ────────────────────
+  //
+  // Une inscription ouvre la session Firebase (`createUser…`,
+  // `signInWithCredential`) AVANT que `POST /users/sync` ait créé le compte
+  // Lilia. `SessionEffects`, qui écoute Firebase, lançait aussitôt `GET /cart`
+  // et l'enregistrement du jeton FCM : sur la 4G de Brazzaville, ces requêtes
+  // pouvaient arriver avant la synchronisation, le serveur répondait 403
+  // `ACCOUNT_NOT_SYNCED`, `SessionGuard` déconnectait le nouvel inscrit, puis
+  // `/users/sync` partait sans jeton — compte Firebase orphelin, téléphone et
+  // parrainage perdus.
+  //
+  // Ouvert AVANT l'opération Firebase, refermé quand `/users/sync` a répondu
+  // (succès ou échec). Les effets de session attendent sa fin ; la garde de
+  // session ne traite pas un « non synchronisé » pendant qu'il court.
+  Completer<void>? _synchronisation;
+
+  /// Une inscription ou une connexion fournisseur attend `/users/sync`.
+  bool get synchronisationEnCours => _synchronisation != null;
+
+  /// Se résout quand aucune synchronisation n'est en vol.
+  Future<void> attendreSynchronisation() =>
+      _synchronisation?.future ?? Future<void>.value();
+
+  Future<T> _sousSynchronisation<T>(Future<T> Function() operation) async {
+    final enVol = Completer<void>();
+    _synchronisation = enVol;
+    try {
+      return await operation();
+    } finally {
+      if (identical(_synchronisation, enVol)) _synchronisation = null;
+      enVol.complete();
+    }
+  }
+
   // convertit le FirebaseUser nullable en notre AppUser
   AppUser? _convertUser(User? user) =>
       user == null ? null : AppUser.fromFirebaseUser(user);
@@ -64,6 +98,23 @@ class FirebaseAuthenticationRepository {
   }
 
   Future<void> createUserWithEmailAndPassword({
+    required String email,
+    required String password,
+    required String name,
+    required String phone,
+    String? referralCode,
+  }) =>
+      _sousSynchronisation(
+        () => _inscrire(
+          email: email,
+          password: password,
+          name: name,
+          phone: phone,
+          referralCode: referralCode,
+        ),
+      );
+
+  Future<void> _inscrire({
     required String email,
     required String password,
     required String name,
@@ -143,7 +194,10 @@ class FirebaseAuthenticationRepository {
   /// `GoogleSignInException(code GoogleSignInExceptionCode.canceled, …)` au
   /// client. Rendre `AppUser` non nullable rend cette confusion
   /// inexprimable : une annulation est un échec typé, pas une absence.
-  Future<AppUser> signInWithGoogle({String? referralCode}) async {
+  Future<AppUser> signInWithGoogle({String? referralCode}) =>
+      _sousSynchronisation(() => _connexionGoogle(referralCode: referralCode));
+
+  Future<AppUser> _connexionGoogle({String? referralCode}) async {
     // Étape 1: Initialiser GoogleSignIn si nécessaire
     await _googleSignIn.initialize();
 
@@ -218,7 +272,10 @@ class FirebaseAuthenticationRepository {
   // géré par Firebase). Ne pas réutiliser `FirebaseAuthException.credential`
   // de l'erreur : sur iOS c'est un identifiant natif opaque, et la protection
   // contre l'énumération des e-mails (activée) peut en retirer l'adresse.
-  Future<AppUser> signInWithApple({String? referralCode}) async {
+  Future<AppUser> signInWithApple({String? referralCode}) =>
+      _sousSynchronisation(() => _connexionApple(referralCode: referralCode));
+
+  Future<AppUser> _connexionApple({String? referralCode}) async {
     final userCred =
         await _firebaseAuth.signInWithProvider(_appleProvider(profil: true));
 
@@ -400,8 +457,36 @@ class FirebaseAuthenticationRepository {
   /// `requires-recent-login` dans un `Exception('…')` — que l'écran affichait
   /// préfixé de « Exception: » — et laissait **tous les autres codes** filer
   /// bruts jusqu'au client, `[firebase_auth/weak-password] …` compris.
-  Future<void> updatePassword(String newPassword) async {
-    await _firebaseAuth.currentUser?.updatePassword(newPassword);
+  /// Le compte se connecte-t-il par e-mail et mot de passe ?
+  ///
+  /// C-34 (audit du 09/10/2026) : « Changer le mot de passe » était proposé à
+  /// tous, y compris aux comptes Google et Apple, qui n'en ont pas — Firebase
+  /// en aurait **ajouté** un, ouvrant une seconde porte d'entrée au compte.
+  bool get hasPasswordProvider =>
+      _firebaseAuth.currentUser?.providerData.any(
+        (p) => p.providerId == EmailAuthProvider.PROVIDER_ID,
+      ) ??
+      false;
+
+  /// Change le mot de passe après **ré-authentification** (C-34).
+  ///
+  /// Firebase refuse `updatePassword` sur une connexion ancienne
+  /// (`requires-recent-login`) : sans ce passage, le changement échouait pour
+  /// tout client connecté depuis plus de quelques minutes — c'est-à-dire
+  /// presque tous, la session étant restaurée au démarrage. Et redemander le
+  /// mot de passe actuel empêche un tiers qui tient un téléphone déverrouillé
+  /// de s'approprier le compte.
+  Future<void> updatePassword(
+    String newPassword, {
+    required String currentPassword,
+  }) async {
+    final user = _firebaseAuth.currentUser;
+    final email = user?.email;
+    if (user == null || email == null) throw kAuthSessionExpired;
+    await user.reauthenticateWithCredential(
+      EmailAuthProvider.credential(email: email, password: currentPassword),
+    );
+    await user.updatePassword(newPassword);
   }
 
   Future<void> sendPasswordResetEmailWithEmail(String email) async {

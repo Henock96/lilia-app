@@ -14,11 +14,13 @@ class ChangePasswordPage extends ConsumerStatefulWidget {
 
 class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
   final _formKey = GlobalKey<FormState>();
+  final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
   @override
   void dispose() {
+    _currentPasswordController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -36,7 +38,10 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
 
     final echec = await ref
         .read(passwordControllerProvider.notifier)
-        .updatePassword(_newPasswordController.text);
+        .updatePassword(
+          _newPasswordController.text,
+          currentPassword: _currentPasswordController.text,
+        );
 
     if (!mounted) return;
     if (echec != null) {
@@ -60,6 +65,19 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // C-34 : ré-authentification exigée par Firebase.
+              TextFormField(
+                key: const Key('change_password_current'),
+                controller: _currentPasswordController,
+                decoration: const InputDecoration(
+                  labelText: 'Mot de passe actuel',
+                ),
+                obscureText: true,
+                validator: (value) => (value == null || value.isEmpty)
+                    ? 'Saisissez votre mot de passe actuel.'
+                    : null,
+              ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _newPasswordController,
                 decoration: const InputDecoration(

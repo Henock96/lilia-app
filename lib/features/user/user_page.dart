@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:lilia_app/features/auth/controller/auth_controller.dart';
+import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
@@ -211,15 +212,20 @@ class UserPage extends ConsumerWidget {
                                 AppRoutes.editProfile.routeName,
                               ),
                             ),
-                            _ProfileMenuItem(
-                              icon: Iconsax.lock,
-                              iconColor: Colors.purple[400]!,
-                              title: 'Mot de passe',
-                              subtitle: 'Changer votre mot de passe',
-                              onTap: () => context.goNamed(
-                                AppRoutes.changePassword.routeName,
+                            // C-34 : seulement pour un compte qui a un mot
+                            // de passe — pas pour Google ni Apple.
+                            if (ref
+                                .read(authRepositoryProvider)
+                                .hasPasswordProvider)
+                              _ProfileMenuItem(
+                                icon: Iconsax.lock,
+                                iconColor: Colors.purple[400]!,
+                                title: 'Mot de passe',
+                                subtitle: 'Changer votre mot de passe',
+                                onTap: () => context.goNamed(
+                                  AppRoutes.changePassword.routeName,
+                                ),
                               ),
-                            ),
                             _DarkModeToggle(),
                           ],
                         ),
@@ -411,7 +417,13 @@ class UserPage extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Cette action est irréversible. Vos informations personnelles, adresses, points de fidélité et commandes seront définitivement supprimés.',
+                // C-10 : exact. Le serveur anonymise (`user-deletion.service.ts`) :
+                // les commandes et paiements survivent sans identité, pour la
+                // comptabilité des vendeurs. Les dire « supprimés » était faux.
+                'Cette action est irréversible. Vos informations personnelles, '
+                'adresses, favoris, avis et points de fidélité seront '
+                'supprimés. Vos commandes passées sont conservées de façon '
+                'anonyme, pour la comptabilité des vendeurs.',
                 style: TextStyle(fontSize: 14),
               ),
               const SizedBox(height: 12),

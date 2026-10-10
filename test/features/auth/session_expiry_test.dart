@@ -10,6 +10,8 @@
 // Les pièges à éviter en corrigeant, et que ces tests verrouillent :
 // boucle de déconnexion, déconnexions concurrentes, messages en double.
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_app/core/network/api_exception.dart';
@@ -121,6 +123,41 @@ void main() {
       );
 
       expect(repo.appelsSignOut, 1);
+    });
+
+    // C-02 — audit du 09/10/2026.
+    test(
+      'inscription en cours : ACCOUNT_NOT_SYNCED est attendu, pas de '
+      'déconnexion', () async {
+      repo.synchronisation = Completer<void>();
+      await garde().handle(
+        const ApiException(
+          'Compte non synchronisé.',
+          statusCode: 403,
+          kind: ApiErrorKind.client,
+          code: 'ACCOUNT_NOT_SYNCED',
+        ),
+      );
+
+      expect(repo.appelsSignOut, 0);
+      expect(annonce(), isNull);
+      repo.synchronisation!.complete();
+    });
+
+    test('inscription en cours : un compte RÉVOQUÉ déconnecte quand même',
+        () async {
+      repo.synchronisation = Completer<void>();
+      await garde().handle(
+        const ApiException(
+          'Compte suspendu',
+          statusCode: 403,
+          kind: ApiErrorKind.client,
+          code: 'ACCOUNT_REVOKED',
+        ),
+      );
+
+      expect(repo.appelsSignOut, 1);
+      repo.synchronisation!.complete();
     });
 
     test('un 403 ordinaire (rôle refusé) ne déconnecte pas', () async {

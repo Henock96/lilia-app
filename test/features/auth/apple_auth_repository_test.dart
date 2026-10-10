@@ -128,6 +128,37 @@ void main() {
       expect(requetes.where((r) => r.path == '/users/sync'), hasLength(1));
     });
 
+    // C-02 — audit du 09/10/2026 : la synchronisation est « en vol » pendant
+    // `/users/sync`, et seulement pendant.
+    test('synchronisation signalée en vol pendant /users/sync, puis close',
+        () async {
+      bool? pendantSync;
+      api.dio.httpClientAdapter = _StubAdapter(
+        status: 200,
+        body: '{"data":{"isNew":true}}',
+        onRequest: (r) {
+          requetes.add(r);
+          pendantSync = repo.synchronisationEnCours;
+        },
+      );
+      auth.reponse = _cred(_FakeUser(email: _relais), nouveau: true);
+
+      expect(repo.synchronisationEnCours, isFalse);
+      await repo.signInWithApple();
+
+      expect(pendantSync, isTrue);
+      expect(repo.synchronisationEnCours, isFalse);
+      await expectLater(repo.attendreSynchronisation(), completes);
+    });
+
+    test('synchronisation close même quand /users/sync échoue', () async {
+      auth.reponse = _cred(_FakeUser(email: _relais), nouveau: true);
+      serveurRepond(500);
+
+      await expectLater(repo.signInWithApple(), throwsA(isA<AuthFailure>()));
+      expect(repo.synchronisationEnCours, isFalse);
+    });
+
     test('création + échec serveur : compte Firebase supprimé, échec remonté',
         () async {
       final user = _FakeUser(email: _relais);

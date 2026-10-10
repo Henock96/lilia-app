@@ -53,6 +53,18 @@ class FakeAuthRepository implements FirebaseAuthenticationRepository {
   @override
   AppUser? get currentUser => _user;
 
+  /// C-02 — `/users/sync` en vol : tant qu'il n'est pas complété, le vrai
+  /// dépôt dit « synchronisation en cours ».
+  Completer<void>? synchronisation;
+
+  @override
+  bool get synchronisationEnCours =>
+      synchronisation != null && !synchronisation!.isCompleted;
+
+  @override
+  Future<void> attendreSynchronisation() =>
+      synchronisation?.future ?? Future<void>.value();
+
   /// Comme Firebase : chaque abonné reçoit d'abord l'état courant, puis les
   /// bascules. `Stream.multi` est diffusé (`isBroadcast`), ce qui compte :
   /// plusieurs providers s'abonnent à la même source — `authStateChangeProvider`
@@ -155,9 +167,22 @@ class FakeAuthRepository implements FirebaseAuthenticationRepository {
   }
 
   @override
-  Future<void> updatePassword(String newPassword) async {
+  Future<void> updatePassword(
+    String newPassword, {
+    required String currentPassword,
+  }) async {
+    dernierMotDePasseActuel = currentPassword;
     if (passwordError != null) throw passwordError!;
   }
+
+  /// C-34 — le mot de passe actuel transmis pour la ré-authentification.
+  String? dernierMotDePasseActuel;
+
+  /// C-34 — compte e-mail par défaut ; `false` = Google ou Apple.
+  bool aUnMotDePasse = true;
+
+  @override
+  bool get hasPasswordProvider => aUnMotDePasse;
 
   @override
   Future<void> sendPasswordResetEmailWithEmail(String email) async {

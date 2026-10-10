@@ -19,8 +19,11 @@ class PrimaryButton extends StatelessWidget {
   final VoidCallback? onPressed;
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: Sizes.p48,
+    // Hauteur MINIMALE (V-2, audit du 09/10/2026) : une hauteur fixe de 48
+    // rognait verticalement un libellé en `titleLarge` (« Aller à la page
+    // d'accueil » sur la 404), et davantage avec le texte agrandi.
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: Sizes.p48),
       child: ElevatedButton(
         onPressed: onPressed,
         child: isLoading

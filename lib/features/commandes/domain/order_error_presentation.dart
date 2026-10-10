@@ -10,6 +10,13 @@ enum OrderErrorKind {
   /// « échec » ni « succès ».
   outcomeUnknown,
 
+  /// 409 : la commande de CE panier existe déjà (rejeu, double appareil).
+  /// Ce n'est pas un échec : il faut aller la voir, pas la refaire.
+  alreadyPlaced,
+
+  /// 409 : le panier a changé pendant la validation (lignes, options).
+  cartChanged,
+
   /// Rien n'est parti : pas de réseau.
   offline,
   sessionExpired,
@@ -55,6 +62,10 @@ class OrderErrorPresentation {
               'fois.',
           icon: Icons.hourglass_bottom_rounded,
         );
+      }
+      if (error.statusCode == 409) {
+        final conflict = _conflict(error);
+        if (conflict != null) return conflict;
       }
       if (error.kind == ApiErrorKind.network) {
         return const OrderErrorPresentation(
@@ -120,5 +131,53 @@ class OrderErrorPresentation {
       message: message,
       icon: c.$3,
     );
+  }
+
+  /// Les 409 du checkout (C-20, audit du 09/10/2026).
+  ///
+  /// Ils étaient tous titrés « Commande non créée », alors que deux d'entre
+  /// eux disent le contraire :
+  ///  · « Une commande identique est déjà en cours de traitement » : la clé
+  ///    d'idempotence est réservée, la première requête tourne encore — issue
+  ///    **inconnue** (c'est le 409 que produit un rejeu après délai dépassé) ;
+  ///  · « Ce panier vient déjà d'être commandé » : la commande **existe**.
+  ///
+  /// Le serveur ne pose un `code` que sur les changements de panier
+  /// (`CART_CHANGED`, `MODIFIER_CHANGED`) ; les deux autres se lisent au texte
+  /// (`order-checkout.service.ts`).
+  static OrderErrorPresentation? _conflict(ApiException error) {
+    final m = error.message.toLowerCase();
+    if (m.contains('en cours de traitement')) {
+      return const OrderErrorPresentation(
+        kind: OrderErrorKind.outcomeUnknown,
+        title: 'Commande en cours de traitement',
+        message:
+            'Votre commande est déjà en cours d\'enregistrement. Patientez '
+            'quelques instants puis consultez « Mes commandes » avant de '
+            'réessayer : elle ne sera pas créée deux fois.',
+        icon: Icons.hourglass_bottom_rounded,
+      );
+    }
+    if (m.contains('déjà') && m.contains('commandé')) {
+      return const OrderErrorPresentation(
+        kind: OrderErrorKind.alreadyPlaced,
+        title: 'Commande déjà enregistrée',
+        message:
+            'Ce panier vient déjà d\'être commandé. Retrouvez la commande dans '
+            '« Mes commandes » pour suivre ou finaliser son paiement.',
+        icon: Icons.receipt_long_rounded,
+      );
+    }
+    if (error.code == 'CART_CHANGED' ||
+        error.code == 'MODIFIER_CHANGED' ||
+        m.contains('a changé')) {
+      return OrderErrorPresentation(
+        kind: OrderErrorKind.cartChanged,
+        title: 'Panier modifié',
+        message: error.message,
+        icon: Icons.shopping_cart_checkout_rounded,
+      );
+    }
+    return null;
   }
 }

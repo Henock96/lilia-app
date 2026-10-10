@@ -105,11 +105,12 @@ class AuthController extends _$AuthController {
       // sur le **même** compte (Firebase le reconnaît à son identifiant Apple).
       await ref.read(authRepositoryProvider).revokeAppleSignInIfLinked();
 
-      // 1. Supprimer le token FCM sur le serveur
-      try {
-        final notificationService = ref.read(notificationServiceProvider);
-        await notificationService.removeTokenFromServer();
-      } catch (_) {}
+      // 1. Le jeton FCM n'est PLUS retiré avant la suppression (C-09, audit du
+      //    09/10/2026). Retiré d'abord, il restait retiré quand le serveur
+      //    refusait ensuite (409, commande en cours) : le client gardait son
+      //    compte et sa commande, mais ne recevait plus aucune notification de
+      //    cette commande. Le serveur efface lui-même les jetons du compte,
+      //    dans la transaction de suppression (`user-deletion.service.ts`).
 
       // 2. Supprimer les données backend.
       //
@@ -125,6 +126,14 @@ class AuthController extends _$AuthController {
       // son message, qui nomme la commande ou la boutique en cause.
       final userRepository = ref.read(userRepositoryProvider);
       await userRepository.deleteAccount();
+
+      // Le serveur a effacé les jetons avec le compte : on oublie le nôtre
+      // localement. Pas de `DELETE /notifications/token` ici — le compte
+      // n'existe plus, la requête serait refusée et la garde de session
+      // l'interpréterait comme un compte disparu.
+      try {
+        ref.read(notificationServiceProvider).forgetRegisteredToken();
+      } catch (_) {}
 
       // 3. Supprimer le compte Firebase Auth.
       //

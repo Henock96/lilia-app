@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/features/payments/data/payment_service.dart';
 import 'package:lilia_app/features/payments/domain/payment_failure.dart';
 
@@ -159,6 +160,35 @@ void main() {
         outcomeOf(status: PaymentStatus.cancelled, failureCode: 'ADMIN_REJECTED'),
         PaymentOutcome.cancelled,
       );
+    });
+  });
+
+  // C-24 — audit du 09/10/2026.
+  group('paymentStartErrorMessage', () {
+    ApiException refus(String m) =>
+        ApiException(m, statusCode: 400, kind: ApiErrorKind.client);
+
+    test('texte brut de l’opérateur : remplacé', () {
+      final m = paymentStartErrorMessage(
+        refus('"Airtel_CG" did not specify a reason for this faliure'),
+      );
+      expect(m, isNot(contains('Airtel_CG')));
+      expect(m, contains('opérateur a refusé'));
+    });
+
+    test('refus rédigé par le serveur : conservé, il dit quoi faire', () {
+      const texte = 'Trop de tentatives de paiement sur cette commande (3). '
+          'Elle sera annulée automatiquement ; vous pourrez la repasser.';
+      expect(paymentStartErrorMessage(refus(texte)), texte);
+    });
+
+    test('autre statut : message de l’API (502 prestataire, 426…)', () {
+      const e = ApiException(
+        'Le prestataire de paiement est momentanément indisponible.',
+        statusCode: 502,
+        kind: ApiErrorKind.server,
+      );
+      expect(paymentStartErrorMessage(e), e.message);
     });
   });
 }

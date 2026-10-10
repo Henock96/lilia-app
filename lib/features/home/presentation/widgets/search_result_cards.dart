@@ -354,7 +354,7 @@ class _Thumb extends StatelessWidget {
     final image = ClipRRect(
       borderRadius: BorderRadius.circular(12),
       child: url != null
-          ? AppCachedImage.framed(
+          ? AppCachedImage(
               imageUrl: url!,
               width: kSearchThumbSize,
               height: kSearchThumbSize,

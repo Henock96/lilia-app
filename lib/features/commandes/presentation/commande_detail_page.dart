@@ -16,9 +16,9 @@ import 'package:lilia_app/features/commandes/presentation/widgets/order_detail_c
 // pour les importeurs historiques de cette page.
 export 'package:lilia_app/features/commandes/presentation/status_info.dart'
     show pickupStatusInfo;
-import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/features/payments/application/payment_status_controller.dart';
 import 'package:lilia_app/features/payments/data/payment_service.dart';
+import 'package:lilia_app/features/payments/domain/payment_failure.dart';
 import 'package:lilia_app/features/payments/presentation/payment_pending_args.dart';
 import 'package:lilia_app/models/order.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
@@ -28,6 +28,7 @@ import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 import '../../reviews/presentation/widgets/rate_driver_sheet.dart';
 import '../data/delivery_tracking_repository.dart';
+import 'widgets/cancel_order_action.dart';
 import 'widgets/pickup_card.dart';
 import 'widgets/report_issue_sheet.dart';
 import '../../../services/analytics_service.dart';
@@ -423,43 +424,57 @@ class OrderDetailPage extends ConsumerWidget {
     WidgetRef ref,
     String orderId,
   ) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.red.withValues(alpha: 0.15),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ElevatedButton(
-        onPressed: () => _showCancelConfirmationDialog(context, ref, orderId),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Theme.of(context).colorScheme.surface,
-          foregroundColor: Colors.red,
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 0,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Iconsax.close_circle, color: Colors.red[400]),
-            const SizedBox(width: 10),
-            Text(
-              'Annuler la commande',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.red[400],
-              ),
+    // C-06 / C-18 / C-25 : appel, état « en cours », avertissement et
+    // messages portés par `CancelOrderAction`.
+    return CancelOrderAction(
+      orderId: orderId,
+      builder: (context, onPressed, busy) => Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.red.withValues(alpha: 0.15),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
+        ),
+        child: ElevatedButton(
+          key: const Key('order_detail_cancel'),
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            foregroundColor: Colors.red,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            elevation: 0,
+          ),
+          child: busy
+              ? Semantics(
+                  label: 'Annulation en cours',
+                  child: const SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Iconsax.close_circle, color: Colors.red[400]),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Annuler la commande',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.red[400],
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );
@@ -514,64 +529,6 @@ class OrderDetailPage extends ConsumerWidget {
   // partagé avec la liste des commandes.
   void _handleReorder(BuildContext context, WidgetRef ref, String orderId) =>
       reorderIntoCart(context, ref, orderId);
-
-  void _showCancelConfirmationDialog(
-    BuildContext context,
-    WidgetRef ref,
-    String orderId,
-  ) {
-    showDialog<void>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.orange[700]),
-              const SizedBox(width: 8),
-              const Text('Annuler la commande ?'),
-            ],
-          ),
-          content: const Text(
-            'Cette action est irréversible. Êtes-vous sûr de vouloir annuler cette commande ?',
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Non, garder'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            ElevatedButton(
-              // `error`/`onError` : `Colors.red` + blanc = 3,68:1.
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error,
-                foregroundColor: Theme.of(context).colorScheme.onError,
-              ),
-              child: const Text('Oui, annuler'),
-              onPressed: () async {
-                Navigator.of(context).pop();
-                if (!context.mounted) return;
-                try {
-                  await ref
-                      .read(userOrdersProvider.notifier)
-                      .cancelOrder(orderId);
-                  if (!context.mounted) return;
-                  context.showSuccessSnack('Commande annulée avec succès');
-                  Navigator.of(context).pop();
-                } catch (e) {
-                  if (!context.mounted) return;
-                  context.showErrorSnack(userFacingErrorMessage(e));
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-
 }
 
 /// Bouton autonome gérant son propre état de chargement pendant la génération
@@ -849,8 +806,11 @@ class _PaymentSection extends ConsumerWidget {
       ),
       error: (_, _) => _PayNowButton(order: order),
       data: (payment) {
-        if (payment?.status == PaymentStatus.pending) {
-          return _PaymentInProgressCard(orderId: order.id);
+        if (payment != null && payment.status == PaymentStatus.pending) {
+          return _PaymentInProgressCard(
+            orderId: order.id,
+            paymentId: payment.paymentId,
+          );
         }
         return _PayNowButton(order: order);
       },
@@ -859,13 +819,53 @@ class _PaymentSection extends ConsumerWidget {
 }
 
 /// Un paiement est en cours : on informe, on ne propose pas de recommencer.
-class _PaymentInProgressCard extends ConsumerWidget {
-  const _PaymentInProgressCard({required this.orderId});
+class _PaymentInProgressCard extends ConsumerStatefulWidget {
+  const _PaymentInProgressCard({
+    required this.orderId,
+    required this.paymentId,
+  });
 
   final String orderId;
+  final String paymentId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_PaymentInProgressCard> createState() =>
+      _PaymentInProgressCardState();
+}
+
+class _PaymentInProgressCardState
+    extends ConsumerState<_PaymentInProgressCard> {
+  bool _verification = false;
+
+  /// C-05 (audit du 09/10/2026) : ce bouton relisait `GET
+  /// /payments/by-order/:id`, une **lecture pure** qui n'interroge jamais le
+  /// prestataire. Après une fermeture de l'app pendant l'attente, le client
+  /// n'avait aucun moyen de faire avancer un paiement qu'il avait validé :
+  /// seul le webhook (ou le cron) pouvait le sortir de « en cours ».
+  ///
+  /// `GET /payments/:id/status` interroge pawaPay tant que le paiement est
+  /// `PENDING` et applique son verdict côté serveur. On relit ensuite la
+  /// commande et son paiement : c'est le serveur qui dit ce qui a changé.
+  Future<void> _verifier() async {
+    setState(() => _verification = true);
+    try {
+      await ref.read(paymentServiceProvider).checkPaymentStatus(
+            widget.paymentId,
+          );
+    } catch (e) {
+      if (mounted) context.showErrorSnack(userFacingErrorMessage(e));
+    } finally {
+      if (mounted) {
+        setState(() => _verification = false);
+        ref.invalidate(orderPaymentProvider(widget.orderId));
+        ref.invalidate(orderDetailProvider(widget.orderId));
+        ref.invalidate(userOrdersProvider);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
 
     return Container(
@@ -908,8 +908,14 @@ class _PaymentInProgressCard extends ConsumerWidget {
           Align(
             alignment: Alignment.centerRight,
             child: TextButton(
-              onPressed: () => ref.invalidate(orderPaymentProvider(orderId)),
-              child: const Text('Vérifier maintenant'),
+              key: const Key('payment_in_progress_check'),
+              onPressed: _verification ? null : _verifier,
+              child: _verification
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Vérifier maintenant'),
             ),
           ),
         ],
@@ -1050,11 +1056,9 @@ class _PayNowButtonState extends ConsumerState<_PayNowButton> {
       await _showManualInstructions(payment);
     } catch (e) {
       if (!mounted) return;
-      // Le serveur porte le motif exact (commande non payable, trop de
-      // tentatives, opérateur indisponible). On l'affiche tel quel.
-      context.showErrorSnack(
-        e is ApiException ? e.message : 'Le paiement n\'a pas pu être relancé.',
-      );
+      // Les refus rédigés par le serveur passent ; le texte brut de
+      // l'opérateur, non (C-24).
+      context.showErrorSnack(paymentStartErrorMessage(e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

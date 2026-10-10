@@ -158,6 +158,20 @@ class SessionEffects extends _$SessionEffects {
     // lisent leur magasin dès qu'un écran les observe.
     await _rangerDonneesHeritees(uid: uid, sessionRestauree: sessionRestauree);
 
+    // C-02 : rien ne part vers le serveur avant que le compte Lilia existe.
+    // Une inscription ouvre la session Firebase avant `/users/sync` ; le
+    // panier, le jeton FCM et les providers invalidés juste après auraient
+    // reçu un 403 `ACCOUNT_NOT_SYNCED`. Borné : une synchronisation qui ne
+    // répond pas ne doit pas priver la session de ses effets pour toujours.
+    final auth = ref.read(authRepositoryProvider);
+    await auth.attendreSynchronisation().timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {},
+        );
+    // L'inscription a pu échouer entre-temps (compte Firebase supprimé) :
+    // la fermeture s'en occupe, l'ouverture n'a plus d'objet.
+    if (auth.currentUser?.uid != uid) return;
+
     // ⚠️ Invalider **aussi à l'ouverture**, et pas seulement à la fermeture.
     //
     // Les magasins locaux sont rangés par compte (`favorites__<uid>`), et la

@@ -15,6 +15,7 @@ class CheckoutSubmitBar extends StatelessWidget {
   const CheckoutSubmitBar({
     super.key,
     required this.total,
+    this.isEstimate = false,
     required this.onPressed,
     required this.isSending,
     this.disabledReason,
@@ -22,6 +23,9 @@ class CheckoutSubmitBar extends StatelessWidget {
 
   /// Total affiché par le récapitulatif — jamais recalculé ici.
   final double total;
+
+  /// Total local, faute de devis serveur (C-19).
+  final bool isEstimate;
 
   /// `null` ⇒ bouton désactivé.
   final VoidCallback? onPressed;
@@ -60,7 +64,7 @@ class CheckoutSubmitBar extends StatelessWidget {
                 spacing: 8,
                 children: [
                   Text(
-                    'Total',
+                    isEstimate ? 'Total estimé' : 'Total',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),

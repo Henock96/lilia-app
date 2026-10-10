@@ -191,7 +191,9 @@ class DriverLocation {
       driverNom: driverNom,
       driverPhone: driverPhone,
       driverImageUrl: driverImageUrl,
-      etaMinutes: event.eta,
+      // C-22 : la position rejouée par `order:watch` ne porte pas d'ETA. Un
+      // `null` effaçait le badge « Arrive dans X min » à chaque ouverture.
+      etaMinutes: event.eta ?? etaMinutes,
       destinationLatitude: destinationLatitude,
       destinationLongitude: destinationLongitude,
       destinationPrecision: destinationPrecision,
@@ -259,6 +261,11 @@ class DriverLocationController extends _$DriverLocationController
   /// WebSocket et armait un poll HTTP toutes les 30 s pour une course terminée.
   static const _terminalDeliveryStatuses = {'LIVRER', 'ECHEC'};
 
+  /// Cadence du repli HTTP. Modifiable par les tests seulement : trente
+  /// secondes réelles par cas de test ne sont pas une option.
+  @visibleForTesting
+  static Duration httpFallbackInterval = const Duration(seconds: 30);
+
   /// Le suivi est en veille : l'application est passée en arrière-plan.
   bool _enVeille = false;
 
@@ -317,6 +324,13 @@ class DriverLocationController extends _$DriverLocationController
 
     _wsPositionSub = streams.position.listen((event) {
       if (!ref.mounted) return;
+      // Repartir de ce qui est AFFICHÉ : le repli HTTP écrit `state` sans
+      // passer par cette variable locale (revue du 10/10/2026).
+      current = state.value ?? current;
+      // C-22 : une position plus ancienne que celle affichée (rejouée depuis
+      // Redis après une relecture HTTP plus récente) ne recule pas le livreur.
+      final affichee = current?.updatedAt;
+      if (affichee != null && event.timestamp.isBefore(affichee)) return;
       current =
           current?.copyWithWsPosition(event) ??
           DriverLocation(
@@ -435,11 +449,24 @@ class DriverLocationController extends _$DriverLocationController
 
   void _startHttpFallback(String orderId) {
     _httpFallbackTimer?.cancel();
-    _httpFallbackTimer = Timer.periodic(const Duration(seconds: 30), (_) async {
+    _httpFallbackTimer = Timer.periodic(httpFallbackInterval, (_) async {
       if (!ref.mounted) return;
       try {
         final fresh = await _fetchHttp(orderId);
         if (!ref.mounted || fresh == null) return;
+        // C-23 (audit du 09/10/2026) : le repli HTTP ignorait la fin de
+        // course. Sans WebSocket (réseau qui ne laisse passer que le
+        // polling, ou socket tombé), une livraison terminée restait affichée
+        // « en route » et le minuteur tournait jusqu'à la fermeture de
+        // l'écran. Le statut terminal s'applique même si la position, elle,
+        // n'a pas bougé.
+        if (_terminalDeliveryStatuses.contains(fresh.deliveryStatus)) {
+          state = AsyncValue.data(fresh);
+          _stopLiveTracking();
+          ref.read(latestUpdatedOrderIdProvider.notifier).state = orderId;
+          _invalidateUserOrdersDebounced();
+          return;
+        }
         final previous = state.value;
         // N'écrase pas la position WS plus récente
         if (previous == null ||

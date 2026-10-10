@@ -64,7 +64,7 @@ void main() {
     expect(adapter.calls, 1);
   });
 
-  test('POST avec Idempotency-Key retryé sur 503', () async {
+  test('POST avec Idempotency-Key rejoué UNE seule fois sur 503 (C-21)', () async {
     final adapter = _CountingAdapter((_) => 503);
     final dio = _dioWith(adapter);
     await expectLater(
@@ -73,6 +73,15 @@ void main() {
           options: Options(headers: {'Idempotency-Key': 'abc'})),
       throwsA(isA<DioException>()),
     );
+    // initial + 1 rejeu : au-delà, le client attendait jusqu'à 2 min sur le
+    // checkout (30 s de receiveTimeout par essai).
+    expect(adapter.calls, 2);
+  });
+
+  test('GET garde son plafond de rejeux (maxRetries)', () async {
+    final adapter = _CountingAdapter((_) => 503);
+    final dio = _dioWith(adapter);
+    await expectLater(dio.get<dynamic>('/x'), throwsA(isA<DioException>()));
     expect(adapter.calls, 3); // initial + 2 retries (maxRetries=2)
   });
 }

@@ -32,12 +32,23 @@ class DriverPositionEvent {
       lat: (json['lat'] as num).toDouble(),
       lng: (json['lng'] as num).toDouble(),
       eta: (json['eta'] as num?)?.toInt(),
-      timestamp: json['timestamp'] != null
-          ? DateTime.fromMillisecondsSinceEpoch(
-              (json['timestamp'] as num).toInt(),
-            )
-          : DateTime.now(),
+      timestamp: _horodatage(json),
     );
+  }
+
+  /// Instant de la mesure, tel que le serveur l'a daté.
+  ///
+  /// C-22 (audit du 09/10/2026) : la position **rejouée** à l'abonnement
+  /// (`order:watch`) est la valeur Redis `{ lat, lng, accuracy, ts }` —
+  /// `ts`, pas `timestamp` (`tracking.service.ts`). Faute de `timestamp`, le
+  /// client la datait de `DateTime.now()` : une position vieille de quatre
+  /// minutes s'affichait comme fraîche. `DateTime.now()` ne reste qu'en
+  /// dernier recours, pour un message sans aucune date.
+  static DateTime _horodatage(Map<String, dynamic> json) {
+    final brut = json['timestamp'] ?? json['ts'];
+    return brut is num
+        ? DateTime.fromMillisecondsSinceEpoch(brut.toInt())
+        : DateTime.now();
   }
 }
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import 'package:lilia_app/core/support/legal_links.dart';
 import 'package:lilia_app/core/support/support_contact.dart';
 
 /// Version **du binaire installé**, lue par `package_info_plus`.
@@ -113,10 +114,11 @@ class AboutPage extends StatelessWidget {
                       icon: Iconsax.document_text,
                       iconColor: Colors.blue[400]!,
                       title: "Conditions d'utilisation",
-                      onTap: () => _showTextPage(
+                      // C-10 : la version publiée, pas une copie embarquée.
+                      onTap: () => _open(
                         context,
-                        title: "Conditions d'utilisation",
-                        content: _termsOfUse,
+                        LegalLinks.termsOfUse,
+                        LegalLinks.termsOfUse.toString(),
                       ),
                       showTopBorder: false,
                     ),
@@ -124,10 +126,10 @@ class AboutPage extends StatelessWidget {
                       icon: Iconsax.shield_tick,
                       iconColor: Colors.green[400]!,
                       title: 'Politique de confidentialité',
-                      onTap: () => _showTextPage(
+                      onTap: () => _open(
                         context,
-                        title: 'Politique de confidentialité',
-                        content: _privacyPolicy,
+                        LegalLinks.privacyPolicy,
+                        LegalLinks.privacyPolicy.toString(),
                       ),
                     ),
                   ],
@@ -228,144 +230,6 @@ class AboutPage extends StatelessWidget {
             fallbackValue: fallback,
             launcher: l,
           );
-  }
-
-  void _showTextPage(
-    BuildContext context, {
-    required String title,
-    required String content,
-  }) {
-    Navigator.push(
-      context,
-      MaterialPageRoute<void>(
-        builder: (context) => _TextDetailPage(title: title, content: content),
-      ),
-    );
-  }
-}
-
-// Textes légaux
-const String _termsOfUse = '''
-Bienvenue sur Lilia Food. En utilisant notre application, vous acceptez les présentes conditions d'utilisation.
-
-1. Objet du service
-Lilia Food est une plateforme de commande et de livraison de repas qui met en relation les clients avec les restaurants partenaires.
-
-2. Inscription et compte
-Pour utiliser nos services, vous devez créer un compte en fournissant des informations exactes et à jour. Vous êtes responsable de la confidentialité de vos identifiants de connexion.
-
-3. Commandes
-Toute commande passée via l'application constitue un engagement d'achat. Les prix affichés incluent les taxes applicables. Les frais de livraison sont indiqués avant la validation de la commande.
-
-4. Paiement
-Le paiement s'effectue via les moyens de paiement proposés dans l'application (Mobile Money). Le paiement est dû au moment de la validation de la commande.
-
-5. Livraison
-Les délais de livraison sont donnés à titre indicatif. Lilia Food s'efforce de respecter les délais annoncés mais ne peut être tenue responsable des retards indépendants de sa volonté.
-
-6. Annulation
-Une commande peut être annulée tant qu'elle n'a pas été confirmée par le restaurant. Au-delà, aucune annulation ne sera possible.
-
-7. Responsabilité
-Lilia Food agit en tant qu'intermédiaire entre les clients et les restaurants. La qualité des produits relève de la responsabilité des restaurants partenaires.
-
-8. Données personnelles
-Vos données personnelles sont traitées conformément à notre politique de confidentialité.
-
-9. Modification des conditions
-Lilia Food se réserve le droit de modifier les présentes conditions à tout moment. Les utilisateurs seront informés de toute modification.
-
-10. Contact
-Pour toute question relative aux présentes conditions, vous pouvez nous contacter à contact@liliafood.com.
-''';
-
-const String _privacyPolicy = '''
-Lilia Food s'engage à protéger la vie privée de ses utilisateurs. Cette politique décrit comment nous collectons, utilisons et protégeons vos données personnelles.
-
-1. Données collectées
-Nous collectons les données suivantes :
-- Informations d'inscription : nom, adresse email, numéro de téléphone
-- Adresses de livraison
-- Historique des commandes
-- Données de paiement (traitées de manière sécurisée)
-- Données de localisation (avec votre consentement)
-
-2. Utilisation des données
-Vos données sont utilisées pour :
-- Traiter et livrer vos commandes
-- Gérer votre compte utilisateur
-- Vous envoyer des notifications sur vos commandes
-- Améliorer nos services
-- Vous proposer des offres personnalisées
-
-3. Partage des données
-Vos données peuvent être partagées avec :
-- Les restaurants partenaires (pour le traitement des commandes)
-- Les livreurs (pour la livraison)
-- Les prestataires de paiement (pour le traitement des transactions)
-
-Nous ne vendons jamais vos données personnelles à des tiers.
-
-4. Sécurité
-Nous mettons en œuvre des mesures de sécurité appropriées pour protéger vos données contre tout accès non autorisé, modification ou destruction.
-
-5. Conservation
-Vos données sont conservées aussi longtemps que votre compte est actif. Vous pouvez demander la suppression de vos données à tout moment.
-
-6. Vos droits
-Vous disposez des droits suivants :
-- Accéder à vos données personnelles
-- Rectifier vos données
-- Supprimer votre compte et vos données
-- Retirer votre consentement
-
-7. Notifications push
-Nous utilisons Firebase Cloud Messaging pour vous envoyer des notifications relatives à vos commandes et aux nouveaux menus. Vous pouvez désactiver les notifications dans les paramètres de votre appareil.
-
-8. Contact
-Pour toute question relative à vos données personnelles, contactez-nous à contact@liliafood.com.
-''';
-
-class _TextDetailPage extends StatelessWidget {
-  final String title;
-  final String content;
-
-  const _TextDetailPage({required this.title, required this.content});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        elevation: 0,
-      ),
-      body: Builder(
-        builder: (context) {
-          final cs = Theme.of(context).colorScheme;
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: cs.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: cs.outline.withValues(alpha: 0.15)),
-              ),
-              child: Text(
-                content,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: cs.onSurfaceVariant,
-                  height: 1.6,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
   }
 }
 
