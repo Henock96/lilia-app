@@ -270,6 +270,121 @@ abstract class _$MarketplaceFilter extends $Notifier<VendorType?> {
   }
 }
 
+/// Types de vendeurs présents au catalogue public, d'après la liste « Tous »
+/// (lot G4, épiceries).
+///
+/// Une puce de filtre ne doit pas promettre une catégorie vide : « Épicerie »
+/// apparaît le jour où la première épicerie est publiée, et pas avant. La
+/// vérité vient de la liste que l'accueil charge déjà — aucune requête en
+/// plus. Seule une liste NON filtrée est lue : une fois une puce choisie, la
+/// liste filtrée ne dit plus rien des autres types, et le dernier ensemble
+/// connu est conservé.
+///
+/// `null` tant qu'aucune liste « Tous » n'est arrivée : l'appelant garde alors
+/// les puces historiques ([VendorType.marketplaceFilter]).
+///
+/// Limite : la liste « Tous » est bornée à 50 vendeurs ; un type présent
+/// au-delà n'aurait pas de puce (il reste visible dans « Tous »).
+
+@ProviderFor(MarketplaceVendorTypes)
+final marketplaceVendorTypesProvider = MarketplaceVendorTypesProvider._();
+
+/// Types de vendeurs présents au catalogue public, d'après la liste « Tous »
+/// (lot G4, épiceries).
+///
+/// Une puce de filtre ne doit pas promettre une catégorie vide : « Épicerie »
+/// apparaît le jour où la première épicerie est publiée, et pas avant. La
+/// vérité vient de la liste que l'accueil charge déjà — aucune requête en
+/// plus. Seule une liste NON filtrée est lue : une fois une puce choisie, la
+/// liste filtrée ne dit plus rien des autres types, et le dernier ensemble
+/// connu est conservé.
+///
+/// `null` tant qu'aucune liste « Tous » n'est arrivée : l'appelant garde alors
+/// les puces historiques ([VendorType.marketplaceFilter]).
+///
+/// Limite : la liste « Tous » est bornée à 50 vendeurs ; un type présent
+/// au-delà n'aurait pas de puce (il reste visible dans « Tous »).
+final class MarketplaceVendorTypesProvider
+    extends $NotifierProvider<MarketplaceVendorTypes, Set<VendorType>?> {
+  /// Types de vendeurs présents au catalogue public, d'après la liste « Tous »
+  /// (lot G4, épiceries).
+  ///
+  /// Une puce de filtre ne doit pas promettre une catégorie vide : « Épicerie »
+  /// apparaît le jour où la première épicerie est publiée, et pas avant. La
+  /// vérité vient de la liste que l'accueil charge déjà — aucune requête en
+  /// plus. Seule une liste NON filtrée est lue : une fois une puce choisie, la
+  /// liste filtrée ne dit plus rien des autres types, et le dernier ensemble
+  /// connu est conservé.
+  ///
+  /// `null` tant qu'aucune liste « Tous » n'est arrivée : l'appelant garde alors
+  /// les puces historiques ([VendorType.marketplaceFilter]).
+  ///
+  /// Limite : la liste « Tous » est bornée à 50 vendeurs ; un type présent
+  /// au-delà n'aurait pas de puce (il reste visible dans « Tous »).
+  MarketplaceVendorTypesProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'marketplaceVendorTypesProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$marketplaceVendorTypesHash();
+
+  @$internal
+  @override
+  MarketplaceVendorTypes create() => MarketplaceVendorTypes();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(Set<VendorType>? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<Set<VendorType>?>(value),
+    );
+  }
+}
+
+String _$marketplaceVendorTypesHash() =>
+    r'1011ac32cd82ba7e5559bc79329394cd43f69f92';
+
+/// Types de vendeurs présents au catalogue public, d'après la liste « Tous »
+/// (lot G4, épiceries).
+///
+/// Une puce de filtre ne doit pas promettre une catégorie vide : « Épicerie »
+/// apparaît le jour où la première épicerie est publiée, et pas avant. La
+/// vérité vient de la liste que l'accueil charge déjà — aucune requête en
+/// plus. Seule une liste NON filtrée est lue : une fois une puce choisie, la
+/// liste filtrée ne dit plus rien des autres types, et le dernier ensemble
+/// connu est conservé.
+///
+/// `null` tant qu'aucune liste « Tous » n'est arrivée : l'appelant garde alors
+/// les puces historiques ([VendorType.marketplaceFilter]).
+///
+/// Limite : la liste « Tous » est bornée à 50 vendeurs ; un type présent
+/// au-delà n'aurait pas de puce (il reste visible dans « Tous »).
+
+abstract class _$MarketplaceVendorTypes extends $Notifier<Set<VendorType>?> {
+  Set<VendorType>? build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<Set<VendorType>?, Set<VendorType>?>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<Set<VendorType>?, Set<VendorType>?>,
+              Set<VendorType>?,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 /// Liste paginée des vendeurs marketplace, filtrée par [marketplaceFilterProvider].
 /// Hit `/vendors?vendorType=...` (Sprint B backend). Quand le filtre change,
 /// Riverpod rebuilde et refetch automatiquement.

@@ -93,6 +93,44 @@ class MarketplaceFilter extends _$MarketplaceFilter {
   void reset() => state = null;
 }
 
+/// Types de vendeurs présents au catalogue public, d'après la liste « Tous »
+/// (lot G4, épiceries).
+///
+/// Une puce de filtre ne doit pas promettre une catégorie vide : « Épicerie »
+/// apparaît le jour où la première épicerie est publiée, et pas avant. La
+/// vérité vient de la liste que l'accueil charge déjà — aucune requête en
+/// plus. Seule une liste NON filtrée est lue : une fois une puce choisie, la
+/// liste filtrée ne dit plus rien des autres types, et le dernier ensemble
+/// connu est conservé.
+///
+/// `null` tant qu'aucune liste « Tous » n'est arrivée : l'appelant garde alors
+/// les puces historiques ([VendorType.marketplaceFilter]).
+///
+/// Limite : la liste « Tous » est bornée à 50 vendeurs ; un type présent
+/// au-delà n'aurait pas de puce (il reste visible dans « Tous »).
+@riverpod
+class MarketplaceVendorTypes extends _$MarketplaceVendorTypes {
+  @override
+  Set<VendorType>? build() {
+    ref.listen<AsyncValue<List<RestaurantSummary>>>(
+      vendorsListProvider,
+      (_, next) {
+        final types = _typesOf(next);
+        if (types != null) state = types;
+      },
+    );
+    return _typesOf(ref.read(vendorsListProvider));
+  }
+
+  Set<VendorType>? _typesOf(AsyncValue<List<RestaurantSummary>> vendors) {
+    if (ref.read(marketplaceFilterProvider) != null) return null;
+    // Données définitives seulement : en chargement, Riverpod garde la valeur
+    // précédente — au retour sur « Tous », ce serait encore la liste filtrée.
+    if (vendors is! AsyncData<List<RestaurantSummary>>) return null;
+    return {for (final vendor in vendors.value) vendor.vendorType};
+  }
+}
+
 /// Liste paginée des vendeurs marketplace, filtrée par [marketplaceFilterProvider].
 /// Hit `/vendors?vendorType=...` (Sprint B backend). Quand le filtre change,
 /// Riverpod rebuilde et refetch automatiquement.

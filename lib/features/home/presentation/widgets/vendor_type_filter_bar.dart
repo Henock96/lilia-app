@@ -12,6 +12,16 @@ class VendorTypeFilterBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final selected = ref.watch(marketplaceFilterProvider);
     final controller = ref.read(marketplaceFilterProvider.notifier);
+    // Puces des seuls types présents au catalogue (G4) ; tant qu'il n'est pas
+    // connu, les puces historiques. La puce sélectionnée reste toujours
+    // affichée, pour qu'on puisse la quitter.
+    final known = ref.watch(marketplaceVendorTypesProvider);
+    final types = known == null
+        ? VendorType.marketplaceFilter
+        : [
+            for (final type in VendorType.values)
+              if (known.contains(type) || type == selected) type,
+          ];
 
     // Hauteur dérivée du texte : fixée à 40, les puces étaient rognées
     // verticalement à 2× (P3-02). 16 = padding vertical de la puce.
@@ -31,7 +41,7 @@ class VendorTypeFilterBar extends ConsumerWidget {
             selected: selected == null,
             onTap: () => controller.reset(),
           ),
-          for (final type in VendorType.marketplaceFilter)
+          for (final type in types)
             _Chip(
               label: type.label,
               emoji: type.emoji,

@@ -78,8 +78,9 @@ enum VendorType {
     }
   }
 
-  /// Types proposés au filtre marketplace. GROCERY est exclu tant qu'on
-  /// n'a pas de vrai catalogue d'épicerie (réservé futur côté backend).
+  /// Puces de repli, affichées tant que le catalogue n'est pas chargé. Une fois
+  /// la liste « Tous » connue, ce sont les types réellement présents qui
+  /// s'affichent (`marketplaceVendorTypesProvider`), épicerie comprise.
   static const List<VendorType> marketplaceFilter = [
     VendorType.RESTAURANT,
     VendorType.HOME_COOK,
