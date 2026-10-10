@@ -158,7 +158,7 @@ class _OpenVendorCard extends StatelessWidget {
                     top: Radius.circular(12),
                   ),
                   child: vendor.thumbnailUrl != null
-                      ? AppCachedImage.framed(
+                      ? AppCachedImage(
                           imageUrl: vendor.thumbnailUrl!,
                           height: 96,
                           width: double.infinity,

@@ -1,3 +1,5 @@
+import 'package:lilia_app/common_widgets/build_error_state.dart';
+import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/features/payments/data/payment_service.dart';
 
 /// Issue d'un paiement **du point de vue du client**, distincte du statut
@@ -217,4 +219,37 @@ PaymentOutcome outcomeOf({
       }
       return PaymentOutcome.failed;
   }
+}
+
+/// Refus de `POST /payments` à montrer au client (C-24, audit du 09/10/2026).
+///
+/// Quand pawaPay refuse d'initier la demande, le serveur répond 400 avec
+/// `result.failureMessage` — le texte **brut de l'opérateur**, en anglais, que
+/// personne ne réécrit (`payment.service.ts`, `throw new BadRequestException(
+/// result.failureMessage ?? …)`). C'est le même texte qui avait déjà affiché
+/// « "Airtel_CG" did not specify a reason for this faliure » à un client.
+///
+/// Le 400 ne porte pas de code qui distinguerait ce cas des refus rédigés par
+/// le serveur. On garde donc ceux qu'on reconnaît — ils disent quoi faire — et
+/// tout autre 400 devient un message générique. Le texte d'origine reste dans
+/// les journaux du serveur (`PaymentEvent`).
+String paymentStartErrorMessage(Object error) {
+  const generique = 'L’opérateur a refusé la demande de paiement. Vérifiez le '
+      'numéro et l’opérateur choisis, puis réessayez.';
+  if (error is! ApiException) {
+    return 'Le paiement n’a pas pu être relancé. Réessayez dans un instant.';
+  }
+  if (error.statusCode == 400) {
+    const redigesParLeServeur = [
+      'Commande non payable',
+      'Trop de tentatives',
+      'Le paiement n\'a pas pu être initié',
+      'Numéro de téléphone congolais invalide',
+      'Le numéro de téléphone est requis',
+      'Opérateur invalide',
+    ];
+    final rediges = redigesParLeServeur.any(error.message.startsWith);
+    return rediges ? error.message : generique;
+  }
+  return userFacingErrorMessage(error);
 }

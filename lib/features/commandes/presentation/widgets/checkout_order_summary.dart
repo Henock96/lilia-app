@@ -27,6 +27,7 @@ class CheckoutOrderSummary extends StatelessWidget {
     required this.promo,
     required this.loyaltyDiscount,
     required this.total,
+    this.isEstimate = false,
     this.vendorOffer,
   });
 
@@ -46,6 +47,9 @@ class CheckoutOrderSummary extends StatelessWidget {
   /// Remise fidélité **appliquée** ; 0 si le client n'utilise pas ses points.
   final double loyaltyDiscount;
   final double total;
+
+  /// Total calculé localement, faute de devis serveur (C-19) : on le dit.
+  final bool isEstimate;
 
   /// F3-11 — offre boutique du devis serveur, financée par le vendeur.
   final QuotedVendorOffer? vendorOffer;
@@ -115,9 +119,15 @@ class CheckoutOrderSummary extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Total',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              // Flexible : « Total estimé » débordait à 2× sur un écran étroit.
+              Flexible(
+                child: Text(
+                  isEstimate ? 'Total estimé' : 'Total',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
               Text(
                 formatPrice(total),
@@ -129,6 +139,16 @@ class CheckoutOrderSummary extends StatelessWidget {
               ),
             ],
           ),
+          if (isEstimate) ...[
+            const SizedBox(height: LiliaSpacing.sm),
+            Text(
+              'Estimation — le montant exact est confirmé à la commande.',
+              key: const Key('checkout_total_estimate_hint'),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: cs.onSurfaceVariant,
+                  ),
+            ),
+          ],
         ],
       ),
     );

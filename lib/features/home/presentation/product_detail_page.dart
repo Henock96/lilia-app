@@ -276,8 +276,9 @@ Téléchargez l'app Lilia Food pour commander !
                   // En-tête du produit
                   _buildProductHeader(theme).fadeSlideIn(),
 
-                  // Description
-                  _buildDescription(),
+                  // Description — rien à afficher, pas de titre seul (V-3).
+                  if (widget.product.description.trim().isNotEmpty)
+                    _buildDescription(),
 
                   // Détails produit (ingrédients, conservation, dispo horaire…)
                   // Affiché uniquement si au moins un champ pertinent.

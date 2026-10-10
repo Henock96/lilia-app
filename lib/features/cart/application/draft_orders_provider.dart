@@ -34,13 +34,21 @@ class DraftOrdersNotifier extends _$DraftOrdersNotifier {
   Future<List<DraftOrder>> _loadDrafts() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonList = prefs.getStringList(_cle) ?? [];
-    try {
-      return jsonList.map((json) => DraftOrder.fromJson(json)).toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    } catch (e) {
-      logDebug('Erreur chargement brouillons: $e');
-      return [];
+    // C-12 (audit du 09/10/2026) : lecture **élément par élément**. Un seul
+    // brouillon illisible (format d'une ancienne version, écriture
+    // interrompue) faisait tomber le `try` global : la liste rendue était
+    // vide, et le prochain enregistrement l'écrivait telle quelle — tous les
+    // brouillons perdus pour un seul défectueux. Le défectueux est écarté,
+    // les autres survivent.
+    final drafts = <DraftOrder>[];
+    for (final json in jsonList) {
+      try {
+        drafts.add(DraftOrder.fromJson(json));
+      } catch (e) {
+        logDebug('Brouillon illisible écarté : $e');
+      }
     }
+    return drafts..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
   Future<void> _saveDrafts(List<DraftOrder> drafts) async {

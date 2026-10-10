@@ -31,9 +31,26 @@ class PasswordController extends _$PasswordController {
   @override
   FutureOr<void> build() {}
 
-  Future<AuthFailure?> updatePassword(String newPassword) => _executer(
-        () => ref.read(authRepositoryProvider).updatePassword(newPassword),
+  Future<AuthFailure?> updatePassword(
+    String newPassword, {
+    required String currentPassword,
+  }) async {
+    final echec = await _executer(
+      () => ref
+          .read(authRepositoryProvider)
+          .updatePassword(newPassword, currentPassword: currentPassword),
+    );
+    // Ici, des identifiants refusés ne peuvent venir que du mot de passe
+    // actuel : « Adresse e-mail ou mot de passe incorrect » égarerait un
+    // client qui n'a saisi aucune adresse.
+    if (echec?.kind == AuthFailureKind.badCredentials) {
+      return const AuthFailure(
+        AuthFailureKind.badCredentials,
+        'Mot de passe actuel incorrect.',
       );
+    }
+    return echec;
+  }
 
   /// Envoie le lien à une adresse saisie — écran de connexion, client non
   /// authentifié.

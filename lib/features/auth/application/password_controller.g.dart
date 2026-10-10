@@ -91,7 +91,7 @@ final class PasswordControllerProvider
 }
 
 String _$passwordControllerHash() =>
-    r'4e0a24bfeadc475d6b154ce9dae83cce4295f73c';
+    r'ff224b401d22b63045fadc6ebe34cca7e1e9d37a';
 
 /// Changement et réinitialisation du mot de passe.
 ///

@@ -53,7 +53,7 @@ void main() {
 
       await container
           .read(passwordControllerProvider.notifier)
-          .updatePassword('nouveau-mot-de-passe');
+          .updatePassword('nouveau-mot-de-passe', currentPassword: 'ancien');
 
       expect(
         container.read(authControllerProvider).value,
@@ -68,7 +68,7 @@ void main() {
 
       await container
           .read(passwordControllerProvider.notifier)
-          .updatePassword('123');
+          .updatePassword('123', currentPassword: 'ancien');
 
       expect(container.read(authControllerProvider).value, isNotNull);
       expect(container.read(authControllerProvider).hasError, isFalse);
@@ -96,7 +96,7 @@ void main() {
 
       final echec = await container
           .read(passwordControllerProvider.notifier)
-          .updatePassword('123');
+          .updatePassword('123', currentPassword: 'ancien');
 
       expect(echec, isNotNull);
       expect(echec!.kind, AuthFailureKind.weakPassword);
@@ -109,10 +109,30 @@ void main() {
 
       final echec = await container
           .read(passwordControllerProvider.notifier)
-          .updatePassword('nouveau-mot-de-passe');
+          .updatePassword('nouveau-mot-de-passe', currentPassword: 'ancien');
 
       expect(echec!.kind, AuthFailureKind.requiresRecentLogin);
       expect(echec.message.toLowerCase(), contains('reconnectez'));
+    });
+
+    // C-34 — audit du 09/10/2026.
+    test('le mot de passe actuel part pour la ré-authentification', () async {
+      await container
+          .read(passwordControllerProvider.notifier)
+          .updatePassword('nouveau-mot-de-passe', currentPassword: 'ancien');
+      expect(repo.dernierMotDePasseActuel, 'ancien');
+    });
+
+    test('mot de passe actuel refusé → message propre au changement',
+        () async {
+      repo.passwordError = FirebaseAuthException(code: 'invalid-credential');
+
+      final echec = await container
+          .read(passwordControllerProvider.notifier)
+          .updatePassword('nouveau-mot-de-passe', currentPassword: 'faux');
+
+      expect(echec!.kind, AuthFailureKind.badCredentials);
+      expect(echec.message, 'Mot de passe actuel incorrect.');
     });
 
     test('panne réseau → message réseau', () async {
@@ -122,7 +142,7 @@ void main() {
 
       final echec = await container
           .read(passwordControllerProvider.notifier)
-          .updatePassword('nouveau-mot-de-passe');
+          .updatePassword('nouveau-mot-de-passe', currentPassword: 'ancien');
 
       expect(echec!.kind, AuthFailureKind.network);
     });
@@ -130,7 +150,7 @@ void main() {
     test('succès → aucun échec rendu', () async {
       final echec = await container
           .read(passwordControllerProvider.notifier)
-          .updatePassword('nouveau-mot-de-passe');
+          .updatePassword('nouveau-mot-de-passe', currentPassword: 'ancien');
 
       expect(echec, isNull);
     });
@@ -142,7 +162,7 @@ void main() {
 
       await container
           .read(passwordControllerProvider.notifier)
-          .updatePassword('123');
+          .updatePassword('123', currentPassword: 'ancien');
 
       expect(container.read(passwordControllerProvider).isLoading, isFalse);
     });
@@ -151,8 +171,8 @@ void main() {
       final notifier = container.read(passwordControllerProvider.notifier);
 
       await Future.wait([
-        notifier.updatePassword('nouveau-mot-de-passe'),
-        notifier.updatePassword('nouveau-mot-de-passe'),
+        notifier.updatePassword('nouveau-mot-de-passe', currentPassword: 'ancien'),
+        notifier.updatePassword('nouveau-mot-de-passe', currentPassword: 'ancien'),
       ]);
 
       expect(container.read(passwordControllerProvider).isLoading, isFalse);

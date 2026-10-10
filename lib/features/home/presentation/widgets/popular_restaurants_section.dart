@@ -129,7 +129,7 @@ class _PopularRestaurantCard extends StatelessWidget {
                       top: Radius.circular(12),
                     ),
                     child: restaurant.thumbnailUrl != null
-                        ? AppCachedImage.framed(
+                        ? AppCachedImage(
                             imageUrl: restaurant.thumbnailUrl!,
                             height: 100,
                             width: double.infinity,

@@ -7,7 +7,9 @@ import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/features/commandes/presentation/reorder_action.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
+import 'package:lilia_app/features/commandes/domain/order_status_view.dart';
 import 'package:lilia_app/features/commandes/presentation/order_progress_bar.dart';
+import 'package:lilia_app/features/commandes/presentation/widgets/cancel_order_action.dart';
 import 'package:lilia_app/features/notifications/application/notification_providers.dart';
 import 'package:lilia_app/models/order.dart';
 import 'package:lilia_app/features/commandes/presentation/status_info.dart';
@@ -513,8 +515,9 @@ class _OrderCard extends ConsumerWidget {
                 order.status != OrderStatus.annuler)
               OrderProgressBar(order: order),
 
-            // Bouton annuler pour les commandes en attente
-            if (order.status == OrderStatus.enAttente)
+            // Bouton annuler : verdict du serveur (`allowedActions`), comme le
+            // détail — la règle « EN_ATTENTE » était recopiée ici (C-17).
+            if (canClientCancel(order))
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
@@ -541,19 +544,31 @@ class _OrderCard extends ConsumerWidget {
                         fontStyle: FontStyle.italic,
                       ),
                     ),
-                    TextButton(
-                      onPressed: () =>
-                          _showCancelConfirmationDialog(context, ref, order.id),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Theme.of(context).colorScheme.primary,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                      ),
-                      child: const Text(
-                        'Annuler',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                    // C-06 / C-18 / C-25 : voir `CancelOrderAction`.
+                    CancelOrderAction(
+                      orderId: order.id,
+                      builder: (context, onPressed, busy) => TextButton(
+                        key: Key('order_list_cancel_${order.id}'),
+                        onPressed: onPressed,
+                        style: TextButton.styleFrom(
+                          foregroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
                         ),
+                        child: busy
+                            ? const SizedBox.square(
+                                dimension: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                'Annuler',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                       ),
                     ),
                   ],
@@ -615,66 +630,5 @@ class _OrderCard extends ConsumerWidget {
     } else {
       return DateFormat('dd/MM/yyyy').format(date);
     }
-  }
-
-  void _showCancelConfirmationDialog(
-    BuildContext context,
-    WidgetRef ref,
-    String orderId,
-  ) {
-    showDialog<void>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          title: Row(
-            children: [
-              Icon(
-                Icons.warning_amber_rounded,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-              const SizedBox(width: 6),
-              const Text(
-                'Annuler la commande ?',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
-          content: const Text(
-            'Cette action est irréversible. Êtes-vous sûr de vouloir annuler cette commande ?',
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Non, garder'),
-              onPressed: () => Navigator.of(context).pop(),
-            ),
-            ElevatedButton(
-              // `error`/`onError` : `Colors.red` + blanc = 3,68:1.
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.error,
-                foregroundColor: Theme.of(context).colorScheme.onError,
-              ),
-              child: const Text('Oui, annuler'),
-              onPressed: () async {
-                Navigator.of(context).pop();
-                if (!context.mounted) return;
-                try {
-                  await ref
-                      .read(userOrdersProvider.notifier)
-                      .cancelOrder(orderId);
-                  if (!context.mounted) return;
-                  context.showSuccessSnack('Commande annulée avec succès');
-                } catch (e) {
-                  if (!context.mounted) return;
-                  context.showErrorSnack(userFacingErrorMessage(e));
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
   }
 }

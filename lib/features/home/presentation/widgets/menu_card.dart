@@ -31,7 +31,7 @@ class MenuCard extends StatelessWidget {
                 ),
                 child:
                     menu.thumbnailUrl != null && menu.thumbnailUrl!.isNotEmpty
-                    ? AppCachedImage.framed(
+                    ? AppCachedImage(
                         imageUrl: menu.thumbnailUrl!,
                         height: 110,
                         width: double.infinity,

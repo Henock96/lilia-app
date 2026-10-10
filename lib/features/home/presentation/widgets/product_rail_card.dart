@@ -81,7 +81,7 @@ class ProductRailCard extends ConsumerWidget {
                         top: Radius.circular(12),
                       ),
                       child: product.thumbnailUrl != null
-                          ? AppCachedImage.framed(
+                          ? AppCachedImage(
                               imageUrl: product.thumbnailUrl!,
                               height: 110,
                               width: double.infinity,

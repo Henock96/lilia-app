@@ -11,6 +11,8 @@
 // chose : **faire basculer la session Firebase**, et regarder ce qui s'est
 // produit tout seul.
 
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
@@ -175,6 +177,52 @@ void main() {
       container.read(guestCartStoreProvider.future);
 
   // ───────────────────────────────────────────────────────────────────────────
+
+  group('C-02 — inscription : rien ne part avant `/users/sync`', () {
+    test('le panier et le jeton attendent la fin de la synchronisation',
+        () async {
+      await demarrer(panierInviteBrut: _panierInvite(['var-1']));
+      auth.synchronisation = Completer<void>();
+
+      // Firebase ouvre la session : `/users/sync` n'a pas encore répondu.
+      auth.emitSession(const AppUser(uid: 'uid-new', email: 'n@lilia.cg'));
+      for (var i = 0; i < 20; i++) {
+        await Future<void>.delayed(Duration.zero);
+      }
+
+      expect(
+        notifications.enregistrements,
+        0,
+        reason: 'un jeton FCM proposé avant la création du compte Lilia '
+            'reçoit un 403 ACCOUNT_NOT_SYNCED',
+      );
+      expect(await panierServeur.getCart(), isNull);
+
+      auth.synchronisation!.complete();
+      await pompes();
+
+      expect(notifications.enregistrements, 1);
+      expect(
+        (await panierServeur.getCart())?.items.map((i) => i.variantId),
+        contains('var-1'),
+      );
+    });
+
+    test('inscription avortée pendant l’attente : aucun effet d’ouverture',
+        () async {
+      await demarrer();
+      auth.synchronisation = Completer<void>();
+
+      auth.emitSession(const AppUser(uid: 'uid-new', email: 'n@lilia.cg'));
+      await Future<void>.delayed(Duration.zero);
+      // `/users/sync` a échoué : le dépôt supprime le compte Firebase.
+      auth.emitSession(null);
+      auth.synchronisation!.complete();
+      await pompes();
+
+      expect(notifications.enregistrements, 0);
+    });
+  });
 
   group('P0-001 — le panier du visiteur est repris à l’ouverture de session', () {
     test('1 — panier composé sans compte, puis connexion', () async {

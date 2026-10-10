@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lilia_app/core/support/legal_links.dart';
 import 'package:lilia_app/core/support/support_contact.dart';
 import 'package:lilia_app/features/user/presentation/pages/about_page.dart';
 import 'package:lilia_app/theme/app_theme.dart';
@@ -59,6 +60,19 @@ void main() {
     await tester.pump();
     expect(ouvertes.single.scheme, 'mailto');
     expect(ouvertes.single.path, SupportContact.email);
+  });
+
+  // C-10 — audit du 09/10/2026 : plus de copie embarquée, inexacte.
+  testWidgets('les pages légales ouvrent les versions publiées du site', (
+    tester,
+  ) async {
+    final ouvertes = await monter(tester);
+    await tester.tap(find.text("Conditions d'utilisation"));
+    await tester.pump();
+    await tester.tap(find.text('Politique de confidentialité'));
+    await tester.pump();
+    expect(ouvertes, [LegalLinks.termsOfUse, LegalLinks.privacyPolicy]);
+    expect(ouvertes.every((u) => u.host == 'www.liliafood.com'), isTrue);
   });
 
   testWidgets('« Assistance téléphonique » ouvre un tel:', (tester) async {

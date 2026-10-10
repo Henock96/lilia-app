@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lilia_app/features/auth/controller/auth_controller.dart';
+import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
+import 'package:lilia_app/features/user/domain/profile_update.dart';
+import 'package:lilia_app/utils/congo_phone.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
@@ -41,10 +44,12 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     if (_formKey.currentState!.validate()) {
       final echec = await ref
           .read(profileControllerProvider.notifier)
-          .updateUser({
-            'nom': _nameController.text,
-            'phone': _phoneController.text,
-          });
+          .updateUser(
+            profileUpdatePayload(
+              nom: _nameController.text,
+              phone: _phoneController.text,
+            ),
+          );
 
       if (!mounted) return; // Vérifie si le widget est toujours monté
 
@@ -84,7 +89,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                         prefixIcon: Icon(Icons.person_outline),
                       ),
                       validator: (value) {
-                        if (value == null || value.isEmpty) {
+                        if (value == null || value.trim().isEmpty) {
                           return 'Veuillez entrer votre nom';
                         }
                         return null;
@@ -99,6 +104,15 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                         prefixIcon: Icon(Icons.phone_outlined),
                       ),
                       keyboardType: TextInputType.phone,
+                      // C-08 : facultatif, mais contrôlé comme le serveur le
+                      // contrôle — un refus en 400 bloquait tout le profil.
+                      validator: (value) {
+                        final saisie = (value ?? '').trim();
+                        if (saisie.isEmpty) return null;
+                        return isCongoMobilePhone(saisie)
+                            ? null
+                            : congoPhoneErrorMessage;
+                      },
                     ),
                     const SizedBox(height: 32),
                     SizedBox(
@@ -119,7 +133,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0),
                         child: Text(
-                          'Erreur: ${profileState.error}',
+                          // Jamais l'objet d'erreur brut (P4 de l'audit).
+                          userFacingErrorMessage(profileState.error!),
                           style: TextStyle(
                             color: Theme.of(context).colorScheme.error,
                           ),

@@ -72,7 +72,7 @@ class RestaurantCard extends ConsumerWidget {
                         child: restaurant.thumbnailUrl != null
                             ? Hero(
                                 tag: 'resto-img-${restaurant.id}',
-                                child: AppCachedImage.framed(
+                                child: AppCachedImage(
                                   imageUrl: restaurant.thumbnailUrl!,
                                   height: 150,
                                   width: double.infinity,

@@ -67,7 +67,16 @@ class SessionGuard extends _$SessionGuard {
     // Un 401 sur une route publique, ou après une déconnexion déjà faite, ne
     // concerne aucune session : ni nettoyage, ni message à un visiteur qui n'a
     // rien demandé.
-    if (ref.read(authRepositoryProvider).currentUser == null) return;
+    final auth = ref.read(authRepositoryProvider);
+    if (auth.currentUser == null) return;
+
+    // C-02 : pendant une inscription, la session Firebase existe déjà mais le
+    // compte Lilia pas encore. Un 403 `ACCOUNT_NOT_SYNCED` est alors l'état
+    // attendu, pas un compte disparu : déconnecter ici faisait échouer
+    // `/users/sync`, faute de jeton, et laissait un compte Firebase orphelin.
+    if (refusal == AccountRefusal.notSynced && auth.synchronisationEnCours) {
+      return;
+    }
 
     // Compte absent ou révoqué côté Lilia : on déconnecte, sans tenter de
     // resynchroniser — une resynchronisation recréerait en silence un compte

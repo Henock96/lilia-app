@@ -276,7 +276,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         if (apiBanners.isNotEmpty) {
           return _buildSliderContent(
             itemCount: apiBanners.length,
-            imageBuilder: (index) => AppCachedImage.framed(
+            imageBuilder: (index) => AppCachedImage(
               imageUrl: apiBanners[index].imageUrl,
               errorWidget: _bannerFallback(),
             ),

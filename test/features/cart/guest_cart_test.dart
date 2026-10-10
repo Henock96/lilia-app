@@ -29,6 +29,9 @@ class _FauxDepot implements CartRepository {
   /// Variantes que le serveur refuse — rupture, retrait, fenêtre horaire.
   final Set<String> refusees = {};
 
+  /// C-26 — variantes sur lesquelles le réseau coupe.
+  final Set<String> coupuresSur = {};
+
   /// F3-09 — options reçues à chaque `POST /cart/add`, dans l'ordre.
   final List<({String variantId, List<SelectedOption> options})> recus = [];
 
@@ -42,6 +45,9 @@ class _FauxDepot implements CartRepository {
     List<SelectedOption> options = const [],
   }) async {
     if (erreurAAjout != null) throw erreurAAjout!;
+    if (coupuresSur.contains(variantId)) {
+      throw CartException('coupé', code: 'NO_INTERNET');
+    }
     if (refusees.contains(variantId)) {
       throw CartException('Produit épuisé.', code: 'INVALID_DATA');
     }
@@ -454,6 +460,40 @@ void main() {
       final message = container.read(cartSyncFailuresProvider)!.message;
       expect(message, contains('conservé'));
       expect(message, isNot(contains('disponible')));
+    });
+
+    /// C-26 — audit du 09/10/2026 : coupure au milieu du versement. Les lignes
+    /// déjà versées ne doivent pas repartir à la reprise : `POST /cart/add`
+    /// additionne les quantités.
+    test('coupure en cours de versement : la reprise ne double rien', () async {
+      final panier = await monter();
+      await panier.addItem(variantId: 'var-1', preview: _apercu());
+      await panier.addItem(
+        variantId: 'var-2',
+        preview: _apercu(variantId: 'var-2'),
+      );
+
+      depot.coupuresSur.add('var-2');
+      sessionOuverte = true;
+      await panier.adoptGuestCart();
+
+      // Seule la ligne non versée reste en local.
+      expect(
+        (await magasin()).read()!.items.map((i) => i.variantId),
+        ['var-2'],
+      );
+
+      depot.coupuresSur.clear();
+      await panier.adoptGuestCart();
+
+      // Ce qui compte : combien de fois chaque ligne est partie au serveur.
+      // (Le panier obtenu ne se lit pas ici : ce faux serveur range ses
+      // lignes sous un autre vendeur que l'aperçu du visiteur.)
+      final envois = depot.recus.map((r) => r.variantId).toList();
+      expect(envois.where((v) => v == 'var-1'), hasLength(1),
+          reason: 'versé deux fois, var-1 aurait une quantité de 2');
+      expect(envois.where((v) => v == 'var-2'), hasLength(1));
+      expect((await magasin()).read(), isNull);
     });
 
     /// ⚠️ La garantie qui compte le plus : **un échec ne perd rien**. Le

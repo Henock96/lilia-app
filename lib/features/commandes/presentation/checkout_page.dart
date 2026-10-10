@@ -14,6 +14,7 @@ import 'package:lilia_app/features/cart/application/draft_orders_provider.dart';
 import 'package:lilia_app/features/commandes/data/checkout_controller.dart';
 import 'package:lilia_app/features/commandes/data/checkout_quote_provider.dart';
 import 'package:lilia_app/models/checkout_quote.dart';
+import 'package:lilia_app/utils/congo_phone.dart';
 import 'package:lilia_app/features/commandes/presentation/delivery_options_page.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:lilia_app/features/payments/data/payment_service.dart';
@@ -397,6 +398,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                               ? loyaltyDiscount
                               : 0,
                           total: total,
+                          isEstimate: quote == null,
                           vendorOffer: quote?.vendorOffer,
                         ).fadeSlideIn(),
                         const SizedBox(height: 24),
@@ -466,6 +468,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               ),
               CheckoutSubmitBar(
                 total: total,
+                isEstimate: quote == null,
                 // L'indicateur suit la garde, et non le seul
                 // `CheckoutController` : sinon il s'éteignait pendant la
                 // création de l'adresse et pendant l'ouverture du paiement,
@@ -770,12 +773,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         ),
       ),
       validator: (value) {
-        if (value == null || value.isEmpty) {
+        if (value == null || value.trim().isEmpty) {
           return 'Veuillez entrer votre numéro de téléphone';
         }
-        if (value.length < 9) {
-          return 'Numéro de téléphone invalide';
-        }
+        // C-03 : ce numéro paie quand le champ Mobile Money est vide. Une
+        // longueur ≥ 9 laissait passer « 123456789 », refusé ensuite par le
+        // serveur… après la création de la commande.
+        if (!isCongoMobilePhone(value)) return congoPhoneErrorMessage;
         return null;
       },
     );
@@ -1245,7 +1249,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 : _noteController.text.trim(),
             contactPhone: _phoneController.text.trim().isEmpty
                 ? null
-                : _phoneController.text.trim(),
+                : normalizeCongoPhone(_phoneController.text),
             promoCode: _promoResult?.code,
             idempotencyKey: _getOrCreateIdempotencyKey(),
             useLoyaltyPoints: _useLoyaltyPoints,
@@ -1334,12 +1338,26 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       amount: payment.amount > 0 ? payment.amount : checkout.total,
     );
 
-    // ─── 3. Suite du parcours, selon le rail d'encaissement du serveur ───────
-    //
-    // Le mode vient du backend : basculer de pawaPay au virement manuel (ou
-    // l'inverse) ne doit pas demander une release sur les stores.
     if (!context.mounted) return;
+    await _poursuivreSelonLeRail(context, checkout, payment);
+  }
 
+  /// Suite du parcours selon le rail d'encaissement **du serveur**.
+  ///
+  /// ⚠️ Point de passage UNIQUE après un `POST /payments` réussi (C-01, audit
+  /// du 09/10/2026). La relance de `_showPaymentRecoveryDialog` appelait
+  /// directement la modale de virement manuel : sous pawaPay, elle affichait
+  /// un numéro destinataire **vide** pendant que la demande USSD partait
+  /// réellement sur le téléphone, et « J'ai payé » menait à « Commande
+  /// passée » sans aucune interrogation du statut.
+  ///
+  /// Le mode vient du backend : basculer de pawaPay au virement manuel (ou
+  /// l'inverse) ne doit pas demander une release sur les stores.
+  Future<void> _poursuivreSelonLeRail(
+    BuildContext context,
+    Checkout checkout,
+    PaymentResponse payment,
+  ) async {
     if (payment.isSettled) {
       // Commande intégralement réglée en points de fidélité : rien à payer.
       //
@@ -1375,7 +1393,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       return;
     }
 
-    // Mode manuel : instructions de virement, telles que renvoyées par le serveur.
+    // Mode manuel : instructions de virement, telles que renvoyées par le
+    // serveur. Sans destinataire, il n'y a rien à virer : on ne montre pas
+    // une consigne « Entrez le numéro ci-dessus » au-dessus d'un vide.
+    if ((payment.instructions?.phone ?? '').trim().isEmpty) {
+      await _showPaymentRecoveryDialog(context, checkout);
+      return;
+    }
     await _showPaymentInstructionsDialog(context, checkout, payment);
   }
 
@@ -1444,9 +1468,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   ///
   /// Distinct du téléphone de contact quand le client en a saisi un : on paie
   /// souvent depuis un autre appareil que celui qu'on donne au livreur.
+  ///
+  /// Normalisé (C-03) : la saisie « 06 123 45 67 » partait brute, et un
+  /// serveur antérieur à la PR backend #146 la refusait en 400 — après la
+  /// création de la commande.
   String _paymentPhone() {
     final momo = _momoPhoneController.text.trim();
-    return momo.isNotEmpty ? momo : _phoneController.text.trim();
+    return normalizeCongoPhone(momo.isNotEmpty ? momo : _phoneController.text);
   }
 
   /// Écran de reprise : la commande existe, le paiement n'a pas pu être
@@ -1461,61 +1489,64 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.info_outline, color: cs.tertiary),
-            const SizedBox(width: 8),
-            const Expanded(child: Text('Commande enregistrée')),
+      // C-07 : `barrierDismissible: false` ne bloque pas le retour Android.
+      // Fermée par mégarde, cette boîte laissait le client sur le checkout
+      // d'une commande déjà créée, panier plein, prêt à la repasser.
+      builder: (dialogContext) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.info_outline, color: cs.tertiary),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('Commande enregistrée')),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Votre commande ${refCommande(checkout.id)} '
+                'a bien été créée, mais nous n\'avons pas pu préparer les instructions '
+                'de paiement.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Ne faites aucun virement pour l\'instant. Réessayez, ou retrouvez '
+                'la commande dans « Mes commandes » pour finaliser le paiement.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
+                context.goNamed(AppRoutes.commandes.routeName);
+              },
+              child: const Text('Voir mes commandes'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                Navigator.of(dialogContext).pop();
+                try {
+                  final payment = await _createPaymentWithRetry(checkout);
+                  if (!context.mounted) return;
+                  // Même aiguillage que le chemin nominal (C-01).
+                  await _poursuivreSelonLeRail(context, checkout, payment);
+                } catch (e) {
+                  if (!context.mounted) return;
+                  await _showPaymentRecoveryDialog(context, checkout);
+                }
+              },
+              child: const Text('Réessayer'),
+            ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Votre commande ${refCommande(checkout.id)} '
-              'a bien été créée, mais nous n\'avons pas pu préparer les instructions '
-              'de paiement.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Ne faites aucun virement pour l\'instant. Réessayez, ou retrouvez '
-              'la commande dans « Mes commandes » pour finaliser le paiement.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(dialogContext).pop();
-              ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
-              context.goNamed(AppRoutes.commandes.routeName);
-            },
-            child: const Text('Voir mes commandes'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.of(dialogContext).pop();
-              try {
-                final payment = await _createPaymentWithRetry(checkout);
-                if (!context.mounted) return;
-                await _showPaymentInstructionsDialog(
-                  context,
-                  checkout,
-                  payment,
-                );
-              } catch (e) {
-                if (!context.mounted) return;
-                await _showPaymentRecoveryDialog(context, checkout);
-              }
-            },
-            child: const Text('Réessayer'),
-          ),
-        ],
       ),
     );
   }
@@ -1541,22 +1572,26 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     await showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (dialogContext) => PaymentInstructionsDialog(
-        isMtn: isMtn,
-        methodLabel: methodLabel,
-        paymentPhoneNumber: paymentPhoneNumber,
-        amountDue: amountDue,
-        reference: reference,
-        onLater: () {
-          Navigator.of(dialogContext).pop();
-          ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
-          context.goNamed(AppRoutes.commandes.routeName);
-        },
-        onPaid: () {
-          Navigator.of(dialogContext).pop();
-          ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
-          context.goNamed(AppRoutes.orderSuccess.routeName);
-        },
+      // C-07 : le retour Android ne doit pas escamoter les instructions.
+      builder: (dialogContext) => PopScope(
+        canPop: false,
+        child: PaymentInstructionsDialog(
+          isMtn: isMtn,
+          methodLabel: methodLabel,
+          paymentPhoneNumber: paymentPhoneNumber,
+          amountDue: amountDue,
+          reference: reference,
+          onLater: () {
+            Navigator.of(dialogContext).pop();
+            ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
+            context.goNamed(AppRoutes.commandes.routeName);
+          },
+          onPaid: () {
+            Navigator.of(dialogContext).pop();
+            ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
+            context.goNamed(AppRoutes.orderSuccess.routeName);
+          },
+        ),
       ),
     );
   }

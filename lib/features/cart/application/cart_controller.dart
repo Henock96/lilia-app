@@ -279,7 +279,8 @@ class CartController extends _$CartController {
       Cart? resultat = incompatible ? null : serveur;
       final refuses = <CartItem>[];
 
-      for (final ligne in invite.items) {
+      for (var i = 0; i < invite.items.length; i++) {
+        final ligne = invite.items[i];
         try {
           resultat = await _repo.addToCart(
             variantId: ligne.variantId,
@@ -294,7 +295,18 @@ class CartController extends _$CartController {
           // verser, au moment précis où rien n'est disponible parce que rien ne
           // part. On rejette vers le `catch` extérieur, qui conserve le panier
           // entier et dit la vérité : ça n'a pas pu être repris.
-          if (_estPanneDeTransport(e)) rethrow;
+          if (_estPanneDeTransport(e)) {
+            // C-26 (audit du 09/10/2026) : ne garder que ce qui n'est PAS
+            // passé. Le panier local entier était conservé, et la reprise
+            // suivante rajoutait les lignes déjà versées — `POST /cart/add`
+            // additionne les quantités : deux poulets au lieu d'un.
+            await magasin.write(
+              invite.copyWith(
+                items: [...refuses, ...invite.items.skip(i)],
+              ),
+            );
+            rethrow;
+          }
           // Refus métier (stock, disponibilité, fenêtre horaire) : il concerne
           // cette ligne seule.
           refuses.add(ligne);
