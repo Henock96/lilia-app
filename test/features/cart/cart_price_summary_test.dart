@@ -60,6 +60,17 @@ void main() {
       expect(p.serviceFeePercentLabel, '7,5 %');
     });
 
+    // D-4 — le panier annonce le taux de SA boutique (épicerie : le sien).
+    test('taux de la boutique annoncé par le serveur : affiché et appliqué', () {
+      final p = CartPricePreview.compute(
+        subTotal: 20000,
+        settings: _bareme(),
+        serviceFeePercent: 5,
+      );
+      expect(p.serviceFee, 1000);
+      expect(p.serviceFeePercentLabel, '5 %');
+    });
+
     test('panier vide : zéro partout', () {
       final p = CartPricePreview.compute(subTotal: 0, settings: _bareme());
       expect(p.serviceFee, 0);

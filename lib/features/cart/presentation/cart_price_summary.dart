@@ -21,16 +21,21 @@ class CartPriceSummary extends ConsumerWidget {
   CartPriceSummary({super.key, required Cart cart})
     : subTotal = cart.totalPrice,
       itemCount = cart.totalItems,
-      restaurantId = _vendorOf(cart.items);
+      restaurantId = _vendorOf(cart.items),
+      serviceFeePercent = cart.serviceFeePercent;
 
   CartPriceSummary.draft(DraftOrder draft, {super.key})
     : subTotal = draft.totalPrice,
       itemCount = draft.totalItems,
-      restaurantId = _vendorOf(draft.items);
+      restaurantId = _vendorOf(draft.items),
+      serviceFeePercent = null;
 
   final double subTotal;
   final int itemCount;
   final String? restaurantId;
+
+  /// D-4 — taux de la boutique annoncé par le serveur (`null` : taux général).
+  final double? serviceFeePercent;
 
   /// Un brouillon ancien peut porter un `restaurantId` vide : on ne demande
   /// alors pas `/restaurants/` au serveur, la livraison reste « à l'étape
@@ -48,6 +53,7 @@ class CartPriceSummary extends ConsumerWidget {
     final preview = CartPricePreview.compute(
       subTotal: subTotal,
       settings: settings,
+      serviceFeePercent: serviceFeePercent,
     );
 
     final restaurantId = this.restaurantId;

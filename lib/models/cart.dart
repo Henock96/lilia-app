@@ -23,12 +23,18 @@ class Cart {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// D-4 — taux de frais de service de la boutique du panier, en pourcentage,
+  /// annoncé par le serveur (une épicerie a le sien). `null` : panier vide,
+  /// panier invité ou serveur ancien — l'app retombe sur le taux général.
+  final double? serviceFeePercent;
+
   Cart({
     required this.id,
     required this.userId,
     required this.items,
     required this.createdAt,
     required this.updatedAt,
+    this.serviceFeePercent,
   });
 
   Cart copyWith({
@@ -43,6 +49,7 @@ class Cart {
     items: items ?? this.items,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
+    serviceFeePercent: serviceFeePercent,
   );
 
   /// Items individuels (sans menuId)
@@ -125,6 +132,7 @@ class Cart {
       ).whereType<Map<String, dynamic>>().map(CartItem.fromMap).toList(),
       createdAt: _asDate(json['createdAt']),
       updatedAt: _asDate(json['updatedAt']),
+      serviceFeePercent: (json['serviceFeePercent'] as num?)?.toDouble(),
     );
   }
 }
