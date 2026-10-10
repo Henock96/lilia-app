@@ -182,6 +182,32 @@ void main() {
       expect(paymentStartErrorMessage(refus(texte)), texte);
     });
 
+    // D-3 (10/10/2026) — un article devenu indisponible ne se paie pas.
+    const ruptureMessage =
+        'Cet article n’est plus disponible : Alloco. Aucun paiement n\'a été '
+        'demandé. Annulez cette commande et repassez-la sans ces articles.';
+    const rupture = ApiException(
+      ruptureMessage,
+      statusCode: 409,
+      kind: ApiErrorKind.client,
+      code: 'ORDER_ITEMS_UNAVAILABLE',
+    );
+
+    test('article en rupture : le message du serveur, qui dit quoi faire', () {
+      expect(paymentStartErrorMessage(rupture), ruptureMessage);
+    });
+
+    test('article en rupture : reconnu par son code, pas par son texte', () {
+      expect(isOrderItemsUnavailable(rupture), isTrue);
+      expect(
+        isOrderItemsUnavailable(
+          const ApiException('Alloco indisponible', statusCode: 409),
+        ),
+        isFalse,
+      );
+      expect(isOrderItemsUnavailable(Exception('x')), isFalse);
+    });
+
     test('autre statut : message de l’API (502 prestataire, 426…)', () {
       const e = ApiException(
         'Le prestataire de paiement est momentanément indisponible.',

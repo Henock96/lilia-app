@@ -53,6 +53,14 @@ class PaymentUserMessage {
   final bool canRetry;
 }
 
+/// Le serveur a refusé le paiement parce qu'un article de la commande n'est
+/// plus disponible (décision D-3 : aucun article en rupture ne se paie).
+///
+/// Aucun débit n'a été demandé et la commande reste en attente : réessayer
+/// donnerait le même refus. Reconnu par le `code`, jamais par le texte.
+bool isOrderItemsUnavailable(Object error) =>
+    error is ApiException && error.code == 'ORDER_ITEMS_UNAVAILABLE';
+
 /// Traduit un échec technique en message client.
 ///
 /// ## Pourquoi cette couche existe
@@ -239,6 +247,9 @@ String paymentStartErrorMessage(Object error) {
   if (error is! ApiException) {
     return 'Le paiement n’a pas pu être relancé. Réessayez dans un instant.';
   }
+  // D-3 : rédigé par le serveur pour le client — il nomme les articles et dit
+  // quoi faire. Ce n'est pas un refus de l'opérateur.
+  if (isOrderItemsUnavailable(error)) return error.message;
   if (error.statusCode == 400) {
     const redigesParLeServeur = [
       'Commande non payable',

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:lilia_app/core/network/api_exception.dart';
+import 'package:lilia_app/features/payments/domain/payment_failure.dart';
 import 'package:lilia_app/utils/order_reference.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -1307,6 +1308,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     try {
       payment = await _createPaymentWithRetry(checkout);
     } catch (e, st) {
+      // D-3 : refus métier attendu, pas une panne — ni Sentry ni « Réessayer ».
+      if (isOrderItemsUnavailable(e)) {
+        if (context.mounted) _signalerRupture(context, e);
+        return;
+      }
       // Sans ligne `Payment`, la commande n'apparaît pas dans l'écran admin
       // « Paiements à confirmer » : un virement du client ne serait rattachable
       // à rien. On ne masque plus l'échec derrière un `debugPrint`.
@@ -1480,6 +1486,16 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   /// Écran de reprise : la commande existe, le paiement n'a pas pu être
   /// enregistré. On ne laisse pas le client devant des instructions de paiement
   /// qui ne mènent nulle part.
+  /// D-3 : un article est devenu indisponible entre la commande et le
+  /// paiement. Rien n'a été débité et réessayer redonnerait le même refus : on
+  /// dit lequel (message du serveur) et on mène aux commandes, où le client
+  /// peut annuler celle-ci et la repasser.
+  void _signalerRupture(BuildContext context, Object erreur) {
+    ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
+    context.showErrorSnack(paymentStartErrorMessage(erreur));
+    context.goNamed(AppRoutes.commandes.routeName);
+  }
+
   Future<void> _showPaymentRecoveryDialog(
     BuildContext context,
     Checkout checkout,
@@ -1540,6 +1556,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   await _poursuivreSelonLeRail(context, checkout, payment);
                 } catch (e) {
                   if (!context.mounted) return;
+                  if (isOrderItemsUnavailable(e)) {
+                    _signalerRupture(context, e);
+                    return;
+                  }
                   await _showPaymentRecoveryDialog(context, checkout);
                 }
               },
