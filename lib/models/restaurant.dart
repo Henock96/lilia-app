@@ -2,6 +2,7 @@ import 'package:lilia_app/models/active_offer.dart';
 import 'package:lilia_app/models/gallery_image.dart';
 import 'package:lilia_app/models/menu.dart';
 import 'package:lilia_app/models/produit.dart';
+import 'package:lilia_app/models/service_modes.dart';
 import 'package:lilia_app/models/vendor_type.dart';
 
 /// Enum des jours de la semaine.
@@ -213,6 +214,11 @@ class RestaurantSummary {
   /// F3-11 — offre boutique en cours (badge « −10 % »), `null` sinon.
   final ActiveOffer? activeOffer;
 
+  /// Modes de service déclarés par le vendeur (`supportsDelivery` /
+  /// `supportsPickup`). Voir [ServiceModes].
+  final bool supportsDelivery;
+  final bool supportsPickup;
+
   RestaurantSummary({
     required this.id,
     required this.name,
@@ -236,11 +242,20 @@ class RestaurantSummary {
     this.acceptsPreorders = false,
     this.preorderLeadHours,
     this.activeOffer,
+    this.supportsDelivery = true,
+    this.supportsPickup = true,
   });
 
   /// Retourne le temps de livraison formaté (ex: "15-30 min")
   String get deliveryTimeFormatted =>
       '$estimatedDeliveryTimeMin-$estimatedDeliveryTimeMax min';
+
+  /// Modes que le client peut choisir chez ce vendeur.
+  ServiceModes get serviceModes => ServiceModes.of(
+    supportsDelivery: supportsDelivery,
+    supportsPickup: supportsPickup,
+    vendorType: vendorType,
+  );
 
   /// Retourne les spécialités formatées (ex: "Pizza, Burger, Sushi")
   String get specialtiesFormatted => specialties.map((s) => s.name).join(', ');
@@ -290,6 +305,10 @@ class RestaurantSummary {
       acceptsPreorders: (json['acceptsPreorders'] as bool?) ?? false,
       preorderLeadHours: json['preorderLeadHours'] as int?,
       activeOffer: ActiveOffer.tryParse(json['activeOffer']),
+      // Absents d'une réponse antérieure aux colonnes (août 2026) : le
+      // vendeur faisait alors les deux, c'est aussi le défaut en base.
+      supportsDelivery: (json['supportsDelivery'] as bool?) ?? true,
+      supportsPickup: (json['supportsPickup'] as bool?) ?? true,
     );
   }
 }
@@ -358,6 +377,10 @@ class Restaurant {
   /// F3-11 — offre boutique en cours, `null` sinon.
   final ActiveOffer? activeOffer;
 
+  /// Modes de service déclarés par le vendeur. Voir [ServiceModes].
+  final bool supportsDelivery;
+  final bool supportsPickup;
+
   Restaurant({
     required this.id,
     required this.name,
@@ -386,11 +409,20 @@ class Restaurant {
     this.vendorProfile,
     this.menus = const [],
     this.activeOffer,
+    this.supportsDelivery = true,
+    this.supportsPickup = true,
   });
 
   /// Retourne le temps de livraison formaté
   String get deliveryTimeFormatted =>
       '$estimatedDeliveryTimeMin-$estimatedDeliveryTimeMax min';
+
+  /// Modes que le client peut choisir chez ce vendeur.
+  ServiceModes get serviceModes => ServiceModes.of(
+    supportsDelivery: supportsDelivery,
+    supportsPickup: supportsPickup,
+    vendorType: vendorType,
+  );
 
   /// Même vendeur, catalogue complété.
   ///
@@ -437,6 +469,8 @@ class Restaurant {
       vendorProfile: vendorProfile,
       menus: menus,
       activeOffer: activeOffer,
+      supportsDelivery: supportsDelivery,
+      supportsPickup: supportsPickup,
     );
   }
 
@@ -535,6 +569,10 @@ class Restaurant {
           : null,
       menus: menus,
       activeOffer: ActiveOffer.tryParse(json['activeOffer']),
+      // Absents d'une réponse antérieure aux colonnes (août 2026) : le
+      // vendeur faisait alors les deux, c'est aussi le défaut en base.
+      supportsDelivery: (json['supportsDelivery'] as bool?) ?? true,
+      supportsPickup: (json['supportsPickup'] as bool?) ?? true,
     );
   }
 }

@@ -21,6 +21,9 @@ enum OrderErrorKind {
   offline,
   sessionExpired,
   vendorClosed,
+
+  /// Livraison ou retrait que le vendeur ne propose pas : changer de mode.
+  serviceModeUnavailable,
   outOfStock,
   belowMinimum,
   emptyCart,
@@ -66,6 +69,17 @@ class OrderErrorPresentation {
       if (error.statusCode == 409) {
         final conflict = _conflict(error);
         if (conflict != null) return conflict;
+      }
+      // Le vendeur ne propose pas (ou plus) le mode choisi : le serveur relit
+      // sa configuration au checkout. Le message nomme le mode à choisir.
+      if (error.code == 'DELIVERY_UNAVAILABLE' ||
+          error.code == 'PICKUP_UNAVAILABLE') {
+        return OrderErrorPresentation(
+          kind: OrderErrorKind.serviceModeUnavailable,
+          title: 'Mode indisponible',
+          message: error.message,
+          icon: Icons.swap_horiz_rounded,
+        );
       }
       if (error.kind == ApiErrorKind.network) {
         return const OrderErrorPresentation(

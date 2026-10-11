@@ -1,4 +1,5 @@
 import 'package:lilia_app/common_widgets/offer_badge.dart';
+import 'package:lilia_app/common_widgets/service_mode_badges.dart';
 import 'package:flutter/material.dart';
 import 'package:lilia_app/features/home/domain/opening_label.dart';
 import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
@@ -963,34 +964,46 @@ class _DeliveryInfoCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final modes = restaurant.serviceModes;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _InfoTile(
-            icon: Icons.delivery_dining,
-            label: 'Livraison',
-            value: restaurant.deliveryTimeFormatted,
-            color: Colors.blue,
-          ),
-          const SizedBox(width: 10),
-          _InfoTile(
-            icon: Icons.local_shipping_outlined,
-            label: 'Frais',
-            value: deliveryFeeLabel(
-              restaurant.fixedDeliveryFee,
-              ref.watch(platformSettingsProvider).value,
-            ),
-            color: Colors.green,
-          ),
-          const SizedBox(width: 10),
-          _InfoTile(
-            icon: Icons.shopping_bag_outlined,
-            label: 'Minimum',
-            value: restaurant.minimumOrderAmount > 0
-                ? formatPrice(restaurant.minimumOrderAmount)
-                : 'Aucun',
-            color: Colors.orange,
+          // Ce que le client pourra choisir au moment de commander.
+          ServiceModeBadges(modes: modes),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              // Délai et frais de course n'ont de sens que si le vendeur livre.
+              if (modes.delivery) ...[
+                _InfoTile(
+                  icon: Icons.delivery_dining,
+                  label: 'Livraison',
+                  value: restaurant.deliveryTimeFormatted,
+                  color: Colors.blue,
+                ),
+                const SizedBox(width: 10),
+                _InfoTile(
+                  icon: Icons.local_shipping_outlined,
+                  label: 'Frais',
+                  value: deliveryFeeLabel(
+                    restaurant.fixedDeliveryFee,
+                    ref.watch(platformSettingsProvider).value,
+                  ),
+                  color: Colors.green,
+                ),
+                const SizedBox(width: 10),
+              ],
+              _InfoTile(
+                icon: Icons.shopping_bag_outlined,
+                label: 'Minimum',
+                value: restaurant.minimumOrderAmount > 0
+                    ? formatPrice(restaurant.minimumOrderAmount)
+                    : 'Aucun',
+                color: Colors.orange,
+              ),
+            ],
           ),
         ],
       ),
