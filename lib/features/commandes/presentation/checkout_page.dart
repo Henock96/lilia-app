@@ -1288,6 +1288,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       if (e is ApiException && (e.statusCode == 426 || e.statusCode == 503)) {
         ref.invalidate(platformSettingsProvider);
       }
+      // Mode refusé : la configuration du vendeur a changé depuis son
+      // chargement. La relire pour que l'écran du choix ne propose plus que
+      // les modes réellement disponibles.
+      if (e is ApiException &&
+          (e.code == 'DELIVERY_UNAVAILABLE' ||
+              e.code == 'PICKUP_UNAVAILABLE')) {
+        ref.invalidate(restaurantControllerProvider(restaurantId));
+      }
       if (!context.mounted) return;
       _showOrderError(context, e);
       return;
@@ -1646,6 +1654,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           style: const TextStyle(fontSize: 14, height: 1.4),
         ),
         actions: [
+          if (presentation.kind == OrderErrorKind.serviceModeUnavailable)
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                context.goNamed(AppRoutes.deliveryOptions.routeName);
+              },
+              child: const Text('Changer de mode'),
+            ),
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Compris'),

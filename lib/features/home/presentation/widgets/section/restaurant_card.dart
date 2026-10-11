@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/app_cached_image.dart';
 import 'package:lilia_app/common_widgets/offer_badge.dart';
+import 'package:lilia_app/common_widgets/service_mode_badges.dart';
 import 'package:lilia_app/features/favoris/application/restaurant_favorites_provider.dart';
 import 'package:lilia_app/features/reviews/presentation/widgets/star_rating.dart';
 import 'package:lilia_app/models/restaurant.dart';
@@ -351,23 +352,27 @@ class RestaurantCard extends ConsumerWidget {
                         // Frais de livraison et minimum
                         Row(
                           children: [
-                            Icon(
-                              Icons.delivery_dining_outlined,
-                              size: 14,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              // F3-02 : « Dès X » en mode plateforme.
-                              deliveryFeeLabel(
-                                restaurant.fixedDeliveryFee,
-                                ref.watch(platformSettingsProvider).value,
-                              ),
-                              style: TextStyle(
-                                fontSize: 12,
+                            // Pas de frais de course chez un vendeur qui ne
+                            // livre pas.
+                            if (restaurant.serviceModes.delivery) ...[
+                              Icon(
+                                Icons.delivery_dining_outlined,
+                                size: 14,
                                 color: theme.colorScheme.onSurfaceVariant,
                               ),
-                            ),
+                              const SizedBox(width: 4),
+                              Text(
+                                // F3-02 : « Dès X » en mode plateforme.
+                                deliveryFeeLabel(
+                                  restaurant.fixedDeliveryFee,
+                                  ref.watch(platformSettingsProvider).value,
+                                ),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
                             if (restaurant.minimumOrderAmount > 0) ...[
                               const SizedBox(width: 12),
                               Icon(
@@ -386,6 +391,10 @@ class RestaurantCard extends ConsumerWidget {
                             ],
                           ],
                         ),
+                        const SizedBox(height: 6),
+                        // Livraison, retrait ou les deux — ce que le client
+                        // pourra choisir au moment de commander.
+                        ServiceModeBadges(modes: restaurant.serviceModes),
                       ],
                     ),
                   ),

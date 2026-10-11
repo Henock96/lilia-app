@@ -72,6 +72,68 @@ void main() {
       expect(_groupValue(tester), isTrue);
     });
 
+    // ── Lot 1 : seuls les modes que le vendeur propose ───────────────────
+    testWidgets('livraison seulement : pas d\'option retrait, note explicative',
+        (tester) async {
+      await _pumpPage(tester, supportsPickup: false);
+
+      expect(find.byType(RadioListTile<bool>), findsOneWidget);
+      expect(find.text('Livraison a domicile'), findsOneWidget);
+      expect(find.textContaining('Retrait'), findsNothing);
+      expect(find.text('Chez Maman Lili propose uniquement la livraison.'),
+          findsOneWidget);
+      expect(_groupValue(tester), isTrue);
+    });
+
+    testWidgets('retrait seulement : pas d\'option livraison, le retrait est retenu',
+        (tester) async {
+      await _pumpPage(tester, supportsDelivery: false);
+
+      expect(find.byType(RadioListTile<bool>), findsOneWidget);
+      expect(find.text('Livraison a domicile'), findsNothing);
+      expect(
+        find.text('Chez Maman Lili propose uniquement le retrait sur place.'),
+        findsOneWidget,
+      );
+      // Le défaut « livraison » n'est pas proposé : le choix retombe sur le
+      // seul mode disponible, et les sections d'adresse disparaissent.
+      expect(_groupValue(tester), isFalse);
+      expect(find.text('Adresse de livraison'), findsNothing);
+    });
+
+    testWidgets('les deux modes : comportement historique, pas de note',
+        (tester) async {
+      await _pumpPage(tester);
+
+      expect(find.byType(RadioListTile<bool>), findsNWidgets(2));
+      expect(find.textContaining('propose uniquement'), findsNothing);
+    });
+
+    testWidgets('aucun mode : message, aucun choix, Continuer désactivé',
+        (tester) async {
+      await _pumpPage(tester, supportsDelivery: false, supportsPickup: false);
+
+      expect(find.byType(RadioGroup<bool>), findsNothing);
+      expect(
+        find.text('Chez Maman Lili ne prend pas de commande pour le moment.'),
+        findsOneWidget,
+      );
+      final bouton = tester.widget<ElevatedButton>(
+        find.widgetWithText(ElevatedButton, 'Continuer'),
+      );
+      expect(bouton.onPressed, isNull);
+    });
+
+    testWidgets('retrait seulement : Continuer est actif sans adresse',
+        (tester) async {
+      await _pumpPage(tester, supportsDelivery: false);
+
+      final bouton = tester.widget<ElevatedButton>(
+        find.widgetWithText(ElevatedButton, 'Continuer'),
+      );
+      expect(bouton.onPressed, isNotNull);
+    });
+
     testWidgets('panier vide → message, pas de RadioGroup', (tester) async {
       await _pumpPage(tester, emptyCart: true);
 
@@ -252,6 +314,8 @@ Future<void> _pumpPage(
   WidgetTester tester, {
   VendorType vendorType = VendorType.RESTAURANT,
   bool emptyCart = false,
+  bool supportsDelivery = true,
+  bool supportsPickup = true,
   List<Adresse>? adresses,
   List<Quartier>? quartiers,
   _FakeAdresses? controller,
@@ -281,7 +345,13 @@ Future<void> _pumpPage(
         ),
         restaurantControllerProvider(
           _restaurantId,
-        ).overrideWith((ref) async => _restaurant(vendorType)),
+        ).overrideWith(
+          (ref) async => _restaurant(
+            vendorType,
+            supportsDelivery: supportsDelivery,
+            supportsPickup: supportsPickup,
+          ),
+        ),
       ],
       child: MaterialApp(home: const DeliveryOptionsPage()),
     ),
@@ -355,13 +425,19 @@ Cart _cart() => Cart(
   ],
 );
 
-Restaurant _restaurant(VendorType type) => Restaurant(
+Restaurant _restaurant(
+  VendorType type, {
+  bool supportsDelivery = true,
+  bool supportsPickup = true,
+}) => Restaurant(
   id: _restaurantId,
   name: 'Chez Maman Lili',
   address: 'Poto-Poto, Brazzaville',
   products: const [],
   categoriesMap: const {},
   vendorType: type,
+  supportsDelivery: supportsDelivery,
+  supportsPickup: supportsPickup,
 );
 
 final _quartiers = [

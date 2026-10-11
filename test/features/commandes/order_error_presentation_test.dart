@@ -16,6 +16,24 @@ void main() {
       expect(p.title, isNot(contains('Erreur')));
     });
 
+    test('mode refusé par le serveur : message du serveur, invite à changer',
+        () {
+      for (final code in ['DELIVERY_UNAVAILABLE', 'PICKUP_UNAVAILABLE']) {
+        final p = OrderErrorPresentation.from(
+          ApiException(
+            '« Chez Mode » ne propose pas le retrait sur place. '
+            'Choisissez la livraison.',
+            statusCode: 400,
+            kind: ApiErrorKind.client,
+            code: code,
+          ),
+        );
+        expect(p.kind, OrderErrorKind.serviceModeUnavailable);
+        expect(p.title, 'Mode indisponible');
+        expect(p.message, contains('Choisissez la livraison'));
+      }
+    });
+
     test('pas de réseau : rien n\'est parti', () {
       final p = OrderErrorPresentation.from(
         const ApiException('x', kind: ApiErrorKind.network),

@@ -120,14 +120,21 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
             restaurantControllerProvider(_restaurantId!),
           );
           final restaurant = restaurantAsync.value;
-          // Si HOME_COOK, on force le mode livraison (le retrait n'a pas de sens).
-          if (restaurant?.vendorType == VendorType.HOME_COOK && !_isDelivery) {
+          // Le choix courant est gardé tant que le vendeur le propose ; sinon
+          // on retombe sur le seul mode proposé (vendeur « retrait seulement »
+          // alors que la livraison est le défaut, configuration changée depuis
+          // l'ouverture de l'écran, HOME_COOK — LIL-131).
+          final resolved = restaurant?.serviceModes.resolve(
+            isDelivery: _isDelivery,
+          );
+          if (resolved != null && resolved != _isDelivery) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
                 setState(() {
-                  _isDelivery = true;
-                  _calculatedDeliveryFee = null;
+                  _isDelivery = resolved;
+                  _calculatedDeliveryFee = resolved ? null : 0;
                   _quote = null;
+                  _deliveryFeeUnavailable = false;
                 });
               }
             });
@@ -158,6 +165,10 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                   ),
                   const SizedBox(height: 12),
                   _buildDeliveryModeSection(restaurant),
+                  if (_singleModeNote(restaurant) case final note?) ...[
+                    const SizedBox(height: 8),
+                    note,
+                  ],
                   const SizedBox(height: 24),
 
                   // === SECTION QUARTIER (seulement si livraison) ===
@@ -239,9 +250,18 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
 
   Widget _buildDeliveryModeSection(Restaurant? restaurant) {
     final cs = Theme.of(context).colorScheme;
-    // LIL-131 : HOME_COOK n'a pas d'adresse physique pour le retrait ;
-    // l'option n'a pas de sens — on la masque entièrement.
-    final hidePickup = restaurant?.vendorType == VendorType.HOME_COOK;
+    // Seuls les modes que le vendeur propose sont affichés (le serveur refuse
+    // les autres). Vendeur pas encore chargé : les deux, comme avant — le
+    // choix est revu dès qu'il arrive.
+    final modes = restaurant?.serviceModes;
+    if (modes != null && modes.none) {
+      return _ServiceModeNotice(
+        icon: Icons.block,
+        text: '${restaurant!.name} ne prend pas de commande pour le moment.',
+      );
+    }
+    final showDelivery = modes?.delivery ?? true;
+    final hidePickup = !(modes?.pickup ?? true);
     // Libellé adapté au type de vendeur (boulangerie, vendeur maison…).
     final pickupTitle = restaurant != null
         ? 'Retrait ${restaurant.vendorType.pickupLocationLabel}'
@@ -270,34 +290,35 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
         child: Column(
           children: [
             // Option Livraison
-            RadioListTile<bool>(
-              value: true,
-              title: const Text(
-                'Livraison a domicile',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: const Text(
-                'Recevez votre commande chez vous',
-                style: TextStyle(fontSize: 13),
-              ),
-              secondary: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: _isDelivery
-                      ? cs.primary.withValues(alpha: 0.1)
-                      : cs.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(10),
+            if (showDelivery)
+              RadioListTile<bool>(
+                value: true,
+                title: const Text(
+                  'Livraison a domicile',
+                  style: TextStyle(fontWeight: FontWeight.w600),
                 ),
-                child: Icon(
-                  Icons.delivery_dining,
-                  color: _isDelivery ? cs.primary : cs.outline,
-                  size: 28,
+                subtitle: const Text(
+                  'Recevez votre commande chez vous',
+                  style: TextStyle(fontSize: 13),
                 ),
+                secondary: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _isDelivery
+                        ? cs.primary.withValues(alpha: 0.1)
+                        : cs.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(
+                    Icons.delivery_dining,
+                    color: _isDelivery ? cs.primary : cs.outline,
+                    size: 28,
+                  ),
+                ),
+                activeColor: cs.primary,
               ),
-              activeColor: cs.primary,
-            ),
             if (!hidePickup) ...[
-              Divider(height: 1, color: cs.outline),
+              if (showDelivery) Divider(height: 1, color: cs.outline),
               // Option Retrait
               RadioListTile<bool>(
                 value: false,
@@ -329,6 +350,21 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Une phrase quand le vendeur ne propose qu'un mode : le client comprend
+  /// pourquoi l'autre n'apparaît pas, au lieu de le chercher.
+  Widget? _singleModeNote(Restaurant? restaurant) {
+    final modes = restaurant?.serviceModes;
+    if (modes == null || modes.none || modes.delivery == modes.pickup) {
+      return null;
+    }
+    return _ServiceModeNotice(
+      icon: Icons.info_outline,
+      text: modes.delivery
+          ? '${restaurant!.name} propose uniquement la livraison.'
+          : '${restaurant!.name} propose uniquement le retrait sur place.',
     );
   }
 
@@ -993,6 +1029,16 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
     // rien de plus, une étape plus tard.
     if (bareme.maintenanceMode) return false;
 
+    // Mode que le vendeur ne propose pas (ou plus) : le serveur le refuserait.
+    final restaurantId = _restaurantId;
+    final modes = restaurantId == null
+        ? null
+        : ref
+              .read(restaurantControllerProvider(restaurantId))
+              .value
+              ?.serviceModes;
+    if (modes != null && !modes.offers(isDelivery: _isDelivery)) return false;
+
     if (!_isDelivery) return true; // Retrait, pas besoin d'adresse
 
     // Mode plateforme : pas de devis, pas de prix — on n'emmène pas le client
@@ -1253,6 +1299,33 @@ class _BaremeIndisponible extends StatelessWidget {
                 ),
               ],
             ),
+    );
+  }
+}
+
+/// Ligne d'information sous le choix du mode : vendeur à mode unique, ou
+/// vendeur qui ne sert plus personne.
+class _ServiceModeNotice extends StatelessWidget {
+  const _ServiceModeNotice({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: cs.onSurfaceVariant),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+          ),
+        ),
+      ],
     );
   }
 }
