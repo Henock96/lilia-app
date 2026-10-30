@@ -37,6 +37,14 @@ class StatusInfo {
 /// Aligné sur l'enum Dart `OrderStatus`, donc sur le compilateur : un statut
 /// ajouté côté serveur tombe dans `unknow` (« Inconnu », visible), jamais dans le vide.
 StatusInfo orderStatusInfo(OrderStatus status) => switch (status) {
+  // Lot 3 — « accepter puis payer » : rien n'est encore débité.
+  OrderStatus.demandeEnvoyee => const StatusInfo(
+    label: 'En attente de la boutique',
+    description:
+        'La boutique confirme votre commande. Vous paierez après son accord.',
+    tone: LiliaBadgeVariant.warning,
+    icon: Iconsax.timer_1,
+  ),
   OrderStatus.enAttente => const StatusInfo(
     label: 'En attente',
     description: 'Votre commande est en attente de confirmation',

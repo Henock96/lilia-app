@@ -52,6 +52,8 @@ List<TimelineStep> orderTimeline(Order order) {
 
   // Indice de l'étape en cours ; `labels.length` = tout est terminé.
   final (int current, String? detail) = switch (order.status) {
+    // Lot 3 — la boutique doit accepter avant que le paiement s'ouvre.
+    OrderStatus.demandeEnvoyee => (0, 'En attente de la réponse de la boutique'),
     OrderStatus.enAttente => (0, 'En attente de votre paiement'),
     // PAYER / ACCEPTEE : pas de précision ici, `acceptanceLine` (F3-01) la
     // donne juste sous la carte, avec l'heure annoncée par le vendeur.

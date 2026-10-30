@@ -97,6 +97,7 @@ class _CommandePageState extends ConsumerState<CommandePage>
           final cancelledOrders = <Order>[];
           for (final o in orders) {
             switch (o.status) {
+              case OrderStatus.demandeEnvoyee:
               case OrderStatus.enAttente:
               case OrderStatus.payer:
               case OrderStatus.acceptee:

@@ -9,7 +9,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_app/features/commandes/domain/checkout_estimate.dart';
 import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 
-const _settings = PlatformSettings.defautsDeParsing;
+// Barème de travail des calculs ci-dessous (8 %), explicite : il ne dépend plus
+// des défauts de parsing, passés à 15 % au lot 3 du durcissement.
+const _settings = PlatformSettings(
+  serviceFeePercent: 8,
+  loyaltyPointsPerOrder: 1,
+  loyaltyPointValueXaf: 50,
+  loyaltyMinRedemption: 1,
+  referrerBonusPoints: 1,
+);
 
 void main() {
   group('CheckoutEstimate — frais de service', () {
@@ -274,7 +282,8 @@ void main() {
     test('le parsing retombe sur les défauts Prisma si un champ manque', () {
       final s = PlatformSettings.fromJson(<String, dynamic>{});
 
-      expect(s.serviceFeePercent, 8);
+      // Lot 3 — défaut Prisma : 15 % (et non plus 8 %).
+      expect(s.serviceFeePercent, 15);
       expect(s.loyaltyPointValueXaf, 50);
       expect(s.loyaltyMinRedemption, 1);
       expect(s.loyaltyPointsPerOrder, 1);

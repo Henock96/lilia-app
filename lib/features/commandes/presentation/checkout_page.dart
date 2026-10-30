@@ -24,6 +24,7 @@ import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/features/commandes/domain/checkout_estimate.dart';
+import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 import 'package:lilia_app/services/analytics_service.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -1313,6 +1314,25 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       amount: checkout.total,
       itemCount: checkout.items.length,
     );
+
+    // ─── Lot 3 — « accepter puis payer » ─────────────────────────────────────
+    // Le serveur a créé une DEMANDE : la boutique doit l'accepter avant que le
+    // paiement s'ouvre (il refuserait `POST /payments` en 409). Le client suit
+    // sa demande depuis sa commande ; « Payer maintenant » y apparaîtra à
+    // l'acceptation, annoncée par une notification.
+    if (checkout.status == 'DEMANDE_ENVOYEE') {
+      ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
+      ref.invalidate(userOrdersProvider);
+      if (!context.mounted) return;
+      context.showSuccessSnack(
+        'Demande envoyée : la boutique la confirme, vous paierez ensuite.',
+      );
+      context.goNamed(
+        AppRoutes.orderDetail.routeName,
+        pathParameters: {'orderId': checkout.id},
+      );
+      return;
+    }
 
     // ─── 2. Créer le paiement — bloquant, car il porte les instructions ──────
     final PaymentResponse payment;

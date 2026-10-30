@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
+import 'package:lilia_app/features/commandes/domain/checkout_estimate.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' show LatLng;
 import 'package:lilia_app/features/address/presentation/pages/location_picker_page.dart';
@@ -800,7 +801,20 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
         onRetry: () => ref.invalidate(platformSettingsProvider),
       );
     }
-    final serviceFee = (subTotal * settings.serviceFeeRate).roundToDouble();
+    // Durcissement lot 3 (point 3) — le taux de la BOUTIQUE (`Cart
+    // .serviceFeePercent`, D-4 : une épicerie a le sien) et non le taux
+    // général, par la même fonction que le checkout. Le montant confirmé
+    // reste le devis serveur, affiché à l'étape suivante.
+    final serviceFee = CheckoutEstimate.compute(
+      subTotal: subTotal,
+      deliveryFee: 0,
+      promoDiscount: 0,
+      loyaltyPoints: 0,
+      useLoyaltyPoints: false,
+      settings: settings,
+      serviceFeePercent:
+          ref.watch(cartControllerProvider).value?.serviceFeePercent,
+    ).serviceFee;
     final total = subTotal + deliveryFee + serviceFee;
 
     return Container(
