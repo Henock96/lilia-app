@@ -59,6 +59,12 @@ class ApiClient {
           // ne jamais l'ajouter à une version qui ne sait pas attendre le
           // résultat : il déclencherait un vrai débit sans écran pour le suivre.
           'X-Lilia-Payment-Flow': 'provider',
+          // Durcissement lot 3 — cette version sait conduire « accepter puis
+          // payer » : ne pas payer au checkout d'une demande, attendre
+          // l'accord de la boutique (détail de commande), puis « Payer
+          // maintenant ». Sans cet en-tête, le serveur garde le parcours
+          // historique pour cette application, même réglage allumé.
+          'X-Lilia-Order-Flow': 'accept-first',
         },
       ),
     );

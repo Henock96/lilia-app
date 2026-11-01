@@ -190,6 +190,32 @@ class OrderDetailPage extends ConsumerWidget {
                 // (elle était sous les articles, la livraison et le total).
                 // La bannière « paiement non abouti » la suit : son texte
                 // renvoie au « bouton de paiement ci-dessus ».
+                // Lot 3 — « accepter puis payer » : la boutique répond d'abord,
+                // le paiement s'ouvre ensuite (rien n'est débité avant).
+                if (order.status == OrderStatus.demandeEnvoyee) ...[
+                  _AcceptFirstNotice(
+                    title: 'En attente de la boutique',
+                    body:
+                        'La boutique confirme votre commande. Vous paierez dès '
+                        'son accord — aucun montant n’est débité avant.',
+                    deadline: order.requestExpiresAt,
+                    deadlineLabel: 'Réponse attendue avant',
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                if (order.status == OrderStatus.enAttente &&
+                    order.orderFlow == 'ACCEPT_FIRST' &&
+                    order.paymentDueAt != null) ...[
+                  _AcceptFirstNotice(
+                    title: 'Commande acceptée',
+                    body:
+                        'La boutique a accepté votre commande : payez pour '
+                        'qu’elle soit préparée.',
+                    deadline: order.paymentDueAt,
+                    deadlineLabel: 'À payer avant',
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 if (order.status == OrderStatus.enAttente) ...[
                   _PaymentSection(order: order),
                   const SizedBox(height: 16),
@@ -1337,6 +1363,72 @@ class _AcceptanceLine extends StatelessWidget {
 }
 
 /// Annulation expliquée : remboursement en cours si la commande était payée.
+/// Lot 3 — état d'une commande « accepter puis payer » : qui doit agir, et
+/// avant quelle heure (fixée par le serveur, jamais recalculée ici).
+class _AcceptFirstNotice extends StatelessWidget {
+  const _AcceptFirstNotice({
+    required this.title,
+    required this.body,
+    required this.deadline,
+    required this.deadlineLabel,
+  });
+
+  final String title;
+  final String body;
+  final DateTime? deadline;
+  final String deadlineLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final local = deadline?.toLocal();
+    final hhmm = local == null
+        ? null
+        : '${local.hour.toString().padLeft(2, '0')}:'
+              '${local.minute.toString().padLeft(2, '0')}';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cs.secondaryContainer.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: cs.secondary.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Iconsax.timer_1, color: cs.secondary),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(body, style: Theme.of(context).textTheme.bodySmall),
+                if (hhmm != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '$deadlineLabel $hhmm',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CancellationCard extends StatelessWidget {
   const _CancellationCard({required this.notice});
 

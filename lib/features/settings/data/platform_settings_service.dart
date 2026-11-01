@@ -119,7 +119,9 @@ class PlatformSettings {
   /// pointer dessus.
   @visibleForTesting
   static const defautsDeParsing = PlatformSettings(
-    serviceFeePercent: 8,
+    // Durcissement lot 3 — défaut Prisma passé à 15 % (migration
+    // `20261029130000_platform_settings_tariff_defaults`).
+    serviceFeePercent: 15,
     loyaltyPointsPerOrder: 1,
     loyaltyPointValueXaf: 50,
     loyaltyMinRedemption: 1,

@@ -18,6 +18,9 @@ DateTime _asDate(Object? value) =>
 
 // Enum pour les statuts de commande, doit correspondre au backend
 enum OrderStatus {
+  /// Durcissement lot 3 — demande envoyée à la boutique : elle accepte ou
+  /// refuse AVANT tout paiement (parcours « accepter puis payer »).
+  demandeEnvoyee,
   enAttente,
   payer,
   /// Acceptée par le vendeur, pas encore en préparation (Phase 3, F3-01).
@@ -34,6 +37,8 @@ enum OrderStatus {
 
 OrderStatus _parseStatus(String? status) {
   switch (status) {
+    case 'DEMANDE_ENVOYEE':
+      return OrderStatus.demandeEnvoyee;
     case 'EN_ATTENTE':
       return OrderStatus.enAttente;
     case 'PAYER':
@@ -92,6 +97,13 @@ class Order {
   final DateTime? paidAt;
   /// Heure de fin de préparation annoncée par le vendeur à l'acceptation.
   final DateTime? estimatedReadyAt;
+  // Durcissement lot 3 — parcours « accepter puis payer ».
+  /// `PAY_FIRST` (historique) ou `ACCEPT_FIRST`, figé à la commande.
+  final String orderFlow;
+  /// Demande : sans réponse de la boutique avant cette heure, elle expire.
+  final DateTime? requestExpiresAt;
+  /// Acceptée : à payer avant cette heure, sinon elle est annulée.
+  final DateTime? paymentDueAt;
   /// Motif d'un refus vendeur (`OUT_OF_STOCK`…), `null` sinon.
   final String? vendorRejectionReason;
   /// Gestes que le serveur accepte (`CANCEL`…). `null` = serveur antérieur
@@ -136,6 +148,9 @@ class Order {
     this.scheduledFor,
     this.paidAt,
     this.estimatedReadyAt,
+    this.orderFlow = 'PAY_FIRST',
+    this.requestExpiresAt,
+    this.paymentDueAt,
     this.vendorRejectionReason,
     this.allowedActions,
     this.deliveryProof,
@@ -198,6 +213,9 @@ class Order {
       scheduledFor: scheduledFor ?? this.scheduledFor,
       paidAt: paidAt,
       estimatedReadyAt: estimatedReadyAt,
+      orderFlow: orderFlow,
+      requestExpiresAt: requestExpiresAt,
+      paymentDueAt: paymentDueAt,
       vendorRejectionReason: vendorRejectionReason,
       allowedActions: allowedActions,
       deliveryProof: deliveryProof,
@@ -256,6 +274,16 @@ class Order {
           : null,
       estimatedReadyAt: json['estimatedReadyAt'] is String
           ? DateTime.tryParse(json['estimatedReadyAt'] as String)
+          : null,
+      // Absents d'un serveur antérieur au lot 3 : parcours historique.
+      orderFlow: json['orderFlow'] is String
+          ? json['orderFlow'] as String
+          : 'PAY_FIRST',
+      requestExpiresAt: json['requestExpiresAt'] is String
+          ? DateTime.tryParse(json['requestExpiresAt'] as String)
+          : null,
+      paymentDueAt: json['paymentDueAt'] is String
+          ? DateTime.tryParse(json['paymentDueAt'] as String)
           : null,
       vendorRejectionReason: json['vendorRejectionReason'] is String
           ? json['vendorRejectionReason'] as String
