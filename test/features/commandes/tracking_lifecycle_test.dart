@@ -18,6 +18,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_app/core/network/api_client.dart';
+import 'package:lilia_app/core/network/api_exception.dart';
+import 'package:lilia_app/core/network/interceptors/retry_interceptor.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_app/features/commandes/data/delivery_tracking_repository.dart';
@@ -35,9 +37,25 @@ class _AdaptateurSuivi implements HttpClientAdapter {
   /// Horodatage de la dernière position servie par HTTP.
   DateTime? lastPositionAt;
 
+  /// Réponse du serveur : 200, 404 (aucune livraison) ou 500 (panne).
+  int codeHttp = 200;
+
+  /// Retient la lecture tant qu'il n'est pas complété.
+  Completer<void>? barriere;
+
   @override
   Future<ResponseBody> fetch(RequestOptions options, _, _) async {
     appels++;
+    await barriere?.future;
+    if (codeHttp != 200) {
+      return ResponseBody.fromString(
+        jsonEncode({'message': 'refus'}),
+        codeHttp,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+        },
+      );
+    }
     return ResponseBody.fromString(
       jsonEncode({
         'data': {
@@ -104,6 +122,9 @@ void main() {
       forceRefreshToken: () async => 'jeton',
     );
     client.dio.httpClientAdapter = reseau;
+    // Un 500 coûterait 2,8 s de relances par lecture : sans elle, un test finit
+    // avant la relecture qu'il croit observer.
+    client.dio.interceptors.removeWhere((i) => i is RetryInterceptor);
 
     container = ProviderContainer(
       overrides: [
@@ -301,6 +322,300 @@ void main() {
     await pompes();
 
     expect(container.read(provider).value?.updatedAt, t3);
+  });
+
+  // ─── Audit du 05/11/2026 — une panne n'est pas une absence ──────────────
+
+  final suivi = driverLocationControllerProvider(_orderId);
+
+  void repliRapide() {
+    DriverLocationController.httpFallbackInterval =
+        const Duration(milliseconds: 20);
+    addTearDown(
+      () => DriverLocationController.httpFallbackInterval =
+          const Duration(seconds: 30),
+    );
+  }
+
+  Future<void> laisserTournerLeRepli() async {
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    await pompes();
+  }
+
+  /// Ouvre le suivi sur un serveur en panne : la première lecture échoue.
+  Future<void> ouvrirEnPanne() async {
+    reseau.codeHttp = 500;
+    addTearDown(container.listen(suivi, (_, _) {}).close);
+    await expectLater(container.read(suivi.future), throwsA(isA<ApiException>()));
+  }
+
+  group('aucune livraison (404)', () {
+    setUp(() => reseau.codeHttp = 404);
+
+    test('à l’ouverture : rien à afficher, aucune connexion', () async {
+      await ouvrirLeSuivi();
+
+      expect(container.read(suivi).hasError, isFalse);
+      expect(container.read(suivi).value, isNull);
+      expect(
+        socket.suivis,
+        isEmpty,
+        reason: 'un retrait au comptoir n’a jamais de livraison : ni socket, '
+            'ni poll pour lui',
+      );
+    });
+
+    // LILIA-FOOD-APP-CLIENT-E : `_socket!` sur null à la reprise.
+    test('retour au premier plan : relit, sans planter ni s’abonner', () async {
+      await ouvrirLeSuivi();
+      await passerEnArrierePlan();
+
+      await revenirAuPremierPlan();
+
+      expect(reseau.appels, 2);
+      expect(socket.suivis, isEmpty);
+    });
+
+    test('relecture ratée au retour : toujours rien à suivre', () async {
+      await ouvrirLeSuivi();
+      await passerEnArrierePlan();
+
+      reseau.codeHttp = 500;
+      await revenirAuPremierPlan();
+
+      expect(socket.suivis, isEmpty);
+    });
+
+    test('livreur assigné pendant la veille : le suivi s’ouvre au retour',
+        () async {
+      await ouvrirLeSuivi();
+      await passerEnArrierePlan();
+
+      reseau.codeHttp = 200;
+      await revenirAuPremierPlan();
+
+      expect(container.read(suivi).value?.deliveryId, 'liv-1');
+      expect(socket.suivis, [_orderId]);
+    });
+  });
+
+  test('course terminée à l’ouverture, relecture ratée au retour : aucun suivi',
+      () async {
+    reseau.deliveryStatus = 'LIVRER';
+    await ouvrirLeSuivi();
+    await passerEnArrierePlan();
+
+    reseau.codeHttp = 500;
+    await revenirAuPremierPlan();
+
+    expect(socket.suivis, isEmpty);
+  });
+
+  group('première lecture en panne', () {
+    test('l’erreur est visible : ce n’est pas « aucun livreur »', () async {
+      await ouvrirEnPanne();
+
+      expect(container.read(suivi).hasError, isTrue);
+    });
+
+    test('Riverpod ne relance pas : le repli s’en charge sans couper le socket',
+        () async {
+      await ouvrirEnPanne();
+      final appels = reseau.appels;
+
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+
+      expect(reseau.appels, appels);
+      expect(socket.abandonnes, isEmpty);
+    });
+
+    test('le suivi repart seul quand le serveur revient', () async {
+      repliRapide();
+      await ouvrirEnPanne();
+      expect(socket.suivis, [_orderId]);
+
+      reseau.codeHttp = 200;
+      await laisserTournerLeRepli();
+
+      expect(container.read(suivi).hasError, isFalse);
+      expect(container.read(suivi).value?.deliveryId, 'liv-1');
+      expect(socket.suivis, [_orderId], reason: 'aucun second abonnement');
+    });
+
+    test('le serveur revient sans livraison : on coupe tout', () async {
+      repliRapide();
+      await ouvrirEnPanne();
+
+      reseau.codeHttp = 404;
+      await laisserTournerLeRepli();
+      final appels = reseau.appels;
+      await laisserTournerLeRepli();
+
+      expect(container.read(suivi).hasError, isFalse);
+      expect(container.read(suivi).value, isNull);
+      expect(socket.abandonnes, [_orderId]);
+      expect(reseau.appels, appels, reason: 'plus aucune lecture');
+    });
+
+    test('une position reçue pendant la panne n’empêche pas le contexte',
+        () async {
+      repliRapide();
+      await ouvrirEnPanne();
+
+      socket.positions.add(
+        DriverPositionEvent(
+          lat: -4.0,
+          lng: 15.0,
+          timestamp: DateTime.utc(2026, 11, 6, 12, 5),
+        ),
+      );
+      await pompes();
+      expect(container.read(suivi).value?.deliveryId, isNull);
+
+      reseau
+        ..codeHttp = 200
+        ..lastPositionAt = DateTime.utc(2026, 11, 6, 12);
+      await laisserTournerLeRepli();
+
+      final etat = container.read(suivi).value;
+      expect(
+        etat?.deliveryId,
+        'liv-1',
+        reason: 'livreur, destination et code de remise n’arrivent que par HTTP',
+      );
+      expect(
+        etat?.updatedAt,
+        DateTime.utc(2026, 11, 6, 12, 5),
+        reason: 'une lecture plus ancienne ne recule pas le livreur (C-22)',
+      );
+      expect(etat?.latitude, -4.0);
+    });
+
+    test('en veille puis retour : le suivi reprend et se rattrape', () async {
+      await ouvrirEnPanne();
+      await passerEnArrierePlan();
+
+      reseau.codeHttp = 200;
+      await revenirAuPremierPlan();
+
+      expect(container.read(suivi).value?.deliveryId, 'liv-1');
+      expect(socket.suivis, [_orderId, _orderId]);
+    });
+
+    test('toujours en panne au retour : le suivi reste branché', () async {
+      await ouvrirEnPanne();
+      await passerEnArrierePlan();
+
+      await revenirAuPremierPlan();
+
+      expect(container.read(suivi).hasError, isTrue);
+      expect(socket.suivis, [_orderId, _orderId]);
+    });
+  });
+
+  group('refus définitif (403)', () {
+    Future<void> ouvrirRefuse() async {
+      reseau.codeHttp = 403;
+      addTearDown(container.listen(suivi, (_, _) {}).close);
+      await expectLater(
+        container.read(suivi.future),
+        throwsA(isA<ApiException>()),
+      );
+    }
+
+    test('l’erreur se voit, et rien ne tourne pour la rattraper', () async {
+      await ouvrirRefuse();
+
+      expect(container.read(suivi).hasError, isTrue);
+      expect(
+        socket.suivis,
+        isEmpty,
+        reason: 'attendre ne changera rien : socket et poll coûteraient de la '
+            'data et de la batterie pour toute la durée de l’écran',
+      );
+    });
+
+    test('retour au premier plan : toujours rien', () async {
+      await ouvrirRefuse();
+      await passerEnArrierePlan();
+
+      await revenirAuPremierPlan();
+
+      expect(socket.suivis, isEmpty);
+    });
+  });
+
+  test('retour pendant la première lecture : un seul abonnement', () async {
+    final barriere = reseau.barriere = Completer<void>();
+    addTearDown(container.listen(suivi, (_, _) {}).close);
+    await pompes();
+
+    await passerEnArrierePlan();
+    await revenirAuPremierPlan();
+    barriere.complete();
+    await pompes();
+
+    expect(socket.suivis, [_orderId]);
+  });
+
+  test('retour pendant la première lecture d’un retrait : aucun abonnement',
+      () async {
+    final barriere = reseau.barriere = Completer<void>();
+    reseau.codeHttp = 404;
+    addTearDown(container.listen(suivi, (_, _) {}).close);
+    await pompes();
+
+    await passerEnArrierePlan();
+    await revenirAuPremierPlan();
+    barriere.complete();
+    await pompes();
+
+    expect(socket.suivis, isEmpty);
+  });
+
+  test('écran fermé pendant « Réessayer » : rien n’est écrit après coup',
+      () async {
+    final ecoute = container.listen(suivi, (_, _) {});
+    reseau.codeHttp = 500;
+    await expectLater(container.read(suivi.future), throwsA(isA<ApiException>()));
+
+    final barriere = reseau.barriere = Completer<void>();
+    final relecture = container.read(suivi.notifier).refresh();
+    await pompes();
+    ecoute.close();
+    await pompes();
+
+    barriere.complete();
+    await relecture;
+  });
+
+  test('écran fermé pendant la première lecture : aucun abonnement', () async {
+    final barriere = reseau.barriere = Completer<void>();
+    final ecoute = container.listen(suivi, (_, _) {});
+    await pompes();
+
+    ecoute.close();
+    await pompes();
+    barriere.complete();
+    await pompes();
+
+    expect(socket.suivis, isEmpty);
+  });
+
+  test('arrière-plan pendant la première lecture : un seul abonnement au retour',
+      () async {
+    final barriere = reseau.barriere = Completer<void>();
+    addTearDown(container.listen(suivi, (_, _) {}).close);
+    await pompes();
+
+    await passerEnArrierePlan();
+    barriere.complete();
+    await pompes();
+    expect(socket.suivis, isEmpty, reason: 'personne ne regarde');
+
+    await revenirAuPremierPlan();
+
+    expect(socket.suivis, [_orderId]);
   });
 }
 

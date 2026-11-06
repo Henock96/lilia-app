@@ -136,8 +136,8 @@ class SessionEffects extends _$SessionEffects {
   /// condition d'ouverture de session — ne pas recevoir de notifications ne
   /// doit jamais empêcher de se connecter.
   void _lancer(Future<void> Function() effet) {
-    _enCours = Future<void>(effet).catchError((Object e) {
-      if (kDebugMode) logDebug('Effet de session en échec : ${e.runtimeType}');
+    _enCours = Future<void>(effet).catchError((Object e, StackTrace pile) {
+      reportIncident('Effet de session en échec', e, pile);
     });
   }
 
@@ -211,10 +211,8 @@ class SessionEffects extends _$SessionEffects {
         uid: uid,
         sessionRestauree: sessionRestauree,
       );
-    } catch (e) {
-      if (kDebugMode) {
-        logDebug('Rangement des données héritées impossible : ${e.runtimeType}');
-      }
+    } catch (e, pile) {
+      reportIncident('Rangement des données héritées impossible', e, pile);
     }
   }
 
@@ -226,10 +224,8 @@ class SessionEffects extends _$SessionEffects {
   Future<void> _reprendrePanierInvite() async {
     try {
       await ref.read(cartControllerProvider.notifier).adoptGuestCart();
-    } catch (e) {
-      if (kDebugMode) {
-        logDebug('Reprise du panier visiteur impossible : ${e.runtimeType}');
-      }
+    } catch (e, pile) {
+      reportIncident('Reprise du panier visiteur impossible', e, pile);
     }
   }
 
@@ -243,10 +239,8 @@ class SessionEffects extends _$SessionEffects {
   Future<void> _enregistrerJetonPush() async {
     try {
       await ref.read(notificationServiceProvider).registerTokenOnServer();
-    } catch (e) {
-      if (kDebugMode) {
-        logDebug('Enregistrement du jeton FCM impossible : ${e.runtimeType}');
-      }
+    } catch (e, pile) {
+      reportIncident('Enregistrement du jeton FCM impossible', e, pile);
     }
   }
 
@@ -293,10 +287,8 @@ class SessionEffects extends _$SessionEffects {
     try {
       final magasin = await ref.read(guestCartStoreProvider.future);
       await magasin.clear();
-    } catch (e) {
-      if (kDebugMode) {
-        logDebug('Purge du panier visiteur impossible : ${e.runtimeType}');
-      }
+    } catch (e, pile) {
+      reportIncident('Purge du panier visiteur impossible', e, pile);
     }
   }
 }

@@ -13,6 +13,7 @@ import 'package:lilia_app/theme/theme_mode_provider.dart';
 import 'package:lilia_app/features/user/presentation/widgets/loyalty_card.dart';
 
 import '../../common_widgets/build_error_state.dart';
+import 'package:lilia_app/utils/async_value_ui.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 
 class UserPage extends ConsumerWidget {
@@ -56,10 +57,13 @@ class UserPage extends ConsumerWidget {
                         child: Column(
                           children: [
                             GestureDetector(
-                              onTap: () {
-                                ref
+                              onTap: () async {
+                                final erreur = await ref
                                     .read(profileControllerProvider.notifier)
                                     .updateProfilePicture();
+                                if (erreur != null && context.mounted) {
+                                  context.showErrorSnack(erreur);
+                                }
                               },
                               child: Stack(
                                 alignment: Alignment.bottomRight,
@@ -572,7 +576,7 @@ class _ReferralCard extends ConsumerWidget {
     // ne convertit pas des points en francs.
     final settings = ref.watch(platformSettingsProvider).value;
 
-    return statsAsync.when(
+    return statsAsync.whenUi(
       data: (stats) {
         final cs = Theme.of(context).colorScheme;
         final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -683,7 +687,20 @@ class _ReferralCard extends ConsumerWidget {
         );
       },
       loading: () => const SizedBox.shrink(),
-      error: (_, _) => const SizedBox.shrink(),
+      error: (_, _) => Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Parrainage indisponible pour le moment.',
+              style: TextStyle(fontSize: 13),
+            ),
+          ),
+          TextButton(
+            onPressed: () => ref.invalidate(referralStatsProvider),
+            child: const Text('Réessayer'),
+          ),
+        ],
+      ),
     );
   }
 }

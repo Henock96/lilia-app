@@ -6,6 +6,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'package:lilia_app/models/quartier.dart';
 import 'package:lilia_app/services/location_service.dart';
+import 'package:lilia_app/utils/map_camera.dart';
 
 /// Position choisie par le client, rendue par [LocationPickerPage].
 class PickedLocation {
@@ -82,7 +83,11 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
   /// Centre courant de la carte — c'est lui qui sera confirmé.
   late LatLng _center;
 
-  /// `true` tant que le client n'a ni déplacé la carte ni utilisé son GPS.
+  /// Point de départ de la caméra : seul un écart à ce point prouve qu'elle a
+  /// bougé.
+  late final LatLng _start;
+
+  /// `false` tant que le client n'a ni déplacé la carte ni utilisé son GPS.
   /// Le bouton de confirmation reste désactivé : on ne veut pas qu'un tap
   /// distrait enregistre le cadrage par défaut comme si c'était une adresse.
   bool _touched = false;
@@ -104,6 +109,9 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
   ///
   /// Google Maps ne signale pas ces échecs à l'application. On les déduit donc
   /// du silence, et on offre une issue plutôt qu'un cul-de-sac.
+  ///
+  /// Ce silence ne prouve rien : un client qui lit une carte saine sans y
+  /// toucher se tait aussi. D'où un message qui pose la question.
   bool _mapSeemsBroken = false;
 
   Timer? _mapWatchdog;
@@ -119,19 +127,26 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
       text: widget.initialLandmark ?? '',
     );
     _center = widget.initialPosition ?? _kBrazzavilleFraming;
+    _start = _center;
     // Une position déjà enregistrée est un choix antérieur du client : la
     // reconfirmer sans la déplacer est légitime.
     _touched = widget.initialPosition != null;
 
-    if (!_touched) {
-      _mapWatchdog = Timer(_mapWatchdogDelay, () {
-        if (mounted && !_touched) setState(() => _mapSeemsBroken = true);
-      });
-    }
+    // Armé dans tous les cas : `_touched` dit que la position est confirmable,
+    // pas que la carte vit. Une position connue ne l'affiche pas mieux.
+    _mapWatchdog = Timer(_mapWatchdogDelay, () {
+      if (mounted) setState(() => _mapSeemsBroken = true);
+    });
   }
 
-  /// Le client a donné signe de vie : la carte fonctionne, on désarme.
-  void _markTouched() {
+  /// Seul un vrai déplacement ouvre le verrou et désarme le chien de garde.
+  ///
+  /// `onCameraMoveStarted` ouvrait le verrou sur une carte morte, et le cadrage
+  /// par défaut partait comme une adresse `EXACT`. Un rapport sur place ne doit
+  /// pas non plus écraser un point obtenu par le GPS.
+  void _onCameraMove(CameraPosition position) {
+    if (!cameraHasLeft(_start, position.target)) return;
+    _center = position.target;
     _mapWatchdog?.cancel();
     if (!_touched || _mapSeemsBroken) {
       setState(() {
@@ -175,8 +190,12 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
       result.position!.latitude,
       result.position!.longitude,
     );
-    setState(() => _center = target);
-    _markTouched();
+    // Le GPS rend le point confirmable, mais ne dit rien de la carte : le chien
+    // de garde reste armé.
+    setState(() {
+      _center = target;
+      _touched = true;
+    });
     await _controller?.animateCamera(
       CameraUpdate.newLatLngZoom(target, _kStreetZoom),
     );
@@ -218,8 +237,7 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
                   onMapCreated: (c) => _controller = c,
                   // La caméra n'est jamais repositionnée par le code après ce
                   // point : la carte appartient au doigt du client.
-                  onCameraMove: (position) => _center = position.target,
-                  onCameraMoveStarted: _markTouched,
+                  onCameraMove: _onCameraMove,
                   // `false` volontairement.
                   //
                   // À `true`, le greffon réclame la permission de localisation
@@ -274,7 +292,20 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
                   ),
                 ),
 
-                if (_mapSeemsBroken)
+                // La notice ci-dessous serait fausse ici : une position est
+                // déjà confirmable, l'adresse n'est pas « sans ».
+                if (_mapSeemsBroken && _touched)
+                  const Positioned(
+                    top: 16,
+                    left: 16,
+                    right: 16,
+                    child: _Hint(
+                      icon: Icons.info_outline,
+                      text: 'La carte ne s\'affiche pas ? Votre position '
+                          'actuelle est conservée.',
+                    ),
+                  )
+                else if (_mapSeemsBroken)
                   Positioned(
                     top: 16,
                     left: 16,
@@ -311,11 +342,13 @@ class _LocationPickerPageState extends ConsumerState<LocationPickerPage> {
   }
 }
 
-/// Ce qu'on affiche quand la carte n'est jamais venue.
+/// Ce qu'on affiche quand la carte semble ne pas venir.
 ///
-/// Le message ne prétend pas savoir pourquoi — l'application ne le sait pas :
-/// Google Maps n'informe pas d'une clé invalide ni de Services Play absents.
-/// Il dit ce qui est observable, et surtout il **rend la main** : l'adresse
+/// Le message ne prétend pas savoir — l'application ne le sait pas : Google Maps
+/// n'informe pas d'une clé invalide ni de Services Play absents, et n'expose
+/// aucun signal « tuiles chargées ». Il apparaît donc aussi sur une carte saine
+/// au repos : c'est une question sur fond neutre, pas une alerte qui pousserait
+/// à enregistrer sans position. Et surtout il **rend la main** : l'adresse
 /// reste enregistrable sans position, le serveur retombera sur le centroïde du
 /// quartier. Un cul-de-sac silencieux était la seule chose à ne pas laisser.
 class _MapUnavailableNotice extends StatelessWidget {
@@ -329,7 +362,7 @@ class _MapUnavailableNotice extends StatelessWidget {
     return Material(
       elevation: 3,
       borderRadius: BorderRadius.circular(12),
-      color: cs.errorContainer,
+      color: cs.surface.withValues(alpha: 0.95),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
         child: Column(
@@ -338,17 +371,14 @@ class _MapUnavailableNotice extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.map_outlined, size: 18, color: cs.onErrorContainer),
+                Icon(Icons.map_outlined, size: 18, color: cs.primary),
                 const SizedBox(width: 10),
-                Expanded(
+                const Expanded(
                   child: Text(
-                    'La carte ne se charge pas. Vérifiez votre connexion, ou '
+                    'La carte ne s\'affiche pas ? Vérifiez votre connexion, ou '
                     'enregistrez votre adresse sans position — le livreur sera '
                     'guidé à votre quartier et vous appellera.',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: cs.onErrorContainer,
-                    ),
+                    style: TextStyle(fontSize: 12.5),
                   ),
                 ),
               ],
@@ -357,9 +387,6 @@ class _MapUnavailableNotice extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: onSkip,
-                style: TextButton.styleFrom(
-                  foregroundColor: cs.onErrorContainer,
-                ),
                 child: const Text('Continuer sans position'),
               ),
             ),
@@ -371,8 +398,9 @@ class _MapUnavailableNotice extends StatelessWidget {
 }
 
 class _Hint extends StatelessWidget {
-  const _Hint({required this.text});
+  const _Hint({required this.text, this.icon = Icons.touch_app_outlined});
   final String text;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
@@ -385,7 +413,7 @@ class _Hint extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Row(
           children: [
-            Icon(Icons.touch_app_outlined, size: 18, color: cs.primary),
+            Icon(icon, size: 18, color: cs.primary),
             const SizedBox(width: 10),
             Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
           ],

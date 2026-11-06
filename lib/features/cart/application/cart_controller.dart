@@ -6,6 +6,7 @@ import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart
 import 'package:lilia_app/features/cart/data/cart_repository.dart';
 import 'package:lilia_app/features/cart/data/guest_cart_store.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
+import 'package:lilia_app/core/log.dart';
 import 'package:lilia_app/core/network/api_client.dart';
 import 'package:lilia_app/services/analytics_service.dart';
 
@@ -332,7 +333,14 @@ class CartController extends _$CartController {
                         'repris : $noms.',
             );
       }
-    } catch (e) {
+    } catch (e, pile) {
+      // Une coupure est ordinaire ; un 500 ou une réponse illisible ne le sont
+      // pas, et le message au client ne se voit pas depuis Sentry.
+      final coupure =
+          e is CartException && const {'NO_INTERNET', 'TIMEOUT'}.contains(e.code);
+      if (!coupure) {
+        reportIncident('Reprise du panier visiteur impossible', e, pile);
+      }
       // Panne réseau ou refus global : le panier local survit **en entier**,
       // le client le retrouvera au prochain essai.
       ref
@@ -340,7 +348,11 @@ class CartController extends _$CartController {
           .report(
             _message(e, 'votre panier n\'a pas pu être repris — il est conservé'),
           );
-      await refresh();
+      try {
+        await refresh();
+      } catch (_) {
+        // Même panne, déjà traitée : remontée, elle compterait deux incidents.
+      }
     }
   }
 

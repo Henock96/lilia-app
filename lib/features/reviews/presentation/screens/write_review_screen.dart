@@ -28,10 +28,16 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
   bool _isLoading = false;
   bool _isEditing = false;
 
+  /// `false` tant que l'avis à modifier n'est pas relu : l'envoi remplacerait
+  /// un avis que le client ne voit pas.
+  bool _reviewReady = true;
+  bool _loadFailed = false;
+
   @override
   void initState() {
     super.initState();
     _isEditing = widget.existingReviewId != null;
+    _reviewReady = !_isEditing;
     if (_isEditing) {
       _loadExistingReview();
     }
@@ -43,14 +49,17 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
           .read(reviewRepositoryProvider)
           .getMyReview(widget.restaurantId);
 
-      if (review != null && mounted) {
-        setState(() {
+      if (!mounted) return;
+      setState(() {
+        _reviewReady = true;
+        _loadFailed = false;
+        if (review != null) {
           _rating = review.rating;
           _commentController.text = review.comment ?? '';
-        });
-      }
+        }
+      });
     } catch (e) {
-      // Ignorer l'erreur
+      if (mounted) setState(() => _loadFailed = true);
     }
   }
 
@@ -77,6 +86,24 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 24),
+
+            if (_loadFailed) ...[
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Impossible de charger votre avis pour le moment.',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _loadExistingReview,
+                    child: const Text('Réessayer'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // Section note
             const Text(
@@ -129,7 +156,9 @@ class _WriteReviewScreenState extends ConsumerState<WriteReviewScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _rating > 0 && !_isLoading ? _submitReview : null,
+                onPressed: _rating > 0 && !_isLoading && _reviewReady
+                    ? _submitReview
+                    : null,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(

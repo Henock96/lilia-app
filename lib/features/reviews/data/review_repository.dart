@@ -47,7 +47,10 @@ class ReviewRepository {
     }
   }
 
-  /// Récupérer mon avis pour un restaurant (null si absent ou non connecté).
+  /// Récupérer mon avis pour un restaurant (`null` s'il n'y en a pas).
+  ///
+  /// Une panne se propage : rendue en `null`, elle ouvrait un formulaire vide
+  /// dont l'envoi écrasait l'avis existant.
   Future<Review?> getMyReview(String restaurantId) async {
     try {
       final res = await _api.getJson(
@@ -59,8 +62,8 @@ class ReviewRepository {
       }
       return null;
     } on ApiException catch (e) {
-      logDebug('getMyReview: ${e.message}');
-      return null;
+      if (e.statusCode == 404) return null;
+      rethrow;
     }
   }
 

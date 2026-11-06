@@ -576,13 +576,13 @@ class NotificationService {
         _jetonEnregistre = jeton;
         logDebug('FCM Token registered successfully on the server.');
         return; // Succès, sortir de la boucle
-      } catch (e) {
+      } catch (e, pile) {
         logDebug(
           'Error registering FCM token (attempt $attempt/$maxRetries): $e',
         );
 
         if (attempt == maxRetries) {
-          logDebug('Max retries reached. Failed to register FCM token.');
+          reportIncident('Enregistrement du jeton FCM impossible', e, pile);
         } else {
           // Backoff borné (5s, 10s, 15s, 20s) — évite le blocage ~4 min (C7).
           await Future<void>.delayed(Duration(seconds: attempt * 5));

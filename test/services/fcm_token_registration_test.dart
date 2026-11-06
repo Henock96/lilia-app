@@ -22,6 +22,7 @@ import 'package:lilia_app/features/auth/app_user_model.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_app/services/notification_service.dart';
 
+import '../core/sentry_espion.dart';
 import '../features/auth/fake_auth_repository.dart';
 
 const _route = '/notifications/register-token';
@@ -168,6 +169,22 @@ void main() {
       expect(requetes, 2);
     },
   );
+
+  // Audit du 05/11/2026 : ce client ne recevra aucune notification, et rien ne
+  // le disait en production. L'échec s'arrêtait ici, sans remonter à personne.
+  test('tous les essais ratés : l’incident part vers Sentry', () async {
+    final incidents = await espionnerSentry();
+    final service = monter(
+      session: const AppUser(uid: 'uid-a'),
+      serveurEnPanne: true,
+    );
+    service.fcmToken = 'jeton-appareil';
+
+    await service.registerTokenOnServer(maxRetries: 1);
+    await laisserPartirSentry();
+
+    expect(incidents, hasLength(1));
+  });
 
   test('un échec ne marque pas le jeton comme enregistré', () async {
     final service = monter(
