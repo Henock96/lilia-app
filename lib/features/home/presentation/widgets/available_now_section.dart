@@ -246,7 +246,11 @@ class ReopeningSoon extends ConsumerWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final current = now ?? DateTime.now();
-    final vendors = ref.watch(vendorsListProvider).value ?? const [];
+    final vendors = ref.watch(vendorsListProvider).value;
+
+    // Sans la liste, aucun verdict : « fermées » serait une invention. Une
+    // panne, elle, se dit une seule fois, dans la section vendeurs de l'accueil.
+    if (vendors == null) return const SizedBox.shrink();
 
     final Widget content;
     if (vendors.any((v) => v.isOpen == true)) {

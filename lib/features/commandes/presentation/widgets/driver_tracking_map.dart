@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:lilia_app/models/location_precision.dart';
+import 'package:lilia_app/utils/map_camera.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../data/delivery_tracking_repository.dart';
 
@@ -326,6 +329,18 @@ class _TrackingMapViewState extends State<_TrackingMapView> {
   GoogleMapController? _ctrl; // plein écran uniquement (recadrage)
   LatLng? _destination;
 
+  /// Point de départ de la caméra : seul un écart à ce point prouve que la
+  /// carte vit.
+  late final LatLng _start;
+
+  /// Même panne muette que `LocationPickerPage`, en plein écran seulement : il
+  /// n'y a rien d'autre à y lire. Armé uniquement quand `_fitBounds` va bouger
+  /// la caméra : sans recadrage, une carte saine reste immobile, et son silence
+  /// ne prouverait rien.
+  bool _mapSeemsBroken = false;
+  Timer? _mapWatchdog;
+  static const _mapWatchdogDelay = Duration(seconds: 10);
+
   bool get _fullscreen => widget.fullscreen;
 
   @override
@@ -340,9 +355,21 @@ class _TrackingMapViewState extends State<_TrackingMapView> {
     // serveur résolvant désormais la destination, il n'y a plus rien à
     // deviner ici.
     _destination = _destinationOf(widget.location);
+    _start = _initialMapCenter(widget.location, _destination);
     if (_fullscreen) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _fitBounds());
+      if (_fitPoints().length >= 2) {
+        _mapWatchdog = Timer(_mapWatchdogDelay, () {
+          if (mounted) setState(() => _mapSeemsBroken = true);
+        });
+      }
     }
+  }
+
+  void _onCameraMove(CameraPosition position) {
+    if (!cameraHasLeft(_start, position.target)) return;
+    _mapWatchdog?.cancel();
+    if (_mapSeemsBroken) setState(() => _mapSeemsBroken = false);
   }
 
   @override
@@ -354,10 +381,10 @@ class _TrackingMapViewState extends State<_TrackingMapView> {
     if (next != _destination) setState(() => _destination = next);
   }
 
-  void _fitBounds() {
-    if (_ctrl == null || _destination == null) return;
-    final dest = _destination!;
-    final points = <LatLng>[
+  List<LatLng> _fitPoints() {
+    final dest = _destination;
+    if (dest == null) return const [];
+    return [
       dest,
       if (widget.location.hasDriverPosition)
         LatLng(widget.location.latitude!, widget.location.longitude!),
@@ -367,6 +394,11 @@ class _TrackingMapViewState extends State<_TrackingMapView> {
           widget.location.restaurantLongitude!,
         ),
     ];
+  }
+
+  void _fitBounds() {
+    if (_ctrl == null) return;
+    final points = _fitPoints();
     if (points.length < 2) return;
     final lats = points.map((p) => p.latitude);
     final lngs = points.map((p) => p.longitude);
@@ -391,6 +423,7 @@ class _TrackingMapViewState extends State<_TrackingMapView> {
 
   @override
   void dispose() {
+    _mapWatchdog?.cancel();
     _ctrl?.dispose();
     super.dispose();
   }
@@ -416,6 +449,7 @@ class _TrackingMapViewState extends State<_TrackingMapView> {
               _fitBounds();
             }
           : null,
+      onCameraMove: _fullscreen ? _onCameraMove : null,
       markers: markers,
       polylines: polylines,
       myLocationEnabled: false,
@@ -466,6 +500,38 @@ class _TrackingMapViewState extends State<_TrackingMapView> {
                     Expanded(
                       child: Text(
                         'En attente de la position du livreur…',
+                        style: TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        // Sous l'AppBar transparente : le corps passe derrière elle.
+        if (_mapSeemsBroken)
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + kToolbarHeight + 8,
+            left: 16,
+            right: 16,
+            child: Material(
+              elevation: 3,
+              borderRadius: BorderRadius.circular(12),
+              color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.95),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 18,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(width: 10),
+                    const Expanded(
+                      child: Text(
+                        'La carte ne s\'affiche pas ? Suivez l\'avancement '
+                        'depuis le détail de la commande.',
                         style: TextStyle(fontSize: 13),
                       ),
                     ),

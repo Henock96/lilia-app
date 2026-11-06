@@ -1,4 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+
+import 'network/api_exception.dart';
 
 /// **Le journal de diagnostic — et il se tait en production.**
 ///
@@ -36,4 +41,26 @@ import 'package:flutter/foundation.dart';
 /// l'appareil.
 void logDebug(String message) {
   if (kDebugMode) debugPrint(message);
+}
+
+/// Une panne qu'on encaisse sans gêner le client, mais qui doit se voir en
+/// production : [logDebug] s'y tait, et un `catch` sans trace laisse Sentry
+/// muet sur un client qui ne recevra plus aucune notification.
+///
+/// Les coupures réseau n'y vont pas : sur la 4G de Brazzaville, ce sont des
+/// événements ordinaires, et elles noieraient les vraies pannes.
+void reportIncident(String contexte, Object erreur, StackTrace pile) {
+  logDebug('$contexte : ${erreur.runtimeType}');
+  if (erreur is ApiException &&
+      (erreur.kind == ApiErrorKind.network ||
+          erreur.kind == ApiErrorKind.timeout)) {
+    return;
+  }
+  unawaited(
+    Sentry.captureException(
+      erreur,
+      stackTrace: pile,
+      withScope: (scope) => scope.setTag('contexte', contexte),
+    ),
+  );
 }

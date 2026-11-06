@@ -50,6 +50,94 @@ final class UserRepositoryProvider
 
 String _$userRepositoryHash() => r'f0496e78a8e126603bd28e4db36c80d9407be556';
 
+@ProviderFor(imagePicker)
+final imagePickerProvider = ImagePickerProvider._();
+
+final class ImagePickerProvider
+    extends $FunctionalProvider<ImagePicker, ImagePicker, ImagePicker>
+    with $Provider<ImagePicker> {
+  ImagePickerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'imagePickerProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$imagePickerHash();
+
+  @$internal
+  @override
+  $ProviderElement<ImagePicker> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  ImagePicker create(Ref ref) {
+    return imagePicker(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(ImagePicker value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<ImagePicker>(value),
+    );
+  }
+}
+
+String _$imagePickerHash() => r'be60667b04027cd2a7d2e1b728a5c03b1bda8dc1';
+
+@ProviderFor(cloudinaryService)
+final cloudinaryServiceProvider = CloudinaryServiceProvider._();
+
+final class CloudinaryServiceProvider
+    extends
+        $FunctionalProvider<
+          CloudinaryService,
+          CloudinaryService,
+          CloudinaryService
+        >
+    with $Provider<CloudinaryService> {
+  CloudinaryServiceProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'cloudinaryServiceProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$cloudinaryServiceHash();
+
+  @$internal
+  @override
+  $ProviderElement<CloudinaryService> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  CloudinaryService create(Ref ref) {
+    return cloudinaryService(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(CloudinaryService value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<CloudinaryService>(value),
+    );
+  }
+}
+
+String _$cloudinaryServiceHash() => r'7d383b4f10a7b6135a5239313b14bb3a354d3a8b';
+
 @ProviderFor(userProfile)
 final userProfileProvider = UserProfileProvider._();
 
@@ -188,7 +276,7 @@ final class ProfileControllerProvider
   ProfileController create() => ProfileController();
 }
 
-String _$profileControllerHash() => r'33e426c8abd2c8e6a25f8084787275abf6c73d68';
+String _$profileControllerHash() => r'3959613fb716422a348be551028ee01d12994613';
 
 abstract class _$ProfileController extends $AsyncNotifier<void> {
   FutureOr<void> build();

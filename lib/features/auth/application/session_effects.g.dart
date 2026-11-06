@@ -227,7 +227,7 @@ final class SessionEffectsProvider
   }
 }
 
-String _$sessionEffectsHash() => r'9b66bfe0cd15ea02f74bec52bcea39ffd6f5b474';
+String _$sessionEffectsHash() => r'82e72ea604f6c5d80ce0902c66b8e67f514dd523';
 
 /// **Ce qui se produit quand une session s'ouvre, et quand elle se ferme.**
 ///

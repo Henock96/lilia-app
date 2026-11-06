@@ -20,6 +20,12 @@ UserRepository userRepository(Ref ref) {
   return UserRepository(ref.watch(apiClientProvider));
 }
 
+@Riverpod(keepAlive: true)
+ImagePicker imagePicker(Ref ref) => ImagePicker();
+
+@Riverpod(keepAlive: true)
+CloudinaryService cloudinaryService(Ref ref) => CloudinaryService();
+
 /// Ces trois providers refusent de travailler sans session.
 ///
 /// Ils levaient `Exception('Utilisateur non authentifie.')` — préfixé de
@@ -109,9 +115,29 @@ class ProfileController extends _$ProfileController {
     }
   }
 
-  Future<void> updateProfilePicture() async {
-    final picker = ImagePicker();
-    final cloudinaryService = CloudinaryService();
+  /// Un sélecteur est ouvert ou un envoi est en cours : deux appuis rapides
+  /// feraient lever `already_active` au second.
+  bool _photoEnCours = false;
+
+  /// Change la photo de profil. Même contrat que [updateUser] : `null` en cas
+  /// de succès ou d'annulation, sinon **le message à montrer**.
+  Future<String?> updateProfilePicture() async {
+    if (_photoEnCours) return null;
+    _photoEnCours = true;
+    try {
+      return await _changerPhoto();
+    } catch (e, st) {
+      state = AsyncError(e, st);
+      return 'Envoi de la photo impossible. Vérifiez votre connexion et '
+          'réessayez.';
+    } finally {
+      _photoEnCours = false;
+    }
+  }
+
+  Future<String?> _changerPhoto() async {
+    final picker = ref.read(imagePickerProvider);
+    final cloudinaryService = ref.read(cloudinaryServiceProvider);
 
     final XFile? image = await picker.pickImage(
       source: ImageSource.gallery,
@@ -130,17 +156,13 @@ class ProfileController extends _$ProfileController {
       // minimum, `PHPickerViewController` rend le fichier sans rien demander.
       requestFullMetadata: false,
     );
-    if (image == null) return;
+    if (image == null) return null;
 
     state = const AsyncLoading();
-    try {
-      final imageUrl = await cloudinaryService.uploadImage(image);
-      if (imageUrl == null) {
-        throw Exception("Erreur lors du telechargement de l'image.");
-      }
-      await updateUser({'imageUrl': imageUrl});
-    } catch (e, st) {
-      state = AsyncError(e, st);
+    final imageUrl = await cloudinaryService.uploadImage(image);
+    if (imageUrl == null) {
+      throw Exception("Erreur lors du telechargement de l'image.");
     }
+    return updateUser({'imageUrl': imageUrl});
   }
 }

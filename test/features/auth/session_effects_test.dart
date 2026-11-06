@@ -26,6 +26,7 @@ import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/services/notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/sentry_espion.dart';
 import 'fake_auth_repository.dart';
 import 'package:lilia_app/models/modifier.dart';
 
@@ -35,8 +36,15 @@ class _FauxPanierServeur implements CartRepository {
   Cart? _cart;
   Object? erreurAAjout;
 
+  /// Une instance par lecture, comme le réseau : Sentry déduplique la même
+  /// instance, et masquerait un rapport en double.
+  Object Function()? erreurALecture;
+
   @override
-  Future<Cart?> getCart() async => _cart;
+  Future<Cart?> getCart() async {
+    if (erreurALecture != null) throw erreurALecture!();
+    return _cart;
+  }
 
   @override
   Future<Cart?> addToCart({
@@ -344,6 +352,54 @@ void main() {
         (await magasin()).read()?.items,
         hasLength(1),
         reason: 'une panne réseau ne doit jamais effacer ce que le client a composé',
+      );
+    });
+  });
+
+  // Audit du 05/11/2026 : ces échecs ne se journalisaient qu'en debug. En
+  // production, ils ne laissaient aucune trace.
+  group('un effet en échec laisse une trace en production', () {
+    test('jeton non enregistré : l’incident part vers Sentry', () async {
+      final incidents = await espionnerSentry();
+      await demarrer();
+      notifications.erreur = StateError('FCM indisponible');
+
+      auth.emitSession(const AppUser(uid: 'uid-a'));
+      await pompes();
+      await laisserPartirSentry();
+
+      expect(incidents, hasLength(1));
+    });
+
+    test('panier visiteur non repris : l’incident part vers Sentry', () async {
+      final incidents = await espionnerSentry();
+      await demarrer(panierInviteBrut: _panierInvite(['var-1']));
+      panierServeur.erreurALecture = () => StateError('réponse illisible');
+
+      auth.emitSession(const AppUser(uid: 'uid-a'));
+      await pompes();
+      await laisserPartirSentry();
+
+      expect(incidents, hasLength(1), reason: 'une panne, un incident');
+    });
+
+    test('coupure réseau pendant la reprise : rien ne part', () async {
+      final incidents = await espionnerSentry();
+      await demarrer(panierInviteBrut: _panierInvite(['var-1']));
+      panierServeur.erreurAAjout = CartException(
+        'Pas de connexion internet.',
+        code: 'NO_INTERNET',
+      );
+
+      auth.emitSession(const AppUser(uid: 'uid-a'));
+      await pompes();
+      await laisserPartirSentry();
+
+      expect(
+        incidents,
+        isEmpty,
+        reason: 'sur la 4G de Brazzaville, une coupure est un événement '
+            'ordinaire : remontée, elle noierait les vraies pannes',
       );
     });
   });

@@ -214,7 +214,12 @@ class DriverLocation {
 /// Renvoie toujours un [DriverLocation] dès que le backend trouve la
 /// livraison, même si le livreur n'a pas encore émis sa position GPS —
 /// l'UI peut alors afficher déjà le marker resto + destination et
-/// l'avatar livreur. `null` uniquement si le backend renvoie une erreur.
+/// l'avatar livreur.
+///
+/// `null` veut dire « aucune livraison » (404 : retrait, livreur pas encore
+/// assigné), et rien d'autre. Une panne se propage : rendue en `null`, elle
+/// affichait « En attente d'attribution d'un livreur… » pendant un 500, sous
+/// l'en-tête « Livreur en route » (audit du 05/11/2026).
 Future<DriverLocation?> fetchDriverLocation(
   String orderId,
   ApiClient api,
@@ -226,11 +231,14 @@ Future<DriverLocation?> fetchDriverLocation(
     if (data == null) return null;
     return DriverLocation.fromHttpJson(data);
   } on ApiException catch (e) {
-    // Contrat : null si le backend renvoie une erreur (livraison absente, etc.).
-    logDebug('fetchDriverLocation: ${e.message}');
-    return null;
+    if (e.statusCode == 404) return null;
+    rethrow;
   }
 }
+
+/// Le contrôleur se rattrape lui-même : une relance de Riverpod rejouerait
+/// `build`, donc fermerait et rouvrirait le suivi à chaque essai.
+Duration? _pasDeRelance(int retryCount, Object error) => null;
 
 /// Controller qui combine WebSocket temps réel + HTTP initial.
 ///
@@ -239,7 +247,7 @@ Future<DriverLocation?> fetchDriverLocation(
 ///   2. S'abonne au WebSocket `/tracking` → reçoit `driver:position` en temps réel
 ///   3. Chaque event WS met à jour l'état immédiatement (lag <1s vs 10s avant)
 ///   4. Fallback HTTP toutes les 30s en cas de coupure WS (vs 10s avant)
-@riverpod
+@Riverpod(retry: _pasDeRelance)
 class DriverLocationController extends _$DriverLocationController
     with WidgetsBindingObserver {
   Timer? _httpFallbackTimer;
@@ -273,6 +281,15 @@ class DriverLocationController extends _$DriverLocationController
   /// une livraison terminée sous les yeux du client.
   bool _termine = false;
 
+  /// Panne qui peut passer : attendre a un sens, pas devant un refus (403, 400).
+  static bool _passagere(Object erreur) =>
+      erreur is ApiException &&
+      const {
+        ApiErrorKind.network,
+        ApiErrorKind.timeout,
+        ApiErrorKind.server,
+      }.contains(erreur.kind);
+
   @override
   FutureOr<DriverLocation?> build(String orderId) async {
     _orderId = orderId;
@@ -296,17 +313,37 @@ class DriverLocationController extends _$DriverLocationController
     ref.onDispose(() => binding.removeObserver(this));
     ref.onDispose(_cleanup);
 
-    final initial = await _fetchHttp(orderId);
+    // Capturé avant toute sortie : une reprise rouvre le suivi même quand
+    // `build` s'est arrêté plus bas (LILIA-FOOD-APP-CLIENT-E). Seul `watch`
+    // ouvre une connexion.
+    _socket = ref.read(trackingSocketServiceProvider);
+
+    final DriverLocation? initial;
+    try {
+      initial = await _fetchHttp(orderId);
+    } catch (e) {
+      // Une panne n'est pas une absence : la course existe peut-être. L'erreur
+      // s'affiche, et le suivi tourne pour se rattraper dès le retour du
+      // serveur. Un refus, lui, ne changera pas en attendant.
+      if (ref.mounted && !_enVeille && _passagere(e)) {
+        _abonnerAuSuivi(orderId, null);
+      }
+      rethrow;
+    }
+
+    // Écran fermé pendant la lecture, ou application passée en arrière-plan :
+    // dans ce second cas, `_reprendre` ouvrira le suivi.
+    if (!ref.mounted || _enVeille) return initial;
 
     // Course terminée (ou inexistante) : rien à suivre. On rend l'état une
     // fois et on s'arrête — c'est le cas de la très grande majorité des
     // commandes consultées, l'historique étant plus lu que le suivi live.
-    if (initial == null ||
-        _terminalDeliveryStatuses.contains(initial.deliveryStatus)) {
+    if (initial == null) return null;
+    if (_terminalDeliveryStatuses.contains(initial.deliveryStatus)) {
+      _termine = true;
       return initial;
     }
 
-    _socket = ref.read(trackingSocketServiceProvider);
     _abonnerAuSuivi(orderId, initial);
 
     return initial;
@@ -319,6 +356,10 @@ class DriverLocationController extends _$DriverLocationController
   /// l'écran, et au retour de l'application au premier plan. Dupliquer ces
   /// trente lignes aurait garanti qu'une des deux copies finisse par diverger.
   void _abonnerAuSuivi(String orderId, DriverLocation? initial) {
+    // `build` et `_reprendre` se croisent si l'application revient pendant la
+    // première lecture : un second abonnement traiterait chaque événement deux
+    // fois.
+    if (_wsPositionSub != null) return;
     DriverLocation? current = initial ?? state.value;
     final streams = _socket!.watch(orderId);
 
@@ -413,7 +454,8 @@ class DriverLocationController extends _$DriverLocationController
     try {
       final frais = await _fetchHttp(id);
       if (!ref.mounted) return;
-      if (frais != null) state = AsyncValue.data(frais);
+      // Le serveur a répondu : même « aucune livraison » remplace une panne.
+      if (frais != null || state.hasError) state = AsyncValue.data(frais);
       // Livrée pendant que le téléphone dormait : il n'y a plus rien à suivre.
       if (frais != null &&
           _terminalDeliveryStatuses.contains(frais.deliveryStatus)) {
@@ -428,6 +470,12 @@ class DriverLocationController extends _$DriverLocationController
     }
 
     if (!ref.mounted || _enVeille) return;
+    // Retrait, livreur pas encore assigné, ou refus : rien à suivre ni à
+    // attendre.
+    final rienASuivre = state.hasValue
+        ? state.value == null
+        : state.hasError && !_passagere(state.error!);
+    if (rienASuivre) return;
     _abonnerAuSuivi(id, state.value);
   }
 
@@ -453,7 +501,16 @@ class DriverLocationController extends _$DriverLocationController
       if (!ref.mounted) return;
       try {
         final fresh = await _fetchHttp(orderId);
-        if (!ref.mounted || fresh == null) return;
+        if (!ref.mounted) return;
+        if (fresh == null) {
+          // Le suivi tournait pour rattraper une panne, et le serveur répond
+          // qu'il n'y a pas de livraison : il n'a plus d'objet.
+          if (state.value == null) {
+            state = const AsyncValue.data(null);
+            _couperFluxEtMinuteur();
+          }
+          return;
+        }
         // C-23 (audit du 09/10/2026) : le repli HTTP ignorait la fin de
         // course. Sans WebSocket (réseau qui ne laisse passer que le
         // polling, ou socket tombé), une livraison terminée restait affichée
@@ -468,6 +525,29 @@ class DriverLocationController extends _$DriverLocationController
           return;
         }
         final previous = state.value;
+        final positionWs = previous?.updatedAt;
+        // Position WS reçue pendant une panne : seul HTTP apporte le livreur,
+        // la destination et le code de remise, mais il ne recule pas le livreur
+        // pour autant (C-22).
+        if (previous != null &&
+            previous.deliveryId == null &&
+            previous.hasDriverPosition &&
+            positionWs != null) {
+          final plusRecente = fresh.updatedAt?.isAfter(positionWs) ?? false;
+          state = AsyncValue.data(
+            plusRecente
+                ? fresh
+                : fresh.copyWithWsPosition(
+                    DriverPositionEvent(
+                      lat: previous.latitude!,
+                      lng: previous.longitude!,
+                      eta: previous.etaMinutes,
+                      timestamp: positionWs,
+                    ),
+                  ),
+          );
+          return;
+        }
         // N'écrase pas la position WS plus récente
         if (previous == null ||
             (fresh.updatedAt != null &&
@@ -485,7 +565,8 @@ class DriverLocationController extends _$DriverLocationController
   Future<void> refresh() async {
     if (_orderId == null) return;
     state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _fetchHttp(_orderId!));
+    final relu = await AsyncValue.guard(() => _fetchHttp(_orderId!));
+    if (ref.mounted) state = relu;
   }
 
   /// Invalide la liste **et le détail** au plus une fois par fenêtre de 600 ms

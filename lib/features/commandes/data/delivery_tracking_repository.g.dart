@@ -39,7 +39,7 @@ final class DriverLocationControllerProvider
     required DriverLocationControllerFamily super.from,
     required String super.argument,
   }) : super(
-         retry: null,
+         retry: _pasDeRelance,
          name: r'driverLocationControllerProvider',
          isAutoDispose: true,
          dependencies: null,
@@ -73,7 +73,7 @@ final class DriverLocationControllerProvider
 }
 
 String _$driverLocationControllerHash() =>
-    r'002a13b4203f75e22de0c7b577d58e5f3fd135ec';
+    r'552abd0cd8250d1933ad50ebb9a3b41d449679fc';
 
 /// Controller qui combine WebSocket temps réel + HTTP initial.
 ///
@@ -94,7 +94,7 @@ final class DriverLocationControllerFamily extends $Family
         > {
   DriverLocationControllerFamily._()
     : super(
-        retry: null,
+        retry: _pasDeRelance,
         name: r'driverLocationControllerProvider',
         dependencies: null,
         $allTransitiveDependencies: null,
