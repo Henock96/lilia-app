@@ -173,6 +173,18 @@ class AboutPage extends StatelessWidget {
                         SupportContact.phoneUri(),
                         SupportContact.phoneDisplay,
                       ),
+                    ),
+                    _AboutMenuItem(
+                      icon: Iconsax.call,
+                      iconColor: Colors.teal[400]!,
+                      title: 'Autre numéro d\'assistance',
+                      subtitle: SupportContact.secondaryPhoneDisplay,
+                      semanticHint: 'Appeler le support sur la seconde ligne',
+                      onTap: () => _open(
+                        context,
+                        SupportContact.secondaryPhoneUri(),
+                        SupportContact.secondaryPhoneDisplay,
+                      ),
                       showBottomBorder: false,
                     ),
                   ],

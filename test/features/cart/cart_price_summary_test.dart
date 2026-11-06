@@ -86,11 +86,24 @@ void main() {
       expect(find.text('Sous-total (1 article)'), findsOneWidget);
       expect(find.text('Frais de service (15 %)'), findsOneWidget);
       expect(find.text(formatPrice(900)), findsOneWidget);
-      expect(find.text('Livraison'), findsOneWidget);
+      expect(find.text('+ Livraison'), findsOneWidget);
       expect(find.text(formatPrice(1500)), findsOneWidget); // frais vendeur
       expect(find.text('Total estimé hors livraison'), findsOneWidget);
       expect(find.text(formatPrice(6900)), findsOneWidget);
       expect(find.textContaining('montant final'), findsOneWidget);
+    });
+
+    // Audit design du 06/11/2026 : affichée au-dessus du total, la livraison
+    // semblait en faire partie, et le total ne correspondait plus à la somme lue.
+    testWidgets('la livraison vient après le total, qu\'elle n\'inclut pas', (
+      tester,
+    ) async {
+      await _pump(tester, prix: 6000, quantite: 1, settings: _bareme());
+
+      final total = tester.getTopLeft(find.text('Total estimé hors livraison'));
+      final livraison = tester.getTopLeft(find.text('+ Livraison'));
+
+      expect(total.dy, lessThan(livraison.dy));
     });
 
     testWidgets('la quantité change le sous-total et les frais', (

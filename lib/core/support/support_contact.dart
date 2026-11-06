@@ -9,15 +9,16 @@ import 'package:lilia_app/utils/snackbar.dart';
 ///
 /// - `contact@liliafood.com` : adresse publiée par les CGU et la politique de
 ///   confidentialité du site (`lilia-food-web/apps/web/content/legal`).
-/// - Le numéro était déjà affiché par la page « À propos » ; il n'est publié
-///   nulle part ailleurs (à confirmer côté exploitation, voir le tracker
-///   Phase 3, P3-06).
+/// - Les deux numéros sont ceux du site (`lilia-food-web/apps/web/lib/site.ts`),
+///   confirmés par l'exploitation le 06/11/2026 : à changer ensemble.
 class SupportContact {
   SupportContact._();
 
   static const email = 'contact@liliafood.com';
   static const phoneDisplay = '+242 06 745 46 10';
   static const phoneE164 = '+242067454610';
+  static const secondaryPhoneDisplay = '+242 05 372 03 93';
+  static const secondaryPhoneE164 = '+242053720393';
 
   /// `mailto:` avec un objet, et la référence de commande quand il y en a une
   /// — le support n'a plus à la demander.
@@ -32,6 +33,8 @@ class SupportContact {
   );
 
   static Uri phoneUri() => Uri(scheme: 'tel', path: phoneE164);
+
+  static Uri secondaryPhoneUri() => Uri(scheme: 'tel', path: secondaryPhoneE164);
 
   // `Uri(queryParameters:)` encode les espaces en `+`, que certains clients
   // mail affichent tels quels dans l'objet.

@@ -93,12 +93,6 @@ class CartPriceSummary extends ConsumerWidget {
                 : '…',
             style: muted,
           ),
-          _Line(
-            label: 'Livraison',
-            value: deliveryValue,
-            style: muted,
-            hint: 'selon l\'adresse · gratuite en retrait',
-          ),
           const SizedBox(height: 6),
           if (preview.estimatedTotalBeforeDelivery != null)
             _Line(
@@ -112,6 +106,14 @@ class CartPriceSummary extends ConsumerWidget {
               value: formatPrice(preview.subTotal),
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
+          // Après le total, qui ne l'inclut pas : au-dessus, elle semblait en
+          // faire partie et la somme lue ne tombait plus juste.
+          _Line(
+            label: '+ Livraison',
+            value: deliveryValue,
+            style: muted,
+            hint: 'selon l\'adresse · gratuite en retrait',
+          ),
           const SizedBox(height: 4),
           Text(
             'Offres, codes promo et points s\'appliquent à l\'étape suivante. '
