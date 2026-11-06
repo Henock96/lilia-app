@@ -56,6 +56,16 @@ void main() {
       });
     });
 
+    test('adresse déjà inscrite : le message dit de se connecter', () {
+      // Le 06/11/2026, un client déjà inscrit a appelé : « Cette adresse est
+      // déjà utilisée » ne lui disait pas qu'il lui suffisait de se connecter.
+      final failure = mapAuthError(
+        FirebaseAuthException(code: 'email-already-in-use'),
+      );
+
+      expect(failure.message, contains('Connectez-vous'));
+    });
+
     test('le message technique de Firebase ne traverse jamais', () {
       // C'est exactement ce que l'écran « mot de passe oublié » affichait.
       final failure = mapAuthError(
