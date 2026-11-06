@@ -85,6 +85,9 @@ class _AddressPageState extends ConsumerState<AddressPage> {
         onPressed: () => _showAddAddressSheet(context),
         backgroundColor: theme.colorScheme.primary,
         foregroundColor: theme.colorScheme.onPrimary,
+        // Le thème impose un cercle à tous les boutons flottants : le libellé
+        // en débordait.
+        shape: const StadiumBorder(),
         icon: const Icon(Iconsax.add),
         label: const Text(
           'Nouvelle adresse',

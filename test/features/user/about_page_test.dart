@@ -79,7 +79,16 @@ void main() {
     final ouvertes = await monter(tester);
     await tester.tap(find.text('Assistance téléphonique'));
     await tester.pump();
-    expect(ouvertes.single.toString(), 'tel:${SupportContact.phoneE164}');
+    expect(ouvertes.single.toString(), 'tel:+242067454610');
+  });
+
+  testWidgets('« Autre numéro d\'assistance » ouvre la seconde ligne', (
+    tester,
+  ) async {
+    final ouvertes = await monter(tester);
+    await tester.tap(find.text('Autre numéro d\'assistance'));
+    await tester.pump();
+    expect(ouvertes.single.toString(), 'tel:+242053720393');
   });
 
   testWidgets('aucune application : la coordonnée est copiée et c\'est dit', (
