@@ -122,12 +122,18 @@ class CartRepository {
   ///
   /// Invité ou session expirée → `null` (panier vide), pas une erreur : c'est
   /// un état normal de l'application, pas une panne à signaler au client.
+  ///
+  /// Le 404 aussi : le serveur ne crée le panier qu'au premier ajout, c'est donc
+  /// l'état de tout nouvel inscrit. Le lever faisait échouer la reprise du
+  /// panier visiteur juste après l'inscription.
   Future<Cart?> getCart() async {
     try {
       final res = await _api.getJson('/cart');
       return _cartFromData(res.data);
     } on ApiException catch (e) {
-      if (e.kind == ApiErrorKind.unauthorized) return null;
+      if (e.kind == ApiErrorKind.unauthorized || e.statusCode == 404) {
+        return null;
+      }
       logDebug('Error in getCart: ${e.message}');
       rethrow;
     }

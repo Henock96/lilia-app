@@ -113,7 +113,7 @@ const _kBadCredentials = 'Adresse e-mail ou mot de passe incorrect.';
 const _kInvalidEmail = 'Cette adresse e-mail n’est pas valide.';
 const _kAccountDisabled = 'Ce compte a été désactivé. Contactez-nous si vous '
     'pensez qu’il s’agit d’une erreur.';
-const _kEmailInUse = 'Cette adresse e-mail est déjà utilisée.';
+const _kEmailInUse = _kAccountConflict;
 const _kWeakPassword = 'Ce mot de passe est trop simple. Choisissez-en un d’au '
     'moins 6 caractères.';
 const _kRateLimited = 'Trop de tentatives. Patientez quelques instants avant '
@@ -149,6 +149,16 @@ const kAuthAccountGone = AuthFailure(
   AuthFailureKind.sessionExpired,
   'Ce compte n’est plus disponible sur Lilia Food. '
   'Connectez-vous avec un autre compte.',
+);
+
+/// `/users/sync` n'a pas répondu pendant une inscription : le compte existe
+/// peut-être. Se réinscrire mènerait à « un compte existe déjà » ; se connecter
+/// aboutit dans tous les cas, car la connexion refait la synchronisation.
+const kAuthInscriptionIncertaine = AuthFailure(
+  AuthFailureKind.network,
+  'Nous n’avons pas pu confirmer votre inscription. Votre compte a peut-être '
+  'été créé : essayez de vous connecter avec votre e-mail et votre mot de '
+  'passe.',
 );
 
 /// La ré-authentification Apple qui précède une suppression de compte n'a pas

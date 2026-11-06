@@ -159,15 +159,26 @@ void main() {
       expect(repo.synchronisationEnCours, isFalse);
     });
 
-    test('création + échec serveur : compte Firebase supprimé, échec remonté',
+    test('création + refus du serveur : compte Firebase supprimé, échec remonté',
         () async {
       final user = _FakeUser(email: _relais);
       auth.reponse = _cred(user, nouveau: true);
-      serveurRepond(500);
+      serveurRepond(409);
 
       await expectLater(repo.signInWithApple(), throwsA(isA<AuthFailure>()));
       expect(user.supprime, isTrue,
           reason: 'sinon un compte Firebase orphelin, sans ligne en base');
+    });
+
+    test('création + 5xx : compte conservé, session fermée', () async {
+      final user = _FakeUser(email: _relais);
+      auth.reponse = _cred(user, nouveau: true);
+      serveurRepond(503);
+
+      await expectLater(repo.signInWithApple(), throwsA(isA<AuthFailure>()));
+      expect(user.supprime, isFalse,
+          reason: 'un proxy répond 502 ou 504 alors que la ligne a pu être écrite');
+      expect(auth.deconnexions, 1);
     });
 
     test('compte existant + échec serveur : jamais supprimé, session '
@@ -178,6 +189,21 @@ void main() {
 
       await expectLater(repo.signInWithApple(), completes);
       expect(user.supprime, isFalse);
+    });
+
+    test('création + réseau coupé : compte conservé, session fermée', () async {
+      final user = _FakeUser(email: _relais);
+      auth.reponse = _cred(user, nouveau: true);
+      serveurInjoignable();
+
+      await expectLater(
+        repo.signInWithApple(),
+        throwsA(isA<AuthFailure>()
+            .having((f) => f.kind, 'kind', AuthFailureKind.network)),
+      );
+      expect(user.supprime, isFalse,
+          reason: 'la réponse a pu se perdre après la création de la ligne');
+      expect(auth.deconnexions, 1);
     });
 
     test('compte existant + réseau coupé : échec réseau, jamais supprimé',
@@ -325,9 +351,13 @@ class _FakeAuth implements FirebaseAuth {
   Object? erreurRevocation;
   User? utilisateur;
   final revoques = <String>[];
+  int deconnexions = 0;
 
   @override
   User? get currentUser => utilisateur;
+
+  @override
+  Future<void> signOut() async => deconnexions++;
 
   @override
   Future<UserCredential> signInWithProvider(AuthProvider provider) async {

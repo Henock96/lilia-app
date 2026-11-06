@@ -163,9 +163,12 @@ class SessionEffects extends _$SessionEffects {
     // panier, le jeton FCM et les providers invalidés juste après auraient
     // reçu un 403 `ACCOUNT_NOT_SYNCED`. Borné : une synchronisation qui ne
     // répond pas ne doit pas priver la session de ses effets pour toujours.
+    // La borne couvre les deux essais de `/users/sync` (connexion 15 s plus
+    // réponse 30 s, deux fois) : plus courte, les effets partiraient avant que
+    // le compte existe.
     final auth = ref.read(authRepositoryProvider);
     await auth.attendreSynchronisation().timeout(
-          const Duration(seconds: 60),
+          const Duration(seconds: 100),
           onTimeout: () {},
         );
     // L'inscription a pu échouer entre-temps (compte Firebase supprimé) :

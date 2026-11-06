@@ -59,6 +59,47 @@ class FirebaseAuthenticationRepository {
     }
   }
 
+  /// `/users/sync` est un upsert par `firebaseUid` : le rejouer est sans risque,
+  /// et cet en-tête autorise `RetryInterceptor` à le faire une fois. Sans ce
+  /// rejeu, une coupure passagère ferait perdre le téléphone et le parrainage :
+  /// le compte ne serait plus rattrapé que par une connexion, qui ne les porte
+  /// pas.
+  Map<String, String> _syncRejouable(User user) => {
+        'Idempotency-Key': 'sync-${user.uid}',
+      };
+
+  /// `/users/sync` n'a pas dit non : le serveur a peut-être écrit la ligne.
+  ///
+  /// Une coupure, un délai ou un 5xx ne disent rien de ce qui s'est passé : un
+  /// proxy répond 502 ou 504 pendant que le serveur finit son écriture.
+  /// Supprimer le compte Firebase dans ce cas laisserait une ligne Lilia sans
+  /// compte ; `email` étant unique, le serveur refuserait ensuite cette adresse
+  /// pour toujours, par e-mail comme par Google. On ferme seulement la session
+  /// avec [_fermerSession] : une connexion refait la synchronisation, que la
+  /// ligne existe ou non.
+  static bool _issueInconnue(ApiException e) =>
+      e.kind == ApiErrorKind.network ||
+      e.kind == ApiErrorKind.timeout ||
+      e.kind == ApiErrorKind.server;
+
+  /// Ne passe pas par [signOut] : il déconnecte Google d'abord, et un échec à
+  /// cette étape laisserait la session Firebase ouverte.
+  ///
+  /// Un échec ici ne remplace pas celui de la synchronisation, seul utile au
+  /// client, mais il doit se voir : la session reste alors ouverte sans ligne
+  /// Lilia.
+  Future<void> _fermerSession() async {
+    try {
+      await _firebaseAuth.signOut();
+    } catch (e, pile) {
+      reportIncident(
+        'Fermeture de session impossible après inscription',
+        e,
+        pile,
+      );
+    }
+  }
+
   // convertit le FirebaseUser nullable en notre AppUser
   AppUser? _convertUser(User? user) =>
       user == null ? null : AppUser.fromFirebaseUser(user);
@@ -149,6 +190,7 @@ class FirebaseAuthenticationRepository {
     try {
       await _api.postJson(
         '/users/sync',
+        headers: _syncRejouable(user),
         body: {
           'firebaseUid': user.uid,
           'email': email,
@@ -159,7 +201,11 @@ class FirebaseAuthenticationRepository {
         },
       );
     } on ApiException catch (e) {
-      // Si le backend échoue, on supprime l'utilisateur Firebase pour éviter
+      if (_issueInconnue(e)) {
+        await _fermerSession();
+        throw kAuthInscriptionIncertaine;
+      }
+      // Si le backend refuse, on supprime l'utilisateur Firebase pour éviter
       // un état incohérent.
       //
       // ⚠️ La suppression est protégée : si elle échoue à son tour (réseau
@@ -337,6 +383,7 @@ class FirebaseAuthenticationRepository {
 
       await _api.postJson(
         '/users/sync',
+        headers: _syncRejouable(user),
         body: {
           'firebaseUid': user.uid,
           'email': user.email,
@@ -359,11 +406,15 @@ class FirebaseAuthenticationRepository {
       }
       // Supprimer l'utilisateur Firebase UNIQUEMENT s'il s'agit d'une nouvelle
       // inscription, pour éviter de détruire le compte d'un utilisateur
-      // existant (C-AUTH-1).
+      // existant (C-AUTH-1), et seulement si le serveur a refusé.
       if (isNewUser) {
-        try {
-          await user.delete();
-        } catch (_) {}
+        if (_issueInconnue(e)) {
+          await _fermerSession();
+        } else {
+          try {
+            await user.delete();
+          } catch (_) {}
+        }
       }
       // Une panne réseau ou un serveur muet empêchent de savoir si le compte
       // est utilisable : on le dit, même à un compte existant.
