@@ -19,6 +19,7 @@ import 'package:lilia_app/services/analytics_service.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/features/cart/presentation/quick_add.dart';
 import 'package:lilia_app/features/cart/presentation/line_options_text.dart';
+import 'package:lilia_app/theme/lilia_tokens.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -87,7 +88,9 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(ctx).colorScheme.dangerText,
+            ),
             child: const Text('Tout supprimer'),
           ),
         ],
@@ -132,14 +135,17 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                   )
                 : TextButton.icon(
                     onPressed: _clearCart,
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.delete_sweep,
                       size: 20,
-                      color: Colors.red,
+                      color: Theme.of(context).colorScheme.dangerText,
                     ),
-                    label: const Text(
+                    label: Text(
                       'Tout supprimer',
-                      style: TextStyle(color: Colors.red, fontSize: 13),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.dangerText,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
         ],
@@ -529,7 +535,10 @@ class _MenuCartCardState extends ConsumerState<MenuCartCard> {
                     ),
                     IconButton(
                       tooltip: 'Supprimer',
-                      icon: const Icon(Icons.delete, color: Colors.red),
+                      icon: Icon(
+                        Icons.delete,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                       onPressed: _isLoading ? null : _removeMenu,
                     ),
                   ],
@@ -698,7 +707,10 @@ class _CartItemCardState extends ConsumerState<CartItemCard> {
                     ),
                     IconButton(
                       tooltip: 'Supprimer',
-                      icon: const Icon(Icons.delete, color: Colors.red),
+                      icon: Icon(
+                        Icons.delete,
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                       onPressed: _isLoading ? null : _removeItem,
                     ),
                   ],

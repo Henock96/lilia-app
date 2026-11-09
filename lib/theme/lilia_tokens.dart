@@ -187,6 +187,10 @@ extension LiliaFeedbackText on ColorScheme {
 
   /// Mise en garde, points de fidélité, stock bas.
   Color get warningText => _dark ? LiliaColors.amber300 : LiliaColors.amber700;
+
+  /// Fermé, épuisé, indisponible. `error` (red400) reste la couleur des
+  /// boutons destructifs : en texte sur un voile, il tombait à 3.86:1.
+  Color get dangerText => _dark ? LiliaColors.red300 : LiliaColors.red500;
 }
 
 // ─── Spacing ─────────────────────────────────────────────────────────────────

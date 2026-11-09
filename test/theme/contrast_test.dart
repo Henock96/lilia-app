@@ -123,11 +123,11 @@ void main() {
     }
   });
 
-  group('Texte de feedback (remises, points) sur les surfaces', () {
+  group('Texte de feedback (remises, points, fermé / épuisé) sur les surfaces', () {
     for (final theme in [AppTheme.light, AppTheme.dark]) {
       final cs = theme.colorScheme;
       test(cs.brightness.name, () {
-        for (final fg in [cs.successText, cs.warningText]) {
+        for (final fg in [cs.successText, cs.warningText, cs.dangerText]) {
           for (final bg in [
             cs.surface,
             cs.surfaceContainerHighest,

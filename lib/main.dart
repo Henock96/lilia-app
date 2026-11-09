@@ -26,7 +26,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Cache mémoire images plafonné à 100 MB (LIL-37).
   LiliaImageCache.configureMemoryCache();
-  // Les polices (Inter, Oswald, Fraunces, Girassol, Lora) sont embarquées dans
+  // Les polices (Inter, Oswald, Fraunces, Girassol) sont embarquées dans
   // le bundle : plus aucun appel à fonts.gstatic.com au premier lancement.
   // Sans ce flag, `google_fonts` retenterait quand même le réseau — latence au
   // démarrage sur la 4G de Brazzaville, et dépendance à un tiers.

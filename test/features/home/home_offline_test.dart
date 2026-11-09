@@ -12,7 +12,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_app/features/home/presentation/widgets/section/restaurant_card.dart';
 import 'package:lilia_app/features/auth/repository/firebase_auth_repository.dart';
 import 'package:lilia_app/features/home/data/remote/home_repo.dart';
+import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/common_widgets/stale_data_banner.dart';
+import 'package:lilia_app/services/connectivity_service.dart';
 import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/core/update/app_update_model.dart';
 import 'package:lilia_app/core/update/app_update_service.dart';
@@ -116,6 +118,95 @@ void main() {
     expect(find.byType(StaleDataBanner), findsNothing);
     expect(find.text('Connexion impossible.'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
+  });
+
+  group('UX-04 — le téléphone sait qu’il est hors ligne', () {
+    late StreamController<bool> reseau;
+    late int appels;
+    late Completer<List<RestaurantSummary>> requeteSuspendue;
+
+    Future<void> monterSansReseau(WidgetTester tester) async {
+      // `broadcast` : un contrôleur simple sans auditeur ne termine jamais son
+      // `close()`, et le démontage du test resterait bloqué.
+      reseau = StreamController<bool>.broadcast();
+      addTearDown(reseau.close);
+      appels = 0;
+      requeteSuspendue = Completer();
+      tester.view.physicalSize = const Size(1080, 4000);
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          retry: (_, _) => null,
+          overrides: [
+            connectivityStatusProvider.overrideWith((ref) => reseau.stream),
+            bannersListProvider.overrideWith((ref) async => []),
+            availableNowProvider.overrideWith(
+              (ref) async => const AvailableNow(products: []),
+            ),
+            authStateChangeProvider.overrideWith((ref) => Stream.value(null)),
+            recommendationsProvider.overrideWith((ref) async => []),
+            // Hors ligne, la vraie requête attend son délai de connexion
+            // (15 s, puis les relances : ~22 s mesurées) : elle reste suspendue.
+            vendorsListProvider.overrideWith((ref) {
+              appels++;
+              if (appels == 1) return requeteSuspendue.future;
+              return Future.value([
+                RestaurantSummary(id: 'r1', name: 'Chez Awa', address: 'Poto-Poto'),
+              ]);
+            }),
+            notificationHistoryProvider.overrideWith(_AucuneNotification.new),
+            appUpdateInfoProvider.overrideWith(
+              (ref) => Completer<AppUpdateInfo>().future,
+            ),
+          ],
+          child: MaterialApp(theme: AppTheme.light, home: const HomeScreen()),
+        ),
+      );
+      reseau.add(false);
+      await _pomper(tester);
+    }
+
+    testWidgets('pendant la requête : « Pas de connexion » et Réessayer, '
+        'pas des squelettes', (tester) async {
+      await monterSansReseau(tester);
+      expect(find.byType(BuildLoadingState), findsNothing);
+      expect(find.text('Pas de connexion internet.'), findsOneWidget);
+      expect(find.text('Réessayer'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('liste déjà chargée puis réseau coupé et rechargement : '
+        'la liste reste affichée', (tester) async {
+      await monterSansReseau(tester);
+      reseau.add(true);
+      await _pomper(tester);
+      expect(_dansLaListe('Chez Awa'), findsOneWidget);
+
+      // Coupure, puis « tirer pour rafraîchir » : la requête part et attend.
+      reseau.add(false);
+      await _pomper(tester);
+      final c = ProviderScope.containerOf(tester.element(find.byType(HomeScreen)));
+      c.invalidate(vendorsListProvider);
+      await tester.pump();
+
+      expect(_dansLaListe('Chez Awa'), findsOneWidget,
+          reason: '« hors ligne » ne masque jamais une liste déjà là');
+      expect(find.text('Pas de connexion internet.'), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('retour du réseau : l’accueil se relance seul', (tester) async {
+      await monterSansReseau(tester);
+      expect(appels, 1);
+
+      reseau.add(true);
+      await _pomper(tester);
+
+      expect(appels, 2, reason: 'rechargement au retour du réseau');
+      expect(_dansLaListe('Chez Awa'), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    });
   });
 
   testWidgets('premier chargement hors ligne : erreur et Réessayer, pas '

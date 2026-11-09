@@ -43,6 +43,12 @@ import 'package:lilia_app/features/commandes/presentation/widgets/checkout_order
 import 'package:lilia_app/features/commandes/presentation/widgets/payment_instructions_dialog.dart';
 import 'package:lilia_app/features/commandes/presentation/widgets/checkout_submit_bar.dart';
 
+/// Couleurs d'identité des opérateurs (icône, voile, bordure), pas des couleurs
+/// de feedback : elles ne viennent donc pas du thème. Mêmes teintes que les
+/// `Colors.amber.shade700` / `Colors.red.shade600` d'origine.
+const _mtnYellow = Color(0xFFFFA000);
+const _airtelRed = Color(0xFFE53935);
+
 class CheckoutPage extends ConsumerStatefulWidget {
   final DeliveryOptions? deliveryOptions;
 
@@ -796,13 +802,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         _buildPaymentOption(
           method: 'MTN_MOMO',
           label: 'MTN Mobile Money',
-          color: Colors.amber.shade700,
+          color: _mtnYellow,
         ),
         const SizedBox(height: 12),
         _buildPaymentOption(
           method: 'AIRTEL_MONEY',
           label: 'Airtel Money',
-          color: Colors.red.shade600,
+          color: _airtelRed,
         ),
         const SizedBox(height: 16),
         _buildMomoPhoneField(),
@@ -903,7 +909,10 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: isSelected ? displayColor : cs.onSurface,
+                      // La couleur de l'opérateur reste sur l'icône, le voile
+                      // et la bordure : en texte, le jaune MTN sur son propre
+                      // voile était illisible (UX-03).
+                      color: cs.onSurface,
                     ),
                   ),
                   const SizedBox(height: 4),

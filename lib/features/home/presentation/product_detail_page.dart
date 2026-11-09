@@ -15,6 +15,7 @@ import '../../cart/presentation/cart_mode_conflict_dialog.dart';
 import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/features/home/data/remote/home_controller.dart';
 import 'package:lilia_app/common_widgets/image_gallery.dart';
+import 'package:lilia_app/theme/lilia_tokens.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 import 'package:lilia_app/features/cart/domain/cart_mutations.dart';
@@ -354,7 +355,9 @@ Téléchargez l'app Lilia Food pour commander !
             tooltip: 'Retirer des favoris',
             icon: Icon(
               isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: isFavorite ? Colors.red : theme.colorScheme.onSurface,
+              color: isFavorite
+                  ? theme.colorScheme.error
+                  : theme.colorScheme.onSurface,
             ),
             onPressed: () {
               final notifier = ref.read(favoritesProvider.notifier);
@@ -586,7 +589,7 @@ Téléchargez l'app Lilia Food pour commander !
                 icon: Icons.restaurant_menu,
                 label: 'Ingrédients',
                 value: p.ingredients!,
-                accent: Colors.deepOrange,
+                accent: scheme.onPrimaryContainer,
               ),
 
             // Durée de conservation
@@ -596,7 +599,7 @@ Téléchargez l'app Lilia Food pour commander !
                 label: 'Conservation',
                 value:
                     '${p.shelfLifeDays} jour${p.shelfLifeDays! > 1 ? 's' : ''}',
-                accent: Colors.teal,
+                accent: scheme.successText,
               ),
 
             // Préparé sur commande
@@ -605,7 +608,7 @@ Téléchargez l'app Lilia Food pour commander !
                 icon: Icons.bakery_dining,
                 label: 'Préparation',
                 value: 'Préparé sur commande',
-                accent: Colors.purple,
+                accent: scheme.secondary,
               ),
 
             // Fenêtre de disponibilité (BAKERY surtout)
@@ -614,7 +617,7 @@ Téléchargez l'app Lilia Food pour commander !
                 icon: Icons.schedule,
                 label: 'Disponible',
                 value: '${p.availableFrom} → ${p.availableUntil}',
-                accent: inWindow ? Colors.green : Colors.red,
+                accent: inWindow ? scheme.successText : scheme.dangerText,
                 trailing: !inWindow
                     ? Container(
                         padding: const EdgeInsets.symmetric(
@@ -622,17 +625,17 @@ Téléchargez l'app Lilia Food pour commander !
                           vertical: 3,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.red.withValues(alpha: 0.1),
+                          color: scheme.dangerText.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
-                            color: Colors.red.withValues(alpha: 0.3),
+                            color: scheme.dangerText.withValues(alpha: 0.3),
                           ),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Hors créneau',
                           style: TextStyle(
                             fontSize: 10,
-                            color: Colors.red,
+                            color: scheme.dangerText,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -664,7 +667,7 @@ Téléchargez l'app Lilia Food pour commander !
                 'Requis',
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors.red[400],
+                  color: theme.colorScheme.dangerText,
                   fontWeight: FontWeight.w500,
                 ),
               ),

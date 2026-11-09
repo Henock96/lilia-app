@@ -11,6 +11,7 @@ import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/common_widgets/image_gallery.dart';
 import 'package:lilia_app/services/analytics_service.dart';
+import 'package:lilia_app/theme/lilia_tokens.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -185,8 +186,10 @@ class _RestaurantDetailScreenState
                   icon: const Icon(Icons.phone, size: 18),
                   label: Text('Appeler ${restaurant.phoneNumber}'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.green,
-                    side: const BorderSide(color: Colors.green),
+                    foregroundColor: Theme.of(context).colorScheme.successText,
+                    side: BorderSide(
+                      color: Theme.of(context).colorScheme.successText,
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -528,7 +531,7 @@ class _VendorHeroAppBar extends StatelessWidget {
         _circleButton(
           context,
           icon: Icons.star_outline,
-          iconColor: Colors.amber,
+          iconColor: Theme.of(context).colorScheme.warningText,
           onTap: onReviews,
         ),
       ],
@@ -673,7 +676,7 @@ class _VendorIdentityCard extends StatelessWidget {
               runSpacing: 6,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                _statusChip(),
+                _statusChip(context),
                 // F3-11 — offre boutique : appliquée d'elle-même au panier.
                 if (restaurant.activeOffer != null)
                   OfferBadge(offer: restaurant.activeOffer!, expanded: true),
@@ -688,22 +691,24 @@ class _VendorIdentityCard extends StatelessWidget {
     );
   }
 
-  Widget _statusChip() {
+  Widget _statusChip(BuildContext context) {
     // Inconnu (`null`) : rendu comme non ouvert, avec son propre libellé.
     final open = restaurant.isOpen == true;
+    final cs = Theme.of(context).colorScheme;
+    final tone = open ? cs.successText : cs.dangerText;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: (open ? Colors.green : Colors.red).withValues(alpha: 0.1),
+        color: tone.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: open ? Colors.green : Colors.red, width: 1),
+        border: Border.all(color: tone, width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             open ? Icons.check_circle : Icons.cancel,
-            color: open ? Colors.green : Colors.red,
+            color: tone,
             size: 14,
           ),
           const SizedBox(width: 4),
@@ -715,7 +720,7 @@ class _VendorIdentityCard extends StatelessWidget {
               nextOpeningServed: restaurant.nextOpeningServed,
             ),
             style: TextStyle(
-              color: open ? Colors.green : Colors.red,
+              color: tone,
               fontWeight: FontWeight.bold,
               fontSize: 12,
             ),
@@ -752,7 +757,11 @@ class _VendorIdentityCard extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.star_rounded, size: 18, color: Colors.amber),
+          Icon(
+            Icons.star_rounded,
+            size: 18,
+            color: Theme.of(context).colorScheme.warningText,
+          ),
           const SizedBox(width: 2),
           Text(
             restaurant.averageRating!.toStringAsFixed(1),
@@ -845,7 +854,8 @@ class _VendorProfileSectionState extends State<_VendorProfileSection> {
                 icon: Icons.verified_outlined,
                 label: 'Certifications',
                 items: profile.certifications,
-                accent: Colors.teal,
+                // L'accent colore aussi le texte des puces : variante « texte ».
+                accent: Theme.of(context).colorScheme.successText,
               ),
             ],
             if (profile.specialties.isNotEmpty) ...[
@@ -854,7 +864,7 @@ class _VendorProfileSectionState extends State<_VendorProfileSection> {
                 icon: Icons.star_outline,
                 label: 'Spécialités',
                 items: profile.specialties,
-                accent: Colors.deepOrange,
+                accent: Theme.of(context).colorScheme.onPrimaryContainer,
               ),
             ],
             if (profile.productionNote != null &&
@@ -981,7 +991,7 @@ class _DeliveryInfoCard extends ConsumerWidget {
                   icon: Icons.delivery_dining,
                   label: 'Livraison',
                   value: restaurant.deliveryTimeFormatted,
-                  color: Colors.blue,
+                  color: Theme.of(context).colorScheme.secondary,
                 ),
                 const SizedBox(width: 10),
                 _InfoTile(
@@ -991,7 +1001,8 @@ class _DeliveryInfoCard extends ConsumerWidget {
                     restaurant.fixedDeliveryFee,
                     ref.watch(platformSettingsProvider).value,
                   ),
-                  color: Colors.green,
+                  // `tertiary` (green400) passe sous 3:1 en clair pour une icône.
+                  color: Theme.of(context).colorScheme.successText,
                 ),
                 const SizedBox(width: 10),
               ],
@@ -1001,7 +1012,7 @@ class _DeliveryInfoCard extends ConsumerWidget {
                 value: restaurant.minimumOrderAmount > 0
                     ? formatPrice(restaurant.minimumOrderAmount)
                     : 'Aucun',
-                color: Colors.orange,
+                color: Theme.of(context).colorScheme.primary,
               ),
             ],
           ),
@@ -1218,12 +1229,15 @@ class _OperatingHoursSectionState extends State<_OperatingHoursSection> {
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.purple.withValues(alpha: 0.1),
+                      color: Theme.of(context)
+                          .colorScheme
+                          .secondary
+                          .withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.schedule,
-                      color: Colors.purple,
+                      color: Theme.of(context).colorScheme.secondary,
                       size: 16,
                     ),
                   ),

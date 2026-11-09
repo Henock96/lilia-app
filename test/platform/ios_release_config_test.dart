@@ -100,6 +100,15 @@ void main() {
     late String plist;
     setUp(() => plist = _lire('ios/Runner/Info.plist'));
 
+    test('la galerie est expliquée : `image_picker` y lit les photos (IOS-01)', () {
+      // Réclamations et photo de profil choisissent une image dans la
+      // galerie. Sans cette clé, Apple signale le binaire (ITMS-90683) et une
+      // version d'iOS qui passerait par `PHPhotoLibrary` refuserait l'accès.
+      final texte = _valeurTexte(plist, 'NSPhotoLibraryUsageDescription');
+      expect(texte, isNotNull);
+      expect(texte!.trim(), isNotEmpty);
+    });
+
     test('aucun mode d’arrière-plan qui ne soit utilisé', () {
       final modes = _valeursTableau(plist, 'UIBackgroundModes');
 

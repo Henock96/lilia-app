@@ -9,10 +9,17 @@
      inutilisée. -->
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- Aucune donnée de l'app ne part en sauvegarde ni en transfert d'appareil
+         (SEC-09) : session Firebase, brouillons de commande et historique des
+         notifications y partaient. `allowBackup` couvre Android 11 et avant ;
+         depuis Android 12, seul `dataExtractionRules` exclut le transfert
+         d'appareil à appareil. Vérifié par `test/platform/android_backup_test.dart`. -->
     <application
         android:label="Lilia Food"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/launcher_icon"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"
