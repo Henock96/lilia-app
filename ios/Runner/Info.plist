@@ -54,6 +54,8 @@
 	<string>Votre position sert à placer votre adresse de livraison sur la carte, lorsque vous le demandez.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Lilia Food utilise votre position uniquement lorsque l’application est ouverte, pour placer votre adresse de livraison sur la carte.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Lilia Food ouvre vos photos uniquement quand vous en choisissez une : photo de profil ou preuve jointe à une réclamation.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

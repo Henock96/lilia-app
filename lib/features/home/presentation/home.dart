@@ -17,7 +17,9 @@ import 'package:lilia_app/models/banner.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import 'package:lilia_app/models/restaurant.dart';
 
+import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/core/update/app_update_gate.dart';
+import 'package:lilia_app/services/connectivity_service.dart';
 
 import '../data/remote/banner_controller.dart';
 import '../data/remote/home_controller.dart';
@@ -121,6 +123,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final staleVendors = _staleVendors(restaurantsAsync, currentFilter);
     final notificationHistory = ref.watch(notificationHistoryProvider);
     final bannersAsync = ref.watch(bannersListProvider);
+    // UX-04 : hors ligne, la requête attend son délai de connexion (~22 s
+    // mesurées) derrière des squelettes, alors que le téléphone le sait déjà.
+    // `null` (pas encore lu) vaut « en ligne » : on ne barre pas l'écran.
+    final horsLigne = ref.watch(connectivityStatusProvider).value == false;
+    ref.listen(connectivityStatusProvider, (avant, apres) {
+      if (avant?.value == false && apres.value == true) _rechargerAccueil();
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -137,13 +146,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       ),
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(vendorsListProvider);
-            ref.invalidate(restaurantsListProvider);
-            ref.invalidate(bannersListProvider);
-            ref.invalidate(availableNowProvider);
-            ref.invalidate(brazzavilleWeatherProvider);
-          },
+          onRefresh: () async => _rechargerAccueil(),
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Column(
@@ -181,7 +184,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
                 // 5. Bannières, compactées : l'éditorial passe après ce qui
                 // se commande.
-                _buildSimpleSlider(bannersAsync),
+                _buildSimpleSlider(bannersAsync, horsLigne: horsLigne),
 
                 const SizedBox(height: 20),
 
@@ -227,7 +230,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 const SizedBox(height: 12),
 
                 // Liste des restaurants/vendeurs filtrés
-                _buildRestaurantsList(restaurantsAsync),
+                _buildRestaurantsList(restaurantsAsync, horsLigne: horsLigne),
 
                 const SizedBox(height: 20),
               ],
@@ -270,7 +273,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  Widget _buildSimpleSlider(AsyncValue<List<AppBanner>> bannersAsync) {
+  Widget _buildSimpleSlider(
+    AsyncValue<List<AppBanner>> bannersAsync, {
+    required bool horsLigne,
+  }) {
     return bannersAsync.whenUi(
       data: (apiBanners) {
         if (apiBanners.isNotEmpty) {
@@ -288,7 +294,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         }
         return _buildFallbackSlider();
       },
-      loading: () => buildBannerShimmer(),
+      loading: () => horsLigne ? _buildFallbackSlider() : buildBannerShimmer(),
       error: (_, _) => _buildFallbackSlider(),
     );
   }
@@ -428,6 +434,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   static String _affiches(int n) => '$n affiché${n > 1 ? 's' : ''}';
 
+  /// Ce que relance le geste « tirer pour rafraîchir », et le retour du réseau.
+  void _rechargerAccueil() {
+    ref.invalidate(vendorsListProvider);
+    ref.invalidate(restaurantsListProvider);
+    ref.invalidate(bannersListProvider);
+    ref.invalidate(availableNowProvider);
+    ref.invalidate(brazzavilleWeatherProvider);
+  }
+
+  static const _pasDeConnexion = ApiException(
+    'Pas de connexion internet.',
+    kind: ApiErrorKind.network,
+  );
+
   /// Date du dernier chargement réussi **pour ce filtre**, si la liste
   /// affichée est une liste conservée après un échec ; `null` sinon.
   DateTime? _staleVendors(
@@ -440,8 +460,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Widget _buildRestaurantsList(
-    AsyncValue<List<RestaurantSummary>> restaurantsAsync,
-  ) {
+    AsyncValue<List<RestaurantSummary>> restaurantsAsync, {
+    required bool horsLigne,
+  }) {
     final filter = ref.read(marketplaceFilterProvider);
     final staleAt = _staleVendors(restaurantsAsync, filter);
     if (staleAt != null) {
@@ -496,7 +517,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
         return _vendorsListView(restaurants);
       },
-      loading: () => const BuildLoadingState(),
+      loading: () => horsLigne
+          ? BuildErrorState(
+              _pasDeConnexion,
+              onRetry: () => ref.invalidate(vendorsListProvider),
+            )
+          : const BuildLoadingState(),
       // ⚠️ `vendorsListProvider`, celui que l'écran observe. Le bouton
       // invalidait `restaurantsListProvider`, dont `vendorsList` ne dépend
       // pas : « Réessayer » ne relançait rien.

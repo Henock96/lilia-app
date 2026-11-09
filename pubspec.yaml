@@ -88,12 +88,11 @@ flutter:
   # `allowRuntimeFetching = false` (main.dart) interdit tout appel réseau.
   #
   # Toutes sous licence SIL Open Font (OFL.txt conservé à côté de chaque .ttf).
+  #
+  # Lora n'est plus déclarée : aucun écran ne s'en servait, et elle pesait
+  # ~215 Ko compressés dans l'APK (PERF-11). `bundled_fonts_test.dart` refuse
+  # une famille déclarée sans usage.
   fonts:
-    - family: Lora
-      fonts:
-        - asset: assets/fonts/lora/Lora-Italic-VariableFont_wght.ttf
-          style: italic
-        - asset: assets/fonts/lora/Lora-VariableFont_wght.ttf
     # Inter et Oswald en **statiques**, nommés comme `google_fonts` les cherche
     # (`Inter-SemiBold.ttf`…). Avec les seules polices variables, chaque
     # `GoogleFonts.inter(fontWeight: w600)` échouait (« not found in the

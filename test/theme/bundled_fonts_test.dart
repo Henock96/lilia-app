@@ -41,6 +41,26 @@ void main() {
     });
   }
 
+  test('aucune famille embarquée sans usage (PERF-11)', () {
+    // Lora pesait ~215 Ko compressés dans l'APK sans un seul
+    // `GoogleFonts.lora` ni `fontFamily: 'Lora'` dans `lib/`.
+    final familles = RegExp(r'- family: (\w+)')
+        .allMatches(pubspec)
+        .map((m) => m.group(1)!)
+        .toSet();
+    final code = Directory('lib')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.dart'))
+        .map((f) => f.readAsStringSync())
+        .join('\n');
+    for (final famille in familles) {
+      final utilisee = code.contains('GoogleFonts.${famille.toLowerCase()}') ||
+          code.contains("'$famille'");
+      expect(utilisee, isTrue, reason: '$famille déclarée mais jamais utilisée');
+    }
+  });
+
   test('le code ne demande pas de graisse Inter/Oswald hors du bundle', () {
     final graisses = <String>{};
     for (final f in Directory('lib').listSync(recursive: true)) {

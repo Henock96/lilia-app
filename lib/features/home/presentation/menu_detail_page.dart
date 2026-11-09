@@ -12,6 +12,7 @@ import 'package:lilia_app/features/home/data/remote/menu_controller.dart';
 import 'package:lilia_app/models/menu.dart';
 import 'package:lilia_app/models/produit.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
+import 'package:lilia_app/theme/lilia_tokens.dart';
 import 'package:lilia_app/utils/currency.dart';
 import 'package:lilia_app/utils/snackbar.dart';
 
@@ -50,15 +51,15 @@ class _MenuDetailPageState extends ConsumerState<_MenuDetailView> {
 
   /// Placeholder dégradé orange affiché quand le menu n'a aucune image.
   Widget _buildPlaceholder() {
-    return Container(
+    return const DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Colors.orange[400]!, Colors.orange[700]!],
+          colors: [LiliaColors.orange400, LiliaColors.orange700],
         ),
       ),
-      child: const Center(
+      child: Center(
         child: Icon(Icons.restaurant_menu, size: 80, color: Colors.white),
       ),
     );
@@ -111,11 +112,18 @@ class _MenuDetailPageState extends ConsumerState<_MenuDetailView> {
                   // Restaurant info
                   Row(
                     children: [
-                      const Icon(Icons.store, size: 20, color: Colors.grey),
+                      Icon(
+                        Icons.store,
+                        size: 20,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         menu.restaurant.nom,
-                        style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -129,22 +137,25 @@ class _MenuDetailPageState extends ConsumerState<_MenuDetailView> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.green[100],
+                        color: Theme.of(context)
+                            .colorScheme
+                            .successText
+                            .withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             Icons.check_circle,
                             size: 16,
-                            color: Colors.green,
+                            color: Theme.of(context).colorScheme.successText,
                           ),
-                          SizedBox(width: 6),
+                          const SizedBox(width: 6),
                           Text(
                             'Disponible maintenant',
                             style: TextStyle(
-                              color: Colors.green,
+                              color: Theme.of(context).colorScheme.successText,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -158,18 +169,25 @@ class _MenuDetailPageState extends ConsumerState<_MenuDetailView> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.red[100],
+                        color: Theme.of(context)
+                            .colorScheme
+                            .dangerText
+                            .withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.cancel, size: 16, color: Colors.red),
-                          SizedBox(width: 6),
+                          Icon(
+                            Icons.cancel,
+                            size: 16,
+                            color: Theme.of(context).colorScheme.dangerText,
+                          ),
+                          const SizedBox(width: 6),
                           Text(
                             'Menu expire',
                             style: TextStyle(
-                              color: Colors.red,
+                              color: Theme.of(context).colorScheme.dangerText,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -187,10 +205,10 @@ class _MenuDetailPageState extends ConsumerState<_MenuDetailView> {
                         children: [
                           Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.schedule,
                                 size: 18,
-                                color: Colors.orange,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                               const SizedBox(width: 8),
                               Text(
@@ -202,10 +220,10 @@ class _MenuDetailPageState extends ConsumerState<_MenuDetailView> {
                           const SizedBox(height: 8),
                           Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.event_busy,
                                 size: 18,
-                                color: Colors.orange,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                               const SizedBox(width: 8),
                               Text(
@@ -234,7 +252,10 @@ class _MenuDetailPageState extends ConsumerState<_MenuDetailView> {
                     const SizedBox(height: 8),
                     Text(
                       menu.description!,
-                      style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -279,16 +300,23 @@ class _MenuDetailPageState extends ConsumerState<_MenuDetailView> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: Colors.orange[50],
+                          color: Theme.of(context).colorScheme.primaryContainer,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.orange[200]!),
+                          border: Border.all(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .primary
+                                .withValues(alpha: 0.3),
+                          ),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Icon(
                               Icons.restaurant,
-                              color: Colors.orange[700],
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onPrimaryContainer,
                               size: 22,
                             ),
                             const SizedBox(width: 12),
@@ -297,7 +325,9 @@ class _MenuDetailPageState extends ConsumerState<_MenuDetailView> {
                                 menu.ingredients!,
                                 style: TextStyle(
                                   fontSize: 15,
-                                  color: Colors.grey[800],
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onPrimaryContainer,
                                   height: 1.5,
                                 ),
                               ),
@@ -310,7 +340,7 @@ class _MenuDetailPageState extends ConsumerState<_MenuDetailView> {
                         'Composition non renseignee',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.grey[500],
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontStyle: FontStyle.italic,
                         ),
                       ),
@@ -376,7 +406,9 @@ class _MenuDetailPageState extends ConsumerState<_MenuDetailView> {
                     // Selecteur de quantite
                     Container(
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[300]!),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                        ),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
@@ -540,7 +572,10 @@ class _ProductTile extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         product.description,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -559,7 +594,10 @@ class _ProductTile extends StatelessWidget {
                   ),
                 ),
                 // Fleche
-                const Icon(Icons.chevron_right, color: Colors.grey),
+                Icon(
+                  Icons.chevron_right,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ],
             ),
           ),
