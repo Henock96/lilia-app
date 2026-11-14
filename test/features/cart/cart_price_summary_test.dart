@@ -84,7 +84,8 @@ void main() {
     ) async {
       await _pump(tester, prix: 6000, quantite: 1, settings: _bareme());
       expect(find.text('Sous-total (1 article)'), findsOneWidget);
-      expect(find.text('Frais de service (15 %)'), findsOneWidget);
+      expect(find.text('Frais de service'), findsOneWidget);
+      expect(find.textContaining('%'), findsNothing);
       expect(find.text(formatPrice(900)), findsOneWidget);
       expect(find.text('+ Livraison'), findsOneWidget);
       expect(find.text(formatPrice(1500)), findsOneWidget); // frais vendeur
@@ -170,7 +171,8 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('Sous-total (3 articles)'), findsOneWidget);
-      expect(find.text('Frais de service (15 %)'), findsOneWidget);
+      expect(find.text('Frais de service'), findsOneWidget);
+      expect(find.textContaining('%'), findsNothing);
       expect(find.text(formatPrice(900)), findsOneWidget);
       expect(find.text(formatPrice(1500)), findsOneWidget);
       expect(find.text('Total estimé hors livraison'), findsOneWidget);
