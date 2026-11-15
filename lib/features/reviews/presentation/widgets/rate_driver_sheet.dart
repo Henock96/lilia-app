@@ -4,6 +4,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../theme/lilia_tokens.dart';
 import '../../data/delivery_review_repository.dart';
+import '../../data/review_repository.dart';
+
+/// Lot B — la boutique notée depuis une commande livrée.
+class RateVendorTarget {
+  const RateVendorTarget({
+    required this.restaurantId,
+    required this.orderId,
+    this.restaurantName,
+  });
+
+  final String restaurantId;
+  final String orderId;
+  final String? restaurantName;
+}
 
 /// Notation du livreur, présentée en bottom sheet à la fin d'une livraison.
 ///
@@ -11,15 +25,39 @@ import '../../data/delivery_review_repository.dart';
 /// le client de sa commande pour trois étoiles serait disproportionné. Elle
 /// s'ouvre depuis le détail de commande quand la livraison est `LIVRER` et
 /// qu'aucune note n'existe encore.
+///
+/// Lot B : la même feuille note aussi la **boutique** d'une commande livrée
+/// (`vendor` renseigné) — un avis rattaché à la commande (`orderId`), un par
+/// commande, ouvert seulement quand le serveur publie `review.vendor = CAN`.
 class RateDriverSheet extends ConsumerStatefulWidget {
   const RateDriverSheet({
     super.key,
-    required this.deliveryId,
+    this.deliveryId,
     this.driverName,
-  });
+    this.vendor,
+  }) : assert(deliveryId != null || vendor != null);
 
-  final String deliveryId;
+  final String? deliveryId;
   final String? driverName;
+  final RateVendorTarget? vendor;
+
+  /// Ouvre la feuille en mode boutique. Renvoie `true` si l'avis est enregistré.
+  static Future<bool?> showForVendor(
+    BuildContext context, {
+    required RateVendorTarget vendor,
+  }) {
+    return showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: RateDriverSheet(vendor: vendor),
+      ),
+    );
+  }
 
   /// Ouvre la feuille. Renvoie `true` si une note a été enregistrée.
   static Future<bool?> show(
@@ -67,11 +105,21 @@ class _RateDriverSheetState extends ConsumerState<RateDriverSheet> {
     });
 
     try {
-      await ref.read(deliveryReviewRepositoryProvider).rateDriver(
-            deliveryId: widget.deliveryId,
-            rating: _rating,
-            comment: _commentController.text,
-          );
+      final vendor = widget.vendor;
+      if (vendor != null) {
+        await ref.read(reviewRepositoryProvider).createReview(
+              restaurantId: vendor.restaurantId,
+              orderId: vendor.orderId,
+              rating: _rating,
+              comment: _commentController.text.trim(),
+            );
+      } else {
+        await ref.read(deliveryReviewRepositoryProvider).rateDriver(
+              deliveryId: widget.deliveryId!,
+              rating: _rating,
+              comment: _commentController.text,
+            );
+      }
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       // Le backend refuse notamment une seconde note (409) : on affiche son
@@ -90,6 +138,14 @@ class _RateDriverSheetState extends ConsumerState<RateDriverSheet> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final t = isDark ? LiliaSemantics.dark : LiliaSemantics.light;
     final who = widget.driverName?.trim();
+    final shop = widget.vendor?.restaurantName?.trim();
+    final title = widget.vendor != null
+        ? (shop != null && shop.isNotEmpty
+            ? 'Comment était votre commande chez $shop ?'
+            : 'Comment était votre commande ?')
+        : (who != null && who.isNotEmpty
+            ? 'Comment s\'est passée la livraison avec $who ?'
+            : 'Comment s\'est passée votre livraison ?');
 
     return Container(
       decoration: BoxDecoration(
@@ -113,9 +169,7 @@ class _RateDriverSheetState extends ConsumerState<RateDriverSheet> {
             ),
           ),
           Text(
-            who != null && who.isNotEmpty
-                ? 'Comment s\'est passée la livraison avec $who ?'
-                : 'Comment s\'est passée votre livraison ?',
+            title,
             style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w600,

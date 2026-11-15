@@ -119,6 +119,9 @@ class Order {
   /// Code à 4 chiffres à montrer au comptoir. Le serveur ne le rend qu'au
   /// client propriétaire, tant que la commande attend au restaurant.
   final String? pickupCode;
+  /// Lot B — verdict d'avis publié par `GET /orders/:id`. `null` = serveur
+  /// antérieur (ou liste) : l'app garde son comportement d'avant.
+  final OrderReviewVerdict? review;
 
   Order({
     required this.id,
@@ -156,6 +159,7 @@ class Order {
     this.deliveryProof,
     this.customerConfirmedAt,
     this.pickupCode,
+    this.review,
   });
 
   Order copyWith({
@@ -221,6 +225,7 @@ class Order {
       deliveryProof: deliveryProof,
       customerConfirmedAt: customerConfirmedAt,
       pickupCode: pickupCode,
+      review: review,
     );
   }
 
@@ -300,6 +305,7 @@ class Order {
       pickupCode: json['pickupCode'] is String
           ? json['pickupCode'] as String
           : null,
+      review: OrderReviewVerdict.tryParse(json['review']),
     );
   }
 
@@ -360,6 +366,38 @@ class OrderRestaurant {
       nom: _asString(json['nom'], 'Restaurant'),
       adresse: json['adresse'] is String ? json['adresse'] as String : null,
       imageUrl: json['imageUrl'] is String ? json['imageUrl'] as String : null,
+    );
+  }
+}
+
+/// Lot B — une case d'avis sur une commande : invite (`can`), déjà notée
+/// (`done`), ou pas de note possible (`no` : remise non prouvée, retrait…).
+enum ReviewSlot {
+  can,
+  done,
+  no;
+
+  static ReviewSlot fromWire(Object? v) => switch (v) {
+        'CAN' => ReviewSlot.can,
+        'DONE' => ReviewSlot.done,
+        _ => ReviewSlot.no,
+      };
+}
+
+/// Lot B — verdict serveur : l'app affiche l'invite « Notez votre commande »
+/// sans recopier la règle de preuve (une commande close par le support ou
+/// remise sans code ne s'évalue pas).
+class OrderReviewVerdict {
+  const OrderReviewVerdict({required this.vendor, required this.driver});
+
+  final ReviewSlot vendor;
+  final ReviewSlot driver;
+
+  static OrderReviewVerdict? tryParse(Object? json) {
+    if (json is! Map) return null;
+    return OrderReviewVerdict(
+      vendor: ReviewSlot.fromWire(json['vendor']),
+      driver: ReviewSlot.fromWire(json['driver']),
     );
   }
 }

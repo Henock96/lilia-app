@@ -292,8 +292,21 @@ class OrderDetailPage extends ConsumerWidget {
                 if (canClientCancel(order))
                   _buildCancelButton(context, ref, order.id),
 
-                // Notation du livreur — uniquement après livraison effective.
-                if (order.status == OrderStatus.livrer) ...[
+                // Lot B — notation de la boutique, pilotée par le verdict
+                // serveur (remise prouvée seulement). Absent d'un serveur
+                // antérieur : rien ne s'affiche.
+                if (order.review != null &&
+                    order.review!.vendor != ReviewSlot.no) ...[
+                  _RateVendorCard(order: order),
+                  const SizedBox(height: 16),
+                ],
+
+                // Notation du livreur — uniquement après livraison effective,
+                // et plus sur une commande que le serveur déclare non notable
+                // (clôture par le support, course sans code). Sans verdict
+                // (serveur antérieur), comportement d'avant.
+                if (order.status == OrderStatus.livrer &&
+                    order.review?.driver != ReviewSlot.no) ...[
                   _RateDriverCard(orderId: order.id),
                   const SizedBox(height: 16),
                 ],
@@ -613,6 +626,88 @@ class _ReceiptButtonState extends ConsumerState<_ReceiptButton> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Lot B — invitation à noter la boutique d'une commande livrée.
+///
+/// `CAN` : bouton qui ouvre la feuille de notation (avis rattaché à la
+/// commande). `DONE` : remerciement. La règle (remise prouvée, une note par
+/// commande) reste au serveur.
+class _RateVendorCard extends ConsumerWidget {
+  const _RateVendorCard({required this.order});
+
+  final Order order;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
+    final done = order.review?.vendor == ReviewSlot.done;
+
+    return Container(
+      key: const Key('rate-vendor-card'),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: done
+          ? const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Merci ! Votre avis sur la boutique est enregistré.',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.storefront_outlined, color: Colors.amber),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Notez ${order.restaurant.nom}',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    key: const Key('rate-vendor-button'),
+                    onPressed: () async {
+                      final rated = await RateDriverSheet.showForVendor(
+                        context,
+                        vendor: RateVendorTarget(
+                          restaurantId: order.restaurantId,
+                          orderId: order.id,
+                          restaurantName: order.restaurant.nom,
+                        ),
+                      );
+                      if (rated == true) {
+                        // Le verdict revient en `DONE` avec la commande.
+                        ref.invalidate(orderDetailProvider(order.id));
+                      }
+                    },
+                    icon: const Icon(Icons.star_border_rounded),
+                    label: const Text('Noter la boutique'),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 }

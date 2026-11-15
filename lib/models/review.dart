@@ -8,6 +8,8 @@ class Review {
   final ReviewUser user;
   final DateTime createdAt;
   final DateTime updatedAt;
+  /// Lot B — réponse publique de la boutique ; `null` si absente ou masquée.
+  final String? vendorReply;
 
   Review({
     required this.id,
@@ -19,6 +21,7 @@ class Review {
     required this.user,
     required this.createdAt,
     required this.updatedAt,
+    this.vendorReply,
   });
 
   factory Review.fromJson(Map<String, dynamic> json) {
@@ -38,6 +41,10 @@ class Review {
       updatedAt:
           DateTime.tryParse(json['updatedAt'] as String? ?? '') ??
           DateTime.now(),
+      vendorReply: json['vendorReply'] is String &&
+              (json['vendorReply'] as String).isNotEmpty
+          ? json['vendorReply'] as String
+          : null,
     );
   }
 
