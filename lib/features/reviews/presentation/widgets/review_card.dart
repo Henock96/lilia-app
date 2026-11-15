@@ -111,6 +111,36 @@ class ReviewCard extends StatelessWidget {
                 style: TextStyle(fontSize: 14, color: Colors.grey[800]),
               ),
             ],
+            // Lot B — réponse publique de la boutique.
+            if (review.vendorReply != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                key: const Key('review-vendor-reply'),
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Réponse de la boutique',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      review.vendorReply!,
+                      style: TextStyle(fontSize: 13, color: Colors.grey[800]),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
