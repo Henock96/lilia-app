@@ -80,9 +80,8 @@ class CartPriceSummary extends ConsumerWidget {
             style: muted,
           ),
           _Line(
-            label: preview.serviceFeePercentLabel == null
-                ? 'Frais de service'
-                : 'Frais de service (${preview.serviceFeePercentLabel})',
+            // Le montant suffit : le taux n'est plus affiché au client.
+            label: 'Frais de service',
             value: preview.serviceFee != null
                 ? formatPrice(preview.serviceFee!)
                 // `hasError` avant `isLoading` : Riverpod 3 relance tout
