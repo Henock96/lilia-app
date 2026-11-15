@@ -80,18 +80,11 @@ class CartPriceSummary extends ConsumerWidget {
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
-          // Lot 5 (F-40) : le taux, tel que le serveur l'annonce, et non un
-          // montant calculé ici — le montant arrive avec le devis serveur.
+          // Lot 5 (F-40) : aucun montant calculé ici, il arrive avec le devis
+          // serveur ; et le taux n'est plus affiché au client (#44).
           _Line(
             label: 'Frais de service',
-            value: preview.serviceFeePercentLabel != null
-                ? '${preview.serviceFeePercentLabel} du sous-total'
-                // `hasError` avant `isLoading` : Riverpod 3 relance tout
-                // seul un échec, et la relance garde l'erreur. Tester
-                // `isLoading` d'abord laisserait « … » à l'infini.
-                : settingsAsync.hasError || !settingsAsync.isLoading
-                ? 'Calculés à l\'étape suivante'
-                : '…',
+            value: 'Calculés à l\'étape suivante',
             style: muted,
           ),
           _Line(

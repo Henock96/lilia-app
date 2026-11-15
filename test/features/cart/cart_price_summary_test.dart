@@ -70,7 +70,7 @@ void main() {
   });
 
   group('pied du panier', () {
-    testWidgets('sous-total, taux des frais et livraison vendeur', (
+    testWidgets('sous-total, frais sans taux et livraison vendeur', (
       tester,
     ) async {
       await _pump(tester, prix: 6000, quantite: 1, settings: _bareme());
@@ -78,7 +78,9 @@ void main() {
       // Ligne d'article et sous-total : un seul article, même montant.
       expect(find.text(formatPrice(6000)), findsWidgets);
       expect(find.text('Frais de service'), findsOneWidget);
-      expect(find.text('15 % du sous-total'), findsOneWidget);
+      // Ni taux (#44) ni montant calculé localement (F-40).
+      expect(find.text('Calculés à l\'étape suivante'), findsOneWidget);
+      expect(find.textContaining('%'), findsNothing);
       expect(find.text('+ Livraison'), findsOneWidget);
       expect(find.text(formatPrice(1500)), findsOneWidget); // frais vendeur
       expect(find.textContaining('montant final'), findsOneWidget);
@@ -129,7 +131,7 @@ void main() {
   group('commande en attente', () {
     // Le brouillon n'affichait que son sous-total : même récapitulatif que
     // le panier dont il sort.
-    testWidgets('sous-total, taux des frais et livraison', (tester) async {
+    testWidgets('sous-total, frais sans taux et livraison', (tester) async {
       final draft = DraftOrder(
         id: 'd-1',
         restaurantName: 'Chez Lilia',
@@ -152,7 +154,8 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('Sous-total (3 articles)'), findsOneWidget);
-      expect(find.text('15 % du sous-total'), findsOneWidget);
+      expect(find.text('Frais de service'), findsOneWidget);
+      expect(find.textContaining('%'), findsNothing);
       expect(find.text(formatPrice(1500)), findsOneWidget);
     });
   });
