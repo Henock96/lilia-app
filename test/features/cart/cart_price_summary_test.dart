@@ -75,10 +75,9 @@ void main() {
     ) async {
       await _pump(tester, prix: 6000, quantite: 1, settings: _bareme());
       expect(find.text('Sous-total (1 article)'), findsOneWidget);
-      // Ligne d'article et sous-total : un seul article, même montant.
-      expect(find.text(formatPrice(6000)), findsWidgets);
       expect(find.text('Frais de service'), findsOneWidget);
-      expect(find.text('15 % du sous-total'), findsOneWidget);
+      expect(find.textContaining('%'), findsNothing);
+      expect(find.text(formatPrice(900)), findsOneWidget);
       expect(find.text('+ Livraison'), findsOneWidget);
       expect(find.text(formatPrice(1500)), findsOneWidget); // frais vendeur
       expect(find.textContaining('montant final'), findsOneWidget);
@@ -152,7 +151,9 @@ void main() {
       );
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.text('Sous-total (3 articles)'), findsOneWidget);
-      expect(find.text('15 % du sous-total'), findsOneWidget);
+      expect(find.text('Frais de service'), findsOneWidget);
+      expect(find.textContaining('%'), findsNothing);
+      expect(find.text(formatPrice(900)), findsOneWidget);
       expect(find.text(formatPrice(1500)), findsOneWidget);
     });
   });

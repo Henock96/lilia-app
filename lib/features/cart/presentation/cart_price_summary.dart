@@ -83,9 +83,10 @@ class CartPriceSummary extends ConsumerWidget {
           // Lot 5 (F-40) : le taux, tel que le serveur l'annonce, et non un
           // montant calculé ici — le montant arrive avec le devis serveur.
           _Line(
+            // Le montant suffit : le taux n'est plus affiché au client.
             label: 'Frais de service',
-            value: preview.serviceFeePercentLabel != null
-                ? '${preview.serviceFeePercentLabel} du sous-total'
+            value: preview.serviceFee != null
+                ? formatPrice(preview.serviceFee!)
                 // `hasError` avant `isLoading` : Riverpod 3 relance tout
                 // seul un échec, et la relance garde l'erreur. Tester
                 // `isLoading` d'abord laisserait « … » à l'infini.
