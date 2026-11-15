@@ -6,7 +6,8 @@
 // de paiement lui réclamait 24 000.
 //
 // Ces tests montent la vraie `CheckoutPage` et vérifient les trois états du
-// barème : reçu, en cours, absent.
+// barème : reçu, en cours, absent. Depuis le lot 5 (F-40), le total affiché
+// est celui du devis serveur, fourni ici par `FauxDevis`.
 
 import 'dart:async';
 
@@ -14,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
+import 'package:lilia_app/features/commandes/data/order_repository.dart';
 import 'package:lilia_app/features/commandes/presentation/checkout_page.dart';
 import 'package:lilia_app/features/commandes/presentation/delivery_options_page.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
@@ -23,6 +25,8 @@ import 'package:lilia_app/features/auth/app_user_model.dart';
 import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/models/vendor_type.dart';
+
+import '../../helpers/fake_quote.dart';
 
 const _restaurantId = 'resto-1';
 
@@ -120,6 +124,12 @@ void main() {
             if (enAttente != null) return enAttente.future;
             return bareme!;
           }),
+          // Devis serveur : 20 000 + 1 000 de livraison + 3 000 (15 %).
+          orderRepositoryProvider.overrideWith(
+            () => FauxDevis(
+              devisDe(subTotal: 20000, deliveryFee: 1000, serviceFee: 3000),
+            ),
+          ),
         ],
         child: MaterialApp(home: CheckoutPage(deliveryOptions: _options())),
       ),

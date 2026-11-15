@@ -1,4 +1,3 @@
-import 'package:lilia_app/features/commandes/domain/checkout_estimate.dart';
 import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 
 /// Ce que le panier peut dire du prix **avant** le tunnel (P3-11).
@@ -10,20 +9,18 @@ import 'package:lilia_app/features/settings/data/platform_settings_service.dart'
 /// Ce que l'on sait ici, et seulement cela :
 ///
 /// - le **sous-total** des articles (prix unitaires serveur) ;
-/// - les **frais de service**, au taux lu sur `/platform-settings` et arrondis
-///   par la même fonction que le checkout ([CheckoutEstimate.compute], miroir
-///   de `OrderCalculatorService`). Barème injoignable ⇒ `null`, jamais un taux
+/// - le **taux** des frais de service, tel que le serveur l'annonce (taux de la
+///   boutique, sinon taux général). Barème injoignable ⇒ `null`, jamais un taux
 ///   de repli : « pas de réponse, pas de montant » ;
 /// - la **livraison** n'est pas connue : elle dépend du mode (retrait gratuit)
 ///   et de l'adresse. On l'annonce, on ne l'invente pas.
 ///
-/// Offres boutique, codes promo et points s'appliquent à l'étape suivante ; le
-/// montant final est celui du devis serveur (`POST /orders/quote`) puis de la
-/// commande créée.
+/// Durcissement lot 5 (F-40) : aucun montant de frais n'est plus calculé ici.
+/// Le premier montant affiché est celui du devis serveur (`POST /orders/quote`),
+/// aux étapes suivantes.
 class CartPricePreview {
   const CartPricePreview._({
     required this.subTotal,
-    required this.serviceFee,
     required this.serviceFeePercent,
   });
 
@@ -33,39 +30,18 @@ class CartPricePreview {
     /// D-4 — taux de la boutique annoncé par le panier ; `null` : taux général.
     double? serviceFeePercent,
   }) {
-    if (settings == null) {
-      return CartPricePreview._(
-        subTotal: subTotal,
-        serviceFee: null,
-        serviceFeePercent: null,
-      );
-    }
-    final estimate = CheckoutEstimate.compute(
-      subTotal: subTotal,
-      deliveryFee: 0,
-      promoDiscount: 0,
-      loyaltyPoints: 0,
-      useLoyaltyPoints: false,
-      settings: settings,
-      serviceFeePercent: serviceFeePercent,
-    );
     return CartPricePreview._(
       subTotal: subTotal,
-      serviceFee: estimate.serviceFee,
-      serviceFeePercent: serviceFeePercent ?? settings.serviceFeePercent,
+      serviceFeePercent: settings == null
+          ? null
+          : serviceFeePercent ?? settings.serviceFeePercent,
     );
   }
 
   final double subTotal;
 
-  /// `null` : barème indisponible, le montant n'est pas affiché.
-  final double? serviceFee;
+  /// `null` : barème indisponible, le taux n'est pas affiché.
   final double? serviceFeePercent;
-
-  /// Sous-total + frais de service, **hors livraison et hors remises**.
-  /// `null` quand les frais de service ne sont pas connus.
-  double? get estimatedTotalBeforeDelivery =>
-      serviceFee == null ? null : subTotal + serviceFee!;
 
   /// « 15 % », « 7,5 % ».
   String? get serviceFeePercentLabel {

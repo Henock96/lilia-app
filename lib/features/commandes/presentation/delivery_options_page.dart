@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
-import 'package:lilia_app/features/commandes/domain/checkout_estimate.dart';
+import 'package:lilia_app/features/commandes/data/checkout_quote_provider.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' show LatLng;
 import 'package:lilia_app/features/address/presentation/pages/location_picker_page.dart';
@@ -61,9 +61,6 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
   /// l'indicateur sur toutes.
   String? _completionEnCours;
 
-  /// Vrai quand les frais affichés sont un repli local et non la réponse de
-  /// `/quartiers/delivery-fee` : le montant final peut différer.
-  bool _deliveryFeeIsEstimate = false;
   bool _isCalculatingFee = false;
   String? _restaurantId;
 
@@ -779,10 +776,6 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
 
   Widget _buildDeliveryFeeSummary(double subTotal) {
     final cs = Theme.of(context).colorScheme;
-    final deliveryFee = _isDelivery ? (_calculatedDeliveryFee ?? 0) : 0.0;
-    // Taux servi par `/platform-settings` — plus de 8 % en dur : le taux est
-    // modifiable par l'admin et le serveur facture le sien.
-    //
     // ⚠️ Le repli `?? PlatformSettings.fallback` a disparu : il affichait 8 %
     // là où la production facture 15 %, donc un total inférieur de plusieurs
     // centaines de francs à celui que le client allait payer. Sans barème, ce
@@ -801,21 +794,39 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
         onRetry: () => ref.invalidate(platformSettingsProvider),
       );
     }
-    // Durcissement lot 3 (point 3) — le taux de la BOUTIQUE (`Cart
-    // .serviceFeePercent`, D-4 : une épicerie a le sien) et non le taux
-    // général, par la même fonction que le checkout. Le montant confirmé
-    // reste le devis serveur, affiché à l'étape suivante.
-    final serviceFee = CheckoutEstimate.compute(
-      subTotal: subTotal,
-      deliveryFee: 0,
-      promoDiscount: 0,
-      loyaltyPoints: 0,
-      useLoyaltyPoints: false,
-      settings: settings,
-      serviceFeePercent:
-          ref.watch(cartControllerProvider).value?.serviceFeePercent,
-    ).serviceFee;
-    final total = subTotal + deliveryFee + serviceFee;
+    // Durcissement lot 5 (F-40) — frais de service et total du devis serveur
+    // (`POST /orders/quote`, chiffré au quartier) : le taux de la boutique, la
+    // grille et l'offre boutique y sont tous. Plus d'estimation locale.
+    // Précommande : le créneau se choisit à l'étape suivante, le serveur ne
+    // chiffre pas sans lui.
+    final isPreorder =
+        ref.watch(cartControllerProvider).value?.isPreorderCart ?? false;
+    final canQuote =
+        !isPreorder && (!_isDelivery || _selectedQuartier != null);
+    final quoteAsync = canQuote
+        ? ref.watch(
+            checkoutQuoteProvider(
+              isDelivery: _isDelivery,
+              quartierId: _isDelivery ? _selectedQuartier!.id : null,
+            ),
+          )
+        : null;
+    // Pendant un rechargement, Riverpod 3 garde l'ancien devis : il est
+    // périmé (quartier ou panier changé), « calcul… » plutôt que lui.
+    final quote = quoteAsync != null &&
+            quoteAsync.hasValue &&
+            !quoteAsync.hasError &&
+            !quoteAsync.isLoading
+        ? quoteAsync.value
+        : null;
+    final String pending = isPreorder
+        ? 'Montant au récapitulatif, après le créneau'
+        : quoteAsync?.hasError ?? false
+            ? 'Indisponible'
+            : 'calcul…';
+    final serviceFeeLabel =
+        quote == null ? pending : formatPrice(quote.serviceFee);
+    final totalLabel = quote == null ? pending : formatPrice(quote.total);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -893,9 +904,6 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                       color: !_isDelivery ? Colors.green : null,
                     ),
                   ),
-                  // Le calcul de zone a échoué : on affiche un repli, le
-                  // montant final peut différer. Le dire plutôt que de laisser
-                  // croire à un montant confirmé.
                   if (_isDelivery && (_quote?.vendorSubsidy ?? 0) > 0)
                     Text(
                       'dont ${formatPrice(_quote!.vendorSubsidy)} offerts par le vendeur',
@@ -909,14 +917,6 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                       'Offerte dès ${formatPrice(_quote!.freeDeliveryThreshold!)}',
                       style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
                     ),
-                  if (_isDelivery && _deliveryFeeIsEstimate)
-                    Text(
-                      'Estimation — montant confirme a la commande',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: cs.onSurfaceVariant,
-                      ),
-                    ),
                 ],
               ),
             ],
@@ -927,7 +927,8 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
             children: [
               const Text('Frais de service', style: TextStyle(fontSize: 15)),
               Text(
-                formatPrice(serviceFee),
+                serviceFeeLabel,
+                key: const Key('delivery_options_service_fee'),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w500,
@@ -935,6 +936,26 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
               ),
             ],
           ),
+          // Offre boutique appliquée par le devis : sans cette ligne, les
+          // montants affichés ne se sommeraient pas au total.
+          if (quote?.vendorOffer != null && quote!.vendorOffer!.discount > 0) ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Flexible(
+                  child: Text(
+                    quote.vendorOffer!.label,
+                    style: const TextStyle(fontSize: 15),
+                  ),
+                ),
+                Text(
+                  '- ${formatPrice(quote.vendorOffer!.discount)}',
+                  style: const TextStyle(fontSize: 15, color: Colors.green),
+                ),
+              ],
+            ),
+          ],
           const Divider(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -944,7 +965,8 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               Text(
-                formatPrice(total),
+                totalLabel,
+                key: const Key('delivery_options_total'),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -998,36 +1020,18 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
       setState(() {
         _calculatedDeliveryFee = result.fee;
         _quote = result;
-        _deliveryFeeIsEstimate = false;
         _isCalculatingFee = false;
       });
     } catch (e) {
       if (!mounted) return;
-      // F3-02 — en mode plateforme, le tarif du vendeur ne s'applique plus :
-      // s'en servir comme repli annoncerait un prix que le checkout ne
-      // facturera pas. Le prix est inconnu, on le dit et on propose de
-      // réessayer.
-      if (ref.read(platformSettingsProvider).value?.isPlatformDeliveryPricing ??
-          false) {
-        setState(() {
-          _calculatedDeliveryFee = null;
-          _quote = null;
-          _deliveryFeeUnavailable = true;
-          _isCalculatingFee = false;
-        });
-        return;
-      }
-      // Le calcul de zone a échoué (réseau instable — le cas nominal à
-      // Brazzaville). On retombe sur les frais fixes du vendeur, et à défaut
-      // sur le défaut serveur — l'ancienne valeur en dur de 500 FCFA était
-      // 500 FCFA sous le défaut backend, écart invisible pour le client.
-      final vendorFee = ref
-          .read(restaurantControllerProvider(_restaurantId!))
-          .value
-          ?.fixedDeliveryFee;
+      // Le prix est inconnu : on le dit et on propose de réessayer. Plus de
+      // repli sur le tarif fixe du vendeur (durcissement lot 5, F-40) — une
+      // estimation locale annonçait un prix que le checkout ne facturait pas
+      // (zones, grille plateforme, part offerte par le vendeur).
       setState(() {
-        _calculatedDeliveryFee = vendorFee ?? kDefaultDeliveryFee;
-        _deliveryFeeIsEstimate = true;
+        _calculatedDeliveryFee = null;
+        _quote = null;
+        _deliveryFeeUnavailable = true;
         _isCalculatingFee = false;
       });
     }
@@ -1055,11 +1059,10 @@ class _DeliveryOptionsPageState extends ConsumerState<DeliveryOptionsPage> {
 
     if (!_isDelivery) return true; // Retrait, pas besoin d'adresse
 
-    // Mode plateforme : pas de devis, pas de prix — on n'emmène pas le client
-    // valider un total inconnu.
-    if (bareme.isPlatformDeliveryPricing && _calculatedDeliveryFee == null) {
-      return false;
-    }
+    // Pas de prix de zone, pas de suite — dans les deux modes de tarification
+    // (lot 5 : plus de repli local) : on n'emmène pas le client valider un
+    // total inconnu.
+    if (_calculatedDeliveryFee == null) return false;
 
     // Pour la livraison, il faut un quartier et une adresse
     if (_selectedQuartier == null) return false;

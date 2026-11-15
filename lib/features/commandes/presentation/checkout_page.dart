@@ -23,7 +23,6 @@ import 'package:lilia_app/features/payments/presentation/payment_pending_args.da
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
-import 'package:lilia_app/features/commandes/domain/checkout_estimate.dart';
 import 'package:lilia_app/features/commandes/data/order_controller.dart';
 import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 import 'package:lilia_app/services/analytics_service.dart';
@@ -178,14 +177,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             return const Center(child: Text('Votre panier est vide'));
           }
 
-          // Estimation affichée avant commande. Le montant réellement dû est
-          // celui de la commande créée par le serveur (`order.total`), repris
-          // tel quel dans la modale de paiement : ce bloc ne sert qu'à donner
-          // au client un ordre de grandeur cohérent.
-          //
-          // Les paramètres viennent de `/platform-settings` et non plus de
-          // constantes en dur : le jour où l'admin passe la commission de 8 à
-          // 10 %, l'estimation suit sans release mobile.
+          // Le barème (`/platform-settings`) ne chiffre plus rien ici depuis le
+          // lot 5 : les montants viennent du devis serveur. Il porte encore la
+          // fenêtre de maintenance et le seuil de rachat des points.
           //
           // ⚠️ **Pas de barème, pas de total.** Ce `??
           // PlatformSettings.fallback` affichait une commission de 8 % pendant
@@ -222,40 +216,17 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             return _MaintenanceEnCours(message: settings.maintenanceMessage);
           }
 
-          final estimate = CheckoutEstimate.compute(
-            subTotal: cart.totalPrice,
-            deliveryFee: _promoResult?.newDeliveryFee ?? options.deliveryFee,
-            promoDiscount: _promoResult?.discountAmount ?? 0,
-            loyaltyPoints: userProfileAsync.value?.loyaltyPoints ?? 0,
-            useLoyaltyPoints: _useLoyaltyPoints,
-            settings: settings,
-            // D-4 — taux de la boutique annoncé par le panier.
-            serviceFeePercent: cart.serviceFeePercent,
-          );
           final int userPoints = userProfileAsync.value?.loyaltyPoints ?? 0;
-          // Réduction réellement applicable si le client active ses points —
-          // affichée avant l'activation du switch. On montrait auparavant la
-          // valeur brute du solde, qui pouvait dépasser le montant dû.
-          final double potentialLoyaltyDiscount = CheckoutEstimate.compute(
-            subTotal: cart.totalPrice,
-            deliveryFee: _promoResult?.newDeliveryFee ?? options.deliveryFee,
-            promoDiscount: _promoResult?.discountAmount ?? 0,
-            loyaltyPoints: userPoints,
-            useLoyaltyPoints: true,
-            settings: settings,
-            serviceFeePercent: cart.serviceFeePercent,
-          ).loyaltyDiscount;
-          // F3-11 — devis serveur : le calcul du checkout lui-même, offre
-          // boutique comprise. Il fait foi dès qu'il est là ; l'estimation
-          // locale ne couvre que son chargement (ou une précommande dont le
-          // créneau n'est pas encore choisi, que le serveur refuserait).
+          // F3-11, puis durcissement lot 5 (F-40) — le devis serveur est la
+          // SEULE source des montants : le calcul du checkout lui-même, offre
+          // boutique, promo, points et taux de la boutique compris. Plus
+          // d'estimation locale : tant qu'il n'est pas là, « calcul… » et le
+          // bouton attend (un total supposé a déjà divergé du montant encaissé).
           final quote = _quoteFor(options, cart.isPreorderCart);
-          final double subTotal = quote?.subTotal ?? estimate.subTotal;
-          final double deliveryFee = quote?.deliveryFee ?? estimate.deliveryFee;
-          final double serviceFee = quote?.serviceFee ?? estimate.serviceFee;
-          final double loyaltyDiscount =
-              quote?.loyaltyDiscount ?? estimate.loyaltyDiscount;
-          final double total = quote?.total ?? estimate.total;
+          final String? pendingMessage = cart.isPreorderCart &&
+                  _scheduledFor == null
+              ? 'Choisissez un créneau pour voir le montant.'
+              : _quoteError;
           final String restaurantId = cart.items.first.product.restaurantId;
 
           // ⚠️ Plus aucun `begin_checkout` ici.
@@ -332,7 +303,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         const SizedBox(height: 8),
                         _buildPromoSection(
                           restaurantId: restaurantId,
-                          subTotal: subTotal,
+                          // Sous-total des articles (prix serveur du panier) :
+                          // le code est revalidé par le devis puis le checkout.
+                          subTotal: cart.totalPrice,
                           originalDeliveryFee: options.deliveryFee,
                         ),
                         const SizedBox(height: 24),
@@ -363,8 +336,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                                 'Utiliser mes points',
                                 style: TextStyle(fontWeight: FontWeight.w600),
                               ),
+                              // Montant du devis une fois activés ; avant, le
+                              // solde seulement — la réduction dépend du
+                              // panier, et seul le serveur la calcule.
                               subtitle: Text(
-                                'Réduction de ${formatPrice(potentialLoyaltyDiscount)}',
+                                _useLoyaltyPoints && quote != null
+                                    ? 'Réduction de ${formatPrice(quote.loyaltyDiscount)}'
+                                    : '$userPoints points, utilisables sur vos articles',
                                 style: TextStyle(
                                   color: Theme.of(context)
                                       .colorScheme
@@ -398,18 +376,18 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                         CheckoutOrderSummary(
                           cart: cart,
                           isDelivery: options.isDelivery,
-                          subTotal: subTotal,
-                          deliveryFee: deliveryFee,
+                          subTotal: quote?.subTotal,
+                          deliveryFee: quote?.deliveryFee,
                           originalDeliveryFee: options.deliveryFee,
                           deliverySubsidy:
                               widget.deliveryOptions?.deliverySubsidy ?? 0,
-                          serviceFee: serviceFee,
+                          serviceFee: quote?.serviceFee,
                           promo: _promoResult,
                           loyaltyDiscount: _useLoyaltyPoints
-                              ? loyaltyDiscount
+                              ? (quote?.loyaltyDiscount ?? 0)
                               : 0,
-                          total: total,
-                          isEstimate: quote == null,
+                          total: quote?.total,
+                          pendingMessage: pendingMessage,
                           vendorOffer: quote?.vendorOffer,
                         ).fadeSlideIn(),
                         const SizedBox(height: 24),
@@ -478,17 +456,22 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 ),
               ),
               CheckoutSubmitBar(
-                total: total,
-                isEstimate: quote == null,
+                total: quote?.total,
                 // L'indicateur suit la garde, et non le seul
                 // `CheckoutController` : sinon il s'éteignait pendant la
                 // création de l'adresse et pendant l'ouverture du paiement,
                 // laissant croire que rien ne se passait.
                 isSending: sending,
+                // Lot 5 (F-40) : on ne valide pas un montant inconnu.
                 disabledReason: slotMissing
                     ? 'Choisissez un créneau pour continuer.'
+                    : quote == null
+                        ? (_quoteError ?? 'Montant en cours de calcul…')
+                        : null,
+                onRetry: !slotMissing && _quoteError != null
+                    ? () => ref.invalidate(checkoutQuoteProvider)
                     : null,
-                onPressed: sending || slotMissing
+                onPressed: sending || slotMissing || quote == null
                     ? null
                     : () => _startPaymentFlow(context, options, restaurantId),
               ),
@@ -1119,9 +1102,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   /// Dernier devis serveur affiché — renvoyé au checkout (offre vue).
   CheckoutQuote? _lastQuote;
 
+  /// Message du devis en échec, affiché à la place du total (lot 5, F-40).
+  String? _quoteError;
+
   /// Devis du panier pour les options courantes ; `null` tant qu'il n'est pas
-  /// là (ou s'il échoue : le checkout dira alors pourquoi, avec son message).
+  /// là, ou s'il échoue — [_quoteError] dit alors pourquoi.
   CheckoutQuote? _quoteFor(DeliveryOptions options, bool isPreorderCart) {
+    _quoteError = null;
     if (isPreorderCart && _scheduledFor == null) {
       _lastQuote = null;
       return null;
@@ -1137,7 +1124,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         scheduledFor: _scheduledFor,
       ),
     );
-    _lastQuote = async.hasValue && !async.hasError ? async.value : null;
+    // Riverpod 3 garde la valeur précédente pendant un rechargement (panier
+    // modifié, `VENDOR_OFFER_CHANGED`) : ce devis-là est périmé, on ne
+    // l'affiche ni ne le valide — « calcul… » jusqu'au nouveau.
+    _lastQuote = async.hasValue && !async.hasError && !async.isLoading
+        ? async.value
+        : null;
+    // Riverpod 3 relance un provider en échec : l'erreur est annoncée dès
+    // qu'elle est connue, même pendant la relance (cf. `_TarifsIndisponibles`).
+    if (async.hasError) _quoteError = userFacingErrorMessage(async.error!);
     return _lastQuote;
   }
 

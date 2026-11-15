@@ -77,14 +77,15 @@ class CartPriceSummary extends ConsumerWidget {
           _Line(
             label: 'Sous-total ($articles article${articles > 1 ? 's' : ''})',
             value: formatPrice(preview.subTotal),
-            style: muted,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
+          const SizedBox(height: 6),
+          // Lot 5 (F-40) : le taux, tel que le serveur l'annonce, et non un
+          // montant calculé ici — le montant arrive avec le devis serveur.
           _Line(
-            label: preview.serviceFeePercentLabel == null
-                ? 'Frais de service'
-                : 'Frais de service (${preview.serviceFeePercentLabel})',
-            value: preview.serviceFee != null
-                ? formatPrice(preview.serviceFee!)
+            label: 'Frais de service',
+            value: preview.serviceFeePercentLabel != null
+                ? '${preview.serviceFeePercentLabel} du sous-total'
                 // `hasError` avant `isLoading` : Riverpod 3 relance tout
                 // seul un échec, et la relance garde l'erreur. Tester
                 // `isLoading` d'abord laisserait « … » à l'infini.
@@ -93,21 +94,6 @@ class CartPriceSummary extends ConsumerWidget {
                 : '…',
             style: muted,
           ),
-          const SizedBox(height: 6),
-          if (preview.estimatedTotalBeforeDelivery != null)
-            _Line(
-              label: 'Total estimé hors livraison',
-              value: formatPrice(preview.estimatedTotalBeforeDelivery!),
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            )
-          else
-            _Line(
-              label: 'Sous-total',
-              value: formatPrice(preview.subTotal),
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          // Après le total, qui ne l'inclut pas : au-dessus, elle semblait en
-          // faire partie et la somme lue ne tombait plus juste.
           _Line(
             label: '+ Livraison',
             value: deliveryValue,

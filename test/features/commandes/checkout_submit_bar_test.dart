@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
+import 'package:lilia_app/features/commandes/data/order_repository.dart';
 import 'package:lilia_app/features/commandes/presentation/checkout_page.dart';
 import 'package:lilia_app/features/commandes/presentation/delivery_options_page.dart';
 import 'package:lilia_app/features/commandes/presentation/widgets/checkout_submit_bar.dart';
@@ -17,6 +18,8 @@ import 'package:lilia_app/features/user/application/profile_controller.dart';
 import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/models/vendor_type.dart';
+
+import '../../helpers/fake_quote.dart';
 
 const _restaurantId = 'resto-1';
 
@@ -160,6 +163,12 @@ void main() {
               (ref) async => const AppUser(uid: 'uid-a', phone: '060000000'),
             ),
             platformSettingsProvider.overrideWith((ref) async => _bareme),
+            // Lot 5 (F-40) : les montants viennent du devis serveur.
+            orderRepositoryProvider.overrideWith(
+              () => FauxDevis(
+                devisDe(subTotal: 20000, deliveryFee: 1000, serviceFee: 3000),
+              ),
+            ),
           ],
           child: MaterialApp(
             home: CheckoutPage(
