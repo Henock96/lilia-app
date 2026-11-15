@@ -19,6 +19,7 @@ import 'package:lilia_app/core/network/api_exception.dart';
 import 'package:lilia_app/features/auth/app_user_model.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
 import 'package:lilia_app/features/commandes/data/checkout_controller.dart';
+import 'package:lilia_app/features/commandes/data/order_repository.dart';
 import 'package:lilia_app/features/commandes/presentation/checkout_page.dart';
 import 'package:lilia_app/features/commandes/presentation/delivery_options_page.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
@@ -32,6 +33,8 @@ import 'package:lilia_app/models/checkout.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/models/vendor_type.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
+
+import '../../helpers/fake_quote.dart';
 
 const _restaurantId = 'resto-1';
 
@@ -223,6 +226,12 @@ void main() {
           ),
           userProfileProvider.overrideWith(
             (ref) async => AppUser(uid: 'uid-a', phone: telephone),
+          ),
+          // Lot 5 (F-40) : le checkout n'avance qu'avec un devis serveur.
+          orderRepositoryProvider.overrideWith(
+            () => FauxDevis(
+              devisDe(subTotal: 5000, deliveryFee: 1000, serviceFee: 750),
+            ),
           ),
         ],
         child: MaterialApp.router(routerConfig: router),

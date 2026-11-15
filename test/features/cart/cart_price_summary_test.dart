@@ -38,18 +38,16 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('CartPricePreview', () {
-    test('frais au taux serveur, arrondis comme le serveur', () {
-      // 6 333 × 15 % = 949,95 → Math.round = 950.
+    test('annonce le taux serveur, sans calculer de montant (lot 5, F-40)', () {
       final p = CartPricePreview.compute(subTotal: 6333, settings: _bareme());
-      expect(p.serviceFee, 950);
-      expect(p.estimatedTotalBeforeDelivery, 7283);
+      expect(p.subTotal, 6333);
       expect(p.serviceFeePercentLabel, '15 %');
     });
 
-    test('barème injoignable : aucun montant inventé', () {
+    test('barème injoignable : aucun taux inventé', () {
       final p = CartPricePreview.compute(subTotal: 6000, settings: null);
-      expect(p.serviceFee, isNull);
-      expect(p.estimatedTotalBeforeDelivery, isNull);
+      expect(p.serviceFeePercent, isNull);
+      expect(p.serviceFeePercentLabel, isNull);
     });
 
     test('taux décimal lisible', () {
@@ -61,59 +59,45 @@ void main() {
     });
 
     // D-4 — le panier annonce le taux de SA boutique (épicerie : le sien).
-    test('taux de la boutique annoncé par le serveur : affiché et appliqué', () {
+    test('taux de la boutique annoncé par le serveur : affiché', () {
       final p = CartPricePreview.compute(
         subTotal: 20000,
         settings: _bareme(),
         serviceFeePercent: 5,
       );
-      expect(p.serviceFee, 1000);
       expect(p.serviceFeePercentLabel, '5 %');
-    });
-
-    test('panier vide : zéro partout', () {
-      final p = CartPricePreview.compute(subTotal: 0, settings: _bareme());
-      expect(p.serviceFee, 0);
-      expect(p.estimatedTotalBeforeDelivery, 0);
     });
   });
 
   group('pied du panier', () {
-    testWidgets('sous-total, frais, livraison vendeur et total estimé', (
+    testWidgets('sous-total, frais sans taux et livraison vendeur', (
       tester,
     ) async {
       await _pump(tester, prix: 6000, quantite: 1, settings: _bareme());
       expect(find.text('Sous-total (1 article)'), findsOneWidget);
+      // Ligne d'article et sous-total : un seul article, même montant.
+      expect(find.text(formatPrice(6000)), findsWidgets);
       expect(find.text('Frais de service'), findsOneWidget);
+      // Ni taux (#44) ni montant calculé localement (F-40).
+      expect(find.text('Calculés à l\'étape suivante'), findsOneWidget);
       expect(find.textContaining('%'), findsNothing);
-      expect(find.text(formatPrice(900)), findsOneWidget);
       expect(find.text('+ Livraison'), findsOneWidget);
       expect(find.text(formatPrice(1500)), findsOneWidget); // frais vendeur
-      expect(find.text('Total estimé hors livraison'), findsOneWidget);
-      expect(find.text(formatPrice(6900)), findsOneWidget);
       expect(find.textContaining('montant final'), findsOneWidget);
     });
 
-    // Audit design du 06/11/2026 : affichée au-dessus du total, la livraison
-    // semblait en faire partie, et le total ne correspondait plus à la somme lue.
-    testWidgets('la livraison vient après le total, qu\'elle n\'inclut pas', (
-      tester,
-    ) async {
+    // Lot 5 (F-40) : aucun montant de frais ni total calculé localement.
+    testWidgets('aucun montant estimé', (tester) async {
       await _pump(tester, prix: 6000, quantite: 1, settings: _bareme());
-
-      final total = tester.getTopLeft(find.text('Total estimé hors livraison'));
-      final livraison = tester.getTopLeft(find.text('+ Livraison'));
-
-      expect(total.dy, lessThan(livraison.dy));
+      expect(find.text(formatPrice(900)), findsNothing);
+      expect(find.text(formatPrice(6900)), findsNothing);
+      expect(find.textContaining('estimé'), findsNothing);
     });
 
-    testWidgets('la quantité change le sous-total et les frais', (
-      tester,
-    ) async {
+    testWidgets('la quantité change le sous-total', (tester) async {
       await _pump(tester, prix: 2000, quantite: 3, settings: _bareme());
       expect(find.text('Sous-total (3 articles)'), findsOneWidget);
-      expect(find.text(formatPrice(900)), findsOneWidget); // 6 000 × 15 %
-      expect(find.text(formatPrice(6900)), findsOneWidget);
+      expect(find.text(formatPrice(6000)), findsOneWidget);
     });
 
     testWidgets('mode plateforme : « Dès X », jamais un prix inventé', (
@@ -133,7 +117,6 @@ void main() {
     ) async {
       await _pump(tester, prix: 6000, quantite: 1, settings: null);
       expect(find.text('Calculés à l\'étape suivante'), findsOneWidget);
-      expect(find.text('Total estimé hors livraison'), findsNothing);
       // Le bouton reste actif : le checkout sait réessayer le barème.
       final bouton = tester.widget<ElevatedButton>(
         find.ancestor(
@@ -148,7 +131,7 @@ void main() {
   group('commande en attente', () {
     // Le brouillon n'affichait que son sous-total : même récapitulatif que
     // le panier dont il sort.
-    testWidgets('frais de service, livraison et total estimé', (tester) async {
+    testWidgets('sous-total, frais sans taux et livraison', (tester) async {
       final draft = DraftOrder(
         id: 'd-1',
         restaurantName: 'Chez Lilia',
@@ -173,10 +156,7 @@ void main() {
       expect(find.text('Sous-total (3 articles)'), findsOneWidget);
       expect(find.text('Frais de service'), findsOneWidget);
       expect(find.textContaining('%'), findsNothing);
-      expect(find.text(formatPrice(900)), findsOneWidget);
       expect(find.text(formatPrice(1500)), findsOneWidget);
-      expect(find.text('Total estimé hors livraison'), findsOneWidget);
-      expect(find.text(formatPrice(6900)), findsOneWidget);
     });
   });
 }

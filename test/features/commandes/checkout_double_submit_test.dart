@@ -155,9 +155,10 @@ class _FauxCheckout extends CheckoutController {
 }
 
 /// F3-11 — devis serveur fixe, pour vérifier ce que l'écran en fait.
+/// `devis == null` : le serveur refuse de chiffrer (lot 5, F-40).
 class _FauxDevis extends OrderRepository {
   _FauxDevis(this.devis);
-  final CheckoutQuote devis;
+  final CheckoutQuote? devis;
 
   @override
   Future<CheckoutQuote> quote({
@@ -168,8 +169,19 @@ class _FauxDevis extends OrderRepository {
     bool useLoyaltyPoints = false,
     DateTime? scheduledFor,
   }) async =>
-      devis;
+      devis ?? (throw Exception('Devis indisponible'));
 }
+
+/// Devis ordinaire, sans offre : le checkout n'avance qu'avec un devis
+/// (lot 5, F-40 — plus d'estimation locale).
+final _devisOrdinaire = CheckoutQuote.fromJson({
+  'subTotal': 5000,
+  'deliveryFee': 1000,
+  'deliveryFeeBeforePromo': 1000,
+  'serviceFee': 750,
+  'loyalty': {'pointsUsed': 0, 'discountXaf': 0},
+  'total': 6750,
+});
 
 /// Compte les encaissements ouverts — c'est la fenêtre ③.
 class _FauxPaiements implements PaymentService {
@@ -241,6 +253,7 @@ void main() {
     Completer<void>? porteCommande,
     Completer<void>? portePaiement,
     CheckoutQuote? devis,
+    bool devisEnEchec = false,
   }) async {
     tester.view.physicalSize = const Size(1400, 3200);
     tester.view.devicePixelRatio = 2.0;
@@ -263,8 +276,9 @@ void main() {
           userProfileProvider.overrideWith(
             (ref) async => const AppUser(uid: 'uid-a', phone: '060000000'),
           ),
-          if (devis != null)
-            orderRepositoryProvider.overrideWith(() => _FauxDevis(devis)),
+          orderRepositoryProvider.overrideWith(
+            () => _FauxDevis(devisEnEchec ? null : devis ?? _devisOrdinaire),
+          ),
         ],
         child: MaterialApp(
           home: CheckoutPage(deliveryOptions: _optionsNouvelleAdresse()),
@@ -419,7 +433,7 @@ void main() {
     expect(checkout.offreVue, (id: 'o1'));
   });
 
-  testWidgets('sans devis (serveur injoignable) : aucune offre affirmée', (
+  testWidgets('devis sans offre : aucune offre affirmée ni envoyée', (
     tester,
   ) async {
     await monter(tester);
@@ -429,6 +443,35 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
     }
     expect(checkout.commandes, 1);
-    expect(checkout.offreVue, isNull);
+    // Le devis a été vu (record non nul), et il ne portait aucune offre.
+    expect(checkout.offreVue, (id: null));
+  });
+
+  // Lot 5 (F-40) — plus d'estimation locale : sans devis, pas de montant et
+  // pas de commande. Le client voit pourquoi, au lieu d'un total supposé.
+  testWidgets('devis en échec : aucun total inventé, aucune commande', (
+    tester,
+  ) async {
+    await monter(tester, devisEnEchec: true);
+
+    // Le total de la barre est le texte clé lui-même : aucun montant.
+    expect(
+      tester.widget<Text>(find.byKey(const Key('checkout_submit_total'))).data,
+      'calcul…',
+    );
+    expect(find.textContaining('Devis indisponible'), findsWidgets);
+    expect(
+      tester
+          .widget<ElevatedButton>(find.byKey(const Key('checkout_submit')))
+          .onPressed,
+      isNull,
+    );
+    expect(find.byKey(const Key('checkout_quote_retry')), findsOneWidget);
+
+    await taper(tester);
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(checkout.commandes, 0);
   });
 }

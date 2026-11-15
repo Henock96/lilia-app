@@ -10,9 +10,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lilia_app/features/cart/application/cart_controller.dart';
+import 'package:lilia_app/features/commandes/data/order_repository.dart';
 import 'package:lilia_app/features/commandes/presentation/delivery_options_page.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:lilia_app/features/quartiers/application/quartiers_controller.dart';
+import 'package:lilia_app/features/quartiers/data/quartiers_repository.dart';
 import 'package:lilia_app/features/settings/data/platform_settings_service.dart';
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/models/adresse.dart';
@@ -20,8 +22,32 @@ import 'package:lilia_app/models/cart.dart';
 import 'package:lilia_app/models/quartier.dart';
 import 'package:lilia_app/models/restaurant.dart';
 import 'package:lilia_app/models/vendor_type.dart';
+import 'package:lilia_app/utils/currency.dart';
+
+import '../../helpers/fake_quote.dart';
 
 const _restaurantId = 'resto-1';
+
+/// Tarif de zone fixe (`/quartiers/delivery-fee`) ; `null` : le serveur ne
+/// répond pas — il n'y a plus de repli local (lot 5, F-40).
+class _FauxTarifs extends QuartiersRepository {
+  _FauxTarifs(this.fee);
+  final double? fee;
+
+  @override
+  Future<void> build() async {}
+
+  @override
+  Future<DeliveryFeeResult> calculateDeliveryFee({
+    required String restaurantId,
+    required String quartierId,
+    int? subTotal,
+  }) async {
+    final f = fee;
+    if (f == null) throw Exception('réseau');
+    return DeliveryFeeResult(mode: 'ZONE_BASED', fee: f);
+  }
+}
 
 void main() {
   group('DeliveryOptionsPage — RadioGroup', () {
@@ -273,6 +299,48 @@ void main() {
       expect(_boutonContinuer(tester).onPressed, isNotNull);
     });
   });
+
+  // Lot 5 (F-40) — un panier d'épicerie a son propre taux : seul le devis
+  // serveur le connaît. L'écran affiche ses montants, sans rien recalculer.
+  group('DeliveryOptionsPage — montants du devis serveur', () {
+    testWidgets('frais de service et total sont ceux du devis', (tester) async {
+      final devis = FauxDevis(
+        devisDe(subTotal: 5000, deliveryFee: 1000, serviceFee: 250),
+      );
+      await _pumpPage(tester, devis: devis);
+      await _taperAdresse(tester, '12 rue de la Paix');
+
+      final frais = tester.widget<Text>(
+        find.byKey(const Key('delivery_options_service_fee')),
+      );
+      final total = tester.widget<Text>(
+        find.byKey(const Key('delivery_options_total')),
+      );
+      expect(frais.data, formatPrice(250));
+      expect(total.data, formatPrice(6250));
+      expect(devis.dernierIsDelivery, isTrue);
+      expect(devis.dernierQuartierId, isNotNull);
+    });
+
+    testWidgets('devis en échec : aucun montant inventé', (tester) async {
+      await _pumpPage(tester, devis: FauxDevis(null));
+      await _taperAdresse(tester, '12 rue de la Paix');
+
+      final total = tester.widget<Text>(
+        find.byKey(const Key('delivery_options_total')),
+      );
+      expect(total.data, 'Indisponible');
+    });
+
+    testWidgets('tarif de zone en échec : pas de repli, « Continuer » bloqué',
+        (tester) async {
+      await _pumpPage(tester, zoneFee: null);
+      await _taperAdresse(tester, '12 rue de la Paix');
+
+      expect(find.text('Prix indisponible — réessayer'), findsOneWidget);
+      expect(_boutonContinuer(tester).onPressed, isNull);
+    });
+  });
 }
 
 /// Le bouton de sortie de l'écran. Il n'y en a qu'un.
@@ -319,6 +387,8 @@ Future<void> _pumpPage(
   List<Adresse>? adresses,
   List<Quartier>? quartiers,
   _FakeAdresses? controller,
+  double? zoneFee = 1000,
+  FauxDevis? devis,
 }) async {
   final faux = controller ?? _FakeAdresses(adresses ?? _adresses);
   await tester.pumpWidget(
@@ -331,6 +401,16 @@ Future<void> _pumpPage(
           (ref) async => quartiers ?? _quartiers,
         ),
         adresseControllerProvider.overrideWith(() => faux),
+        // Lot 5 (F-40) : tarif de zone et devis viennent du serveur, sans
+        // repli local — sans eux « Continuer » reste désactivé.
+        quartiersRepositoryProvider.overrideWith(() => _FauxTarifs(zoneFee)),
+        orderRepositoryProvider.overrideWith(
+          () =>
+              devis ??
+              FauxDevis(
+                devisDe(subTotal: 5000, deliveryFee: 1000, serviceFee: 750),
+              ),
+        ),
         // Sans barème, `_canContinue()` refuse d'avancer — c'est le correctif
         // P1-001, et il s'applique aussi ici. Le fournir est donc une
         // condition pour éprouver quoi que ce soit d'autre sur ce bouton.

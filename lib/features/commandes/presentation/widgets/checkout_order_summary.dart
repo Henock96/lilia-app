@@ -9,11 +9,11 @@ import 'package:lilia_app/utils/currency.dart';
 
 /// Récapitulatif du checkout : lignes, frais, remises, total.
 ///
-/// **Affichage seul.** Tous les montants arrivent calculés par
-/// `CheckoutPage` (via `CheckoutEstimate`) ; ce widget n'en recalcule aucun
-/// et ne décide d'aucune règle. Extrait du `State` du checkout (2 300 lignes)
-/// pour qu'une retouche visuelle du récapitulatif ne passe plus par le
-/// fichier qui porte le tunnel de paiement.
+/// **Affichage seul.** Tous les montants viennent du devis serveur
+/// (`POST /orders/quote`) ; ce widget n'en recalcule aucun et ne décide
+/// d'aucune règle. Durcissement lot 5 (F-40) : plus d'estimation locale. Tant
+/// que le devis n'est pas là, les montants valent `null` et s'affichent
+/// « calcul… », avec la raison s'il y en a une ([pendingMessage]).
 class CheckoutOrderSummary extends StatelessWidget {
   const CheckoutOrderSummary({
     super.key,
@@ -27,29 +27,32 @@ class CheckoutOrderSummary extends StatelessWidget {
     required this.promo,
     required this.loyaltyDiscount,
     required this.total,
-    this.isEstimate = false,
+    this.pendingMessage,
     this.vendorOffer,
   });
 
   final Cart cart;
   final bool isDelivery;
-  final double subTotal;
-  final double deliveryFee;
+
+  /// Montants du devis ; `null` tant qu'il n'est pas là.
+  final double? subTotal;
+  final double? deliveryFee;
 
   /// Frais avant promo « livraison offerte », pour le prix barré.
   final double originalDeliveryFee;
 
   /// F3-02 — part des frais offerte par le vendeur, déjà déduite du devis.
   final double deliverySubsidy;
-  final double serviceFee;
+  final double? serviceFee;
   final PromoValidationResult? promo;
 
   /// Remise fidélité **appliquée** ; 0 si le client n'utilise pas ses points.
   final double loyaltyDiscount;
-  final double total;
+  final double? total;
 
-  /// Total calculé localement, faute de devis serveur (C-19) : on le dit.
-  final bool isEstimate;
+  /// Pourquoi le montant n'est pas (encore) connu : créneau à choisir, devis
+  /// en échec. `null` : simple chargement.
+  final String? pendingMessage;
 
   /// F3-11 — offre boutique du devis serveur, financée par le vendeur.
   final QuotedVendorOffer? vendorOffer;
@@ -70,21 +73,24 @@ class CheckoutOrderSummary extends StatelessWidget {
             _MenuLine(items: entry.value),
           for (final item in cart.individualItems) _ItemLine(item: item),
           const Divider(height: 24),
-          _AmountRow(label: 'Sous-total', amount: formatPrice(subTotal)),
+          _AmountRow(label: 'Sous-total', amount: _amount(subTotal)),
           const SizedBox(height: LiliaSpacing.sm),
-          _AmountRow(
-            label: 'Frais de livraison',
-            trailing: _DeliveryFeeLabel(
-              isDelivery: isDelivery,
-              deliveryFee: deliveryFee,
-              originalDeliveryFee: originalDeliveryFee,
-              deliverySubsidy: deliverySubsidy,
-              freeDeliveryPromo:
-                  promo?.discountType == DiscountType.freeDelivery,
+          if (deliveryFee == null)
+            _AmountRow(label: 'Frais de livraison', amount: _amount(null))
+          else
+            _AmountRow(
+              label: 'Frais de livraison',
+              trailing: _DeliveryFeeLabel(
+                isDelivery: isDelivery,
+                deliveryFee: deliveryFee!,
+                originalDeliveryFee: originalDeliveryFee,
+                deliverySubsidy: deliverySubsidy,
+                freeDeliveryPromo:
+                    promo?.discountType == DiscountType.freeDelivery,
+              ),
             ),
-          ),
           const SizedBox(height: LiliaSpacing.sm),
-          _AmountRow(label: 'Frais de service', amount: formatPrice(serviceFee)),
+          _AmountRow(label: 'Frais de service', amount: _amount(serviceFee)),
           if (promo != null) ...[
             const SizedBox(height: LiliaSpacing.sm),
             _AmountRow(
@@ -119,18 +125,19 @@ class CheckoutOrderSummary extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Flexible : « Total estimé » débordait à 2× sur un écran étroit.
-              Flexible(
+              // Flexible : le libellé débordait à 2× sur un écran étroit.
+              const Flexible(
                 child: Text(
-                  isEstimate ? 'Total estimé' : 'Total',
-                  style: const TextStyle(
+                  'Total',
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
               Text(
-                formatPrice(total),
+                _amount(total),
+                key: const Key('checkout_summary_total'),
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -139,11 +146,11 @@ class CheckoutOrderSummary extends StatelessWidget {
               ),
             ],
           ),
-          if (isEstimate) ...[
+          if (total == null && pendingMessage != null) ...[
             const SizedBox(height: LiliaSpacing.sm),
             Text(
-              'Estimation — le montant exact est confirmé à la commande.',
-              key: const Key('checkout_total_estimate_hint'),
+              pendingMessage!,
+              key: const Key('checkout_total_pending_reason'),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: cs.onSurfaceVariant,
                   ),
@@ -153,6 +160,11 @@ class CheckoutOrderSummary extends StatelessWidget {
       ),
     );
   }
+
+  /// Montant du devis, ou « calcul… » tant qu'il n'est pas là — jamais une
+  /// estimation locale.
+  static String _amount(double? value) =>
+      value == null ? 'calcul…' : formatPrice(value);
 }
 
 class _MenuLine extends StatelessWidget {

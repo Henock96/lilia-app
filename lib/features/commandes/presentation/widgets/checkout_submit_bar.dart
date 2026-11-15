@@ -15,17 +15,15 @@ class CheckoutSubmitBar extends StatelessWidget {
   const CheckoutSubmitBar({
     super.key,
     required this.total,
-    this.isEstimate = false,
     required this.onPressed,
     required this.isSending,
     this.disabledReason,
+    this.onRetry,
   });
 
-  /// Total affiché par le récapitulatif — jamais recalculé ici.
-  final double total;
-
-  /// Total local, faute de devis serveur (C-19).
-  final bool isEstimate;
+  /// Total du devis serveur, repris du récapitulatif — jamais recalculé ici.
+  /// `null` tant que le devis n'est pas là : « calcul… » (lot 5, F-40).
+  final double? total;
 
   /// `null` ⇒ bouton désactivé.
   final VoidCallback? onPressed;
@@ -37,6 +35,11 @@ class CheckoutSubmitBar extends StatelessWidget {
   /// (ex. créneau de précommande non choisi). Un bouton grisé sans
   /// explication est une impasse.
   final String? disabledReason;
+
+  /// Relance du devis en échec, affichée sous [disabledReason]. Sans elle, un
+  /// devis tombé hors ligne laissait le client sans autre issue que de
+  /// quitter l'écran.
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -64,13 +67,13 @@ class CheckoutSubmitBar extends StatelessWidget {
                 spacing: 8,
                 children: [
                   Text(
-                    isEstimate ? 'Total estimé' : 'Total',
+                    'Total',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   Text(
-                    formatPrice(total),
+                    total == null ? 'calcul…' : formatPrice(total!),
                     key: const Key('checkout_submit_total'),
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
@@ -87,6 +90,16 @@ class CheckoutSubmitBar extends StatelessWidget {
                     color: cs.onSurfaceVariant,
                   ),
                 ),
+                if (onRetry != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      key: const Key('checkout_quote_retry'),
+                      onPressed: onRetry,
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('Réessayer'),
+                    ),
+                  ),
               ],
               const SizedBox(height: 8),
               // Hauteur minimale et non fixe : un `SizedBox(height: 54)`

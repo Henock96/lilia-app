@@ -77,36 +77,16 @@ class CartPriceSummary extends ConsumerWidget {
           _Line(
             label: 'Sous-total ($articles article${articles > 1 ? 's' : ''})',
             value: formatPrice(preview.subTotal),
-            style: muted,
-          ),
-          _Line(
-            // Le montant suffit : le taux n'est plus affiché au client.
-            label: 'Frais de service',
-            value: preview.serviceFee != null
-                ? formatPrice(preview.serviceFee!)
-                // `hasError` avant `isLoading` : Riverpod 3 relance tout
-                // seul un échec, et la relance garde l'erreur. Tester
-                // `isLoading` d'abord laisserait « … » à l'infini.
-                : settingsAsync.hasError || !settingsAsync.isLoading
-                ? 'Calculés à l\'étape suivante'
-                : '…',
-            style: muted,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 6),
-          if (preview.estimatedTotalBeforeDelivery != null)
-            _Line(
-              label: 'Total estimé hors livraison',
-              value: formatPrice(preview.estimatedTotalBeforeDelivery!),
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            )
-          else
-            _Line(
-              label: 'Sous-total',
-              value: formatPrice(preview.subTotal),
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          // Après le total, qui ne l'inclut pas : au-dessus, elle semblait en
-          // faire partie et la somme lue ne tombait plus juste.
+          // Lot 5 (F-40) : aucun montant calculé ici, il arrive avec le devis
+          // serveur ; et le taux n'est plus affiché au client (#44).
+          _Line(
+            label: 'Frais de service',
+            value: 'Calculés à l\'étape suivante',
+            style: muted,
+          ),
           _Line(
             label: '+ Livraison',
             value: deliveryValue,
