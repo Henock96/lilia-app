@@ -28,6 +28,11 @@ class Cart {
   /// panier invité ou serveur ancien — l'app retombe sur le taux général.
   final double? serviceFeePercent;
 
+  /// Lot 6 (L6-3) — sous-total calculé par le serveur (`GET /cart`), en XAF.
+  /// Fait foi dès qu'il est là. `null` : panier invité, serveur ancien, ou
+  /// panier modifié localement en attendant la réponse (voir [copyWith]).
+  final int? subTotalXaf;
+
   Cart({
     required this.id,
     required this.userId,
@@ -35,6 +40,7 @@ class Cart {
     required this.createdAt,
     required this.updatedAt,
     this.serviceFeePercent,
+    this.subTotalXaf,
   });
 
   Cart copyWith({
@@ -50,6 +56,9 @@ class Cart {
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     serviceFeePercent: serviceFeePercent,
+    // Des lignes changées localement (mise à jour optimiste) rendent le
+    // sous-total serveur périmé : on recalcule jusqu'à la réponse.
+    subTotalXaf: items == null ? subTotalXaf : null,
   );
 
   /// Items individuels (sans menuId)
@@ -89,6 +98,8 @@ class Cart {
   // checkout, lui, recalcule tout.
   double get totalPrice {
     if (items.isEmpty) return 0.0;
+    final serveur = subTotalXaf;
+    if (serveur != null) return serveur.toDouble();
     // Prix des items individuels
     double total = individualItems.fold(
       0.0,
@@ -133,6 +144,7 @@ class Cart {
       createdAt: _asDate(json['createdAt']),
       updatedAt: _asDate(json['updatedAt']),
       serviceFeePercent: (json['serviceFeePercent'] as num?)?.toDouble(),
+      subTotalXaf: (json['subTotalXaf'] as num?)?.toInt(),
     );
   }
 }
