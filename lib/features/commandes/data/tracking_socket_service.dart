@@ -55,8 +55,11 @@ class DriverPositionEvent {
 /// Service Socket.io qui écoute le namespace `/tracking` du backend.
 ///
 /// Events reçus :
-///   - `driver:position` { orderId?, lat, lng, eta, timestamp } → position GPS du livreur
-///   - `order:status`    { orderId?, status }                  → changement de statut commande
+///   - `driver:position` { orderId, lat, lng, eta, timestamp } → position GPS du livreur
+///   - `order:status`    { orderId, status }                  → changement de statut commande
+///
+/// Un événement sans `orderId`, ou d'une commande non suivie, est ignoré
+/// (SEC-13).
 ///
 /// Pattern : un seul socket réutilisé pour toute la session.
 /// Le caller s'abonne à une commande via `watch(orderId)` et reçoit les events
@@ -166,17 +169,12 @@ class TrackingSocketService {
             final event = DriverPositionEvent.fromJson(
               Map<String, dynamic>.from(data),
             );
-            // Si le backend fournit l'orderId, router uniquement vers le watcher correspondant
-            if (event.orderId != null &&
-                _positionStreams.containsKey(event.orderId)) {
-              final ctrl = _positionStreams[event.orderId];
-              if (ctrl != null && !ctrl.isClosed) ctrl.add(event);
-            } else {
-              // Repli rétrocompatible si orderId est omis par le serveur
-              for (final ctrl in _positionStreams.values) {
-                if (!ctrl.isClosed) ctrl.add(event);
-              }
-            }
+            // SEC-13 — uniquement la commande désignée. Le repli qui
+            // diffusait à toutes les cartes un événement sans `orderId` (ou
+            // d'une commande non suivie) posait le marqueur d'une course sur
+            // une autre ; le serveur joint `orderId` à chaque émission.
+            final ctrl = _positionStreams[event.orderId];
+            if (ctrl != null && !ctrl.isClosed) ctrl.add(event);
           } catch (e) {
             logDebug('[Tracking WS] parse position error: $e');
           }
@@ -187,16 +185,9 @@ class TrackingSocketService {
           final orderId = data['orderId'] as String?;
           if (status == null) return;
 
-          // Si le backend fournit l'orderId, router uniquement vers le watcher correspondant
-          if (orderId != null && _statusStreams.containsKey(orderId)) {
-            final ctrl = _statusStreams[orderId];
-            if (ctrl != null && !ctrl.isClosed) ctrl.add(status);
-          } else {
-            // Repli rétrocompatible si orderId est omis par le serveur
-            for (final ctrl in _statusStreams.values) {
-              if (!ctrl.isClosed) ctrl.add(status);
-            }
-          }
+          // SEC-13 — même règle que `driver:position`.
+          final ctrl = _statusStreams[orderId];
+          if (ctrl != null && !ctrl.isClosed) ctrl.add(status);
         });
 
       _socket!.connect();
