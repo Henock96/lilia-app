@@ -41,6 +41,9 @@ enum AppRoutes {
   claimForm,
   myClaims,
   claimDetail,
+  reservationBooking,
+  myReservations,
+  reservationDetail,
 }
 
 extension AppRoutesExtension on AppRoutes {
@@ -123,6 +126,15 @@ extension AppRoutesExtension on AppRoutes {
         return 'demandes';
       case AppRoutes.claimDetail:
         return ':claimId';
+      case AppRoutes.reservationBooking:
+        // Lot 4 (4D) — sous la fiche vendeur : `/restaurant/:id/reserver`.
+        // Protégé explicitement (la fiche, elle, est publique).
+        return 'reserver';
+      case AppRoutes.myReservations:
+        // Sous `/profile` : protégé par héritage.
+        return 'reservations';
+      case AppRoutes.reservationDetail:
+        return ':reservationId';
     }
   }
 
@@ -190,6 +202,12 @@ extension AppRoutesExtension on AppRoutes {
         return 'MyClaims';
       case AppRoutes.claimDetail:
         return 'ClaimDetail';
+      case AppRoutes.reservationBooking:
+        return 'ReservationBooking';
+      case AppRoutes.myReservations:
+        return 'MyReservations';
+      case AppRoutes.reservationDetail:
+        return 'ReservationDetail';
     }
   }
 }

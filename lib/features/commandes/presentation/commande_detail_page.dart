@@ -20,6 +20,7 @@ import 'package:lilia_app/features/payments/application/payment_status_controlle
 import 'package:lilia_app/features/payments/data/payment_service.dart';
 import 'package:lilia_app/features/payments/domain/payment_failure.dart';
 import 'package:lilia_app/features/payments/presentation/payment_pending_args.dart';
+import 'package:lilia_app/features/reservations/presentation/reservation_screens.dart';
 import 'package:lilia_app/models/order.dart';
 import 'package:lilia_app/routing/app_route_enum.dart';
 import '../data/order_controller.dart';
@@ -192,6 +193,13 @@ class OrderDetailPage extends ConsumerWidget {
                 // renvoie au « bouton de paiement ci-dessus ».
                 // Lot 3 — « accepter puis payer » : la boutique répond d'abord,
                 // le paiement s'ouvre ensuite (rien n'est débité avant).
+                // Lot 4 (4D, F-6) — précommande d'une réservation de table :
+                // la table, l'horaire et l'annulation se lisent sur la
+                // réservation ; ici restent le paiement et le code d'arrivée.
+                if (order.reservationId case final reservationId?) ...[
+                  ReservationOrderBanner(reservationId: reservationId),
+                  const SizedBox(height: 16),
+                ],
                 if (order.status == OrderStatus.demandeEnvoyee) ...[
                   _AcceptFirstNotice(
                     title: 'En attente de la boutique',

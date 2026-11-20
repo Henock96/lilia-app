@@ -6,7 +6,12 @@
 enum NotificationTrigger { foreground, tap }
 
 /// Ce qu'il faut rafraîchir à réception.
-enum NotificationTarget { orders }
+enum NotificationTarget {
+  orders,
+
+  /// Lot 4 (4D) — « Mes réservations » et la fiche ouverte.
+  reservations,
+}
 
 /// Suggestion d'action à proposer au client, une fois sur l'écran.
 ///
@@ -86,6 +91,23 @@ class NotificationRouter {
     required NotificationTrigger trigger,
   }) {
     final type = data['type'] as String?;
+
+    // Lot 4 (4D) — accepté, refusé, rappel, table changée… Le push ne porte
+    // pas d'orderId : c'est la réservation qu'on ouvre (titre et corps
+    // rédigés par le serveur).
+    if (type == 'reservation_update') {
+      final reservationId = data['reservationId'] as String?;
+      final hasId = reservationId != null && reservationId.isNotEmpty;
+      return NotificationAction(
+        refresh: NotificationTarget.reservations,
+        route: trigger != NotificationTrigger.tap
+            ? null
+            : hasId
+            ? '/profile/reservations/$reservationId'
+            : '/profile/reservations',
+      );
+    }
+
     final orderId = data['orderId'] as String?;
     final hasOrder = orderId != null && orderId.isNotEmpty;
 

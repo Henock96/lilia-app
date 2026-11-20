@@ -10,6 +10,7 @@ import 'package:lilia_app/common_widgets/app_animations.dart';
 import 'package:lilia_app/common_widgets/build_error_state.dart';
 import 'package:lilia_app/common_widgets/build_loading_state.dart';
 import 'package:lilia_app/common_widgets/image_gallery.dart';
+import 'package:lilia_app/features/reservations/presentation/reservation_screens.dart';
 import 'package:lilia_app/services/analytics_service.dart';
 import 'package:lilia_app/theme/lilia_tokens.dart';
 import 'package:share_plus/share_plus.dart';
@@ -161,6 +162,19 @@ class _RestaurantDetailScreenState
 
         // 4. Quick info livraison
         SliverToBoxAdapter(child: _DeliveryInfoCard(restaurant: restaurant)),
+
+        // Lot 4 (4D, D-1) — seulement si le serveur dit le restaurant
+        // réservable : pas de bouton qui mènerait à « ne réserve pas ».
+        if (restaurant.reservable)
+          SliverToBoxAdapter(
+            child: ReserveTableCard(
+              onPressed: () => context.pushNamed(
+                AppRoutes.reservationBooking.routeName,
+                pathParameters: {'id': widget.restaurantId},
+                extra: restaurant.name,
+              ),
+            ),
+          ),
 
         // 6. Horaires
         if (restaurant.operatingHours.isNotEmpty)

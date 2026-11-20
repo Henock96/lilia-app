@@ -1,0 +1,48 @@
+{
+  "success": true,
+  "data": {
+    "id": "cmwpa37o0000h5li8mdpscxni",
+    "status": "PENDING",
+    "restaurant": {
+      "id": "http-vendor",
+      "nom": "Le Comptoir HTTP"
+    },
+    "partySize": 2,
+    "arrivalAt": "2026-11-21T10:00:00.000Z",
+    "endsAt": "2026-11-21T11:30:00.000Z",
+    "spaceLabel": "Table 1",
+    "contactPhone": "061234561",
+    "note": null,
+    "declineReason": null,
+    "cancelReason": null,
+    "items": [
+      {
+        "productId": "http-poulet",
+        "menuId": null,
+        "variantId": "http-poulet-v",
+        "quantite": 2,
+        "productName": "Poulet DG",
+        "variantLabel": "Normal",
+        "menuName": null,
+        "indicativeLineTotal": 10000,
+        "options": []
+      }
+    ],
+    "payment": null,
+    "cancellationPolicy": null,
+    "createdAt": "2026-11-20T17:54:05.292Z",
+    "responseDeadlineAt": "2026-11-20T18:24:05.292Z",
+    "paymentDeadlineAt": null,
+    "acceptedAt": null,
+    "declinedAt": null,
+    "expiredAt": null,
+    "cancelledAt": null,
+    "confirmedAt": null,
+    "honoredAt": null,
+    "noShowAt": null,
+    "allowedActions": [
+      "cancel"
+    ]
+  },
+  "message": "Demande envoyée au restaurant."
+}

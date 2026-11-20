@@ -189,6 +189,16 @@ class UserPage extends ConsumerWidget {
                                 AppRoutes.draftOrders.routeName,
                               ),
                             ),
+                            // Lot 4 (4D) — réservations de table.
+                            _ProfileMenuItem(
+                              icon: Iconsax.calendar,
+                              iconColor: Colors.indigo[400]!,
+                              title: 'Mes réservations',
+                              subtitle: 'Tables réservées et précommandes',
+                              onTap: () => context.goNamed(
+                                AppRoutes.myReservations.routeName,
+                              ),
+                            ),
                             // F3-06 — réclamations et réponses du service client.
                             _ProfileMenuItem(
                               icon: Iconsax.message_question,

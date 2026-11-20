@@ -122,6 +122,11 @@ class Order {
   /// Lot B — verdict d'avis publié par `GET /orders/:id`. `null` = serveur
   /// antérieur (ou liste) : l'app garde son comportement d'avant.
   final OrderReviewVerdict? review;
+  /// Lot 4 — précommande d'une réservation de table. Annuler, c'est annuler
+  /// la réservation ; la commande garde la préparation et le code d'arrivée.
+  final String? reservationId;
+
+  bool get isReservation => reservationId != null;
 
   Order({
     required this.id,
@@ -160,6 +165,7 @@ class Order {
     this.customerConfirmedAt,
     this.pickupCode,
     this.review,
+    this.reservationId,
   });
 
   Order copyWith({
@@ -226,6 +232,7 @@ class Order {
       customerConfirmedAt: customerConfirmedAt,
       pickupCode: pickupCode,
       review: review,
+      reservationId: reservationId,
     );
   }
 
@@ -306,6 +313,11 @@ class Order {
           ? json['pickupCode'] as String
           : null,
       review: OrderReviewVerdict.tryParse(json['review']),
+      reservationId:
+          json['reservationId'] is String &&
+              (json['reservationId'] as String).isNotEmpty
+          ? json['reservationId'] as String
+          : null,
     );
   }
 

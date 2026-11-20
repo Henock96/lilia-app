@@ -133,4 +133,37 @@ void main() {
       expect(action.route, isNull);
     });
   });
+
+  // Lot 4 (4D) — `reservation-outbox-effects.service.ts` :
+  // `{type: 'reservation_update', reservationId, notice}`, sans orderId.
+  group('réservations (4D)', () {
+    const data = {
+      'type': 'reservation_update',
+      'reservationId': 'resa-1',
+      'notice': 'ACCEPTED',
+    };
+
+    test('au tap, ouvre la réservation', () {
+      final action = router.resolve(data, trigger: NotificationTrigger.tap);
+      expect(action.refresh, NotificationTarget.reservations);
+      expect(action.route, '/profile/reservations/resa-1');
+    });
+
+    test('au premier plan, rafraîchit sans déplacer', () {
+      final action = router.resolve(
+        data,
+        trigger: NotificationTrigger.foreground,
+      );
+      expect(action.refresh, NotificationTarget.reservations);
+      expect(action.route, isNull);
+    });
+
+    test('sans identifiant : rafraîchit, ouvre « Mes réservations » au tap', () {
+      final action = router.resolve({
+        'type': 'reservation_update',
+      }, trigger: NotificationTrigger.tap);
+      expect(action.refresh, NotificationTarget.reservations);
+      expect(action.route, '/profile/reservations');
+    });
+  });
 }

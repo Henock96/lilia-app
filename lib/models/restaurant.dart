@@ -411,7 +411,12 @@ class Restaurant {
     this.activeOffer,
     this.supportsDelivery = true,
     this.supportsPickup = true,
+    this.reservable = false,
   });
+
+  /// Lot 4 (4D) — le restaurant prend des réservations de table (même règle
+  /// serveur que les disponibilités). Ne promet aucun créneau.
+  final bool reservable;
 
   /// Retourne le temps de livraison formaté
   String get deliveryTimeFormatted =>
@@ -573,6 +578,9 @@ class Restaurant {
       // vendeur faisait alors les deux, c'est aussi le défaut en base.
       supportsDelivery: (json['supportsDelivery'] as bool?) ?? true,
       supportsPickup: (json['supportsPickup'] as bool?) ?? true,
+      // Lot 4 (4D, D-1) — verdict serveur ; absent d'un serveur antérieur :
+      // pas de bouton « Réserver ».
+      reservable: json['reservable'] == true,
     );
   }
 }
