@@ -17,6 +17,12 @@ on:
     branches: [main, master]
   pull_request:
 
+# SEC-16 (audit du 18/11) : le `GITHUB_TOKEN` prenait les droits par défaut du
+# dépôt. Aucun job n'écrit (ni push, ni commentaire, ni publication) : la
+# lecture du code suffit. Un job qui en aurait besoin déclare ses propres droits.
+permissions:
+  contents: read
+
 jobs:
   quality:
     runs-on: ubuntu-latest
