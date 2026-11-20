@@ -281,4 +281,74 @@ void main() {
 
     expect(sockets, hasLength(2), reason: 'un nouveau suivi rouvre');
   });
+
+  // SEC-13 (audit du 18/11) — un événement dont l'`orderId` manquait ou ne
+  // désignait aucune commande suivie était diffusé à TOUTES les cartes
+  // ouvertes : le marqueur d'une course apparaissait sur une autre. Le serveur
+  // joint `orderId` à chaque `driver:position` et `order:status` ; un
+  // événement qu'on ne sait pas rattacher est ignoré.
+  group('isolation entre commandes suivies', () {
+    Map<String, Object?> position(String? orderId) => {
+          'orderId': ?orderId,
+          'lat': -4.26,
+          'lng': 15.28,
+          'timestamp': DateTime.now().toIso8601String(),
+        };
+
+    test('une position ne va qu’à la commande qu’elle désigne', () async {
+      final service = monter();
+      final cmd1 = <DriverPositionEvent>[];
+      final cmd2 = <DriverPositionEvent>[];
+      service.watch('cmd-1').position.listen(cmd1.add);
+      service.watch('cmd-2').position.listen(cmd2.add);
+      await laisserConnecter();
+
+      sockets.single.declencher('driver:position', position('cmd-2'));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cmd1, isEmpty);
+      expect(cmd2.single.orderId, 'cmd-2');
+    });
+
+    test('une position sans orderId ou d’une autre commande est ignorée',
+        () async {
+      final service = monter();
+      final cmd1 = <DriverPositionEvent>[];
+      final cmd2 = <DriverPositionEvent>[];
+      service.watch('cmd-1').position.listen(cmd1.add);
+      service.watch('cmd-2').position.listen(cmd2.add);
+      await laisserConnecter();
+
+      sockets.single.declencher('driver:position', position(null));
+      sockets.single.declencher('driver:position', position('cmd-autre'));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cmd1, isEmpty);
+      expect(cmd2, isEmpty);
+    });
+
+    test('un statut sans orderId ou d’une autre commande est ignoré',
+        () async {
+      final service = monter();
+      final cmd1 = <String>[];
+      final cmd2 = <String>[];
+      service.watch('cmd-1').status.listen(cmd1.add);
+      service.watch('cmd-2').status.listen(cmd2.add);
+      await laisserConnecter();
+
+      sockets.single.declencher('order:status', {'status': 'LIVRER'});
+      sockets.single.declencher(
+        'order:status',
+        {'orderId': 'cmd-autre', 'status': 'LIVRER'},
+      );
+      sockets.single.declencher(
+        'order:status',
+        {'orderId': 'cmd-1', 'status': 'EN_ROUTE'},
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cmd1, ['EN_ROUTE']);
+      expect(cmd2, isEmpty);
+    });
+  });
 }
