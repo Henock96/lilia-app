@@ -15,6 +15,7 @@ import 'package:lilia_app/routing/app_router.dart';
 import 'package:lilia_app/routing/session_phase.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'notification_router.dart';
+import 'package:lilia_app/features/reservations/presentation/reservation_providers.dart';
 import 'package:lilia_app/core/log.dart';
 
 part 'notification_service.g.dart';
@@ -296,6 +297,10 @@ class NotificationService {
     }
     if (action.refresh == NotificationTarget.orders) {
       _invalidateUserOrdersDebounced();
+    }
+    if (action.refresh == NotificationTarget.reservations) {
+      _ref.invalidate(myReservationsProvider);
+      _ref.invalidate(clientReservationProvider);
     }
     if (action.intent != NotificationIntent.none && action.orderId != null) {
       // L'écran de détail lit cette intention pour proposer la bonne suite :

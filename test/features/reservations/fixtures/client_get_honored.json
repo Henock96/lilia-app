@@ -1,0 +1,58 @@
+{
+  "success": true,
+  "data": {
+    "id": "cmwpa37o0000h5li8mdpscxni",
+    "status": "HONORED",
+    "restaurant": {
+      "id": "http-vendor",
+      "nom": "Le Comptoir HTTP"
+    },
+    "partySize": 2,
+    "arrivalAt": "2026-11-21T10:00:00.000Z",
+    "endsAt": "2026-11-21T11:30:00.000Z",
+    "spaceLabel": "Table 1",
+    "contactPhone": "061234561",
+    "note": null,
+    "declineReason": null,
+    "cancelReason": null,
+    "items": [
+      {
+        "productId": "http-poulet",
+        "menuId": null,
+        "variantId": "http-poulet-v",
+        "quantite": 2,
+        "productName": "Poulet DG",
+        "variantLabel": "Normal",
+        "menuName": null,
+        "indicativeLineTotal": 10000,
+        "options": []
+      }
+    ],
+    "payment": {
+      "orderId": "cmwpa38l9000m5li8gdm4jie6",
+      "orderStatus": "LIVRER",
+      "subTotal": 10000,
+      "serviceFee": 1500,
+      "total": 11500,
+      "indicativeSubTotal": 10000,
+      "priceChanged": false
+    },
+    "cancellationPolicy": {
+      "freeUntil": "2026-11-21T08:00:00.000Z",
+      "refundable": true,
+      "lateCancellation": false,
+      "noShowRefundable": false
+    },
+    "createdAt": "2026-11-20T17:54:05.292Z",
+    "responseDeadlineAt": "2026-11-20T18:24:05.292Z",
+    "paymentDeadlineAt": "2026-11-20T18:09:06.507Z",
+    "acceptedAt": "2026-11-20T17:54:06.507Z",
+    "declinedAt": null,
+    "expiredAt": null,
+    "cancelledAt": null,
+    "confirmedAt": "2026-11-20T17:54:07.730Z",
+    "honoredAt": "2026-11-20T17:54:07.866Z",
+    "noShowAt": null,
+    "allowedActions": []
+  }
+}

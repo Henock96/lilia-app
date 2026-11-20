@@ -155,6 +155,8 @@ void main() {
         // F3-06
         AppRoutes.claimForm: {'orderId': 'abc'},
         AppRoutes.claimDetail: {'claimId': 'claim-1'},
+        AppRoutes.reservationBooking: {'id': '12'},
+        AppRoutes.reservationDetail: {'reservationId': 'resa-1'},
       };
 
       for (final route in AppRoutes.values) {

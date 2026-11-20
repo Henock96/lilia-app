@@ -51,6 +51,11 @@ void main() {
       // rédiger un avis serait redevenu public en silence le jour où la route
       // est devenue adressable.
       '/reviews/resto-1/write',
+      // Lot 4 (4D) — la fiche vendeur reste publique, réserver ne l'est pas :
+      // la demande part du panier serveur et d'un compte.
+      '/restaurant/abc/reserver',
+      '/profile/reservations',
+      '/profile/reservations/resa-1',
     ];
 
     for (final emplacement in proteges) {
@@ -127,6 +132,9 @@ void main() {
       AppRoutes.claimForm: true,
       AppRoutes.myClaims: true,
       AppRoutes.claimDetail: true,
+      AppRoutes.reservationBooking: true,
+      AppRoutes.myReservations: true,
+      AppRoutes.reservationDetail: true,
     };
 
     final nonClassees = AppRoutes.values

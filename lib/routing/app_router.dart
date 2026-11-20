@@ -37,6 +37,7 @@ import '../features/cart/presentation/draft_orders_screen.dart';
 import '../features/claims/presentation/claim_detail_page.dart';
 import '../features/claims/presentation/claim_form_page.dart';
 import '../features/claims/presentation/my_claims_page.dart';
+import '../features/reservations/presentation/reservation_screens.dart';
 import '../models/menu.dart';
 import '../models/produit.dart';
 import 'app_route_enum.dart';
@@ -373,6 +374,19 @@ final List<RouteBase> _routes = [
                     ),
                   );
                 },
+                routes: [
+                  // Lot 4 (4D) — protégé (`protected_locations.dart`).
+                  GoRoute(
+                    path: AppRoutes.reservationBooking.path,
+                    name: AppRoutes.reservationBooking.routeName,
+                    pageBuilder: (context, state) => MaterialPage(
+                      child: ReservationBookingPage(
+                        restaurantId: state.pathParameters['id']!,
+                        restaurantName: state.extra as String?,
+                      ),
+                    ),
+                  ),
+                ],
               ),
               GoRoute(
                 path: AppRoutes.productDetail.path,
@@ -604,6 +618,25 @@ final List<RouteBase> _routes = [
                     pageBuilder: (context, state) => MaterialPage(
                       child: ClaimDetailPage(
                         claimId: state.pathParameters['claimId']!,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              // Lot 4 (4D) — « Mes réservations » et la fiche d'une réservation
+              // (cible des push `reservation_update`).
+              GoRoute(
+                path: AppRoutes.myReservations.path,
+                name: AppRoutes.myReservations.routeName,
+                pageBuilder: (context, state) =>
+                    const MaterialPage(child: MyReservationsPage()),
+                routes: [
+                  GoRoute(
+                    path: AppRoutes.reservationDetail.path,
+                    name: AppRoutes.reservationDetail.routeName,
+                    pageBuilder: (context, state) => MaterialPage(
+                      child: ClientReservationPage(
+                        reservationId: state.pathParameters['reservationId']!,
                       ),
                     ),
                   ),

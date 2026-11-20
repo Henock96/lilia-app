@@ -63,6 +63,11 @@ final List<String> _prefixesProteges = <String>[
 
   // Laisser un avis suppose une commande livrée ; **lire** les avis, non.
   '${AppRoutes.reviews.path}/${AppRoutes.writeReview.path}',
+
+  // Lot 4 (4D) — la fiche vendeur est publique, réserver une table ne l'est
+  // pas : la précommande est le panier serveur, la demande est nominative.
+  // « Mes réservations » vit sous `/profile`, déjà protégé.
+  '/${AppRoutes.restaurantDetail.path}/${AppRoutes.reservationBooking.path}',
 ];
 
 /// Cet emplacement exige-t-il une session ouverte ?

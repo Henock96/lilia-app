@@ -136,7 +136,11 @@ class _PickupCardState extends State<PickupCard> {
         children: [
           if (code != null) ...[
             Text(
-              'Code de retrait',
+              // Lot 4 (4D, D-2) — précommande d'une réservation : le même
+              // code prouve l'arrivée du client à sa table.
+              order.isReservation
+                  ? 'Votre table est prête — code d’arrivée'
+                  : 'Code de retrait',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
@@ -162,8 +166,11 @@ class _PickupCardState extends State<PickupCard> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Au comptoir, montrez ce code quand on vous remet votre '
-              'commande — jamais avant.',
+              order.isReservation
+                  ? 'Montrez ce code au restaurant : il confirme votre '
+                        'arrivée et vous sert votre précommande.'
+                  : 'Au comptoir, montrez ce code quand on vous remet votre '
+                        'commande — jamais avant.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
             ),

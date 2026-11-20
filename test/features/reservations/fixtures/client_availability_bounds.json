@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "data": {
+    "restaurantId": "http-vendor",
+    "maxPartySize": 8,
+    "minLeadMin": 120,
+    "maxAdvanceDays": 30,
+    "slotDurationMin": 90,
+    "firstDate": "2026-11-20",
+    "lastDate": "2026-12-20"
+  }
+}
