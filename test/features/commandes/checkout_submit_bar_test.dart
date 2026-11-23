@@ -113,7 +113,7 @@ void main() {
       );
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
-      expect(find.text('Valider et payer'), findsNothing);
+      expect(find.text('Confirmez la commande'), findsNothing);
       expect(find.text('Choisissez un créneau.'), findsNothing);
       expect(
         find.bySemanticsLabel('Envoi de la commande en cours'),

@@ -217,6 +217,11 @@ class _FauxPaiements implements PaymentService {
     );
   }
 
+  /// La feuille de paiement valide toujours le numéro saisi.
+  @override
+  bool validatePhoneNumber(String phoneNumber, {String countryCode = '242'}) =>
+      true;
+
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       throw UnimplementedError('${invocation.memberName} non attendu ici');
@@ -303,6 +308,13 @@ void main() {
     );
   }
 
+  /// Valide la feuille « opérateur + numéro » qui s'ouvre entre la commande
+  /// et le paiement, comme le client.
+  Future<void> confirmerPaiement(WidgetTester tester) async {
+    await tester.tap(find.text('Envoyer la demande de paiement'));
+    await tester.pump();
+  }
+
   testWidgets('deux taps dans la MÊME frame : une seule commande', (
     tester,
   ) async {
@@ -311,6 +323,10 @@ void main() {
     await taper(tester);
     await taper(tester);
     await tester.pump();
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    await confirmerPaiement(tester);
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }
@@ -346,6 +362,10 @@ void main() {
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }
+    await confirmerPaiement(tester);
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
     expect(checkout.commandes, 1);
     expect(paiements.paiements, 1);
   });
@@ -368,6 +388,10 @@ void main() {
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }
+    await confirmerPaiement(tester);
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
     expect(paiements.paiements, 1);
   });
 
@@ -378,6 +402,11 @@ void main() {
     await monter(tester, portePaiement: porte);
 
     await taper(tester);
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    // Le paiement part à la validation de la feuille ; il reste en vol.
+    await confirmerPaiement(tester);
     for (var i = 0; i < 4; i++) {
       await tester.pump(const Duration(milliseconds: 300));
       await taper(tester);

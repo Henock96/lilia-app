@@ -151,7 +151,11 @@ void main() {
       findsNothing,
       reason: 'ce serait le total calculé avec l’ancien repli à 8 %',
     );
-    expect(find.text('Valider et payer'), findsOneWidget);
+    expect(find.text('Confirmez la commande'), findsOneWidget);
+    // L'opérateur se choisit au moment de payer, plus à la commande.
+    expect(find.text('Mode de paiement'), findsNothing);
+    expect(find.text('MTN Mobile Money'), findsNothing);
+    expect(find.text('Numéro Mobile Money (si différent)'), findsNothing);
   });
 
   testWidgets('barème absent : aucun total, et un bouton Réessayer', (
@@ -161,7 +165,7 @@ void main() {
     expect(find.text('Frais indisponibles'), findsOneWidget);
     expect(find.text('Réessayer'), findsOneWidget);
     expect(
-      find.text('Valider et payer'),
+      find.text('Confirmez la commande'),
       findsNothing,
       reason: 'on ne propose pas de payer un montant qu’on ne sait pas calculer',
     );
@@ -179,7 +183,7 @@ void main() {
     await monter(tester, enAttente: porte);
 
     expect(
-      find.text('Valider et payer'),
+      find.text('Confirmez la commande'),
       findsNothing,
       reason: 'les premières frames du checkout affichaient 8 % en attendant',
     );
@@ -190,7 +194,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
     }
 
-    expect(find.text('Valider et payer'), findsOneWidget);
+    expect(find.text('Confirmez la commande'), findsOneWidget);
     expect(montant('24 000'), findsWidgets);
   });
 }

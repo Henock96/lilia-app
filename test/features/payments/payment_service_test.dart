@@ -202,5 +202,20 @@ void main() {
       expect(s.failureCode, 'PAYER_LIMIT_REACHED');
       expect(s.failureMessage, 'Solde insuffisant sur votre compte.');
     });
+
+    test('lit l’opérateur de la tentative, absent sur un serveur ancien', () {
+      final airtel = PaymentStatusResponse.fromJson({
+        'paymentId': 'p',
+        'status': 'SUCCESS',
+        'method': 'AIRTEL_MONEY',
+      });
+      expect(airtel.method, 'AIRTEL_MONEY');
+
+      final ancien = PaymentStatusResponse.fromJson({
+        'paymentId': 'p',
+        'status': 'SUCCESS',
+      });
+      expect(ancien.method, isNull);
+    });
   });
 }
