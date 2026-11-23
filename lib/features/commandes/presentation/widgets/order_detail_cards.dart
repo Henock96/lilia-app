@@ -504,9 +504,17 @@ class OrderDeliveryCard extends StatelessWidget {
 }
 
 class OrderSummaryCard extends StatelessWidget {
-  const OrderSummaryCard({super.key, required this.order});
+  const OrderSummaryCard({
+    super.key,
+    required this.order,
+    required this.paymentLabel,
+  });
 
   final Order order;
+
+  /// Opérateur réellement utilisé (voir `paymentOperatorLabel`), et non
+  /// `order.paymentMethod`, valeur provisoire du checkout.
+  final String paymentLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -585,7 +593,7 @@ class OrderSummaryCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      _getDisplayStatusPaiement(order.paymentMethod),
+                      paymentLabel,
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
                         color: cs.primary,
@@ -657,17 +665,6 @@ Widget _buildPlaceholderImage(BuildContext context) {
     color: cs.surfaceContainerHighest,
     child: Center(child: Icon(Iconsax.shop, size: 30, color: cs.outline)),
   );
-}
-
-String _getDisplayStatusPaiement(String paymentMethod) {
-  switch (paymentMethod) {
-    case 'MTN_MOMO':
-      return 'MTN Mobile Money';
-    case 'AIRTEL_MONEY':
-      return 'Airtel Money';
-    default:
-      return paymentMethod;
-  }
 }
 
 IconData _getPaymentIcon(String paymentMethod) {

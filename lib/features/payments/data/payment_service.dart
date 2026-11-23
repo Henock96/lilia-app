@@ -165,6 +165,11 @@ class PaymentStatusResponse {
   /// Personne ne réécrit ce texte : il traverse pawaPay depuis l'opérateur.
   final String? failureMessage;
 
+  /// Opérateur de cette tentative (`MTN_MOMO` / `AIRTEL_MONEY`). C'est lui, et
+  /// non `Order.paymentMethod` (valeur provisoire du checkout), qui dit avec
+  /// quoi le client a payé. Absent d'un serveur antérieur au champ.
+  final String? method;
+
   PaymentStatusResponse({
     required this.paymentId,
     required this.status,
@@ -174,6 +179,7 @@ class PaymentStatusResponse {
     this.reason,
     this.failureCode,
     this.failureMessage,
+    this.method,
   });
 
   bool get isTerminal => status != PaymentStatus.pending;
@@ -203,6 +209,7 @@ class PaymentStatusResponse {
       reason: json['reason'] as String?,
       failureCode: json['failureCode'] as String?,
       failureMessage: json['failureMessage'] as String?,
+      method: json['method'] as String?,
     );
   }
 

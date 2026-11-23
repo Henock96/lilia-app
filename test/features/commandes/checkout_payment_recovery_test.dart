@@ -198,6 +198,12 @@ void main() {
           builder: (_, _) => const Text('mes commandes'),
         ),
         GoRoute(
+          path: '/commande/:orderId',
+          name: AppRoutes.orderDetail.routeName,
+          builder: (_, state) =>
+              Text('fiche ${state.pathParameters['orderId']}'),
+        ),
+        GoRoute(
           path: '/succes',
           name: AppRoutes.orderSuccess.routeName,
           builder: (_, _) => const Text('commande passée'),
@@ -249,13 +255,23 @@ void main() {
     }
   }
 
+  /// Confirme la commande puis valide la feuille « opérateur + numéro » —
+  /// pré-remplie avec le téléphone de contact — comme le client.
+  Future<void> commanderEtPayer(WidgetTester tester) async {
+    await tester.tap(find.byKey(const Key('checkout_submit')));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    await tester.tap(find.text('Envoyer la demande de paiement'));
+    await laisserPasser(tester);
+  }
+
   testWidgets(
       'relance réussie en mode interactif : écran d’attente, jamais la '
       'modale de virement', (tester) async {
     await monter(tester, echecs: 2, reussite: _interactif());
 
-    await tester.tap(find.byKey(const Key('checkout_submit')));
-    await laisserPasser(tester);
+    await commanderEtPayer(tester);
 
     expect(find.text('Commande enregistrée'), findsOneWidget);
 
@@ -277,8 +293,7 @@ void main() {
       (tester) async {
     await monter(tester, echecs: 0, reussite: _manuelSansNumero());
 
-    await tester.tap(find.byKey(const Key('checkout_submit')));
-    await laisserPasser(tester);
+    await commanderEtPayer(tester);
 
     expect(find.text('Commande enregistrée'), findsOneWidget);
     expect(find.text('J\'ai payé'), findsNothing);
@@ -288,11 +303,29 @@ void main() {
   testWidgets('C-03 : le numéro part sans ses espaces', (tester) async {
     await monter(tester, echecs: 0, reussite: _interactif());
 
-    await tester.tap(find.byKey(const Key('checkout_submit')));
-    await laisserPasser(tester);
+    await commanderEtPayer(tester);
 
     expect(paiements.numeros, ['061234567']);
     expect(find.text('attente pay-pawapay'), findsOneWidget);
+  });
+
+  testWidgets(
+      'feuille de paiement fermée sans choix : commande gardée, rien ne part, '
+      'fiche commande', (tester) async {
+    await monter(tester, echecs: 0, reussite: _interactif());
+
+    await tester.tap(find.byKey(const Key('checkout_submit')));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+    expect(find.text('Envoyer la demande de paiement'), findsOneWidget);
+
+    // Geste de fermeture : tap sur le voile, au-dessus de la feuille.
+    await tester.tapAt(const Offset(20, 20));
+    await laisserPasser(tester);
+
+    expect(paiements.numeros, isEmpty, reason: 'aucune demande à l’opérateur');
+    expect(find.textContaining('fiche '), findsOneWidget);
   });
 
   testWidgets('C-03 : un numéro non congolais est refusé avant la commande',

@@ -44,7 +44,9 @@ void main() {
                 OrderVendorCard(order: order),
                 OrderItemsCard(order: order),
                 OrderDeliveryCard(order: order),
-                OrderSummaryCard(order: order),
+                // L'opérateur vient de la dernière tentative, pas de
+                // `order.paymentMethod` (MTN_MOMO, provisoire).
+                OrderSummaryCard(order: order, paymentLabel: 'Airtel Money'),
               ],
             ),
           ),
@@ -58,6 +60,8 @@ void main() {
       expect(find.textContaining('Position au quartier'), findsOneWidget);
       expect(find.text(formatPrice(23500)), findsOneWidget);
       expect(find.text('Réduction'), findsOneWidget);
+      expect(find.text('Airtel Money'), findsOneWidget);
+      expect(find.text('MTN Mobile Money'), findsNothing);
       await expectLater(tester, meetsGuideline(textContrastGuideline));
     });
   }

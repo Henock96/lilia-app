@@ -19,6 +19,7 @@ import 'package:lilia_app/utils/congo_phone.dart';
 import 'package:lilia_app/features/commandes/presentation/delivery_options_page.dart';
 import 'package:lilia_app/features/home/data/remote/restaurant_controller.dart';
 import 'package:lilia_app/features/payments/data/payment_service.dart';
+import 'package:lilia_app/features/payments/presentation/payment_choice_sheet.dart';
 import 'package:lilia_app/features/payments/presentation/payment_pending_args.dart';
 import 'package:lilia_app/features/user/application/adresse_controller.dart';
 import 'package:lilia_app/features/user/application/profile_controller.dart';
@@ -42,12 +43,6 @@ import 'package:lilia_app/features/commandes/presentation/widgets/checkout_order
 import 'package:lilia_app/features/commandes/presentation/widgets/payment_instructions_dialog.dart';
 import 'package:lilia_app/features/commandes/presentation/widgets/checkout_submit_bar.dart';
 
-/// Couleurs d'identité des opérateurs (icône, voile, bordure), pas des couleurs
-/// de feedback : elles ne viennent donc pas du thème. Mêmes teintes que les
-/// `Colors.amber.shade700` / `Colors.red.shade600` d'origine.
-const _mtnYellow = Color(0xFFFFA000);
-const _airtelRed = Color(0xFFE53935);
-
 class CheckoutPage extends ConsumerStatefulWidget {
   final DeliveryOptions? deliveryOptions;
 
@@ -67,19 +62,23 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   bool _promoLoading = false;
   String? _promoError;
   bool _useLoyaltyPoints = false;
-  String _selectedPaymentMethod = 'MTN_MOMO';
 
-  /// Numéro Mobile Money qui paiera, distinct du téléphone de contact.
+  /// Valeur exigée par `POST /orders/checkout` (`paymentMethod`, obligatoire
+  /// pour les apps installées), sans effet sur aucun montant.
   ///
-  /// Le même champ servait aux deux. Or on paie souvent depuis un autre
-  /// téléphone que celui qu'on donne au livreur (numéro de la maison, du
-  /// conjoint) — et avec un prestataire qui envoie réellement une demande, se
-  /// tromper de numéro n'est plus une coquille sur un papier, c'est un paiement
-  /// qui n'arrive pas.
-  final TextEditingController _momoPhoneController = TextEditingController();
+  /// L'opérateur ne se choisit plus sur cet écran : en « accepter puis payer »,
+  /// le client ne paie qu'après l'accord de la boutique. Il se choisit au
+  /// moment de payer (`showPaymentChoiceSheet`) et part avec `POST /payments`
+  /// (`method`), qui prime sur celui de la commande.
+  static const _provisionalPaymentMethod = 'MTN_MOMO';
+
+  /// `payment_method` d'un échec survenu avant tout choix d'opérateur.
+  static const _paymentMethodNotChosen = 'NOT_CHOSEN';
+
   String? _idempotencyKey;
 
-  /// Vrai du premier tap sur « Valider et payer » jusqu'à la sortie du tunnel.
+  /// Vrai du premier tap sur « Confirmez la commande » jusqu'à la sortie du
+  /// tunnel.
   ///
   /// ## Pourquoi `checkoutState.isLoading` ne suffisait pas
   ///
@@ -131,7 +130,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   void dispose() {
     _noteController.dispose();
     _phoneController.dispose();
-    _momoPhoneController.dispose();
     _promoController.dispose();
     super.dispose();
   }
@@ -391,12 +389,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                           vendorOffer: quote?.vendorOffer,
                         ).fadeSlideIn(),
                         const SizedBox(height: 24),
-
-                        // === SECTION PAIEMENT ===
-                        _buildSectionTitle('Mode de paiement'),
-                        const SizedBox(height: 8),
-                        _buildPaymentSection(),
-                        const SizedBox(height: 16),
 
                         // === DISCLAIMER PREORDER (LIL-122 décision 4b) ===
                         // Avertit le client que le paiement upfront engage mais que
@@ -779,142 +771,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     );
   }
 
-  Widget _buildPaymentSection() {
-    return Column(
-      children: [
-        _buildPaymentOption(
-          method: 'MTN_MOMO',
-          label: 'MTN Mobile Money',
-          color: _mtnYellow,
-        ),
-        const SizedBox(height: 12),
-        _buildPaymentOption(
-          method: 'AIRTEL_MONEY',
-          label: 'Airtel Money',
-          color: _airtelRed,
-        ),
-        const SizedBox(height: 16),
-        _buildMomoPhoneField(),
-      ],
-    );
-  }
-
-  /// Numéro Mobile Money qui recevra la demande de paiement.
-  ///
-  /// Laissé vide, le téléphone de contact est utilisé — c'est le cas le plus
-  /// fréquent, et imposer une seconde saisie identique serait une friction de
-  /// plus sur un écran qui en compte déjà.
-  Widget _buildMomoPhoneField() {
-    final cs = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        TextFormField(
-          controller: _momoPhoneController,
-          keyboardType: TextInputType.phone,
-          decoration: InputDecoration(
-            labelText: 'Numéro Mobile Money (si différent)',
-            hintText: _phoneController.text.trim().isEmpty
-                ? '06 123 45 67'
-                : _phoneController.text.trim(),
-            prefixIcon: const Icon(Icons.account_balance_wallet_outlined),
-            border: const OutlineInputBorder(),
-          ),
-          validator: (value) {
-            final input = (value ?? '').trim();
-            // Champ facultatif : vide = on paie avec le numéro de contact.
-            if (input.isEmpty) return null;
-            final valid = ref
-                .read(paymentServiceProvider)
-                .validatePhoneNumber(input);
-            return valid ? null : 'Numéro Mobile Money congolais invalide';
-          },
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'La demande de paiement arrivera sur ce numéro. Laissez vide pour '
-          'utiliser votre numéro de contact.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPaymentOption({
-    required String method,
-    required String label,
-    required Color color,
-  }) {
-    final cs = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isSelected = _selectedPaymentMethod == method;
-
-    // In dark mode use a lighter tint so text stays legible
-    final displayColor = isDark && isSelected
-        ? Color.lerp(color, Colors.white, 0.45)!
-        : color;
-
-    final bgColor = isSelected
-        ? (isDark
-              ? color.withValues(alpha: 0.18)
-              : color.withValues(alpha: 0.08))
-        : cs.surfaceContainerHighest;
-    final borderColor = isSelected
-        ? displayColor.withValues(alpha: isDark ? 0.6 : 0.4)
-        : cs.outlineVariant;
-
-    return GestureDetector(
-      onTap: () => setState(() => _selectedPaymentMethod = method),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: bgColor,
-          border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              Icons.phone_android,
-              color: isSelected ? displayColor : cs.onSurfaceVariant,
-              size: 32,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      // La couleur de l'opérateur reste sur l'icône, le voile
-                      // et la bordure : en texte, le jaune MTN sur son propre
-                      // voile était illisible (UX-03).
-                      color: cs.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Paiement securise',
-                    style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
-                  ),
-                ],
-              ),
-            ),
-            isSelected
-                ? Icon(Icons.check_circle, color: displayColor)
-                : Icon(Icons.circle_outlined, color: cs.outlineVariant),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildPromoSection({
     required String restaurantId,
     required double subTotal,
@@ -1251,7 +1107,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
           .read(checkoutControllerProvider.notifier)
           .placeOrder(
             adresseId: finalAddressId,
-            paymentMethod: _selectedPaymentMethod,
+            paymentMethod: _provisionalPaymentMethod,
             isDelivery: options.isDelivery,
             note: _noteController.text.trim().isEmpty
                 ? null
@@ -1282,7 +1138,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       // serveur, donc du texte libre susceptible de contenir un numéro ou une
       // référence de transaction.
       AnalyticsService.trackOrderFailed(
-        paymentMethod: _selectedPaymentMethod,
+        paymentMethod: _paymentMethodNotChosen,
         failureKind: 'checkout_rejected',
       );
       // 426 : le serveur applique un seuil de version que notre barème en
@@ -1338,10 +1194,39 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       return;
     }
 
-    // ─── 2. Créer le paiement — bloquant, car il porte les instructions ──────
+    // ─── 2. Opérateur et numéro — choisis maintenant, plus avant ─────────────
+    // Le paiement suit la commande (parcours « payer d'abord », précommande) :
+    // c'est le moment de les demander. Réglée en points, la commande n'a rien
+    // à débiter — aucun opérateur à choisir, le numéro de contact suffit.
+    if (!context.mounted) return;
+    final PaymentChoice? choice = checkout.total <= 0
+        ? (phone: _phoneController.text, method: _provisionalPaymentMethod)
+        : await showPaymentChoiceSheet(
+            context,
+            amount: checkout.total,
+            initialMethod: _provisionalPaymentMethod,
+            initialPhone: _phoneController.text.trim(),
+            isValidPhone: ref.read(paymentServiceProvider).validatePhoneNumber,
+          );
+    if (!context.mounted) return;
+    if (choice == null) {
+      // Feuille fermée : la commande existe, rien n'est demandé à l'opérateur.
+      // Elle se paie depuis sa fiche, où « Payer maintenant » rouvre la même
+      // feuille — on n'y laisse pas le client devant un panier encore plein.
+      ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
+      ref.invalidate(userOrdersProvider);
+      context.showSnack('Commande enregistrée : payez-la depuis sa fiche.');
+      context.goNamed(
+        AppRoutes.orderDetail.routeName,
+        pathParameters: {'orderId': checkout.id},
+      );
+      return;
+    }
+
+    // ─── 3. Créer le paiement — bloquant, car il porte les instructions ──────
     final PaymentResponse payment;
     try {
-      payment = await _createPaymentWithRetry(checkout);
+      payment = await _createPaymentWithRetry(checkout, choice);
     } catch (e, st) {
       // D-3 : refus métier attendu, pas une panne — ni Sentry ni « Réessayer ».
       if (isOrderItemsUnavailable(e)) {
@@ -1356,15 +1241,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         stackTrace: st,
         withScope: (scope) => scope.setContexts('checkout', {
           'orderId': checkout.id,
-          'paymentMethod': _selectedPaymentMethod,
+          'paymentMethod': choice.method,
         }),
       );
       AnalyticsService.trackOrderFailed(
-        paymentMethod: _selectedPaymentMethod,
+        paymentMethod: choice.method,
         failureKind: 'payment_open_failed',
       );
       if (!context.mounted) return;
-      await _showPaymentRecoveryDialog(context, checkout);
+      await _showPaymentRecoveryDialog(context, checkout, choice);
       return;
     }
 
@@ -1375,12 +1260,12 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     AnalyticsService.trackPaymentStarted(
       paymentId: payment.paymentId,
       orderId: checkout.id,
-      paymentMethod: _selectedPaymentMethod,
+      paymentMethod: choice.method,
       amount: payment.amount > 0 ? payment.amount : checkout.total,
     );
 
     if (!context.mounted) return;
-    await _poursuivreSelonLeRail(context, checkout, payment);
+    await _poursuivreSelonLeRail(context, checkout, payment, choice);
   }
 
   /// Suite du parcours selon le rail d'encaissement **du serveur**.
@@ -1398,6 +1283,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     BuildContext context,
     Checkout checkout,
     PaymentResponse payment,
+    PaymentChoice choice,
   ) async {
     if (payment.isSettled) {
       // Commande intégralement réglée en points de fidélité : rien à payer.
@@ -1409,7 +1295,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       AnalyticsService.trackPaymentSuccess(
         paymentId: payment.paymentId,
         orderId: checkout.id,
-        paymentMethod: _selectedPaymentMethod,
+        paymentMethod: choice.method,
         amount: payment.amount > 0 ? payment.amount : checkout.total,
       );
       ref.read(cartControllerProvider.notifier).clearCartEnArrierePlan();
@@ -1428,7 +1314,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         extra: PaymentPendingArgs(
           orderId: checkout.id,
           amount: payment.amount > 0 ? payment.amount : checkout.total,
-          method: _selectedPaymentMethod,
+          method: choice.method,
         ),
       );
       return;
@@ -1438,10 +1324,15 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     // serveur. Sans destinataire, il n'y a rien à virer : on ne montre pas
     // une consigne « Entrez le numéro ci-dessus » au-dessus d'un vide.
     if ((payment.instructions?.phone ?? '').trim().isEmpty) {
-      await _showPaymentRecoveryDialog(context, checkout);
+      await _showPaymentRecoveryDialog(context, checkout, choice);
       return;
     }
-    await _showPaymentInstructionsDialog(context, checkout, payment);
+    await _showPaymentInstructionsDialog(
+      context,
+      checkout,
+      payment,
+      choice.method,
+    );
   }
 
   /// Deux tentatives : l'appel est **sûr à rejouer**.
@@ -1452,7 +1343,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   /// `DUPLICATE_IGNORED`.
   ///
   /// Aucun montant n'est transmis : il vient de `order.total`, côté serveur.
-  Future<PaymentResponse> _createPaymentWithRetry(Checkout checkout) async {
+  ///
+  /// Numéro normalisé (C-03) : la saisie « 06 123 45 67 » partait brute, et un
+  /// serveur antérieur à la PR backend #146 la refusait en 400 — après la
+  /// création de la commande.
+  Future<PaymentResponse> _createPaymentWithRetry(
+    Checkout checkout,
+    PaymentChoice choice,
+  ) async {
     final paymentService = ref.read(paymentServiceProvider);
     Object? lastError;
 
@@ -1460,8 +1358,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       try {
         return await paymentService.createPayment(
           orderId: checkout.id,
-          phoneNumber: _paymentPhone(),
-          method: _selectedPaymentMethod,
+          phoneNumber: normalizeCongoPhone(choice.phone),
+          method: choice.method,
         );
       } catch (e) {
         lastError = e;
@@ -1475,7 +1373,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         //
         // Aucun risque financier n'était en jeu (le serveur réutilise sa
         // ligne `PENDING`), seulement du temps perdu. Mais deux secondes
-        // pendant lesquelles rien ne bouge, juste après « Valider et payer »,
+        // pendant lesquelles rien ne bouge, juste après le choix du paiement,
         // sont exactement celles où un client tape à nouveau.
         if (attempt == 0 && _rejouable(e)) {
           await Future<void>.delayed(const Duration(seconds: 2));
@@ -1505,19 +1403,6 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     };
   }
 
-  /// Numéro qui paiera.
-  ///
-  /// Distinct du téléphone de contact quand le client en a saisi un : on paie
-  /// souvent depuis un autre appareil que celui qu'on donne au livreur.
-  ///
-  /// Normalisé (C-03) : la saisie « 06 123 45 67 » partait brute, et un
-  /// serveur antérieur à la PR backend #146 la refusait en 400 — après la
-  /// création de la commande.
-  String _paymentPhone() {
-    final momo = _momoPhoneController.text.trim();
-    return normalizeCongoPhone(momo.isNotEmpty ? momo : _phoneController.text);
-  }
-
   /// Écran de reprise : la commande existe, le paiement n'a pas pu être
   /// enregistré. On ne laisse pas le client devant des instructions de paiement
   /// qui ne mènent nulle part.
@@ -1534,6 +1419,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   Future<void> _showPaymentRecoveryDialog(
     BuildContext context,
     Checkout checkout,
+    PaymentChoice choice,
   ) async {
     final cs = Theme.of(context).colorScheme;
 
@@ -1585,17 +1471,26 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
               onPressed: () async {
                 Navigator.of(dialogContext).pop();
                 try {
-                  final payment = await _createPaymentWithRetry(checkout);
+                  // Même opérateur, même numéro : la relance rejoue le choix.
+                  final payment = await _createPaymentWithRetry(
+                    checkout,
+                    choice,
+                  );
                   if (!context.mounted) return;
                   // Même aiguillage que le chemin nominal (C-01).
-                  await _poursuivreSelonLeRail(context, checkout, payment);
+                  await _poursuivreSelonLeRail(
+                    context,
+                    checkout,
+                    payment,
+                    choice,
+                  );
                 } catch (e) {
                   if (!context.mounted) return;
                   if (isOrderItemsUnavailable(e)) {
                     _signalerRupture(context, e);
                     return;
                   }
-                  await _showPaymentRecoveryDialog(context, checkout);
+                  await _showPaymentRecoveryDialog(context, checkout, choice);
                 }
               },
               child: const Text('Réessayer'),
@@ -1612,8 +1507,9 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     BuildContext context,
     Checkout checkout,
     PaymentResponse payment,
+    String method,
   ) async {
-    final isMtn = _selectedPaymentMethod == 'MTN_MOMO';
+    final isMtn = method == 'MTN_MOMO';
     final instructions = payment.instructions;
 
     // Le montant fait autorité côté serveur (`order.total`), pas côté client.

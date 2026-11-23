@@ -19,6 +19,7 @@ export 'package:lilia_app/features/commandes/presentation/status_info.dart'
 import 'package:lilia_app/features/payments/application/payment_status_controller.dart';
 import 'package:lilia_app/features/payments/data/payment_service.dart';
 import 'package:lilia_app/features/payments/domain/payment_failure.dart';
+import 'package:lilia_app/features/payments/presentation/payment_choice_sheet.dart';
 import 'package:lilia_app/features/payments/presentation/payment_pending_args.dart';
 import 'package:lilia_app/features/reservations/presentation/reservation_screens.dart';
 import 'package:lilia_app/models/order.dart';
@@ -36,6 +37,8 @@ import '../../../services/analytics_service.dart';
 import '../../../services/notification_router.dart';
 import '../../notifications/application/notification_providers.dart';
 import '../domain/order_status_view.dart';
+import '../domain/payment_operator_label.dart';
+import 'widgets/order_live_refresh.dart';
 
 /// Statuts pour lesquels le reçu PDF est téléchargeable (payée, non annulée).
 const _receiptStatuses = <OrderStatus>{
@@ -52,6 +55,21 @@ class OrderDetailPage extends ConsumerWidget {
   final String orderId;
 
   const OrderDetailPage({super.key, required this.orderId});
+
+  /// Opérateur affiché au récapitulatif : celui de la dernière tentative.
+  ///
+  /// Sans tentative lisible, une commande à payer dit que le choix reste à
+  /// faire ; une commande déjà payée retombe sur `order.paymentMethod` — les
+  /// commandes antérieures au choix différé, ou une lecture échouée.
+  static String _paymentLabel(WidgetRef ref, Order order) {
+    final payment = ref.watch(orderPaymentProvider(order.id));
+    return orderPaymentLabel(
+      attemptKnown: payment.hasValue,
+      attempt: payment.value?.method,
+      paid: _receiptStatuses.contains(order.status),
+      orderMethod: order.paymentMethod,
+    );
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -167,6 +185,11 @@ class OrderDetailPage extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Relit la commande toutes les 20 s tant qu'elle vit, et
+                // relance le suivi (code de remise) à chaque changement de
+                // statut. Invisible.
+                OrderLiveRefresh(orderId: order.id, status: order.status),
+
                 // Section Header avec statut
                 OrderHeaderCard(order: order),
 
@@ -279,7 +302,10 @@ class OrderDetailPage extends ConsumerWidget {
                 const SizedBox(height: 16),
 
                 // Section Sommaire
-                OrderSummaryCard(order: order),
+                OrderSummaryCard(
+                  order: order,
+                  paymentLabel: _paymentLabel(ref, order),
+                ),
 
                 const SizedBox(height: 24),
 
@@ -1193,102 +1219,24 @@ class _PayNowButtonState extends ConsumerState<_PayNowButton> {
     }
   }
 
-  /// Demande le numéro et l'opérateur du paiement.
+  /// Demande le numéro et l'opérateur du paiement — même feuille qu'au
+  /// checkout (`showPaymentChoiceSheet`).
   ///
-  /// Pré-rempli avec l'opérateur choisi à la commande : dans la majorité des
-  /// cas, le client se contente de valider.
-  Future<({String phone, String method})?> _askPaymentPhone() async {
-    final controller = TextEditingController();
-    var method = widget.order.paymentMethod;
-    final formKey = GlobalKey<FormState>();
-
-    // ⚠️ Le contrôleur est créé ici, donc il doit être libéré ici.
-    //
-    // Il ne l'était pas : la feuille pouvait être ouverte, fermée, rouverte à
-    // chaque tentative de paiement, et chaque passage laissait un
-    // `TextEditingController` vivant. Un `ChangeNotifier` non libéré retient
-    // ses auditeurs et son propre état ; la fuite est minuscule, mais elle est
-    // exactement du genre qui se recopie au prochain `showModalBottomSheet`.
-    //
-    // `whenComplete` et non un `dispose()` après l'`await` : la feuille peut
-    // être rejetée par un geste, la `Future` se résout alors par `null` sans
-    // repasser par le chemin nominal.
-    try {
-      return await showModalBottomSheet<({String phone, String method})>(
-        context: context,
-        isScrollControlled: true,
-        builder: (sheetContext) => Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-          ),
-          child: StatefulBuilder(
-            builder: (innerContext, setSheetState) => Form(
-              key: formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    'Payer ${formatPrice(widget.order.total.toDouble())}',
-                    style: Theme.of(innerContext).textTheme.titleLarge,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(value: 'MTN_MOMO', label: Text('MTN MoMo')),
-                      ButtonSegment(
-                        value: 'AIRTEL_MONEY',
-                        label: Text('Airtel Money'),
-                      ),
-                    ],
-                    selected: {method},
-                    onSelectionChanged: (selection) =>
-                        setSheetState(() => method = selection.first),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: controller,
-                    keyboardType: TextInputType.phone,
-                    autofocus: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Numéro Mobile Money',
-                      hintText: '06 123 45 67',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      final input = (value ?? '').trim();
-                      if (input.isEmpty) return 'Numéro requis';
-                      final ok = ref
-                          .read(paymentServiceProvider)
-                          .validatePhoneNumber(input);
-                      return ok ? null : 'Numéro congolais invalide';
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () {
-                      if (formKey.currentState?.validate() ?? false) {
-                        Navigator.of(
-                          sheetContext,
-                        ).pop((phone: controller.text.trim(), method: method));
-                      }
-                    },
-                    child: const Text('Envoyer la demande de paiement'),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    } finally {
-      controller.dispose();
-    }
+  /// L'opérateur pré-sélectionné est celui de la dernière tentative s'il y en
+  /// a une : `Order.paymentMethod` n'est plus qu'une valeur provisoire exigée
+  /// par le contrat du checkout.
+  Future<PaymentChoice?> _askPaymentPhone() {
+    final lastAttempt = ref
+        .read(orderPaymentProvider(widget.order.id))
+        .value
+        ?.method;
+    final paymentService = ref.read(paymentServiceProvider);
+    return showPaymentChoiceSheet(
+      context,
+      amount: widget.order.total,
+      initialMethod: lastAttempt ?? widget.order.paymentMethod,
+      isValidPhone: paymentService.validatePhoneNumber,
+    );
   }
 
   Future<void> _showManualInstructions(PaymentResponse payment) async {

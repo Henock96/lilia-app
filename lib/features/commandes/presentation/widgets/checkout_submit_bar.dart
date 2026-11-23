@@ -3,8 +3,8 @@ import 'package:lilia_app/utils/currency.dart';
 
 /// Barre d'action collante du checkout (P3-15).
 ///
-/// Le bouton « Valider et payer » vivait en fin de défilement, sous le
-/// récapitulatif et le mode de paiement : le client devait descendre tout
+/// Le bouton « Confirmez la commande » vivait en fin de défilement, sous le
+/// récapitulatif : le client devait descendre tout
 /// l'écran pour agir, sans voir le montant qu'il allait valider. La barre reste
 /// au pied de l'écran avec le **même** total que le récapitulatif.
 ///
@@ -137,7 +137,7 @@ class CheckoutSubmitBar extends StatelessWidget {
                           ),
                         )
                       : Text(
-                          'Valider et payer',
+                          'Confirmez la commande',
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: cs.onPrimary,
