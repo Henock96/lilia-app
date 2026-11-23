@@ -131,7 +131,7 @@ void main() {
     expect(resultat, isTrue);
   });
 
-  testWidgets('la réponse de la boutique s’affiche sous l’avis', (
+  testWidgets('la réponse de la boutique s’affiche sous l’avis de son auteur', (
     tester,
   ) async {
     final review = Review.fromJson({
@@ -143,7 +143,7 @@ void main() {
     });
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(body: ReviewCard(review: review)),
+        home: Scaffold(body: ReviewCard(review: review, isOwner: true)),
       ),
     );
     expect(find.byKey(const Key('review-vendor-reply')), findsOneWidget);
@@ -158,7 +158,7 @@ void main() {
     });
     await tester.pumpWidget(
       MaterialApp(
-        home: Scaffold(body: ReviewCard(review: review)),
+        home: Scaffold(body: ReviewCard(review: review, isOwner: true)),
       ),
     );
     expect(find.byKey(const Key('review-vendor-reply')), findsNothing);

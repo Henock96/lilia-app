@@ -103,16 +103,20 @@ class ReviewCard extends StatelessWidget {
             const SizedBox(height: 12),
             // Étoiles
             StarRating(rating: review.rating.toDouble()),
-            // Commentaire
-            if (review.comment != null && review.comment!.isNotEmpty) ...[
+            // Commentaire et réponse de la boutique : à l'auteur seul. Publiés à
+            // d'autres clients, ce serait du contenu d'utilisateur sans
+            // signalement ni blocage (App Review 1.2).
+            if (isOwner &&
+                review.comment != null &&
+                review.comment!.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
                 review.comment!,
                 style: TextStyle(fontSize: 14, color: Colors.grey[800]),
               ),
             ],
-            // Lot B — réponse publique de la boutique.
-            if (review.vendorReply != null) ...[
+            // Lot B — réponse de la boutique.
+            if (isOwner && review.vendorReply != null) ...[
               const SizedBox(height: 10),
               Container(
                 key: const Key('review-vendor-reply'),
