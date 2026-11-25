@@ -9,6 +9,12 @@
      inutilisée. -->
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+<!-- `screenOrientation="portrait"` (activité) rend implicitement l'écran
+     portrait OBLIGATOIRE : Google Play refuse alors l'envoi pour examen et
+     exclut tablettes, Chromebooks et Android XR. L'app reste en portrait ;
+     l'exigence devient facultative. Vérifié par
+     `test/platform/android_hardware_features_test.dart`. -->
+<uses-feature android:name="android.hardware.screen.portrait" android:required="false" />
     <!-- Aucune donnée de l'app ne part en sauvegarde ni en transfert d'appareil
          (SEC-09) : session Firebase, brouillons de commande et historique des
          notifications y partaient. `allowBackup` couvre Android 11 et avant ;
